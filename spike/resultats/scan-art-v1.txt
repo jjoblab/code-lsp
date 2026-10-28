@@ -1,0 +1,29 @@
+=== Analyse statique de compatibilité ART (scanner Kotlin, constant pools .class)
+Environnement : JVM 21.0.12.1, android.jar de référence API 34
+
+--- java-syntax-jvm-0.3.381.jar (268 Ko)
+    classes .class    : 95
+    méthodes déclarées: 777
+    versions de format: JVM 8 ×95
+    références sensibles ART : AUCUNE
+
+--- syntax-api-jvm-0.3.381.jar (332 Ko)
+    classes .class    : 201
+    méthodes déclarées: 1512
+    versions de format: JVM 8 ×201
+    références sensibles ART : AUCUNE
+
+--- lang-syntax-jvm-0.3.381.jar (7 Ko)
+    classes .class    : 3
+    méthodes déclarées: 71
+    versions de format: JVM 17 ×3
+    références sensibles ART : AUCUNE
+
+--- ij-multiplatform-util-jvm-0.3.381.jar (170 Ko)
+    classes .class    : 112
+    méthodes déclarées: 605
+    versions de format: JVM 8 ×112
+    références sensibles ART : AUCUNE
+
+=== TOTAL pile : 411 classes, 2965 méthodes déclarées
+=== TOTAL motifs sensibles distincts : 0 (classes 0, méthodes 0)

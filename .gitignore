@@ -1,0 +1,9 @@
+# Sorties de compilation des bancs (régénérables — cf. spike/README.md)
+spike/build/
+spike/build-v2/
+spike/build-v3/
+spike/build-scan/
+spike/build-sonde/
+# Jarres mesurées : jamais commitées (R6.4, docs/PROVENANCE-REPRISE.md)
+*.jar
+*.zip

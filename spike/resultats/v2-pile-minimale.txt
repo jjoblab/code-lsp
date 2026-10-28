@@ -1,0 +1,18 @@
+# Variante : pile V2 MINIMALE (sans java-impl.jar 22,8 Mo ni java-analysis-impl.jar 15,1 Mo —
+# vérifié : parse + findClass + resolve() fonctionnent sans ces deux jars)
+WARN: Attempt to load key 'psi.sleep.in.validity.check' for not yet loaded registry
+WARN: Attempt to load key 'psi.incremental.reparse.depth.limit' for not yet loaded registry
+banc V2 — pile headless IntelliJ 232.4652 (artefacts publiés)
+taxe d'assemblage    : 2 EP application + 1 EP projet enregistrés à la main (psiAugmentProvider, javaModuleSystem, java.elementFinder)
+fichier             : corpus/Fichier500.java (498 lignes)
+jar classpath       : guava-32.0.1-jre.jar (2 Mo)
+env app froid       : 200.46453 ms (JavaCoreApplicationEnvironment)
+env projet froid    : 47.956029 ms (JavaCoreProjectEnvironment)
+parse PSI p50       : 4.75 ms
+parse PSI p95       : 27.113 ms
+parse PSI min/max   : 4.271 / 46.958 ms
+première classe     : Fichier500 (26 méthodes)
+findClass froid     : 96.224547 ms (com.google.common.collect.ImmutableList → true)
+findClass p50/p95   : 0.0 / 0.023 ms
+resolve() ref p50/p95: 0.622 / 39.113 ms
+tas (env + parse)   : 6 Mo

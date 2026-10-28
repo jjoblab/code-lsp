@@ -1,0 +1,17 @@
+=== Analyse statique de compatibilité ART (scanner Kotlin, constant pools .class)
+Environnement : JVM 21.0.12.1, android.jar de référence API 34
+
+--- ecj-3.40.0.jar (3234 Ko)
+    classes .class    : 801
+    méthodes déclarées: 11990
+    versions de format: JVM 17 ×801
+    RÉFÉRENCES SENSIBLES ART :
+      - java/lang/invoke/MethodHandles$Lookup (196x) → MethodHandles — présent sur ART (API 26+), usages Lookup à vérifier
+      - java/lang/invoke/MethodHandles (196x) → MethodHandles — présent sur ART (API 26+), usages Lookup à vérifier
+      - java/util/ServiceLoader (2x) → ServiceLoader — présent sur ART, packaging META-INF/services à vérifier
+      - java/lang/Runtime$Version (1x) → java.lang.Runtime.Version — ABSENT d'ART (shim du patcheur ecj-art)
+      - java/io/InputStream.readAllBytes (3x) → InputStream.readAllBytes — API 33+ (minSdk 26 ⇒ shim)
+      - java/io/InputStream.readNBytes (1x) → InputStream.readNBytes — API 33+ (minSdk 26 ⇒ shim)
+
+=== TOTAL pile : 801 classes, 11990 méthodes déclarées
+=== TOTAL motifs sensibles distincts : 6 (classes 4, méthodes 2)

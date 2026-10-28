@@ -1,0 +1,53 @@
+=== Fichier500.java (synthétique, 498 lignes)
+banc V3 — référence ecj 3.40.0 (moteur du statu quo, sans patch ART)
+fichier             : corpus/Fichier500.java (498 lignes)
+jar classpath       : guava-32.0.1-jre.jar (2 Mo)
+ démarrage à froid  : 238.389263 ms (premier diet parse, classes chargées)
+types parsés (diet) : 1
+ iterations         : 200 (échauffement 50+50)
+ parse diet p50     : 0.315 ms
+ parse diet p95     : 1.054 ms
+ parse complet p50  : 0.923 ms
+ parse complet p95  : 1.992 ms
+ compile Essai froid: 396.179486 ms (1 unité(s), 0 erreur(s))
+ compile Essai p50/p95: 6.665 / 35.128 ms
+  (compile = parse + résolution + codegen mémoire, classpath neuf à chaque essai)
+ compile Essai env réutilisé p50/p95: 5.673 / 30.24 ms
+  (même FileSystem réutilisé — état stable type moteur en cache)
+ tas utilisé au repos: 6 Mo
+
+=== PsiMethodReferenceExpressionImpl.java (494 lignes)
+banc V3 — référence ecj 3.40.0 (moteur du statu quo, sans patch ART)
+fichier             : /home/z/my-project/work/intellij-community/java/java-psi-impl/src/com/intellij/psi/impl/source/tree/java/PsiMethodReferenceExpressionImpl.java (494 lignes)
+jar classpath       : guava-32.0.1-jre.jar (2 Mo)
+ démarrage à froid  : 313.023075 ms (premier diet parse, classes chargées)
+types parsés (diet) : 1
+ iterations         : 200 (échauffement 50+50)
+ parse diet p50     : 0.514 ms
+ parse diet p95     : 1.186 ms
+ parse complet p50  : 0.638 ms
+ parse complet p95  : 2.396 ms
+ compile Essai froid: 378.784815 ms (1 unité(s), 0 erreur(s))
+ compile Essai p50/p95: 10.851 / 45.337 ms
+  (compile = parse + résolution + codegen mémoire, classpath neuf à chaque essai)
+ compile Essai env réutilisé p50/p95: 3.663 / 31.167 ms
+  (même FileSystem réutilisé — état stable type moteur en cache)
+ tas utilisé au repos: 6 Mo
+
+=== FileUtil.java (1564 lignes)
+banc V3 — référence ecj 3.40.0 (moteur du statu quo, sans patch ART)
+fichier             : /home/z/my-project/work/intellij-community/platform/util/src/com/intellij/openapi/util/io/FileUtil.java (1564 lignes)
+jar classpath       : guava-32.0.1-jre.jar (2 Mo)
+ démarrage à froid  : 310.083822 ms (premier diet parse, classes chargées)
+types parsés (diet) : 1
+ iterations         : 200 (échauffement 50+50)
+ parse diet p50     : 1.29 ms
+ parse diet p95     : 2.121 ms
+ parse complet p50  : 1.517 ms
+ parse complet p95  : 9.063 ms
+ compile Essai froid: 329.134515 ms (1 unité(s), 0 erreur(s))
+ compile Essai p50/p95: 10.11 / 36.507 ms
+  (compile = parse + résolution + codegen mémoire, classpath neuf à chaque essai)
+ compile Essai env réutilisé p50/p95: 5.417 / 27.544 ms
+  (même FileSystem réutilisé — état stable type moteur en cache)
+ tas utilisé au repos: 6 Mo

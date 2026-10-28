@@ -1,0 +1,29 @@
+=== PsiMethodReferenceExpressionImpl.java
+fichier            : /home/z/my-project/work/intellij-community/java/java-psi-impl/src/com/intellij/psi/impl/source/tree/java/PsiMethodReferenceExpressionImpl.java
+lignes / caractères: 494 / 18701
+jetons             : 4264
+marqueurs d'arbre  : 2600 (dont collapses 38)
+ démarrage à froid : 121.905748 ms (premier parse, classes chargées)
+ iterations         : 200 (échauffement 50)
+ parse p50          : 0.616 ms
+ parse p95          : 4.805 ms
+ parse min          : 0.468 ms
+ parse max          : 31.923 ms
+ parse moyen        : 1.405 ms
+ arbre retenu (≈)   : 108 Ko par arbre (delta de tas, 100 arbres retenus après double GC)
+ tas utilisé au repos: 12 Mo
+
+=== FileUtil.java
+fichier            : /home/z/my-project/work/intellij-community/platform/util/src/com/intellij/openapi/util/io/FileUtil.java
+lignes / caractères: 1564 / 57793
+jetons             : 14513
+marqueurs d'arbre  : 10580 (dont collapses 158)
+ démarrage à froid : 179.147975 ms (premier parse, classes chargées)
+ iterations         : 200 (échauffement 50)
+ parse p50          : 3.986 ms
+ parse p95          : 23.999 ms
+ parse min          : 2.578 ms
+ parse max          : 30.048 ms
+ parse moyen        : 4.881 ms
+ arbre retenu (≈)   : 393 Ko par arbre (delta de tas, 100 arbres retenus après double GC)
+ tas utilisé au repos: 40 Mo

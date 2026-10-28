@@ -1,0 +1,420 @@
+=== Analyse statique de compatibilité ART (scanner Kotlin, constant pools .class)
+Environnement : JVM 21.0.12.1, android.jar de référence API 34
+
+--- core.jar (3484 Ko)
+    classes .class    : 1212
+    méthodes déclarées: 7342
+    versions de format: JVM 8 ×1212
+    RÉFÉRENCES SENSIBLES ART :
+      - java/lang/invoke/MethodHandles (88x) → MethodHandles — présent sur ART (API 26+), usages Lookup à vérifier
+      - java/lang/invoke/MethodHandles$Lookup (88x) → MethodHandles — présent sur ART (API 26+), usages Lookup à vérifier
+      - javax/swing/Icon (1x) → javax.swing — ABSENT d'ART (shim requis)
+      - javax/swing/SwingUtilities (1x) → javax.swing — ABSENT d'ART (shim requis)
+      - javax/swing/JComponent (3x) → javax.swing — ABSENT d'ART (shim requis)
+      - java/awt/Color (3x) → java.awt — ABSENT d'ART (shim requis)
+      - java/awt/Font (1x) → java.awt — ABSENT d'ART (shim requis)
+
+--- util.jar (5800 Ko)
+    classes .class    : 1408
+    méthodes déclarées: 11638
+    versions de format: JVM 8 ×1408
+    RÉFÉRENCES SENSIBLES ART :
+      - java/lang/invoke/MethodHandles$Lookup (173x) → MethodHandles — présent sur ART (API 26+), usages Lookup à vérifier
+      - java/lang/invoke/MethodHandles (173x) → MethodHandles — présent sur ART (API 26+), usages Lookup à vérifier
+      - com/sun/jna/Native (9x) → com.sun.* — partiellement absent
+      - java/awt/Rectangle (3x) → java.awt — ABSENT d'ART (shim requis)
+      - java/awt/Color (3x) → java.awt — ABSENT d'ART (shim requis)
+      - javax/swing/Icon (10x) → javax.swing — ABSENT d'ART (shim requis)
+      - java/lang/management/ManagementFactory (3x) → java.lang.management — ABSENT d'ART
+      - javax/management/ObjectName (1x) → javax.management — ABSENT d'ART
+      - javax/management/MBeanServer (1x) → javax.management — ABSENT d'ART
+      - javax/swing/SwingUtilities (2x) → javax.swing — ABSENT d'ART (shim requis)
+      - com/sun/jna/Library (5x) → com.sun.* — partiellement absent
+      - com/sun/jna/platform/win32/Kernel32 (4x) → com.sun.* — partiellement absent
+      - com/sun/jna/platform/win32/WinNT$HANDLE (3x) → com.sun.* — partiellement absent
+      - com/sun/jna/Pointer (3x) → com.sun.* — partiellement absent
+      - com/sun/jna/platform/win32/WinNT (4x) → com.sun.* — partiellement absent
+      - com/sun/jna/TypeMapper (1x) → com.sun.* — partiellement absent
+      - com/sun/jna/platform/FileUtils (1x) → com.sun.* — partiellement absent
+      - java/awt/Point (1x) → java.awt — ABSENT d'ART (shim requis)
+      - java/awt/Dimension (1x) → java.awt — ABSENT d'ART (shim requis)
+      - java/lang/management/MemoryPoolMXBean (1x) → java.lang.management — ABSENT d'ART
+      - java/lang/management/MemoryType (1x) → java.lang.management — ABSENT d'ART
+      - java/lang/management/MemoryUsage (1x) → java.lang.management — ABSENT d'ART
+      - javax/management/NotificationEmitter (2x) → javax.management — ABSENT d'ART
+      - java/lang/management/MemoryNotificationInfo (1x) → java.lang.management — ABSENT d'ART
+      - javax/management/Notification (1x) → javax.management — ABSENT d'ART
+      - javax/management/NotificationListener (1x) → javax.management — ABSENT d'ART
+      - com/sun/jna/platform/win32/WinReg (1x) → com.sun.* — partiellement absent
+      - com/sun/jna/platform/win32/Advapi32Util (1x) → com.sun.* — partiellement absent
+      - com/sun/jna/platform/win32/Win32Exception (1x) → com.sun.* — partiellement absent
+      - com/sun/jna/platform/win32/WinReg$HKEY (1x) → com.sun.* — partiellement absent
+      - java/util/ServiceLoader (2x) → ServiceLoader — présent sur ART, packaging META-INF/services à vérifier
+      - java/nio/MappedByteBuffer (1x) → MappedByteBuffer — présent mais map() limité sur ART
+      - com/sun/jna/ptr/IntByReference (1x) → com.sun.* — partiellement absent
+      - com/sun/jna/platform/unix/LibCAPI$size_t$ByReference (1x) → com.sun.* — partiellement absent
+      - com/sun/jna/platform/mac/SystemB (1x) → com.sun.* — partiellement absent
+      - com/sun/jna/platform/unix/LibCAPI$size_t (1x) → com.sun.* — partiellement absent
+      - com/sun/jna/platform/win32/WinBase$SYSTEM_INFO (1x) → com.sun.* — partiellement absent
+      - com/sun/jna/platform/win32/WinBase$SYSTEM_INFO$UNION (1x) → com.sun.* — partiellement absent
+      - com/sun/jna/platform/win32/WinDef$DWORD (1x) → com.sun.* — partiellement absent
+      - com/sun/jna/platform/win32/WinDef$WORD (1x) → com.sun.* — partiellement absent
+      - com/sun/jna/platform/unix/LibCAPI (1x) → com.sun.* — partiellement absent
+      - com/sun/jna/platform/win32/WinBase (3x) → com.sun.* — partiellement absent
+      - com/sun/jna/platform/win32/WinDef (1x) → com.sun.* — partiellement absent
+      - com/sun/jna/Structure (3x) → com.sun.* — partiellement absent
+      - com/sun/jna/Structure$ByValue (1x) → com.sun.* — partiellement absent
+      - com/sun/jna/Structure$FieldOrder (3x) → com.sun.* — partiellement absent
+      - com/sun/jna/win32/StdCallLibrary (2x) → com.sun.* — partiellement absent
+      - java/awt/EventQueue (3x) → java.awt — ABSENT d'ART (shim requis)
+      - java/awt/Toolkit (1x) → java.awt — ABSENT d'ART (shim requis)
+      - java/awt/AWTEvent (1x) → java.awt — ABSENT d'ART (shim requis)
+      - java/awt/event/InvocationEvent (1x) → java.awt — ABSENT d'ART (shim requis)
+      - com/sun/jna/platform/mac/CoreFoundation$CFStringRef (2x) → com.sun.* — partiellement absent
+      - com/sun/jna/platform/mac/CoreFoundation (2x) → com.sun.* — partiellement absent
+      - com/sun/jna/platform/mac/CoreFoundation$CFAllocatorRef (2x) → com.sun.* — partiellement absent
+      - com/sun/jna/platform/mac/CoreFoundation$CFTypeRef (2x) → com.sun.* — partiellement absent
+      - com/sun/jna/platform/mac/CoreFoundation$CFIndex (2x) → com.sun.* — partiellement absent
+      - com/sun/jna/Platform (1x) → com.sun.* — partiellement absent
+      - com/sun/jna/NativeLibrary (1x) → com.sun.* — partiellement absent
+      - com/sun/jna/Memory (2x) → com.sun.* — partiellement absent
+      - com/sun/jna/Structure$ByReference (2x) → com.sun.* — partiellement absent
+      - com/sun/jna/win32/W32APIOptions (1x) → com.sun.* — partiellement absent
+      - com/sun/jna/ptr/PointerByReference (1x) → com.sun.* — partiellement absent
+      - com/sun/jna/platform/mac/CoreFoundation$CFBooleanRef (1x) → com.sun.* — partiellement absent
+      - com/sun/jna/ptr/LongByReference (1x) → com.sun.* — partiellement absent
+      - com/sun/jna/platform/win32/WinBase$SECURITY_ATTRIBUTES (1x) → com.sun.* — partiellement absent
+      - javax/swing/text/html/HTMLEditorKit$ParserCallback (1x) → javax.swing — ABSENT d'ART (shim requis)
+      - javax/swing/text/html/parser/ParserDelegator (1x) → javax.swing — ABSENT d'ART (shim requis)
+      - javax/swing/text/html/HTML$Tag (1x) → javax.swing — ABSENT d'ART (shim requis)
+      - javax/swing/text/html/HTMLEditorKit (1x) → javax.swing — ABSENT d'ART (shim requis)
+      - javax/swing/text/html/HTML (1x) → javax.swing — ABSENT d'ART (shim requis)
+
+--- util-base-232.4652.jar (723 Ko)
+    classes .class    : 181
+    méthodes déclarées: 1522
+    versions de format: JVM 8 ×181
+    RÉFÉRENCES SENSIBLES ART :
+      - java/lang/invoke/MethodHandles$Lookup (9x) → MethodHandles — présent sur ART (API 26+), usages Lookup à vérifier
+      - java/lang/invoke/MethodHandles (9x) → MethodHandles — présent sur ART (API 26+), usages Lookup à vérifier
+      - java/lang/management/ThreadInfo (1x) → java.lang.management — ABSENT d'ART
+      - java/lang/management/ManagementFactory (1x) → java.lang.management — ABSENT d'ART
+      - java/lang/management/ThreadMXBean (1x) → java.lang.management — ABSENT d'ART
+
+--- util-rt-232.4652.jar (289 Ko)
+    classes .class    : 94
+    méthodes déclarées: 647
+    versions de format: JVM 7 ×94
+    références sensibles ART : AUCUNE
+
+--- util-class-loader-232.4652.jar (163 Ko)
+    classes .class    : 37
+    méthodes déclarées: 287
+    versions de format: JVM 8 ×37
+    RÉFÉRENCES SENSIBLES ART :
+      - java/lang/invoke/MethodHandles$Lookup (4x) → MethodHandles — présent sur ART (API 26+), usages Lookup à vérifier
+      - java/lang/invoke/MethodHandles (4x) → MethodHandles — présent sur ART (API 26+), usages Lookup à vérifier
+
+--- util-jdom-232.4652.jar (427 Ko)
+    classes .class    : 129
+    méthodes déclarées: 1335
+    versions de format: JVM 8 ×129
+    RÉFÉRENCES SENSIBLES ART :
+      - java/lang/invoke/MethodHandles$Lookup (3x) → MethodHandles — présent sur ART (API 26+), usages Lookup à vérifier
+      - java/lang/invoke/MethodHandles (3x) → MethodHandles — présent sur ART (API 26+), usages Lookup à vérifier
+
+--- util-xml-dom-232.4652.jar (27 Ko)
+    classes .class    : 7
+    méthodes déclarées: 40
+    versions de format: JVM 8 ×7
+    références sensibles ART : AUCUNE
+
+--- extensions.jar (340 Ko)
+    classes .class    : 81
+    méthodes déclarées: 574
+    versions de format: JVM 8 ×81
+    RÉFÉRENCES SENSIBLES ART :
+      - java/lang/invoke/MethodHandles$Lookup (7x) → MethodHandles — présent sur ART (API 26+), usages Lookup à vérifier
+      - java/lang/invoke/MethodHandles (7x) → MethodHandles — présent sur ART (API 26+), usages Lookup à vérifier
+
+--- core-impl-232.4652.jar (4696 Ko)
+    classes .class    : 917
+    méthodes déclarées: 8418
+    versions de format: JVM 8 ×917
+    RÉFÉRENCES SENSIBLES ART :
+      - java/lang/invoke/MethodHandles$Lookup (115x) → MethodHandles — présent sur ART (API 26+), usages Lookup à vérifier
+      - java/lang/invoke/MethodHandles (115x) → MethodHandles — présent sur ART (API 26+), usages Lookup à vérifier
+      - javax/swing/SwingUtilities (6x) → javax.swing — ABSENT d'ART (shim requis)
+      - java/awt/GraphicsEnvironment (1x) → java.awt — ABSENT d'ART (shim requis)
+      - javax/swing/JOptionPane (1x) → javax.swing — ABSENT d'ART (shim requis)
+      - javax/swing/Icon (2x) → javax.swing — ABSENT d'ART (shim requis)
+      - java/awt/event/InvocationEvent (1x) → java.awt — ABSENT d'ART (shim requis)
+      - javax/swing/RepaintManager (1x) → javax.swing — ABSENT d'ART (shim requis)
+      - java/awt/Dialog (2x) → java.awt — ABSENT d'ART (shim requis)
+      - java/awt/Window (1x) → java.awt — ABSENT d'ART (shim requis)
+      - java/awt/Component (1x) → java.awt — ABSENT d'ART (shim requis)
+      - javax/swing/JFrame (1x) → javax.swing — ABSENT d'ART (shim requis)
+
+--- java.jar (715 Ko)
+    classes .class    : 150
+    méthodes déclarées: 1019
+    versions de format: JVM 17 ×150
+    RÉFÉRENCES SENSIBLES ART :
+      - javax/swing/Icon (2x) → javax.swing — ABSENT d'ART (shim requis)
+      - javax/swing/table/DefaultTableModel (3x) → javax.swing — ABSENT d'ART (shim requis)
+      - javax/swing/table/TableCellRenderer (2x) → javax.swing — ABSENT d'ART (shim requis)
+      - javax/swing/JComponent (1x) → javax.swing — ABSENT d'ART (shim requis)
+      - javax/swing/JTable (3x) → javax.swing — ABSENT d'ART (shim requis)
+      - java/awt/Component (3x) → java.awt — ABSENT d'ART (shim requis)
+      - java/awt/event/ActionListener (3x) → java.awt — ABSENT d'ART (shim requis)
+      - javax/swing/table/DefaultTableColumnModel (1x) → javax.swing — ABSENT d'ART (shim requis)
+      - javax/swing/table/TableColumn (2x) → javax.swing — ABSENT d'ART (shim requis)
+      - javax/swing/table/TableRowSorter (1x) → javax.swing — ABSENT d'ART (shim requis)
+      - javax/swing/RowSorter$SortKey (1x) → javax.swing — ABSENT d'ART (shim requis)
+      - javax/swing/SortOrder (1x) → javax.swing — ABSENT d'ART (shim requis)
+      - javax/swing/table/JTableHeader (1x) → javax.swing — ABSENT d'ART (shim requis)
+      - javax/swing/ListSelectionModel (2x) → javax.swing — ABSENT d'ART (shim requis)
+      - javax/swing/JPanel (3x) → javax.swing — ABSENT d'ART (shim requis)
+      - java/awt/Dimension (2x) → java.awt — ABSENT d'ART (shim requis)
+      - java/awt/GridBagLayout (2x) → java.awt — ABSENT d'ART (shim requis)
+      - java/awt/GridBagConstraints (2x) → java.awt — ABSENT d'ART (shim requis)
+      - javax/swing/JLabel (3x) → javax.swing — ABSENT d'ART (shim requis)
+      - java/awt/Insets (2x) → java.awt — ABSENT d'ART (shim requis)
+      - javax/swing/JComboBox (1x) → javax.swing — ABSENT d'ART (shim requis)
+      - javax/swing/RowSorter (1x) → javax.swing — ABSENT d'ART (shim requis)
+      - java/lang/invoke/MethodHandles$Lookup (20x) → MethodHandles — présent sur ART (API 26+), usages Lookup à vérifier
+      - java/lang/invoke/MethodHandles (20x) → MethodHandles — présent sur ART (API 26+), usages Lookup à vérifier
+      - javax/swing/JButton (1x) → javax.swing — ABSENT d'ART (shim requis)
+      - javax/swing/table/DefaultTableCellRenderer (2x) → javax.swing — ABSENT d'ART (shim requis)
+      - javax/swing/UIManager (1x) → javax.swing — ABSENT d'ART (shim requis)
+      - java/awt/Color (1x) → java.awt — ABSENT d'ART (shim requis)
+      - javax/swing/table/AbstractTableModel (1x) → javax.swing — ABSENT d'ART (shim requis)
+      - java/awt/BorderLayout (1x) → java.awt — ABSENT d'ART (shim requis)
+      - javax/swing/table/TableColumnModel (1x) → javax.swing — ABSENT d'ART (shim requis)
+      - javax/swing/table/TableCellEditor (1x) → javax.swing — ABSENT d'ART (shim requis)
+      - javax/swing/JTextField (1x) → javax.swing — ABSENT d'ART (shim requis)
+
+--- java-psi-232.4652.jar (1784 Ko)
+    classes .class    : 532
+    méthodes déclarées: 3642
+    versions de format: JVM 8 ×532
+    RÉFÉRENCES SENSIBLES ART :
+      - java/lang/invoke/MethodHandles$Lookup (67x) → MethodHandles — présent sur ART (API 26+), usages Lookup à vérifier
+      - java/lang/invoke/MethodHandles (67x) → MethodHandles — présent sur ART (API 26+), usages Lookup à vérifier
+      - javax/swing/Icon (1x) → javax.swing — ABSENT d'ART (shim requis)
+
+--- java-psi-impl.jar (5666 Ko)
+    classes .class    : 901
+    méthodes déclarées: 9638
+    versions de format: JVM 8 ×901
+    RÉFÉRENCES SENSIBLES ART :
+      - java/lang/invoke/MethodHandles$Lookup (156x) → MethodHandles — présent sur ART (API 26+), usages Lookup à vérifier
+      - java/lang/invoke/MethodHandles (156x) → MethodHandles — présent sur ART (API 26+), usages Lookup à vérifier
+      - javax/swing/Icon (4x) → javax.swing — ABSENT d'ART (shim requis)
+
+--- java-analysis-impl.jar (14729 Ko)
+    classes .class    : 2642
+    méthodes déclarées: 18695
+    versions de format: JVM 17 ×2642
+    RÉFÉRENCES SENSIBLES ART :
+      - java/lang/invoke/MethodHandles$Lookup (643x) → MethodHandles — présent sur ART (API 26+), usages Lookup à vérifier
+      - java/lang/invoke/MethodHandles (643x) → MethodHandles — présent sur ART (API 26+), usages Lookup à vérifier
+      - javax/swing/JFormattedTextField (2x) → javax.swing — ABSENT d'ART (shim requis)
+      - javax/swing/text/Document (1x) → javax.swing — ABSENT d'ART (shim requis)
+      - javax/swing/Icon (4x) → javax.swing — ABSENT d'ART (shim requis)
+      - java/awt/Point (1x) → java.awt — ABSENT d'ART (shim requis)
+      - java/awt/Graphics (1x) → java.awt — ABSENT d'ART (shim requis)
+      - java/awt/FontMetrics (1x) → java.awt — ABSENT d'ART (shim requis)
+      - java/awt/Graphics2D (1x) → java.awt — ABSENT d'ART (shim requis)
+      - java/awt/Font (1x) → java.awt — ABSENT d'ART (shim requis)
+      - java/awt/Color (2x) → java.awt — ABSENT d'ART (shim requis)
+
+--- java-impl.jar (22291 Ko)
+    classes .class    : 3616
+    méthodes déclarées: 25240
+    versions de format: JVM 17 ×3616
+    RÉFÉRENCES SENSIBLES ART :
+      - java/lang/invoke/MethodHandles$Lookup (1007x) → MethodHandles — présent sur ART (API 26+), usages Lookup à vérifier
+      - java/lang/invoke/MethodHandles (1007x) → MethodHandles — présent sur ART (API 26+), usages Lookup à vérifier
+      - javax/swing/AbstractAction (10x) → javax.swing — ABSENT d'ART (shim requis)
+      - javax/swing/Action (12x) → javax.swing — ABSENT d'ART (shim requis)
+      - javax/swing/JPanel (53x) → javax.swing — ABSENT d'ART (shim requis)
+      - javax/swing/JLabel (23x) → javax.swing — ABSENT d'ART (shim requis)
+      - java/awt/BorderLayout (32x) → java.awt — ABSENT d'ART (shim requis)
+      - javax/swing/Icon (33x) → javax.swing — ABSENT d'ART (shim requis)
+      - java/awt/datatransfer/DataFlavor (4x) → java.awt — ABSENT d'ART (shim requis)
+      - java/awt/Component (18x) → java.awt — ABSENT d'ART (shim requis)
+      - java/awt/Image (1x) → java.awt — ABSENT d'ART (shim requis)
+      - java/awt/Toolkit (2x) → java.awt — ABSENT d'ART (shim requis)
+      - java/awt/MediaTracker (1x) → java.awt — ABSENT d'ART (shim requis)
+      - javax/swing/JTextField (19x) → javax.swing — ABSENT d'ART (shim requis)
+      - javax/swing/text/Document (5x) → javax.swing — ABSENT d'ART (shim requis)
+      - javax/swing/SwingConstants (2x) → javax.swing — ABSENT d'ART (shim requis)
+      - javax/swing/JCheckBox (41x) → javax.swing — ABSENT d'ART (shim requis)
+      - javax/swing/AbstractButton (6x) → javax.swing — ABSENT d'ART (shim requis)
+      - javax/swing/DefaultListCellRenderer (3x) → javax.swing — ABSENT d'ART (shim requis)
+      - javax/swing/BoxLayout (8x) → javax.swing — ABSENT d'ART (shim requis)
+      - java/awt/Container (7x) → java.awt — ABSENT d'ART (shim requis)
+      - java/awt/event/ActionListener (30x) → java.awt — ABSENT d'ART (shim requis)
+      - javax/swing/ListModel (1x) → javax.swing — ABSENT d'ART (shim requis)
+      - javax/swing/event/ListSelectionListener (1x) → javax.swing — ABSENT d'ART (shim requis)
+      - java/awt/datatransfer/StringSelection (2x) → java.awt — ABSENT d'ART (shim requis)
+      - javax/swing/JList (7x) → javax.swing — ABSENT d'ART (shim requis)
+      - javax/swing/DefaultListModel (5x) → javax.swing — ABSENT d'ART (shim requis)
+      - javax/swing/ListSelectionModel (17x) → javax.swing — ABSENT d'ART (shim requis)
+      - java/awt/Color (8x) → java.awt — ABSENT d'ART (shim requis)
+      - javax/swing/JComponent (24x) → javax.swing — ABSENT d'ART (shim requis)
+      - java/awt/event/ActionEvent (5x) → java.awt — ABSENT d'ART (shim requis)
+      - javax/swing/JComboBox (11x) → javax.swing — ABSENT d'ART (shim requis)
+      - javax/swing/JRootPane (2x) → javax.swing — ABSENT d'ART (shim requis)
+      - java/awt/Insets (8x) → java.awt — ABSENT d'ART (shim requis)
+      - javax/swing/BorderFactory (8x) → javax.swing — ABSENT d'ART (shim requis)
+      - java/awt/GridBagConstraints (9x) → java.awt — ABSENT d'ART (shim requis)
+      - javax/swing/JScrollPane (4x) → javax.swing — ABSENT d'ART (shim requis)
+      - javax/swing/text/JTextComponent (1x) → javax.swing — ABSENT d'ART (shim requis)
+      - java/awt/Dimension (8x) → java.awt — ABSENT d'ART (shim requis)
+      - java/awt/GridBagLayout (9x) → java.awt — ABSENT d'ART (shim requis)
+      - javax/swing/table/AbstractTableModel (8x) → javax.swing — ABSENT d'ART (shim requis)
+      - javax/swing/event/CellEditorListener (1x) → javax.swing — ABSENT d'ART (shim requis)
+      - javax/swing/DefaultCellEditor (4x) → javax.swing — ABSENT d'ART (shim requis)
+      - javax/swing/table/TableCellEditor (3x) → javax.swing — ABSENT d'ART (shim requis)
+      - javax/swing/table/TableColumnModel (4x) → javax.swing — ABSENT d'ART (shim requis)
+      - javax/swing/table/TableColumn (4x) → javax.swing — ABSENT d'ART (shim requis)
+      - javax/swing/table/JTableHeader (2x) → javax.swing — ABSENT d'ART (shim requis)
+      - java/awt/FontMetrics (5x) → java.awt — ABSENT d'ART (shim requis)
+      - javax/swing/table/TableModel (7x) → javax.swing — ABSENT d'ART (shim requis)
+      - javax/swing/ButtonModel (2x) → javax.swing — ABSENT d'ART (shim requis)
+      - javax/swing/event/ChangeListener (1x) → javax.swing — ABSENT d'ART (shim requis)
+      - java/awt/datatransfer/Transferable (1x) → java.awt — ABSENT d'ART (shim requis)
+      - java/awt/datatransfer/UnsupportedFlavorException (1x) → java.awt — ABSENT d'ART (shim requis)
+      - javax/swing/event/HyperlinkEvent (3x) → javax.swing — ABSENT d'ART (shim requis)
+      - javax/swing/event/HyperlinkEvent$EventType (2x) → javax.swing — ABSENT d'ART (shim requis)
+      - javax/swing/JButton (5x) → javax.swing — ABSENT d'ART (shim requis)
+      - javax/swing/DefaultComboBoxModel (7x) → javax.swing — ABSENT d'ART (shim requis)
+      - java/awt/event/KeyEvent (8x) → java.awt — ABSENT d'ART (shim requis)
+      - java/awt/event/InputEvent (6x) → java.awt — ABSENT d'ART (shim requis)
+      - javax/swing/KeyStroke (7x) → javax.swing — ABSENT d'ART (shim requis)
+      - javax/swing/InputMap (2x) → javax.swing — ABSENT d'ART (shim requis)
+      - javax/swing/ActionMap (2x) → javax.swing — ABSENT d'ART (shim requis)
+      - javax/swing/JTree (2x) → javax.swing — ABSENT d'ART (shim requis)
+      - javax/swing/ButtonGroup (6x) → javax.swing — ABSENT d'ART (shim requis)
+      - javax/swing/ListCellRenderer (7x) → javax.swing — ABSENT d'ART (shim requis)
+      - java/awt/event/MouseEvent (5x) → java.awt — ABSENT d'ART (shim requis)
+      - javax/swing/text/html/HTMLDocument (1x) → javax.swing — ABSENT d'ART (shim requis)
+      - javax/swing/text/Element (1x) → javax.swing — ABSENT d'ART (shim requis)
+      - javax/swing/text/html/HTML$Tag (1x) → javax.swing — ABSENT d'ART (shim requis)
+      - javax/swing/text/AttributeSet (1x) → javax.swing — ABSENT d'ART (shim requis)
+      - javax/swing/text/SimpleAttributeSet (1x) → javax.swing — ABSENT d'ART (shim requis)
+      - javax/swing/text/html/HTML (1x) → javax.swing — ABSENT d'ART (shim requis)
+      - javax/swing/text/html/HTMLEditorKit (1x) → javax.swing — ABSENT d'ART (shim requis)
+      - javax/swing/text/html/StyleSheet (1x) → javax.swing — ABSENT d'ART (shim requis)
+      - java/awt/Font (7x) → java.awt — ABSENT d'ART (shim requis)
+      - javax/swing/table/DefaultTableCellRenderer (3x) → javax.swing — ABSENT d'ART (shim requis)
+      - javax/swing/SwingUtilities (8x) → javax.swing — ABSENT d'ART (shim requis)
+      - javax/swing/event/ListDataListener (1x) → javax.swing — ABSENT d'ART (shim requis)
+      - javax/swing/JRadioButton (4x) → javax.swing — ABSENT d'ART (shim requis)
+      - javax/swing/tree/TreePath (3x) → javax.swing — ABSENT d'ART (shim requis)
+      - javax/swing/tree/DefaultMutableTreeNode (7x) → javax.swing — ABSENT d'ART (shim requis)
+      - javax/swing/tree/TreeSelectionModel (2x) → javax.swing — ABSENT d'ART (shim requis)
+      - javax/swing/tree/TreeNode (3x) → javax.swing — ABSENT d'ART (shim requis)
+      - javax/swing/tree/TreeModel (1x) → javax.swing — ABSENT d'ART (shim requis)
+      - javax/swing/tree/DefaultTreeCellRenderer (1x) → javax.swing — ABSENT d'ART (shim requis)
+      - javax/swing/event/TreeSelectionListener (1x) → javax.swing — ABSENT d'ART (shim requis)
+      - javax/swing/event/TreeSelectionEvent (1x) → javax.swing — ABSENT d'ART (shim requis)
+      - javax/swing/tree/DefaultTreeModel (1x) → javax.swing — ABSENT d'ART (shim requis)
+      - javax/swing/ImageIcon (1x) → javax.swing — ABSENT d'ART (shim requis)
+      - javax/swing/event/TableModelEvent (2x) → javax.swing — ABSENT d'ART (shim requis)
+      - javax/swing/event/TableModelListener (3x) → javax.swing — ABSENT d'ART (shim requis)
+      - javax/swing/JTable (7x) → javax.swing — ABSENT d'ART (shim requis)
+      - java/awt/Point (1x) → java.awt — ABSENT d'ART (shim requis)
+      - javax/swing/border/LineBorder (1x) → javax.swing — ABSENT d'ART (shim requis)
+      - javax/swing/JTextArea (1x) → javax.swing — ABSENT d'ART (shim requis)
+      - java/awt/event/ItemEvent (2x) → java.awt — ABSENT d'ART (shim requis)
+      - javax/swing/event/ChangeEvent (1x) → javax.swing — ABSENT d'ART (shim requis)
+      - java/awt/event/ItemListener (5x) → java.awt — ABSENT d'ART (shim requis)
+      - javax/swing/event/DocumentListener (1x) → javax.swing — ABSENT d'ART (shim requis)
+      - java/awt/EventQueue (2x) → java.awt — ABSENT d'ART (shim requis)
+      - javax/swing/ComboBoxModel (6x) → javax.swing — ABSENT d'ART (shim requis)
+      - java/awt/Window (1x) → java.awt — ABSENT d'ART (shim requis)
+      - java/awt/event/FocusEvent (2x) → java.awt — ABSENT d'ART (shim requis)
+      - java/awt/event/FocusListener (2x) → java.awt — ABSENT d'ART (shim requis)
+      - javax/swing/Box (1x) → javax.swing — ABSENT d'ART (shim requis)
+
+--- java-indexing-impl.jar (615 Ko)
+    classes .class    : 99
+    méthodes déclarées: 813
+    versions de format: JVM 17 ×99
+    RÉFÉRENCES SENSIBLES ART :
+      - java/lang/invoke/MethodHandles$Lookup (41x) → MethodHandles — présent sur ART (API 26+), usages Lookup à vérifier
+      - java/lang/invoke/MethodHandles (41x) → MethodHandles — présent sur ART (API 26+), usages Lookup à vérifier
+
+--- guava-32.0.1-jre.jar (2966 Ko)
+    classes .class    : 2014
+    méthodes déclarées: 16385
+    versions de format: JVM 8 ×2014
+    RÉFÉRENCES SENSIBLES ART :
+      - java/lang/invoke/MethodHandles$Lookup (126x) → MethodHandles — présent sur ART (API 26+), usages Lookup à vérifier
+      - java/lang/invoke/MethodHandles (126x) → MethodHandles — présent sur ART (API 26+), usages Lookup à vérifier
+      - sun/misc/Unsafe (13x) → sun.misc.Unsafe — restreint/hidden sur ART
+
+--- fastutil.jar (4347 Ko)
+    classes .class    : 2310
+    méthodes déclarées: 38142
+    versions de format: JVM 8 ×2299, JVM 5 ×11
+    RÉFÉRENCES SENSIBLES ART :
+      - java/lang/invoke/MethodHandles$Lookup (367x) → MethodHandles — présent sur ART (API 26+), usages Lookup à vérifier
+      - java/lang/invoke/MethodHandles (367x) → MethodHandles — présent sur ART (API 26+), usages Lookup à vérifier
+
+--- trove4j.jar (559 Ko)
+    classes .class    : 455
+    méthodes déclarées: 4229
+    versions de format: JVM 5 ×455
+    références sensibles ART : AUCUNE
+
+--- streamex-0.8.1.jar (307 Ko)
+    classes .class    : 135
+    méthodes déclarées: 2249
+    versions de format: JVM 9 ×3, JVM 8 ×132
+    RÉFÉRENCES SENSIBLES ART :
+      - java/lang/invoke/MethodHandles$Lookup (43x) → MethodHandles — présent sur ART (API 26+), usages Lookup à vérifier
+      - java/lang/invoke/MethodHandles (43x) → MethodHandles — présent sur ART (API 26+), usages Lookup à vérifier
+
+--- automaton-1.11-8.jar (172 Ko)
+    classes .class    : 25
+    méthodes déclarées: 370
+    versions de format: JVM 5 ×25
+    références sensibles ART : AUCUNE
+
+--- asm-all-9.5.jar (364 Ko)
+    classes .class    : 142
+    méthodes déclarées: 2022
+    versions de format: JVM 5 ×142
+    références sensibles ART : AUCUNE
+
+--- kotlin-stdlib-1.8.20.jar (1631 Ko)
+    classes .class    : 949
+    méthodes déclarées: 9739
+    versions de format: JVM 8 ×948, JVM 9 ×1
+    références sensibles ART : AUCUNE
+
+--- kotlinx-coroutines-core-jvm-1.6.4.jar (1442 Ko)
+    classes .class    : 845
+    méthodes déclarées: 4381
+    versions de format: JVM 8 ×844, JVM 6 ×1
+    RÉFÉRENCES SENSIBLES ART :
+      - java/util/ServiceLoader (3x) → ServiceLoader — présent sur ART, packaging META-INF/services à vérifier
+
+--- kotlinx-coroutines-jdk8-1.6.4.jar (17 Ko)
+    classes .class    : 10
+    méthodes déclarées: 39
+    versions de format: JVM 8 ×10
+    références sensibles ART : AUCUNE
+
+--- annotations-24.0.1.jar (29 Ko)
+    classes .class    : 60
+    méthodes déclarées: 42
+    versions de format: JVM 8 ×59, JVM 9 ×1
+    références sensibles ART : AUCUNE
+
+=== TOTAL pile : 18951 classes, 168448 méthodes déclarées
+=== TOTAL motifs sensibles distincts : 182 (classes 182, méthodes 0)

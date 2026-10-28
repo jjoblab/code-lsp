@@ -1,0 +1,35 @@
+=== PsiMethodReferenceExpressionImpl.java
+WARN: Attempt to load key 'psi.sleep.in.validity.check' for not yet loaded registry
+WARN: Attempt to load key 'psi.incremental.reparse.depth.limit' for not yet loaded registry
+banc V2 — pile headless IntelliJ 232.4652 (artefacts publiés)
+taxe d'assemblage    : 2 EP application + 1 EP projet enregistrés à la main (psiAugmentProvider, javaModuleSystem, java.elementFinder)
+fichier             : /home/z/my-project/work/intellij-community/java/java-psi-impl/src/com/intellij/psi/impl/source/tree/java/PsiMethodReferenceExpressionImpl.java (494 lignes)
+jar classpath       : guava-32.0.1-jre.jar (2 Mo)
+env app froid       : 217.720781 ms (JavaCoreApplicationEnvironment)
+env projet froid    : 70.996637 ms (JavaCoreProjectEnvironment)
+parse PSI p50       : 3.704 ms
+parse PSI p95       : 30.068 ms
+parse PSI min/max   : 2.989 / 38.472 ms
+première classe     : PsiMethodReferenceExpressionImpl (38 méthodes)
+findClass froid     : 147.51168 ms (com.google.common.collect.ImmutableList → true)
+findClass p50/p95   : 0.0 / 0.179 ms
+resolve() ref p50/p95: 1.421 / 46.948 ms
+tas (env + parse)   : 7 Mo
+
+=== FileUtil.java
+WARN: Attempt to load key 'psi.sleep.in.validity.check' for not yet loaded registry
+WARN: Attempt to load key 'psi.incremental.reparse.depth.limit' for not yet loaded registry
+banc V2 — pile headless IntelliJ 232.4652 (artefacts publiés)
+taxe d'assemblage    : 2 EP application + 1 EP projet enregistrés à la main (psiAugmentProvider, javaModuleSystem, java.elementFinder)
+fichier             : /home/z/my-project/work/intellij-community/platform/util/src/com/intellij/openapi/util/io/FileUtil.java (1564 lignes)
+jar classpath       : guava-32.0.1-jre.jar (2 Mo)
+env app froid       : 192.614006 ms (JavaCoreApplicationEnvironment)
+env projet froid    : 40.563951 ms (JavaCoreProjectEnvironment)
+parse PSI p50       : 11.925 ms
+parse PSI p95       : 37.055 ms
+parse PSI min/max   : 9.967 / 40.251 ms
+première classe     : FileUtil (155 méthodes)
+findClass froid     : 118.169886 ms (com.google.common.collect.ImmutableList → true)
+findClass p50/p95   : 0.0 / 0.026 ms
+resolve() ref p50/p95: 0.675 / 61.684 ms
+tas (env + parse)   : 9 Mo

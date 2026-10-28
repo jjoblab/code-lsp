@@ -1,0 +1,14 @@
+=== Fichier500.java (synthétique, 498 lignes)
+fichier            : corpus/Fichier500.java
+lignes / caractères: 498 / 16258
+jetons             : 5653
+marqueurs d'arbre  : 1026 (dont collapses 26)
+ démarrage à froid : 116.430535 ms (premier parse, classes chargées)
+ iterations         : 200 (échauffement 50)
+ parse p50          : 0.653 ms
+ parse p95          : 3.478 ms
+ parse min          : 0.423 ms
+ parse max          : 30.278 ms
+ parse moyen        : 1.224 ms
+ arbre retenu (≈)   : 82 Ko par arbre (delta de tas, 100 arbres retenus après double GC)
+ tas utilisé au repos: 10 Mo
