@@ -40,7 +40,7 @@ Faits structurants :
 
 ## Décision proposée
 
-**Option 1**. Le nouveau dépôt porte le **domaine moteur Java** : `:index` (CIDX), `:model`, `:testing`, le moteur Java (reprise conditionnelle ADR 0001 ou réécriture) et les modules d'étude (`docs/`, `spike/`). L'hôte, les moteurs Kotlin/XML et tout code CodeIDE/code-editor restent dans leurs dépôts (intégration par consommation d'artefats, comme aujourd'hui via GitHub Packages / substitution composite). Condition suspensive : éclaircissement de la licence du protocole tooling (ADR 0001/0017) pour la reprise de `:model`.
+**Option 1**. Le nouveau dépôt porte le **domaine moteur Java** : `:index` (CIDX), `:model`, `:testing`, le moteur Java (voie tranchée le 28/10 : **réécriture intégrale** — ADR 0001 accepté modifié, option 2) et les modules d'étude (`docs/`, `spike/`). L'hôte, les moteurs Kotlin/XML et tout code CodeIDE/code-editor restent dans leurs dépôts (intégration par consommation d'artefats, comme aujourd'hui via GitHub Packages / substitution composite). Condition suspensive : éclaircissement de la licence du protocole tooling (ADR 0001/0017) pour la reprise de `:model`.
 
 ## Conséquences
 

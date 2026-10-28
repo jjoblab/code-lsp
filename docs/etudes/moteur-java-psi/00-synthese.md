@@ -4,6 +4,7 @@
 > Documents de base : `01-architecture-psi.md` (étude D1–D12 + annexes), `02-spike-mesures.md` (mesures V1/V2/V3 + compatibilité ART), `00b-inventaire-reprise.md` + `docs/PROVENANCE-REPRISE.md` (Phase 0), `docs/adr/0001–0018` (décisions proposées).
 > **La mission s'arrête ici** : aucune implémentation n'est démarrée ; tout attend la décision du propriétaire (§8 STOP).
 > **Décision reçue le 2026-10-28 : GO PARTIEL ACCEPTÉ** ( point 1 du §6 tranché par le propriétaire — ADR 0004 → statut Accepté ).
+> **Décision reçue le 2026-10-28 : ADR 0001 ACCEPTÉ MODIFIÉ — option 2, réécriture intégrale du moteur** ( point 2 du §6 ; l'exclusion du vendored devient définitive ; l'ADR 0001 a été réécrit à la décision ).
 
 ## 1. Recommandation unique
 
@@ -34,7 +35,7 @@ Détail complet (mesures brutes, commandes, incertitudes) : `02-spike-mesures.md
 
 | # | Risque | Gravité | Mitigation ( renvoi ) |
 |---|---|---|---|
-| 1 | **Contestation de provenance du moteur repris** ( niveau B ADR 0110 ) | Haute | Décision écrite propriétaire ADR 0001 + attestations datées conservées + registre `PROVENANCE-REPRISE.md` + CI anti-fichier-hors-registre |
+| 1 | **Contestation de provenance du moteur repris** ( niveau B ADR 0110 ) | Haute | **ÉLIMINÉE par construction** — décision ADR 0001 du 28/10 : réécriture intégrale, aucune reprise du vendored ( registre `PROVENANCE-REPRISE.md` + CI anti-fichier-hors-registre ) |
 | 2 | **Chaîne licences incomplète** ( protocole tooling sans LICENSE ; conditions artefacts JetBrains à confirmer ) | Haute | Actions propriétaire tracées ( ADR 0017 ) ; `NOTICE` + registre dès la vague 0 ; réécriture des ~10 types en repli |
 | 3 | **Sous-estimation de l'effort des greffes Kotlin** ( classement, ModCommand, rename v2 ) | Haute | Vagues bornées à une capacité mesurable ; banc ADR 0016 avec baseline signée avant chaque vague ; repli D permanent |
 | 4 | **Régression de qualité perçue pendant la migration** | Haute | Double moteur derrière drapeau ( 2 versions de rodage avant retrait ) ; CI bloquante sur recall/top-1/MRR/fidélité |
@@ -61,6 +62,8 @@ Détail complet (mesures brutes, commandes, incertitudes) : `02-spike-mesures.md
 
 **Total GO PARTIEL ( vagues 0–4 ) : 75–130 j-h** ( estimation à affiner par vague avant lancement ; la vague 5 et 6 s'ajoutent selon conditions/déclencheurs ).
 
+> **Note d'impact de la décision ADR 0001 ( 28/10, option 2 — réécriture intégrale du moteur )** : l'item « reprise du moteur ( manifeste ) » de la vague 1 est remplacé par « cahier de spécifications ( 449 fiches ) + réécriture Kotlin du noyau » ; le total « 75–130 j-h » est **caduc** ( il supposait le moteur vendored repris comme substrat — R5 : pas de chiffre de remplacement sans données ). Les vagues 2–4 restent valables comme **spécification des couches de design du code neuf** ( intégrées en naissance, chiffres à ré-affiner ) ; la ré-estimation d'ensemble sera produite à l'issue de la nouvelle vague 1, cahier en main ( ADR 0001, plan de migration ).
+
 ## 5. Ce qui reste à mesurer sur appareil (rien n'est prétendu sans retour réel)
 
 1. **Latences V1/V2/V3 sur ART** ( parse, résolution, frappe ) — point d'entrée : `spike/appareil/banc-appareil.sh` + gabarit `GABARIT-RESULTATS.md` ; le facteur 3–5× reste une estimation tant que le gabarit n'est pas rempli.
@@ -72,10 +75,10 @@ Détail complet (mesures brutes, commandes, incertitudes) : `02-spike-mesures.md
 
 ## 6. Décision demandée au propriétaire
 
-> **Point 1 tranché le 2026-10-28 : GO PARTIEL (option B)** — consigné dans ADR 0004 (statut Accepté). Les points 2–4 restent ouverts et conditionnent l'amorçage de la vague 0.
+> **Points 1 et 2 tranchés le 2026-10-28** : GO PARTIEL ( option B — ADR 0004 → statut Accepté ) ; ADR 0001 accepté **modifié** — **option 2 : réécriture intégrale du moteur** ( l'exclusion du vendored devient définitive ). Les points 3–4 restent ouverts et conditionnent l'amorçage de la vague 0.
 
 1. **Trancher le GO PARTIEL** ( ou corriger le cap : D pur, ou A sur preuves nouvelles ) — le présent document + `02-spike-mesures.md` en portent la démonstration. **→ TRANCHÉ le 2026-10-28 : GO PARTIEL.**
-2. **Accepter l'ADR 0001** ( licence + levée d'exclusion du moteur ) — verrou de toutes les reprises.
+2. **Accepter l'ADR 0001** ( licence + levée d'exclusion du moteur ) — verrou de toutes les reprises. **→ TRANCHÉ le 2026-10-28 : accepté MODIFIÉ — option 2 ( réécriture intégrale du moteur )** ; licence Apache-2.0 ; l'exclusion du vendored devient définitive ( ADR 0001 réécrit en conséquence ).
 3. **Confirmer le périmètre** ( ADR 0002, proposition §5 du `00b-inventaire-reprise.md` ).
 4. **Exécuter les 2 actions licence** ( `codeide-tooling` ; conditions artefacts JetBrains ).
 5. À réception : les **prompts d'exécution vague par vague** seront produits séparément (§8 du prompt), en commençant par la vague 0.
