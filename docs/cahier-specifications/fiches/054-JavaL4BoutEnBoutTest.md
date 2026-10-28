@@ -50,7 +50,7 @@
 
 ## Notes pour la réécriture
 - Hypothèse d'environnement visible (`assumeTrue(androidJar != null)`) dans le montage ET dans les tests à fichiers multiples : `ANDROID_HOME`/`ANDROID_SDK_ROOT`/`/tmp/my-project/android-sdk`/`/home/z/tools/android-sdk`, plateforme la plus haute d'abord — sans jar, tests ignorés.
-- L'écart « références inter-fichiers non rendues » (U.java) est verrouillé à 1 référence : décision de réécriture à prendre explicitement (le commentaire renvoie vers l'instruction du renommage projet).
+- L'écart « références inter-fichiers non rendues » (U.java) est verrouillé à 1 référence : **décision tranchée le 28/10/2026 — parité stricte** (`PLAN-REECRITURE.md` §10.4). Le moteur neuf reproduit l'écart pendant le programme (gate « taille attendue = 1 exactement » inchangée) ; la correction (rendre l'appel inter-fichiers, borne « 2 exactement ») est une amélioration candidate post-bascule, avec re-qualification de la fiche à ce moment.
 - Les fichiers doivent exister sur disque AVANT le `replaceAll` du classpath pour que la résolution du projet entier se fasse ; `JO_TEST_JDK_HOME` nourrit l'attachement de source des classes binaires.
 - `superDefinition` et `decompiledSource` sont des méthodes EXPÉRIMENTALES (extensions hors protocole LSP standard) ; `superDefinition` rend une liste de cibles à champ `path`, `decompiledSource` prend un FQCN binaire.
 - Les timeout E2E sont généreux (60 s par requête) : garder ces bornes comme garde-fous, pas comme objectifs de latence.

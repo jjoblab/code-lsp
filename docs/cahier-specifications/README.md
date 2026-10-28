@@ -94,8 +94,10 @@ Anomalies transverses consignées par les agents (à traiter pendant la
 réécriture) : repro observationnels sans assertion (004/010/036/040/043) ;
 tests conditionnels par hypothèses (android.jar, JDK, model.json absents) ;
 classes internes `Jdt*` reliquaires du portage ; 054 verrouille un écart
-moteur assumé (1 référence inter-fichiers seulement) — décision de
-réécriture à trancher explicitement.
+moteur assumé (1 référence inter-fichiers seulement) — décision tranchée le
+28/10/2026 : **parité stricte** (l'écart est reproduit pendant le programme ;
+correction consignée comme amélioration candidate post-bascule —
+`PLAN-REECRITURE.md` §10.4).
 
 **Convention de nommage pour la réécriture (décision propriétaire,
 28/10/2026 — ADR 0002 §Décision, point 5 ; AGENTS.md)** : les préfixes

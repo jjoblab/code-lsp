@@ -7,7 +7,8 @@
 > l'architecture IntelliJ PSI — étudiée en profondeur, embarquée nulle part,
 > greffée partout où elle prouve sa valeur.
 
-## État — vague 1 (terminée) — étages N1–N8 soumis au chiffrage
+## État — programme de réécriture approuvé — prochaine étape : mesure sur
+appareil (porte d'entrée de N1)
 
 Décisions actées par le propriétaire le 28/10/2026 :
 
@@ -18,6 +19,18 @@ Décisions actées par le propriétaire le 28/10/2026 :
 | Périmètre « domaine moteur Java » + vision « dépôt officiel des LSP » | ADR 0002 (Accepté) |
 | Licence du dépôt : Apache-2.0 (`LICENSE`, `NOTICE`) | ADR 0001 |
 | Convention de nommage : préfixes `Ecj*`/`Jdt*` réservés aux classes dérivant réellement d'ECJ/JDT | ADR 0002 (point 5) |
+
+Décisions sur le programme de réécriture, actées par le propriétaire le
+28/10/2026 en séance (`docs/PLAN-REECRITURE.md` §10) :
+
+- **Fourchette 160–270 j-h (médiane 213) approuvée** comme enveloppe de
+  planification — engagement contractuel **borné à N1 + banc de parité
+  croisé**, décision de suite re-soumise au recalage de fin N1 ;
+- **mesure sur appareil = porte d'entrée bloquante de N1** (`spike/appareil/`)
+  : aucune implémentation du noyau avant retour du gabarit rempli ;
+- **séquence confirmée** : N1 → (N2, N3, N7) → (N4, N5, N6) → N8 ;
+- **écart moteur de la fiche 054 reproduit en parité stricte** — correction
+  consignée comme amélioration candidate post-bascule.
 
 Le moteur est réécrit de zéro : **aucun code** du moteur vendored de
 `codeide-lsp` n'est repris (ni production, ni tests). La base contractuelle
@@ -51,7 +64,7 @@ avec le jar ecj patché). Tâche Gradle : `./gradlew :ecj-art:patcherEcj`.
 | `docs/etudes/moteur-java-psi/` | étude d'architecture IntelliJ PSI (D1–D12), synthèse, mesures du spike, alertes, annexes |
 | `docs/adr/` | ADR 0001–0018 (décisions d'architecture, statuts à jour) |
 | `docs/cahier-specifications/` | cahier des comportements attendus (extraction clean-room des 449 tests) — le contrat de la réécriture |
-| `docs/PLAN-REECRITURE.md` | **programme de réécriture chiffré** (étages N1–N8+T, fourchette 160–270 j-h) — soumis au propriétaire |
+| `docs/PLAN-REECRITURE.md` | **programme de réécriture chiffré** (étages N1–N8+T, fourchette 160–270 j-h) — **approuvé le 28/10/2026** (engagement borné N1 + banc croisé) |
 | `docs/PROVENANCE-REPRISE.md` | manifeste de reprise sélective (règle R9 — registre des copies autorisées) |
 | `spike/` | bancs de mesure V1/V2/V3, scanner de compatibilité ART, gabarit appareil |
 | `java/`, `testing/` | modules Gradle du domaine moteur Java (squelettes — moteur réécrit en étages) |
@@ -93,13 +106,19 @@ La CI (`.github/workflows/ci.yml`) exécute le build et le contrôle
   12 fichiers neufs, 36 tests, jar ART re-scanné vierge) ;
   ~~ré-estimation du programme de réécriture cahier en main~~ ✓ (1d —
   **`docs/PLAN-REECRITURE.md`** : 160–270 j-h, médiane 213, étages
-  N1–N8+T, soumise au propriétaire).
-- **Étages suivants (N1–N8, `docs/PLAN-REECRITURE.md` §4)** : noyau moteur
-  (env/ecj/parse/diagnostics + `:testing` + bancs) → complétion (weighers,
-  D8) / hover-inlay / confort → navigation/usages/rename/code actions →
-  cycle de vie LSP — chaque étage borné par la parité mesurée contre
-  l'ancien moteur (banc croisé, ADR 0016) ; recalages d'estimation fin N1
-  et fin N2.
+  N1–N8+T, **approuvée le 28/10/2026 en séance** — §10 du plan : enveloppe
+  approuvée, engagement borné N1 + banc croisé).
+- **Prochaine étape — mesure sur appareil (porte d'entrée de N1, décision
+  §10.2)** : exécuter `spike/appareil/banc-appareil.sh` sur un appareil
+  réel (Termux/AndroidIDE) et retourner
+  `spike/appareil/GABARIT-RESULTATS.md` rempli — aucune implémentation du
+  noyau avant le retour.
+- **Étage N1 — noyau moteur** (25 fiches, 124 comportements, 30–54 j-h :
+  env/ecj/parse/diagnostics + `:testing` + bancs) puis, séquence confirmée
+  (§10.3) : complétion (weighers, D8) / hover-inlay / confort →
+  navigation/usages/rename/code actions → cycle de vie LSP — chaque étage
+  borné par la parité mesurée contre l'ancien moteur (banc croisé, ADR
+  0016) ; recalages d'estimation fin N1 et fin N2.
 
 Détail : `docs/PLAN-REECRITURE.md` (programme complet) et
 `docs/etudes/moteur-java-psi/00-synthese.md` §4 (historique du plan).

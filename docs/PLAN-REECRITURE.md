@@ -1,6 +1,10 @@
 # PLAN-REECRITURE — Ré-estimation du programme de réécriture du moteur Java
 
-> **Statut : SOUMIS AU PROPRIÉTAIRE** — livrable (d) de la vague 1 restructurée
+> **Statut : APPROUVÉ — les quatre décisions du §10 tranchées par le
+> propriétaire le 28/10/2026, en séance, sur le soir de la remise du plan**
+> (enveloppe approuvée, engagement borné N1 + banc croisé, mesure sur
+> appareil = porte d'entrée de N1, séquence confirmée, écart fiche 054 en
+> parité stricte). Livrable (d) de la vague 1 restructurée
 > (plan de migration ADR 0001 : « ré-estimation du programme de réécriture du
 > moteur, j-h par étage, cahier en main, soumise au propriétaire avant l'étage
 > noyau »).
@@ -389,20 +393,67 @@ Le risque R4 (« sous-estimation ») se pilote par bornage, pas par promesse :
 | Régression de santé `:index`/`:model` (base reprise) | +5–15 j-h | 122 tests repris verts = filet existant ; CI déjà en place |
 | Parallélisation effective insuffisante (1 dev au lieu de 2) | délai ×2, coût stable | séquencement N1 → (N2,N3,N7) → (N4,N5,N6) → N8 documenté |
 
-## 10. Décisions demandées au propriétaire
+## 10. Décisions du propriétaire — tranchées le 28/10/2026
 
-1. **Approuver la fourchette 160–270 j-h (médiane 213)** comme base de
+*(Chaque point rappelle la question posée, puis porte la tranche.)*
+
+1. *Approuver la fourchette 160–270 j-h (médiane 213) comme base de
    planification du programme de réécriture — ou trancher un sous-ensemble
-   (p. ex. « N1 + banc croisé d'abord, décision de suite après recalage 1 ») ;
-2. **Lancer la mesure sur appareil** (gabarit `spike/appareil/`) AVANT N1 —
+   (p. ex. « N1 + banc croisé d'abord, décision de suite après recalage 1 ») ?*
+
+   **TRANCHÉ : approbation aux deux niveaux.** La fourchette est approuvée
+   comme **enveloppe de planification** du programme (horizon §5 : ≈ 10 mois
+   solo / ≈ 5 mois à deux) ; l'**engagement contractuel est borné à N1 + T**
+   (banc de parité croisé). La décision de suite est re-soumise au
+   propriétaire au **recalage 1 (fin N1, §8.2)**, quand la vélocité mesurée
+   remplace les postulats d'abaque. Planifier sur l'enveloppe, s'engager
+   étage par étage : les deux options offertes ne s'excluaient pas.
+
+2. *Lancer la mesure sur appareil (gabarit `spike/appareil/`) AVANT N1 —
    c'est la seule donnée [non vérifiée] qui puisse bouger la structure du
-   plan (§7 postulat, §9 risque 2) ;
-3. **Confirmer la séquence** N1 → (N2, N3, N7) → (N4, N5, N6) → N8, ou en
+   plan (§7 postulat, §9 risque 2) ?*
+
+   **TRANCHÉ : OUI — porte d'entrée bloquante de N1.** Le propriétaire
+   exécute `spike/appareil/banc-appareil.sh` (Termux ou AndroidIDE) et
+   retourne `spike/appareil/GABARIT-RESULTATS.md` rempli ; les valeurs sont
+   consignées telles quelles (R5 — aucune extrapolation automatique, §6 du
+   gabarit). **Aucune implémentation de N1 ne démarre avant le retour du
+   gabarit.** Si les latences ART ne sont pas tenues avec ecj, la
+   ré-architecture partielle du repli syntaxe (§9 risque 2, +10–30 j-h)
+   est tranchée AVANT d'écrire le noyau, pas après.
+
+3. *Confirmer la séquence N1 → (N2, N3, N7) → (N4, N5, N6) → N8, ou en
    privilégier une autre (p. ex. maximiser tôt la valeur perceptible :
-   N1 → N3 → N7 → N2…) ;
-4. **Arbitrer le point ouvert de la fiche 054** (écart moteur assumé :
+   N1 → N3 → N7 → N2…) ?*
+
+   **TRANCHÉ : séquence confirmée telle quelle** — N1 → (N2, N3, N7) →
+   (N4, N5, N6) → N8, T traversant. Motif : N2 (classement D8 — capacité
+   phare et plus grosse dépendance au noyau) passe immédiatement après N1,
+   pendant que le noyau est frais ; l'alternative « valeur perceptible
+   tôt » a été examinée et écartée : elle repousse l'étage le plus riche en
+   design et exposerait les lacunes du noyau tardivement (la complétion
+   est le révélateur le plus exigeant du noyau). En exécution solo, l'ordre
+   linéaire N1 → N2 → N3 → N7 → N4 → N5 → N6 → N8 parcourt les mêmes
+   groupes.
+
+4. *Arbitrer le point ouvert de la fiche 054 (écart moteur assumé :
    1 référence inter-fichiers seulement — consigné cahier §5) : le moteur
-   neuf reproduit-il l'écart (parité stricte) ou le corrige-t-il ?
+   neuf reproduit-il l'écart (parité stricte) ou le corrige-t-il ?*
+
+   **TRANCHÉ : parité stricte pendant le programme.** Le moteur neuf
+   **reproduit** l'écart — `references` sur la déclaration de `a()` rend
+   exactement 1 référence (la déclaration) ; l'appel inter-fichiers de
+   `U.java` n'est pas rendu ; la borne de la fiche (« taille attendue = 1
+   exactement », vérifiée en N8 où la fiche est allouée) reste la gate.
+   Motifs : (a) le banc croisé ADR 0016 rejoue le même corpus contre le
+   vendored (oracle en boîte noire) — une divergence volontaire y serait
+   un signal rouge permanent, indistinguable d'une régression réelle ;
+   (b) le critère de bascule est « 0 comportement perdu contre l'oracle »
+   (§8.5). La **correction** (rendre l'appel inter-fichiers —
+   re-qualification de la fiche, borne « 2 exactement ») est consignée
+   comme **amélioration candidate post-bascule** : décision dédiée à ce
+   moment ; l'architecture N4 (QueryExecutor sur CIDX, références
+   exhaustives) la rend alors structurellement peu coûteuse.
 
 ---
 *Références : ADR 0001 (décision, plan de migration, R4/R5/R6) · ADR 0002
