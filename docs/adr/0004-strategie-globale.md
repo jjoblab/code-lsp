@@ -1,7 +1,7 @@
 # ADR 0004 — Stratégie globale : embarquer / s'inspirer / hybride / statu quo
 
-- **Statut** : Proposé
-- **Date** : 2026-10-28
+- **Statut** : Accepté — décision propriétaire « **GO PARTIEL** » (option B), tranchée en séance le 2026-10-28
+- **Date** : 2026-10-28 (proposé) / 2026-10-28 (accepté)
 
 ## Contexte
 
@@ -34,7 +34,9 @@ Le prompt (§1) exige d'établir, preuves à l'appui, comment doter CodeIDE d'un
 - Verdicts D1–D12 avec citations `fichier:ligne` : `01-architecture-psi.md` et annexes.
 - Conclusion obligatoire §5 (puissance de PSI vs plateforme autour) : la qualité perçue réside dans **cinq mécanismes autour du PSI** (index multi-usage+forward, usage search indexée, ~660 inspections, classement, concurrence/mémoire) — tous non portables en code, tous repris en designs dans B.
 
-## Décision proposée
+## Décision proposée — **ACCEPTÉE par le propriétaire le 2026-10-28 (« GO PARTIEL »)**
+
+> Décision reçue en séance après livraison de la branche `etude/moteur-java` (commit `1a9ab85`). Les ADR subordonnés (0005–0018) restent au statut Proposé jusqu'à revue vague par vague ; les points 2–4 de `00-synthese.md` §6 (ADR 0001 licence, ADR 0002 périmètre, actions licences P1–P4) conditionnent l'amorçage de la vague 0.
 
 **Option B — hybride « s'inspirer »**, avec réemploi effectif d'exactement un artefact IntelliJ : `java-syntax` (V1). Le moteur ecj reste la source de vérité des types et diagnostics (ADR 0007/0013) ; CIDX reste l'index (ADR 0008) ; les designs IntelliJ sont greffés vague par vague (ADR 0015). L'option D demeure le repli permanent (retour arrière à chaque vague) ; l'option A est archivée avec ses preuves (spike §4/§6/§7) — elle ne se rouvrirait que sur des artefacts JetBrains futurs radicalement plus compacts et ART-clean, à re-tester au spike avant toute décision.
 

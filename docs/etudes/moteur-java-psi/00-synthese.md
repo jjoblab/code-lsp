@@ -3,6 +3,7 @@
 > Étude « moteur Java PSI » pour CodeIDE sur Android/ART — synthèse finale de la mission (§8 du prompt).
 > Documents de base : `01-architecture-psi.md` (étude D1–D12 + annexes), `02-spike-mesures.md` (mesures V1/V2/V3 + compatibilité ART), `00b-inventaire-reprise.md` + `docs/PROVENANCE-REPRISE.md` (Phase 0), `docs/adr/0001–0018` (décisions proposées).
 > **La mission s'arrête ici** : aucune implémentation n'est démarrée ; tout attend la décision du propriétaire (§8 STOP).
+> **Décision reçue le 2026-10-28 : GO PARTIEL ACCEPTÉ** ( point 1 du §6 tranché par le propriétaire — ADR 0004 → statut Accepté ).
 
 ## 1. Recommandation unique
 
@@ -71,7 +72,9 @@ Détail complet (mesures brutes, commandes, incertitudes) : `02-spike-mesures.md
 
 ## 6. Décision demandée au propriétaire
 
-1. **Trancher le GO PARTIEL** ( ou corriger le cap : D pur, ou A sur preuves nouvelles ) — le présent document + `02-spike-mesures.md` en portent la démonstration.
+> **Point 1 tranché le 2026-10-28 : GO PARTIEL (option B)** — consigné dans ADR 0004 (statut Accepté). Les points 2–4 restent ouverts et conditionnent l'amorçage de la vague 0.
+
+1. **Trancher le GO PARTIEL** ( ou corriger le cap : D pur, ou A sur preuves nouvelles ) — le présent document + `02-spike-mesures.md` en portent la démonstration. **→ TRANCHÉ le 2026-10-28 : GO PARTIEL.**
 2. **Accepter l'ADR 0001** ( licence + levée d'exclusion du moteur ) — verrou de toutes les reprises.
 3. **Confirmer le périmètre** ( ADR 0002, proposition §5 du `00b-inventaire-reprise.md` ).
 4. **Exécuter les 2 actions licence** ( `codeide-tooling` ; conditions artefacts JetBrains ).
