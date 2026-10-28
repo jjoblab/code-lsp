@@ -1,0 +1,59 @@
+==============================================================
+ banc-appareil — étude moteur Java PSI (2026-10-28 14:33:48)
+ hôte : aarch64 / 15 / moto g06
+ java : openjdk version "17.0.19" 2026-04-21
+==============================================================
+--- ScanArt (échantillon V1)
+=== TOTAL pile : 95 classes, 777 méthodes déclarées
+=== TOTAL motifs sensibles distincts : 0 (classes 0, méthodes 0)
+--- corpus
+généré : corpus/Fichier500.java (498 lignes, 16258 caractères, 26 méthodes)
+=== V1 (java-syntax seul)
+fichier            : corpus/Fichier500.java
+lignes / caractères: 498 / 16258
+jetons             : 5653
+marqueurs d'arbre  : 1026 (dont collapses 26)
+ démarrage à froid : 1393.342231 ms (premier parse, classes chargées)
+ iterations         : 200 (échauffement 50)
+ parse p50          : 6.548 ms
+ parse p95          : 13.44 ms
+ parse min          : 4.506 ms
+ parse max          : 34.92 ms
+ parse moyen        : 7.532 ms
+ arbre retenu (≈)   : 82 Ko par arbre (delta de tas, 100 arbres retenus après double GC)
+ tas utilisé au repos: 9 Mo
+=== V2 (PSI headless 232.4652)
+banc V2 — pile headless IntelliJ 232.4652 (artefacts publiés)
+taxe d'assemblage    : 2 EP application + 1 EP projet enregistrés à la main (psiAugmentProvider, javaModuleSystem, java.elementFinder)
+fichier             : corpus/Fichier500.java (498 lignes)
+jar classpath        : guava-32.0.1-jre.jar (2 Mo)
+env app froid       : 2938.135154 ms (JavaCoreApplicationEnvironment)
+env projet froid    : 902.127616 ms (JavaCoreProjectEnvironment)
+parse PSI p50       : 62.824 ms
+parse PSI p95       : 96.495 ms
+parse PSI min/max   : 51.458 / 135.881 ms
+première classe     : Fichier500 (26 méthodes)
+findClass froid     : 981.681231 ms (com.google.common.collect.ImmutableList → true)
+findClass p50/p95   : 0.003 / 0.078 ms
+resolve() ref p50/p95: 6.518 / 879.736 ms
+tas (env + parse)   : 6 Mo
+=== V3 (ecj 3.40.0 non patché)
+banc V3 — référence ecj 3.40.0 (moteur du statu quo, sans patch ART)
+fichier             : corpus/Fichier500.java (498 lignes)
+jar classpath        : guava-32.0.1-jre.jar (2 Mo)
+ démarrage à froid  : 2030.760308 ms (premier diet parse, classes chargées)
+types parsés (diet) : 1
+ iterations         : 200 (échauffement 50+50)
+ parse diet p50     : 5.793 ms
+ parse diet p95     : 10.455 ms
+ parse complet p50  : 9.527 ms
+ parse complet p95  : 17.697 ms
+ compile Essai froid: 2269.031077 ms (1 unité(s), 0 erreur(s))
+ compile Essai p50/p95: 50.185 / 70.156 ms
+  (compile = parse + résolution + codegen mémoire, classpath neuf à chaque essai)
+ compile Essai env réutilisé p50/p95: 30.922 / 40.182 ms
+  (même FileSystem réutilisé — état stable type moteur en cache)
+ tas utilisé au repos: 5 Mo
+==============================================================
+ Terminé. Reporter ces sorties dans appareil/GABARIT-RESULTATS.md
+==============================================================
