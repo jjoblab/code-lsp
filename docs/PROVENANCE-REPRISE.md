@@ -3,6 +3,7 @@
 > Mission « étude moteur Java PSI » (dépôt `jjoblab/code-lsp`, branche `etude/moteur-java`).
 > **État : VIDE par construction.** Règle R9.1 du prompt de mission : *rien n'est copié depuis un ancien dépôt tant que le propriétaire n'a pas tranché la licence du nouveau dépôt (ADR 0001)*. Ce manifeste est le registre où TOUTE reprise future devra être inscrite avant d'avoir lieu (R9.2 : dépôt d'origine, chemin, commit, auteur déclaré, licence, statut de provenance, décision, justification — aucune reprise « en bloc »).
 > **Décision ADR 0001 rendue le 2026-10-28** (Accepté modifié — option 2 : **réécriture intégrale du moteur**, licence Apache-2.0) : l'exclusion du moteur vendored devient **définitive** (aucune levée) ; les reprises candidates du §3 demeurent conditionnées à l'inscription préalable au manifeste (R9.2) et, pour `:lsp:model`, à l'action P1 (LICENSE du protocole tooling).
+> **Vague 1b (28/10/2026) : premières reprises EFFECTUÉES** — `:model` (11 fichiers) et `:index` (33 fichiers) depuis codeide-lsp @ cb809e14, inscrites fichier par fichier au §7 ; l'alternative §4 (réécriture locale des types du protocole consommés) est appliquée pour débloquer `:model` sans attendre P1. Le manifeste n'est plus vide.
 >
 > Anciens dépôts (lecture seule) : `jjoblab/codeide-lsp` @ `cb809e1412fec429c9672da087244b3bd3176545` (v1.16.0), `jjoblab/codeide-tooling` @ `b60f7f0`, `jjoblab/CodeIDE` @ `54e99c6` (v0.202.0), `jjoblab/code-editor` @ `066b8c0`.
 > Sources tierces autorisées consultées durant l'étude : `JetBrains/intellij-community` @ `865067b0a7f1a73ee0fa8bce4f042013c8ac334f` (Apache-2.0, « JetBrains Open-Source Build Terms v1.3 » du 15/06/2026) — **consultation uniquement, aucun code copié** (R6.4) ; artefacts binaires `org.jetbrains:java-syntax` 0.3.381 et dépendants (intellij-dependencies, cache-redirector) — **téléchargés pour mesure dans `spike/`, jamais commités dans ce dépôt**.
@@ -30,9 +31,9 @@
 
 | Élément | Dépôt/chemin @ commit | Taille | Auteur déclaré | Licence amont | Statut | Décision proposée | Justification |
 |---|---|---|---|---|---|---|---|
-| `:lsp:index` (index CIDX) | codeide-lsp:lsp/index/src @ cb809e14 | 33 f / 6 472 l. main | jjoblab (couche neuve, post-ADR 0110) | dépôt propriétaire | à vérifier (contrôle R9.4 à mener à la copie) | **reprendre tel quel** | Socle conservé par l'étude D7 (bat le design IntelliJ sur préfixe/+1 dép/mémoire/corruption) |
-| `:lsp:model` | codeide-lsp:lsp/model/src @ cb809e14 | 11 f / 2 160 l. | jjoblab (idem) | idem + dépend protocole tooling **sans LICENSE** | à vérifier | **reprendre** | Modèle immuable consommé par l'index et le moteur ; condition : éclairer le protocole (§4) |
-| `:lsp:testing` | codeide-lsp:lsp/testing/src @ cb809e14 | 4 f / 1 464 l. | jjoblab | idem | à vérifier | **reprendre** | Parité moteur↔index, zéro dépendance externe publiée |
+| `:lsp:index` (index CIDX) | codeide-lsp:lsp/index/src @ cb809e14 | 33 f / 6 472 l. main | jjoblab (couche neuve, post-ADR 0110) | dépôt propriétaire | à vérifier (contrôle R9.4 à mener à la copie) | **reprendre tel quel** | Socle conservé par l'étude D7 (bat le design IntelliJ sur préfixe/+1 dép/mémoire/corruption) — **REPRIS le 28/10/2026 (vague 1b), voir §7** |
+| `:lsp:model` | codeide-lsp:lsp/model/src @ cb809e14 | 11 f / 2 160 l. | jjoblab (idem) | idem + dépend protocole tooling **sans LICENSE** | à vérifier | **reprendre** | Modèle immuable consommé par l'index et le moteur ; condition : éclairer le protocole (§4) — **REPRIS le 28/10/2026 (vague 1b) via l'alternative §4 (types du protocole REWRITS en local), voir §7** |
+| `:lsp:testing` | codeide-lsp:lsp/testing/src @ cb809e14 | 4 f / 1 464 l. | jjoblab | idem | à vérifier | **reprendre** | Parité moteur↔index, zéro dépendance externe publiée — **REPORTÉE** : la suite éprouve le moteur vendored (`jo.lspjava.*`, split package de test) ; elle ne peut être reprise qu'au fil de la réécriture du moteur neuf (étage noyau), sinon elle ne compile pas |
 | Jeux de données / golden files des tests `lsp/java` | codeide-lsp:lsp/java/src/test (entrées-sorties attendues) | à inventorier à la copie | jjoblab | idem | à vérifier | **reprendre comme données** | Conserver la valeur des 449 tests sans reprendre le code (00b §4) |
 | Squelette Gradle / conventions qualité | codeide-lsp:build-logic | ~7 plugins | jjoblab | idem | à vérifier | **s'inspirer** (réécrire le minimum) | R3 n'exige que le squelette du spike |
 
@@ -42,7 +43,7 @@
 |---|---|---|---|---|
 | `org.eclipse.jdt:org.eclipse.jdt.core` (+ graphe) | 3.40.0 | EPL-2.0 | Compilateur/moteur si voie statu quo ou hybride | Code MODIFIÉ (patch ART) et REDISTRIBUTÉ → obligations EPL-2.0 (sources amont disponibles, description des modifications) — reprise du patcheur conditionnée à sa réécriture (§2) |
 | `org.eclipse.lsp4j:lsp4j` | 0.21.2 | EPL-2.0 | Protocole LSP (façade) | — |
-| `com.github.jjoblab.codeide-tooling:protocol` | 1.0.0 | **aucun fichier LICENSE sur le dépôt à ce jour** | Types `ClasspathResult` (modèle) | **Action propriétaire** : ajouter une LICENSE au dépôt frère, sinon réécrire les ~10 types consommés |
+| `com.github.jjoblab.codeide-tooling:protocol` | 1.0.0 | **aucun fichier LICENSE sur le dépôt à ce jour** | Types `ClasspathResult` (modèle) | **Action propriétaire** : ajouter une LICENSE au dépôt frère, sinon réécrire les ~10 types consommés — **alternative APPLIQUÉE le 28/10/2026 (vague 1b)** : les 4 types consommés sont réécrits en code neuf local (`jo.codeide.lsp.model.protocole`, clean-room depuis la surface observable — §7) ; retour à l'artefact officiel à l'étude quand P1 sera résolu |
 | `org.jetbrains:java-syntax` (+ syntax-api, lang-syntax, ij-multiplatform-util) | 0.3.381 | Apache-2.0 (intellij-dependencies) | Parseur Java (voie V1 du spike) | Conditions d'utilisation des artefacts binaires JetBrains à consigner en ADR 0017 ; dépôt de publication = packages.jetbrains.team (ij/intellij-dependencies), accès via cache-redirector |
 | `org.ow2.asm:asm` (+ commons) | 9.7 | BSD-3-Clause | Patchage build-time (réécriture d'ecj-art) | — |
 
@@ -59,3 +60,112 @@
 |---|---|
 | 2026-10-28 | Création du manifeste (Phase 0). Registres remplis : 6 exclusions R9.3, 5 candidats, 5 dépendances d'artefacts. Aucune copie effectuée. |
 | 2026-10-28 | Décision propriétaire **ADR 0001 accepté modifié — option 2 : réécriture intégrale du moteur** (« partir sur de nouvelles bases plus solides »). Exclusion R9.3 du vendored `lsp/java` rendue **définitive** (aucune levée, aucune copie, même partielle) ; le vendored reste l'oracle de parité et le repli dans `codeide-lsp`. Licence du dépôt : **Apache-2.0**. Couches candidates (§3) maintenues — copies toujours subordonnées à l'inscription au manifeste (R9.2) et à l'action P1 pour `:lsp:model`. Aucune copie effectuée à ce jour. |
+| 2026-10-28 | **Vague 1b — premières reprises EFFECTUÉES** : `:model` (11 fichiers) et `:index` (33 fichiers) copiés depuis codeide-lsp @ cb809e14, inscrits fichier par fichier au §7 (contrôle R9.4 mené à la copie : statut propre, aucune attribution tierce, aucune effacée). Adaptations minimales consignées : redirection des imports du protocole vers les 4 types REWRITS en code neuf (`jo.codeide.lsp.model.protocole` — alternative §4 appliquée faute de P1) ; fichiers de build réécrits pour le squelette code-lsp (Kotlin 2.2.10, explicitApi, JUnit 4, JVM 17). `:lsp:testing` REPORTÉ à l'étage noyau du moteur (dépend du moteur à réécrire). Vérification : 122 tests repris verts (38 modèle + 84 index), banc compilé. |
+
+## 7. Registre des fichiers repris — vague 1b (28/10/2026) : `:model` + `:index`
+
+> Reprise contrôlée exécutée le 28/10/2026 (vague 1b du plan de migration ADR
+> 0001). **Fait commun à toutes les entrées ci-dessous** (R9.2) : dépôt
+> d'origine `jjoblab/codeide-lsp` @ `cb809e1412fec429c9672da087244b3bd3176545`
+> (v1.16.0, lecture seule) ; auteur déclaré **jjoblab** (couche neuve Kotlin
+> post-ADR 0110, attesté original) ; licence amont **dépôt propriétaire** ;
+> statut de provenance **propre** (contrôle R9.4 mené à la copie : aucun
+> en-tête tiers, aucune attribution effacée — les fichiers d'origine ne
+> portent pas d'en-tête de licence) ; décision ADR 0001 (reprises autorisées
+> hors moteur) + inscription préalable au présent registre. Chaque fichier est
+> inscrit individuellement — jamais « en bloc ».
+
+### Adaptations apportées à la copie (consignées — seule dérive par rapport à « tel quel »)
+
+1. **Redirection du protocole** (`:model` uniquement) : les imports
+   `jo.codeide.tooling.protocol.*` sont redirigés vers
+   `jo.codeide.lsp.model.protocole.*` (4 types REWRITS en code neuf —
+   alternative §4) dans 5 fichiers : `ConvertisseurModeleLsp.kt`,
+   `ProjetLsp.kt` (référence KDoc), `FixturesClasspath.kt`,
+   `AssociationFichierTest.kt`, `ConvertisseurModeleLspTest.kt`.
+   Aucune autre modification de code — `:index` est repris TEL QUEL
+   (aucun import du protocole).
+2. **Fichiers de build réécrits** pour le squelette code-lsp (non repris du
+   build-logic) : conventions d'origine portées (explicitApi, JUnit 4, cible
+   JVM 17, tas de test borné 640 m) ; Kotlin 2.2.10 (aligné sur l'origine) ;
+   plugin maven-publish/kover NON portés (publication et seuils de couverture
+   = décisions de vague ultérieure).
+
+Vérification à la reprise : build complet vert ; **122 tests repris verts**
+(38 `:model` + 84 `:index`, zéro échec, zéro ignoré) ; banc compilé
+(`:index:compileBenchKotlin`).
+
+### Fichiers repris — `model/src/main` (6)
+
+| Chemin dans code-lsp | Rôle |
+|---|---|
+| `model/src/main/kotlin/jo/codeide/lsp/model/AssociationFichier.kt` | association fichier → module (racine de sourceset la plus profonde) |
+| `model/src/main/kotlin/jo/codeide/lsp/model/ConvertisseurModeleLsp.kt` | conversion PURE ClasspathResult → ProjetLsp (W5/W6, doublons, cycles) |
+| `model/src/main/kotlin/jo/codeide/lsp/model/DepotModeleLsp.kt` | dépôt observable du modèle (publication par instantanés) |
+| `model/src/main/kotlin/jo/codeide/lsp/model/Empreintes.kt` | empreintes W6 par contenu + [LecteurStatistiquesFichier]/[LecteurStatistiquesSysteme] |
+| `model/src/main/kotlin/jo/codeide/lsp/model/PersistanceModeleLsp.kt` | persistance versionnée validée (lsp-modele.json, corrige W7) |
+| `model/src/main/kotlin/jo/codeide/lsp/model/ProjetLsp.kt` | types publics du modèle (ProjetLsp, ModuleLsp, ClasspathInstantane, KindEntree…) |
+
+### Fichiers repris — `model/src/test` (5)
+
+| Chemin dans code-lsp | Rôle |
+|---|---|
+| `model/src/test/kotlin/jo/codeide/lsp/model/AssociationFichierTest.kt` | tests de l'association fichier → module |
+| `model/src/test/kotlin/jo/codeide/lsp/model/ConvertisseurModeleLspTest.kt` | tests de la conversion (doublons, cycles, empreintes, normalisation) |
+| `model/src/test/kotlin/jo/codeide/lsp/model/EmpreintesTest.kt` | tests des empreintes W6 |
+| `model/src/test/kotlin/jo/codeide/lsp/model/FixturesClasspath.kt` | bâtisseurs de fixtures du protocole v8 (+ FauxStats) |
+| `model/src/test/kotlin/jo/codeide/lsp/model/PersistanceModeleLspTest.kt` | tests de la persistance versionnée |
+
+### Code NEUF enregistré — `model/…/protocole` (1)
+
+| Chemin dans code-lsp | Rôle |
+|---|---|
+| `model/src/main/kotlin/jo/codeide/lsp/model/protocole/ProtocoleClasspath.kt` | CODE NEUF code-lsp (alternative §4 faute de P1) : ClasspathResult, ClasspathModule, ClasspathEntry, ClasspathKind — clean-room depuis la surface observable (fixtures + conversion), jamais lu du source du protocole |
+
+### Fichiers repris — `index/src/main` (17)
+
+| Chemin dans code-lsp | Rôle |
+|---|---|
+| `index/src/main/kotlin/jo/codeide/lsp/index/AnalyseurClassFile.kt` | analyseur minimal de fichiers .class (membres, sans dépendance) |
+| `index/src/main/kotlin/jo/codeide/lsp/index/AnalyseurClasspathSysteme.kt` | analyse du classpath du système hôte (rt/JDK) |
+| `index/src/main/kotlin/jo/codeide/lsp/index/AssembleurSegment.kt` | assemblage des données d'un segment (logique pure) |
+| `index/src/main/kotlin/jo/codeide/lsp/index/CacheSegments.kt` | cache LRU des segments décodés (budget tas explicite) |
+| `index/src/main/kotlin/jo/codeide/lsp/index/ClesSegments.kt` | clés des segments — noms de fichiers depuis empreintes W6 |
+| `index/src/main/kotlin/jo/codeide/lsp/index/DonneesSegment.kt` | structures de données d'un segment (paquets internes) |
+| `index/src/main/kotlin/jo/codeide/lsp/index/EcrivainSegment.kt` | format binaire des segments (magique + version + crc32) |
+| `index/src/main/kotlin/jo/codeide/lsp/index/EntrepotSegments.kt` | stockage PARTAGÉ des segments entre projets |
+| `index/src/main/kotlin/jo/codeide/lsp/index/EtatIndex.kt` | phase de construction d'un index (états/progression) |
+| `index/src/main/kotlin/jo/codeide/lsp/index/LecteurSegment.kt` | segment décodé en mémoire, interrogable par préfixe |
+| `index/src/main/kotlin/jo/codeide/lsp/index/LecteurZipBrut.kt` | lecteur ZIP minimaliste sans java.util.zip (sensibilité ART) |
+| `index/src/main/kotlin/jo/codeide/lsp/index/NettoyageSegments.kt` | nettoyage des segments orphelins |
+| `index/src/main/kotlin/jo/codeide/lsp/index/OctetsIndex.kt` | primitives de lecture d'entiers encodés (gros-boutien) |
+| `index/src/main/kotlin/jo/codeide/lsp/index/ServiceIndexDisque.kt` | service principal : construction bornée/annulable, fusion LSM |
+| `index/src/main/kotlin/jo/codeide/lsp/index/TypesEtatIndexEtendus.kt` | phase détaillée de construction (affinage des états) |
+| `index/src/main/kotlin/jo/codeide/lsp/index/TypesIndex.kt` | conteneur d'origine des classes d'un segment (localisation) |
+| `index/src/main/kotlin/jo/codeide/lsp/index/VueIndex.kt` | vue ordonnée d'un classpath sur les segments (union LSM) |
+
+### Fichiers repris — `index/src/test` (15)
+
+| Chemin dans code-lsp | Rôle |
+|---|---|
+| `index/src/test/kotlin/jo/codeide/lsp/index/AnalyseurClassFileDifferentielTest.kt` | test différentiel du lecteur de membres (android.jar réel API 16) |
+| `index/src/test/kotlin/jo/codeide/lsp/index/AnalyseurClassFileTest.kt` | tests de l'analyseur de .class |
+| `index/src/test/kotlin/jo/codeide/lsp/index/AnalyseurClasspathSystemeTest.kt` | tests de l'analyse du classpath système |
+| `index/src/test/kotlin/jo/codeide/lsp/index/AssembleurSegmentTest.kt` | tests de l'assemblage de segment |
+| `index/src/test/kotlin/jo/codeide/lsp/index/CacheSegmentsTest.kt` | tests du cache LRU (budget, éviction) |
+| `index/src/test/kotlin/jo/codeide/lsp/index/ClesSegmentsTest.kt` | tests des clés de segments |
+| `index/src/test/kotlin/jo/codeide/lsp/index/EcrivainSegmentTest.kt` | tests du format binaire (corruption, version) |
+| `index/src/test/kotlin/jo/codeide/lsp/index/FixturesIndex.kt` | bâtisseurs de fixtures de l'index (jars de test forgés) |
+| `index/src/test/kotlin/jo/codeide/lsp/index/FormatSegmentTest.kt` | tests du format de segment (aller-retour complet) |
+| `index/src/test/kotlin/jo/codeide/lsp/index/LecteurZipBrutTest.kt` | tests du lecteur ZIP brut |
+| `index/src/test/kotlin/jo/codeide/lsp/index/NettoyageSegmentsTest.kt` | tests du nettoyage des orphelins |
+| `index/src/test/kotlin/jo/codeide/lsp/index/ServiceIndexDisqueTest.kt` | tests du service (construction, annulation, progression) |
+| `index/src/test/kotlin/jo/codeide/lsp/index/ServiceIndexDisqueVidageTest.kt` | tests du vidage de l'index |
+| `index/src/test/kotlin/jo/codeide/lsp/index/TypesEtatIndexEtendusTest.kt` | tests des phases détaillées |
+| `index/src/test/kotlin/jo/codeide/lsp/index/VueIndexTest.kt` | tests de la vue (fusion LSM, ordre) |
+
+### Fichiers repris — `index/src/bench` (1)
+
+| Chemin dans code-lsp | Rôle |
+|---|---|
+| `index/src/bench/kotlin/jo/codeide/lsp/index/banc/BancIndex.kt` | banc de mesure ADR 0111 (jeux petit/moyen/lourd ; jamais dans la chaîne de vérification) |
