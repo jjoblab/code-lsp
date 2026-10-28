@@ -27,6 +27,16 @@ complètent les ADR (`docs/adr/`) — en cas de doute, l'ADR prime.
 - **Kotlin 100 %** — aucun Java écrit à la main (R2 ; ADR 0001 : le moteur
   réécrit naît en Kotlin, l'exemption « vendored » de l'ancien dépôt ne
   s'applique pas ici).
+- **Nommage des classes (décision propriétaire du 28/10/2026)** : les
+  préfixes `Ecj*`/`Jdt*` sont **réservés aux classes qui dérivent réellement
+  d'ECJ/JDT** (adaptateurs du compilateur ecj, ponts vers l'AST JDT,
+  encapsulations directes de ces bibliothèques). Toute autre classe —
+  réécriture Kotlin pure, service, façade, cache, utilitaire — porte un **nom
+  neutre** décrivant son rôle (ex. `MoteurDiagnostics`, `CacheAnalyse`,
+  `OrganiseurImports`). L'ancien dépôt préfixait massivement `Ecj*` des
+  classes sans lien réel avec ecj ou jdt : pratique **abandonnée**. Les noms
+  `Ecj*Test` des fiches du cahier sont les identifiants historiques des tests
+  vendored — ils ne préjugent pas du nom des classes neuves.
 - Clean-room strict pour le moteur : lecture **interdite** de
   `lsp/java/src/main` de `codeide-lsp` (production vendored). Le vendored
   s'utilise uniquement comme **oracle en boîte noire** (l'exécuter et
@@ -46,10 +56,15 @@ complètent les ADR (`docs/adr/`) — en cas de doute, l'ADR prime.
   Le push n'est autorisé que si le script confirme :
   1. le distant est bien `github.com/jjoblab/code-lsp` ;
   2. l'utilisateur GitHub authentifié par le jeton est **`jjoblab`** ;
-  3. l'auteur git (`user.name`) est **`jjoblab`**.
+  3. l'auteur git (`user.name`) est **`jjoblab`** et son courriel
+     (`user.email`) est **`olson12jb@gmail.com`**.
   (Décision propriétaire du 28/10/2026 — un push effectué sans cette
   vérification est une faute de procédure.)
-- Auteur git du dépôt : `jjoblab <150948254+jjoblab@users.noreply.github.com>`.
+- Auteur git du dépôt : `jjoblab <olson12jb@gmail.com>` (courriel communiqué
+  par le propriétaire le 28/10/2026). **Historique réattribué** : le 28/10/2026,
+  l'intégralité des commits du dépôt a été réécrite sous cette identité — les
+  SHA cités dans les échanges antérieurs à cette date ne correspondent plus à
+  rien dans le dépôt ; les références internes ont été corrigées.
 - Les jetons ne sont **jamais** committés ni écrits dans le dépôt (R6.4).
 - Commits : conventions conventional commits préfixées `lsp-java(scope):`,
   en français, une décision ou une capacité par commit autant que possible.

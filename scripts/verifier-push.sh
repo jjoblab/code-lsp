@@ -4,7 +4,9 @@
 # Décision propriétaire du 28/10/2026 (ADR 0002, consignée dans AGENTS.md) :
 #   1. le dépôt distant doit être github.com/jjoblab/code-lsp ;
 #   2. l'utilisateur GitHub authentifié par le jeton doit être « jjoblab » ;
-#   3. l'auteur git configuré (user.name) doit être « jjoblab ».
+#   3. l'auteur git configuré (user.name) doit être « jjoblab » ;
+#   4. le courriel git configuré (user.email) doit être « olson12jb@gmail.com »
+#      (courriel communiqué par le propriétaire le 28/10/2026).
 # Un push effectué sans cette vérification est une faute de procédure.
 #
 # Usage :
@@ -16,6 +18,7 @@
 set -euo pipefail
 
 ATTENDU="jjoblab"
+COURRIEL_ATTENDU="olson12jb@gmail.com"
 DEPOT_ATTENDU="github.com/jjoblab/code-lsp"
 TOKEN="${GITHUB_TOKEN:-${1:-}}"
 
@@ -48,13 +51,18 @@ if [[ "$LOGIN" != "$ATTENDU" ]]; then
   exit 1
 fi
 
-# --- 3. Auteur git ----------------------------------------------------------
+# --- 3. Auteur git (nom + courriel) -----------------------------------------
 GIT_USER="$(git config user.name || true)"
 if [[ "$GIT_USER" != "$ATTENDU" ]]; then
   echo "REFUS : git user.name = « ${GIT_USER:-non configuré} » (attendu : ${ATTENDU})." >&2
   echo "  Corrigez : git config user.name jjoblab" >&2
-  echo "             git config user.email 150948254+jjoblab@users.noreply.github.com" >&2
+  exit 1
+fi
+GIT_EMAIL="$(git config user.email || true)"
+if [[ "$GIT_EMAIL" != "$COURRIEL_ATTENDU" ]]; then
+  echo "REFUS : git user.email = « ${GIT_EMAIL:-non configuré} » (attendu : ${COURRIEL_ATTENDU})." >&2
+  echo "  Corrigez : git config user.email ${COURRIEL_ATTENDU}" >&2
   exit 1
 fi
 
-echo "OK : push autorisé — distant ${DEPOT_ATTENDU} ; utilisateur authentifié « ${LOGIN} » ; auteur git « ${GIT_USER} »."
+echo "OK : push autorisé — distant ${DEPOT_ATTENDU} ; utilisateur authentifié « ${LOGIN} » ; auteur git « ${GIT_USER} <${GIT_EMAIL}> »."

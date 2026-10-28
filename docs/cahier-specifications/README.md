@@ -97,5 +97,14 @@ classes internes `Jdt*` reliquaires du portage ; 054 verrouille un écart
 moteur assumé (1 référence inter-fichiers seulement) — décision de
 réécriture à trancher explicitement.
 
+**Convention de nommage pour la réécriture (décision propriétaire,
+28/10/2026 — ADR 0002 §Décision, point 5 ; AGENTS.md)** : les préfixes
+`Ecj*`/`Jdt*` des noms de fiches sont les identifiants **historiques** des
+tests vendored. Les classes neuves ne les reprennent **pas** : le préfixe
+`Ecj*`/`Jdt*` est réservé aux classes qui dérivent réellement d'ECJ/JDT
+(adaptateurs du compilateur, ponts AST) ; toute autre classe Kotlin porte un
+nom neutre décrivant son rôle. L'ancien dépôt préfixait massivement `Ecj*`
+des classes sans lien réel avec ecj ou jdt — pratique abandonnée.
+
 Les fiches vivent dans `fiches/NNN-<ClasseDeTest>.md`. L'inventaire complet
 (chemins, tailles, nombres de méthodes) : `INVENTAIRE.md`.
