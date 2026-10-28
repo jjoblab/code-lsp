@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+# ============================================================================
+# .githooks/pre-push — CONTRÔLE D'IDENTITÉ AUTOMATIQUE AVANT CHAQUE PUSH
+# Décision propriétaire du 28/10/2026 : « avant push, user doit être jjoblab ».
+#
+# Ce crochet complète scripts/verifier-push.sh (qui vérifie en plus le distant
+# et l'utilisateur GitHub authentifié par le jeton) : il rend le refus
+# AUTOMATIQUE — un push lancé avec une identité git incorrecte est bloqué
+# avant même de quitter la machine, même si l'opérateur a oublié la vérification
+# manuelle (faute de procédure consignée dans AGENTS.md).
+#
+# Activation (le répertoire .git/hooks n'est pas versionné) :
+#   git config core.hooksPath .githooks
+# ============================================================================
+set -euo pipefail
+
+cd "$(git rev-parse --show-toplevel)"
+
+ATTENDU="jjoblab"
+COURRIEL="olson12jb@gmail.com"
+
+GIT_USER="$(git config user.name || true)"
+GIT_EMAIL="$(git config user.email || true)"
+
+if [[ "$GIT_USER" != "$ATTENDU" || "$GIT_EMAIL" != "$COURRIEL" ]]; then
+  echo "REFUS (pre-push) : identité git = « ${GIT_USER:-non configuré} <${GIT_EMAIL:-non configuré}> »" >&2
+  echo "  attendu : ${ATTENDU} <${COURRIEL}>" >&2
+  echo "  corrigez : git config user.name jjoblab && git config user.email olson12jb@gmail.com" >&2
+  exit 1
+fi
+
+# Vérification complète (distant + utilisateur du jeton) quand un jeton est
+# disponible dans l'environnement — sinon l'identité locale a déjà été vérifiée.
+if [[ -n "${GITHUB_TOKEN:-}" ]]; then
+  exec bash scripts/verifier-push.sh
+fi
+echo "OK (pre-push) : identité « ${GIT_USER} <${GIT_EMAIL}> » vérifiée."
+echo "  (Vérification complète du jeton : export GITHUB_TOKEN=<jeton> avant le push.)"
+exit 0

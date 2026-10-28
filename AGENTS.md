@@ -60,6 +60,13 @@ complètent les ADR (`docs/adr/`) — en cas de doute, l'ADR prime.
      (`user.email`) est **`olson12jb@gmail.com`**.
   (Décision propriétaire du 28/10/2026 — un push effectué sans cette
   vérification est une faute de procédure.)
+- **Crochet `pre-push` automatique (vague 1c)** : le dépôt fournit
+  `.githooks/pre-push`, qui REFUSE le push si l'identité git n'est pas
+  `jjoblab <olson12jb@gmail.com>` — même si la vérification manuelle a été
+  oubliée. Avec `GITHUB_TOKEN` dans l'environnement, il exécute en plus la
+  vérification complète (`scripts/verifier-push.sh`). Activation après tout
+  clonage (`.git/hooks` n'étant pas versionné) :
+  `git config core.hooksPath .githooks`
 - Auteur git du dépôt : `jjoblab <olson12jb@gmail.com>` (courriel communiqué
   par le propriétaire le 28/10/2026). **Historique réattribué** : le 28/10/2026,
   l'intégralité des commits du dépôt a été réécrite sous cette identité — les
