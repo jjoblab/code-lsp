@@ -7,8 +7,7 @@
 > l'architecture IntelliJ PSI — étudiée en profondeur, embarquée nulle part,
 > greffée partout où elle prouve sa valeur.
 
-## État — programme de réécriture approuvé — prochaine étape : mesure sur
-appareil (porte d'entrée de N1)
+## État — mesure sur appareil retournée (28/10) — prochaine étape : étage N1
 
 Décisions actées par le propriétaire le 28/10/2026 :
 
@@ -108,12 +107,14 @@ La CI (`.github/workflows/ci.yml`) exécute le build et le contrôle
   **`docs/PLAN-REECRITURE.md`** : 160–270 j-h, médiane 213, étages
   N1–N8+T, **approuvée le 28/10/2026 en séance** — §10 du plan : enveloppe
   approuvée, engagement borné N1 + banc croisé).
-- **Prochaine étape — mesure sur appareil (porte d'entrée de N1, décision
-  §10.2)** : exécuter `spike/appareil/banc-appareil.sh` sur un appareil
-  réel (Termux/AndroidIDE) et retourner
-  `spike/appareil/GABARIT-RESULTATS.md` rempli — aucune implémentation du
-  noyau avant le retour.
-- **Étage N1 — noyau moteur** (25 fiches, 124 comportements, 30–54 j-h :
+- **Mesure sur appareil (porte d'entrée de N1, décision §10.2) — RETOURNÉE
+  le 28/10/2026** : passe 14:33 (heure appareil) sur moto g06 / Android 15 /
+  OpenJDK 17.0.19 (aarch64) — `spike/appareil/GABARIT-RESULTATS.md` rempli +
+  transcript brut `spike/appareil/resultats-appareil.txt` (commit 3c7158d),
+  valeurs consignées telles quelles (R5). Passe sur JVM (Termux) — ART non
+  testé (gabarit §6, vague « spike ART ») ; compléments §5 (GC ART,
+  répétition, thermique, app réelle) non réalisés (optionnels).
+- **Prochaine étape — étage N1 (noyau moteur)** (25 fiches, 124 comportements, 30–54 j-h :
   env/ecj/parse/diagnostics + `:testing` + bancs) puis, séquence confirmée
   (§10.3) : complétion (weighers, D8) / hover-inlay / confort →
   navigation/usages/rename/code actions → cycle de vie LSP — chaque étage
