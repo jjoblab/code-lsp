@@ -1,0 +1,40 @@
+# CI de code-lsp — build + contrôles de provenance.
+# Vague 0 : les modules sont des squelettes vides ; le build valide la chaîne
+# d'outils (JDK 21 + Kotlin), et le contrôle « anti-fichier-hors-registre »
+# garantit l'exclusion définitive du moteur vendored (ADR 0001, R9.2).
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build et tests (JDK 21)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Gradle
+        uses: gradle/actions/setup-gradle@v4
+      - name: Build
+        run: ./gradlew build --no-daemon --stacktrace
+
+  provenance:
+    name: Manifeste de provenance (anti-fichier-hors-registre)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Vérification du registre
+        run: bash scripts/verifier-provenance.sh

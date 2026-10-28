@@ -75,10 +75,10 @@ Détail complet (mesures brutes, commandes, incertitudes) : `02-spike-mesures.md
 
 ## 6. Décision demandée au propriétaire
 
-> **Points 1 et 2 tranchés le 2026-10-28** : GO PARTIEL ( option B — ADR 0004 → statut Accepté ) ; ADR 0001 accepté **modifié** — **option 2 : réécriture intégrale du moteur** ( l'exclusion du vendored devient définitive ). Les points 3–4 restent ouverts et conditionnent l'amorçage de la vague 0.
+> **Points 1–3 tranchés le 2026-10-28** : GO PARTIEL ( option B — ADR 0004 → statut Accepté ) ; ADR 0001 accepté **modifié** — **option 2 : réécriture intégrale du moteur** ( l'exclusion du vendored devient définitive ) ; ADR 0002 accepté — périmètre confirmé + vision « dépôt officiel des LSP pour CodeIDE » + règles ( français/KDoc détaillé, vérification push user = jjoblab ) + **STOP levé** ( « Tu peux commencer » ). Le point 4 ( actions licences P1 et artefacts JetBrains ) reste ouvert : il bloque la reprise de `:model` ( P1 ) et la vague 5 ( JetBrains ).
 
 1. **Trancher le GO PARTIEL** ( ou corriger le cap : D pur, ou A sur preuves nouvelles ) — le présent document + `02-spike-mesures.md` en portent la démonstration. **→ TRANCHÉ le 2026-10-28 : GO PARTIEL.**
 2. **Accepter l'ADR 0001** ( licence + levée d'exclusion du moteur ) — verrou de toutes les reprises. **→ TRANCHÉ le 2026-10-28 : accepté MODIFIÉ — option 2 ( réécriture intégrale du moteur )** ; licence Apache-2.0 ; l'exclusion du vendored devient définitive ( ADR 0001 réécrit en conséquence ).
-3. **Confirmer le périmètre** ( ADR 0002, proposition §5 du `00b-inventaire-reprise.md` ).
+3. **Confirmer le périmètre** ( ADR 0002, proposition §5 du `00b-inventaire-reprise.md` ). **→ TRANCHÉ le 2026-10-28 : accepté (option 1) + vision « dépôt officiel des LSP pour CodeIDE » + règles complémentaires (français/KDoc détaillé ; vérification push user = jjoblab) ; STOP levé.**
 4. **Exécuter les 2 actions licence** ( `codeide-tooling` ; conditions artefacts JetBrains ).
 5. À réception : les **prompts d'exécution vague par vague** seront produits séparément (§8 du prompt), en commençant par la vague 0.

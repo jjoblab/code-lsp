@@ -1,7 +1,7 @@
 # ADR 0002 — Périmètre du dépôt et modules : reprendre, réécrire, abandonner
 
-- **Statut** : Proposé
-- **Date** : 2026-10-28
+- **Statut** : **Accepté** — décision du **propriétaire** reçue en séance le 2026-10-28 : option 1 confirmée, avec la vision directrice « **code-lsp sera le dépôt officiel des LSP pour CodeIDE une fois terminé** » ; règles complémentaires consignées (cf. Décision)
+- **Date** : 2026-10-28 (proposé) / 2026-10-28 (accepté)
 
 ## Contexte
 
@@ -38,9 +38,16 @@ Faits structurants :
 - Couplage moteur↔index : `:lsp:testing` (4 f / 1 464 l., zéro dépendance externe publiée) existe précisément pour cette parité.
 - Empreinte de l'option 1 : ~2 160 + 6 472 + 1 464 l. de couches candidates + moteur conditionné (≈25 839 l. core) ≈ **36 000 lignes** reprises contrôlées — à comparer aux ~75 000 lignes de l'hôte tri-langue laissées sur place.
 
-## Décision proposée
+## Décision — ACCEPTÉE par le propriétaire le 2026-10-28
 
 **Option 1**. Le nouveau dépôt porte le **domaine moteur Java** : `:index` (CIDX), `:model`, `:testing`, le moteur Java (voie tranchée le 28/10 : **réécriture intégrale** — ADR 0001 accepté modifié, option 2) et les modules d'étude (`docs/`, `spike/`). L'hôte, les moteurs Kotlin/XML et tout code CodeIDE/code-editor restent dans leurs dépôts (intégration par consommation d'artefats, comme aujourd'hui via GitHub Packages / substitution composite). Condition suspensive : éclaircissement de la licence du protocole tooling (ADR 0001/0017) pour la reprise de `:model`.
+
+**Éléments consignés à la décision (séance du 28/10/2026) :**
+
+1. **Vision directrice** : le propriétaire définit code-lsp comme **« le dépôt officiel des LSP pour CodeIDE une fois terminé »** — un LSP Java « frais, plus solide, plus intelligent, plus robuste, plus propre et professionnel », grâce à l'architecture IntelliJ PSI (étudiée, non embarquée — GO PARTIEL, ADR 0004). Le périmètre initial reste le domaine moteur Java (R8) ; la migration future des moteurs Kotlin/XML depuis `codeide-lsp` vers ce dépôt — implication « des LSP » au pluriel — sera l'objet d'une décision dédiée après parité du moteur Java.
+2. **Langue et documentation** : commentaires et **Javadoc/KDoc détaillés en français** obligatoires dans tout le code du dépôt (décision propriétaire ; consignée aussi dans `AGENTS.md`).
+3. **Vérification avant push (TRÈS IMPORTANT)** : avant CHAQUE push, le script `scripts/verifier-push.sh` doit confirmer que l'utilisateur GitHub authentifié est **`jjoblab`** (et que l'auteur git ainsi que le distant sont bien `jjoblab/code-lsp`) — décision propriétaire ; la vérification fait partie de la définition du fait Accompli.
+4. **Levant du STOP** : le propriétaire a autorisé le démarrage de l'implémentation (« Tu peux commencer », 28/10/2026) — vagues 0 puis 1 lancées conformément aux plans des ADR 0001/0002/0004.
 
 ## Conséquences
 

@@ -1,0 +1,41 @@
+code-lsp — dépôt officiel des serveurs de langage (LSP) de CodeIDE
+Copyright 2026 jjoblab
+
+Ce produit inclut, ou inclura lors des vagues d'implémentation à venir, les
+composants logiciels tiers suivants. Le registre détaillé des provenances est
+maintenu dans docs/PROVENANCE-REPRISE.md (règle R9 du cahier des charges).
+
+1. Eclipse Compiler for Java (ecj)
+   Artefact : org.eclipse.jdt:org.eclipse.jdt.core 3.40.0 (+ graphe de dépendances)
+   Licence  : Eclipse Public License 2.0 (EPL-2.0) — https://www.eclipse.org/legal/epl-2.0/
+   Usage    : compilateur/moteur de résolution, MODIFIÉ à la construction (patchs de
+              compatibilité Android/ART : shims Runtime$Version, StackWalker,
+              readAllBytes/readNBytes) et REDISTRIBUTÉ.
+   Obligations EPL-2.0 : tenir à jour ici la description des modifications et
+   pointer vers les sources amont dès la première publication binaire.
+
+2. java-syntax (JetBrains)
+   Artefact : org.jetbrains:java-syntax 0.3.381 (+ syntax-api, lang-syntax,
+              ij-multiplatform-util — pile ≈ 800 Ko)
+   Licence  : Apache-2.0 ; sources : JetBrains/intellij-community ; les artefacts
+              binaires proviennent du dépôt intellij-dependencies (JetBrains),
+              soumis aux « JetBrains Open-Source Build Terms » — conditions à
+              confirmer par le propriétaire (action ADR 0017, avant la vague 5).
+
+3. Eclipse LSP4J
+   Artefact : org.eclipse.lsp4j:lsp4j 0.21.2 — Licence : EPL-2.0.
+
+4. ASM (patchage build-time d'ecj uniquement, jamais dans l'APK)
+   Artefact : org.ow2.asm:asm (+ asm-commons) 9.7 — Licence : BSD-3-Clause.
+
+5. Protocole tooling CodeIDE
+   Artefact : com.github.jjoblab.codeide-tooling:protocol 1.0.0
+   Licence  : À CLARIFIER — le dépôt jjoblab/codeide-tooling ne comporte pas de
+              fichier LICENSE à ce jour (action propriétaire P1, ADR 0001/0017).
+              Tant que P1 n'est pas traitée, ce composant n'est pas consommé.
+
+L'implémentation du moteur Java de ce dépôt est une RÉÉCRITURE INTÉGRALE en
+Kotlin (ADR 0001, option 2 — décision du propriétaire du 28/10/2026) : aucun
+code du moteur vendored de jjoblab/codeide-lsp n'est repris, même partiellement
+(ni production, ni tests). Le moteur vendored demeure dans codeide-lsp comme
+oracle de parité et repli de production.

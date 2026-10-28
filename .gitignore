@@ -7,3 +7,11 @@ spike/build-sonde/
 # Jarres mesurées : jamais commitées (R6.4, docs/PROVENANCE-REPRISE.md)
 *.jar
 *.zip
+# ... sauf le wrapper Gradle (chaîne de build officielle du dépôt)
+!gradle/wrapper/gradle-wrapper.jar
+# Build Gradle du domaine moteur Java
+.gradle/
+build/
+local.properties
+*.hprof
+.DS_Store
