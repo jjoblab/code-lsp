@@ -7,7 +7,7 @@
 > l'architecture IntelliJ PSI — étudiée en profondeur, embarquée nulle part,
 > greffée partout où elle prouve sa valeur.
 
-## État — vague 1 (en cours)
+## État — vague 1 (terminée) — étages N1–N8 soumis au chiffrage
 
 Décisions actées par le propriétaire le 28/10/2026 :
 
@@ -51,6 +51,7 @@ avec le jar ecj patché). Tâche Gradle : `./gradlew :ecj-art:patcherEcj`.
 | `docs/etudes/moteur-java-psi/` | étude d'architecture IntelliJ PSI (D1–D12), synthèse, mesures du spike, alertes, annexes |
 | `docs/adr/` | ADR 0001–0018 (décisions d'architecture, statuts à jour) |
 | `docs/cahier-specifications/` | cahier des comportements attendus (extraction clean-room des 449 tests) — le contrat de la réécriture |
+| `docs/PLAN-REECRITURE.md` | **programme de réécriture chiffré** (étages N1–N8+T, fourchette 160–270 j-h) — soumis au propriétaire |
 | `docs/PROVENANCE-REPRISE.md` | manifeste de reprise sélective (règle R9 — registre des copies autorisées) |
 | `spike/` | bancs de mesure V1/V2/V3, scanner de compatibilité ART, gabarit appareil |
 | `java/`, `testing/` | modules Gradle du domaine moteur Java (squelettes — moteur réécrit en étages) |
@@ -85,14 +86,20 @@ La CI (`.github/workflows/ci.yml`) exécute le build et le contrôle
 ## Feuille de route (résumé)
 
 - **Vague 0 (terminée)** : squelette, licences, CI, vérifications.
-- **Vague 1 (en cours)** : ~~cahier de spécifications~~ ✓ (1a — 65 fiches,
+- **Vague 1 (terminée)** : ~~cahier de spécifications~~ ✓ (1a — 65 fiches,
   449 comportements) ; ~~reprise contrôlée `index`/`model`~~ ✓ (1b —
   45 fichiers inscrits au manifeste, 122 tests verts ; `testing` reportée
-  à l'étage noyau) ; ~~réécriture Kotlin du patcheur `ecj-art`~~ ✓ (1c —
+  à l'étage N1) ; ~~réécriture Kotlin du patcheur `ecj-art`~~ ✓ (1c —
   12 fichiers neufs, 36 tests, jar ART re-scanné vierge) ;
-  ré-estimation du programme de réécriture cahier en main (à faire).
-- **Étages suivants** : noyau moteur (env/ecj/parse/diagnostics) →
-  complétion (weighers, D8) → navigation/usages/rename (D10) — chaque étage
-  borné par la parité mesurée contre l'ancien moteur (banc croisé, ADR 0016).
+  ~~ré-estimation du programme de réécriture cahier en main~~ ✓ (1d —
+  **`docs/PLAN-REECRITURE.md`** : 160–270 j-h, médiane 213, étages
+  N1–N8+T, soumise au propriétaire).
+- **Étages suivants (N1–N8, `docs/PLAN-REECRITURE.md` §4)** : noyau moteur
+  (env/ecj/parse/diagnostics + `:testing` + bancs) → complétion (weighers,
+  D8) / hover-inlay / confort → navigation/usages/rename/code actions →
+  cycle de vie LSP — chaque étage borné par la parité mesurée contre
+  l'ancien moteur (banc croisé, ADR 0016) ; recalages d'estimation fin N1
+  et fin N2.
 
-Détail : `docs/etudes/moteur-java-psi/00-synthese.md` §4 et ADR 0001.
+Détail : `docs/PLAN-REECRITURE.md` (programme complet) et
+`docs/etudes/moteur-java-psi/00-synthese.md` §4 (historique du plan).
