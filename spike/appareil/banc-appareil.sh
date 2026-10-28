@@ -9,18 +9,21 @@
 # rapport 02-spike-mesures.md sont des LIMITES BASSES.
 #
 # Préparation (une fois, sur l'appareil, Termux) :
-#   pkg update && pkg install openjdk-17 git   # ou openjdk-21 si disponible
+#   pkg update && pkg install openjdk-17 git unzip
 #   git clone --depth 1 -b etude/moteur-java https://github.com/jjoblab/code-lsp.git
-#   cd code-lsp/spike
-#   bash scripts/telecharger-piles.sh ../jarres
-#   # + copier les jars fastutil/trove4j/automaton/asm-all (coordonnées dans
-#   #   les .pom de la pile V2) vers ../jarres/v2/ sous les noms du présent script
+#   cd code-lsp
+#   # Kit d'exécution « kit-appareil.zip » (classes compilées + jarres, octets
+#   # identiques aux mesures de bureau) : le dézipper À LA RACINE du clone —
+#   # un simple clone ne suffit pas (build*/ est ignoré par git, les jars ne
+#   # sont jamais commités, R6.4) :
+#   unzip -o kit-appareil.zip      # crée spike/build*/ et jarres/
 #
-# Compilation des bancs (sur bureau OU sur appareil si kotlinc disponible) :
-#   sur bureau : compiler puis copier build/, build-v2/, build-v3/,
-#   build-scan/ dans le spike/ de l'appareil (les .class sont portables).
+#   (alternative réseau, sans kit : bash spike/scripts/telecharger-piles.sh
+#    ../jarres, puis compiler les bancs — cf. spike/README.md §1–4 — et copier
+#    fastutil/trove4j/automaton/asm-all comme indiqué)
 #
 # Exécution :
+#   cd spike
 #   bash appareil/banc-appareil.sh ../jarres > resultats-appareil.txt
 #
 # Puis remplir appareil/GABARIT-RESULTATS.md et le joindre au ticket d'étude.
@@ -37,7 +40,9 @@ echo "=============================================================="
 KS="$JARS/kotlin-stdlib-2.2.20.jar"
 V1J="$JARS/v1/java-syntax-jvm-0.3.381.jar:$JARS/v1/syntax-api-jvm-0.3.381.jar:$JARS/v1/lang-syntax-jvm-0.3.381.jar:$JARS/v1/ij-multiplatform-util-jvm-0.3.381.jar:$KS"
 
-# pile V2 minimale (23 jars) — même liste que resultats/scan-art-v2-minimale.txt
+# pile V2 minimale (23 jars) — mêmes artefacts que resultats/scan-art-v2-minimale.txt
+# (noms canoniques de telecharger-piles.sh ; fastutil/trove4j/automaton/asm-all
+# hors dépôt central — coordonnées dans les .pom téléchargés à côté)
 V2J="$JARS/v2/core-232.4652.jar:$JARS/v2/util-232.4652.jar:$JARS/v2/util-base-232.4652.jar:$JARS/v2/util-rt-232.4652.jar:$JARS/v2/util-class-loader-232.4652.jar:$JARS/v2/util-jdom-232.4652.jar:$JARS/v2/util-xml-dom-232.4652.jar:$JARS/v2/extensions-232.4652.jar:$JARS/v2/core-impl-232.4652.jar:$JARS/v2/java-232.4652.jar:$JARS/v2/java-psi-232.4652.jar:$JARS/v2/java-psi-impl-232.4652.jar:$JARS/v2/java-indexing-impl-232.4652.jar:$JARS/v2/guava-32.0.1-jre.jar:$JARS/v2/fastutil.jar:$JARS/v2/trove4j.jar:$JARS/v2/streamex-0.8.1.jar:$JARS/v2/automaton-1.11-8.jar:$JARS/v2/asm-all-9.5.jar:$JARS/v2/kotlin-stdlib-1.8.20.jar:$JARS/v2/kotlinx-coroutines-core-jvm-1.6.4.jar:$JARS/v2/kotlinx-coroutines-jdk8-1.6.4.jar:$JARS/v2/annotations-24.0.1.jar"
 
 ECJ="$JARS/ecj-3.40.0.jar"
@@ -48,7 +53,7 @@ java -cp build-scan:"$KS" ScanArtKt "$JARS/v1/java-syntax-jvm-0.3.381.jar" | tai
 
 # 1. Génération du corpus (déterministe, graine 42)
 echo "--- corpus"
-java -cp build GenerateurCorpusKt corpus/Fichier500.java 500
+java -cp build:"$KS" GenerateurCorpusKt corpus/Fichier500.java 500
 
 # 2. V1 — parseur java-syntax seul
 echo "=== V1 (java-syntax seul)"

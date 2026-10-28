@@ -31,7 +31,7 @@ Crée `v1/`, `v2/` et le compilateur Kotlin 2.2.20 (`kotlinc-dist/`). Les coordo
 ```bash
 # corpus synthétique déterministe (graine 42, ~500 lignes, 26 méthodes)
 kotlinc-dist/kotlinc/bin/kotlinc -d build scripts/GenerateurCorpus.kt
-java -cp build GenerateurCorpusKt corpus/Fichier500.java 500
+java -cp "build:<repertoire-jars>/kotlin-stdlib-2.2.20.jar" GenerateurCorpusKt corpus/Fichier500.java 500
 ```
 
 Corpus réels ( parse uniquement, extraits du terrain d'étude `intellij-community` @ `865067b0` ) :
@@ -73,6 +73,8 @@ Sorties consignées : `resultats/scan-art-{v1,v2,v2-minimale,v3-ecj}.txt`.
 ### 5. Sur appareil (Termux / AndroidIDE) — point d'entrée
 
 Voir `appareil/` : procédure `banc-appareil.sh` + gabarit de résultats `GABARIT-RESULTATS.md` ( §6.c du prompt : le propriétaire exécute, aucun résultat appareil n'est prétendu sans lui ).
+
+Le **kit d'exécution** « kit-appareil.zip » ( classes compilées + jarres, octets identiques aux mesures de bureau ) est fourni **hors dépôt** — les jars ne sont jamais commités ( R6.4 ) — et s'extrait à la racine du clone : il rend le banc exécutable sur l'appareil sans bureau ni compilation.
 
 ## Contenu
 
