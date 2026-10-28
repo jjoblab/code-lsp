@@ -1,6 +1,7 @@
 // code-lsp — dépôt officiel des LSP de CodeIDE (vision propriétaire, ADR 0002).
 // Périmètre initial : domaine moteur Java — modules :java (moteur réécrit),
-// :index (CIDX), :model, :testing (ADR 0001/0002).
+// :index (CIDX), :model, :testing, :ecj-art (patcheur build-time, vague 1c)
+// (ADR 0001/0002).
 // Les moteurs Kotlin/XML migreront depuis codeide-lsp après décision dédiée.
 pluginManagement {
     repositories {
@@ -22,7 +23,15 @@ dependencyResolutionManagement {
 
 rootProject.name = "code-lsp"
 
+plugins {
+    // Auto-provisionnement des toolchains : télécharge le JDK 21 (Temurin)
+    // si la machine n'en dispose pas. La CI fournit déjà le JDK (setup-java) ;
+    // ce plugin sécurise les builds locaux (poste de travail, bac à sable).
+    id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
+}
+
 include(":java")
 include(":index")
 include(":model")
 include(":testing")
+include(":ecj-art")

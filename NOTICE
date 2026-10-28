@@ -8,11 +8,17 @@ maintenu dans docs/PROVENANCE-REPRISE.md (règle R9 du cahier des charges).
 1. Eclipse Compiler for Java (ecj)
    Artefact : org.eclipse.jdt:org.eclipse.jdt.core 3.40.0 (+ graphe de dépendances)
    Licence  : Eclipse Public License 2.0 (EPL-2.0) — https://www.eclipse.org/legal/epl-2.0/
-   Usage    : compilateur/moteur de résolution, MODIFIÉ à la construction (patchs de
-              compatibilité Android/ART : shims Runtime$Version, StackWalker,
-              readAllBytes/readNBytes) et REDISTRIBUTÉ.
-   Obligations EPL-2.0 : tenir à jour ici la description des modifications et
-   pointer vers les sources amont dès la première publication binaire.
+   Usage    : compilateur/moteur de résolution, MODIFIÉ à la construction par le
+              patcheur :ecj-art du dépôt (réécrit vague 1c — build-time, JVM)
+              et REDISTRIBUTÉ. Shims actifs à 3.40.0 : Runtime$Version (remap),
+              InputStream.readAllBytes/readNBytes (redirections) — liste
+              VERSIONNÉE dans ecj-art/src/main/resources/…/liste-shims-3.40.0.txt
+              (ADR 0018 : toute montée d'ecj exige un re-scan et sa révision ;
+              StackWalker, absent des références à 3.40, y est consigné).
+   Obligations EPL-2.0 : la description des modifications est EMBARQUÉE dans le
+   jar redistribué (META-INF/ECJ-ART-MODIFICATIONS.txt, générée par le patcheur)
+   et rejouable via ./gradlew :ecj-art:patcherEcj ; les sources amont non
+   modifiées restent disponibles sur Maven Central (org.eclipse.jdt:ecj).
 
 2. java-syntax (JetBrains)
    Artefact : org.jetbrains:java-syntax 0.3.381 (+ syntax-api, lang-syntax,

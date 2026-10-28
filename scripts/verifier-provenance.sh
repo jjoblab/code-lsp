@@ -12,6 +12,11 @@
 #
 # En vague 0, les modules sont vides : le contrôle passe trivialement.
 # Dès la vague 1, TOUT fichier de code repris doit figurer au manifeste.
+#
+# Périmètre volontairement limité aux modules ACCUEILLANT DES REPRISES.
+# :ecj-art (vague 1c) n'y figure pas : c'est une réécriture intégrale
+# clean-room (voie ① R9.3 — manifeste §2/§6), AUCUN de ses fichiers n'est
+# repris d'un ancien dépôt, il n'a donc rien à inscrire au registre.
 # ============================================================================
 set -euo pipefail
 

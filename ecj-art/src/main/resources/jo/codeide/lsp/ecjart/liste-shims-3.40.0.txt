@@ -1,0 +1,32 @@
+# Liste de shims du patcheur ecj-art — ecj 3.40.0
+# ---------------------------------------------------------------------------
+# FICHIER DE CONFIGURATION VERSIONNÉ (ADR 0018, décision option 1) : c'est le
+# point de vérité unique des transformations appliquées au jar ecj. La CI
+# vérifie que les motifs sensibles constatés au scan du jar ENTRANT
+# correspondent EXACTEMENT à cette liste (tout écart = échec — montée de
+# version d'ecj non accompagnée d'une révision de la liste).
+#
+# Motifs constatés sur ecj 3.40.0 (scanner du spike,
+# spike/resultats/scan-art-v3-ecj.txt — 801 classes, 11 990 méthodes) :
+#   Runtime$Version (1x), InputStream.readAllBytes (3x),
+#   InputStream.readNBytes (1x)  →  3 shims actifs ci-dessous.
+#   StackWalker : ABSENT des références à 3.40 (écart consigné ALERTES.md A3) —
+#   retiré de la liste active ; à réévaluer à CHAQUE montée (ADR 0018).
+#   MethodHandles (196x, présent ART 26+) et ServiceLoader (2x, présent ART) :
+#   surveillés par le scanner, non shimmés.
+#
+# Syntaxe (une directive par ligne, '#' = commentaire) :
+#   remap-classe <classe-amont> <classe-shim>
+#       Remappe TOUTES les références du type amont présentes dans le constant
+#       pool (entrées Class, descripteurs de méthodes/champs, signatures,
+#       frames) vers le type shim, embarqué dans le jar patché.
+#   rediriger-methode <propriétaire> <méthode> <descripteur> <shim-propriétaire> <méthode-shim> <descripteur-shim>
+#       Remplace l'invocation virtuelle <propriétaire>.<méthode><descripteur>
+#       par un appel statique au shim : le récepteur devient le premier
+#       argument (pile de forme identique — frames inchangées).
+# ---------------------------------------------------------------------------
+
+remap-classe java/lang/Runtime$Version jo/codeide/lsp/ecjart/compat/VersionJava
+
+rediriger-methode java/io/InputStream readAllBytes ()[B jo/codeide/lsp/ecjart/compat/LectureFlux lireTout (Ljava/io/InputStream;)[B
+rediriger-methode java/io/InputStream readNBytes (I)[B jo/codeide/lsp/ecjart/compat/LectureFlux lireN (Ljava/io/InputStream;I)[B

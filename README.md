@@ -34,6 +34,16 @@ faute d'action P1). **122 tests repris verts** (38 modèle + 84 index).
 `:testing` est reportée à l'étage noyau du moteur (elle éprouve le moteur
 à réécrire).
 
+**Vague 1c (28/10/2026) — patcheur `ecj-art` réécrit en Kotlin clean-room** :
+remap de `Runtime$Version` + redirections `readAllBytes`/`readNBytes` vers des
+shims embarqués (sémantique JEP 322 et javadoc JDK, éprouvée en différentiel
+contre l'oracle JVM), pilotés par une **liste de shims versionnée**
+(`liste-shims-3.40.0.txt`, ADR 0018) que la CI confronte au scan du jar
+entrant. Le jar sortant est re-scanné : **aucun motif sensible résiduel**
+toléré ; le registre EPL-2.0 des modifications est embarqué
+(`META-INF/ECJ-ART-MODIFICATIONS.txt`). 36 tests (dont compilation de fumée
+avec le jar ecj patché). Tâche Gradle : `./gradlew :ecj-art:patcherEcj`.
+
 ## Structure du dépôt
 
 | Chemin | Rôle |
@@ -46,7 +56,9 @@ faute d'action P1). **122 tests repris verts** (38 modèle + 84 index).
 | `java/`, `testing/` | modules Gradle du domaine moteur Java (squelettes — moteur réécrit en étages) |
 | `index/` | index disque CIDX — **repris contrôlé vague 1b** (17 f. main + 15 f. test + banc) |
 | `model/` | modèle de projet LSP + types du protocole réécrits — **repris contrôlé vague 1b** (6 f. main + 5 f. test + code neuf) |
+| `ecj-art/` | patcheur build-time d'ecj pour ART — **réécriture Kotlin clean-room vague 1c** (scanner, patcheur, shims, liste versionnée) |
 | `scripts/` | vérifications obligatoires (`verifier-push.sh`, `verifier-provenance.sh`) |
+| `.githooks/` | crochet `pre-push` d'identité jjoblab (activation : `git config core.hooksPath .githooks`) |
 | `.github/workflows/` | CI (build + contrôles de provenance) |
 
 ## Règles de travail
@@ -58,11 +70,13 @@ moteur, manifeste de provenance, et **vérification avant chaque push**
 
 ## Construction
 
-Prérequis : JDK 21 (le wrapper Gradle 8.13 est inclus — `JAVA_HOME` doit
-pointer vers un JDK complet, pas un JRE).
+Prérequis : JDK 21. Le wrapper Gradle 8.13 est inclus ; si la machine n'a
+pas de JDK 21 complet, le plugin d'auto-provisionnement foojay le télécharge
+automatiquement (paramétré dans `settings.gradle.kts`).
 
 ```bash
-./gradlew build       # build + tests (122 tests repris : 38 modèle + 84 index)
+./gradlew build                    # build + tests (158 tests : 38 modèle + 84 index + 36 ecj-art)
+./gradlew :ecj-art:patcherEcj      # produit ecj-art/build/ecj-patche/ecj-3.40.0-art.jar
 ```
 
 La CI (`.github/workflows/ci.yml`) exécute le build et le contrôle
@@ -74,7 +88,8 @@ La CI (`.github/workflows/ci.yml`) exécute le build et le contrôle
 - **Vague 1 (en cours)** : ~~cahier de spécifications~~ ✓ (1a — 65 fiches,
   449 comportements) ; ~~reprise contrôlée `index`/`model`~~ ✓ (1b —
   45 fichiers inscrits au manifeste, 122 tests verts ; `testing` reportée
-  à l'étage noyau) ; réécriture Kotlin du patcheur `ecj-art` (à faire) ;
+  à l'étage noyau) ; ~~réécriture Kotlin du patcheur `ecj-art`~~ ✓ (1c —
+  12 fichiers neufs, 36 tests, jar ART re-scanné vierge) ;
   ré-estimation du programme de réécriture cahier en main (à faire).
 - **Étages suivants** : noyau moteur (env/ecj/parse/diagnostics) →
   complétion (weighers, D8) → navigation/usages/rename (D10) — chaque étage
