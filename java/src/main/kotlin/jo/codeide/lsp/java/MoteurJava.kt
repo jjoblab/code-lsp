@@ -280,7 +280,11 @@ public class MoteurJava(
 
     /** Diagnose complet : résolution, enrichissement de hiérarchie, caches. */
     private fun diagnostiquerComplet(chemin: String, source: String): List<Diagnostic> {
-        val reponse = pontEcj().resoudre(unite(chemin, source), genererCode = true)
+        // Table ANALYTIQUE (étage N8, fiche 056) : les corps ENTIERS sont
+        // analysés — l'import inutilisé est un vrai signal publié au
+        // client (tag Unnecessary côté protocole) ; le diagnose RAPIDE
+        // (corps masqués) garde la table stricte (fiche 014).
+        val reponse = pontEcj().resoudre(unite(chemin, source), genererCode = true, analytique = true)
         var diagnostics = reponse.problemes().map { RegimeInstantane.convertir(it) }
             .sortedWith(compareBy({ it.plage.debutOffset }, { it.plage.finOffset }))
         diagnostics = enrichirHierarchie(diagnostics, reponse.arbre)

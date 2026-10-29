@@ -29,7 +29,11 @@ maintenu dans docs/PROVENANCE-REPRISE.md (règle R9 du cahier des charges).
               confirmer par le propriétaire (action ADR 0017, avant la vague 5).
 
 3. Eclipse LSP4J
-   Artefact : org.eclipse.lsp4j:lsp4j 0.21.2 — Licence : EPL-2.0.
+   Artefact : org.eclipse.lsp4j:org.eclipse.lsp4j 0.21.2 (+ org.eclipse.lsp4j:org.eclipse.lsp4j.jsonrpc
+              0.21.2 transitif, gson 2.10.1 transitif) — Licence : EPL-2.0.
+   Usage    : couche protocole du serveur (étage N8 — cycle de vie LSP,
+              protocole riche) ; bibliothèque publique de liaisons LSP,
+              consommée comme ecj/junit — jamais de code repris du vendored.
 
 4. ASM (patchage build-time d'ecj uniquement, jamais dans l'APK)
    Artefact : org.ow2.asm:asm (+ asm-commons) 9.7 — Licence : BSD-3-Clause.

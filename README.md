@@ -7,7 +7,7 @@
 > l'architecture IntelliJ PSI — étudiée en profondeur, embarquée nulle part,
 > greffée partout où elle prouve sa valeur.
 
-## État — étapes N1, N2, N3, N4, N5 et N7 LIVRÉES — prochaine étape N6 (CodeAction v2)
+## État — programme de réécriture N1–N8 INTÉGRALEMENT LIVRÉ — reste T (banc de parité croisé)
 
 Décisions actées par le propriétaire le 28/10/2026 :
 
@@ -203,12 +203,17 @@ dormantes ne le sont plus) et le contrôle « anti-fichier-hors-registre ».
   0 échec / 1 ignoré, bancs rejoués verts (d8 1,000/1,000/1,000, p95
   29,3 ms, 0 saut). **Décision de suite (lancer N3 ?) attendue du
   propriétaire.**
-- **Étape suivante — N3 hover / inlay / signatures** (5 fiches, 48
-  comportements — premier étage qui **réutilise** le pipeline N2 : analyse de
-  contexte et bindings) dans la séquence confirmée (§10.3) : N3/N7 → N4–N6 →
-  N8 — chaque étage borné par la parité mesurée contre l'ancien moteur
-  (banc croisé, ADR 0016). Au-delà du recalage 2, la garde n'est plus
-  l'estimation mais le banc croisé (T) et la parité sur appareil (§8.5).
+- **Étages N3–N8 (TERMINÉS les 29–30/10/2026)** : ~~hover/inlay/
+  signatures~~ ✓ (N3) ; ~~confort éditeur~~ ✓ (N7) ; ~~navigation &
+  usages~~ ✓ (N4) ; ~~rename v2 par phases~~ ✓ (N5) ; ~~CodeAction v2 &
+  correcteurs~~ ✓ (N6) ; ~~cycle de vie LSP, protocole riche &
+  intégration~~ ✓ (N8 — 5 fiches, 44 comportements verts, 625 tests /
+  0 échec). **Le programme de réécriture N1–N8 est INTÉGRALEMENT livré.**
+- **Reste T** (banc de parité croisé ADR 0016 — corpus rejoué contre le
+  vendored en oracle boîte noire, baselines signées, CI bloquante) et la
+  bascule à parité sur appareil (§8.5) — la garde n'est plus
+  l'estimation (recalages 1 et 2 clos) mais le banc croisé et la parité
+  mesurée.
 
 Détail : `docs/PLAN-REECRITURE.md` (programme complet) et
 `docs/etudes/moteur-java-psi/00-synthese.md` §4 (historique du plan).
@@ -254,7 +259,32 @@ N5 → N6 → N8, T traversant) :
   `documentChanges` versionnée au didOpen, jamais les deux) ;
   preview = résultat (le moteur n'écrit jamais sur le disque) — 550
   tests / 0 échec au dépôt.
-- **Étape suivante — N6 CodeAction v2** (4 fiches, 31 comportements —
-  ModCommand déclaratif sérialisable, correcteurs) puis N8 (cycle de vie
-  LSP & protocole riche) — chaque étage borné par la parité mesurée
-  contre l'ancien moteur (banc croisé, ADR 0016).
+- **N6 CodeAction v2 (ModCommand) & correcteurs** (livré) — le modèle
+  ModCommand d'IntelliJ greffé en esprit (plan déclaratif SÉRIALISABLE,
+  calcul en lecture, exécution déléguée au client), familles de
+  problèmes ID-first (dispatch ID ecj → famille, Locale-indépendant),
+  correcteurs texte et création de méthode (581 tests / 0 échec).
+- **N8 cycle de vie LSP, protocole riche & intégration** (livré) — 5
+  fiches, 44 comportements verts (625 tests / 0 échec au dépôt ; 6
+  ignorés gate fermée, 0 gate `ANDROID_JAR` ouverte) : la couche
+  protocole lsp4j complète (`protocole/` — machine à états
+  UNINITIALIZED→EXITED, gardes I2/I3 aux codes EXACTS -32002/-32600,
+  erreur typée rename -32803, notifications hors fenêtre ignorées),
+  synchronisation plein texte **copy-on-write à époques** (« 0 réponse
+  périmée », design intégré vague 4), publication asynchrone débouncée
+  (50 ms — version courante transportée), diagnose complet ANALYTIQUE
+  (import inutilisé → tag `Unnecessary`, fiche 056 — le chemin rapide à
+  corps masqués garde les familles éteintes, fiche 014), capabilities
+  complètes + **capability maison `x-codeide.completionRanking` PROUVÉE
+  sur le fil** (poids packé + matcher sérialisé par item — re-filtrage
+  local client, ADR 0012), complétion `filterText` = label (I12),
+  documentSymbol/workspace-symbol (plage sur le NOM déclarant),
+  codeLens à resolve paresseux (« 0/1 référence », balayage overlay +
+  disque, déclaration exclue), hiérarchies types/appels (englobant
+  contextType, cibles localisées dans leur source de DÉCLARATION),
+  formatage document/plage/frappe, références à la PARITÉ STRICTE
+  §10.4 (écart du vendored verrouillé : document courant seul), et les
+  méthodes expérimentales `superDefinition`/`decompiledSource` via
+  l'interface distante combinée. Les étages N1–N8 du plan §4 sont
+  TOUS livrés ; reste **T** (banc de parité croisé ADR 0016 — oracle
+  vendored en boîte noire) et la bascule à parité sur appareil.

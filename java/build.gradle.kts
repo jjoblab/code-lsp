@@ -30,6 +30,44 @@ tasks.test {
     maxHeapSize = "640m"
 }
 
+// ---------------------------------------------------------------------------
+// Étage N8 — ressource de version du serveur (fiche 059, comportement I7 :
+// serverInfo.version EXACTEMENT égale à la clé `version` de la ressource
+// `.../protocole/version.properties` embarquée). La ressource est GÉNÉRÉE
+// depuis la version du projet (racine) : toute dérive dépôt↔serveur est
+// impossible par construction. La valeur fantôme « 1.2.0 » du vendored est
+// proscrite par le cahier — jamais codée en dur ici.
+// ---------------------------------------------------------------------------
+val dossierVersionGeneree = layout.buildDirectory.dir("version-n8")
+
+val genererVersionProps = tasks.register("genererVersionProps") {
+    description = "Génère version.properties du serveur (fiche 059 I7) depuis la version du projet."
+    // La version est une ENTRÉE : changer la version du projet régénère la
+    // ressource (jamais de ressource périmée dans l'artefact).
+    inputs.property("version", project.version)
+    outputs.dir(dossierVersionGeneree)
+    doLast {
+        val cible = dossierVersionGeneree.get()
+            .dir("jo/codeide/lsp/java/protocole").asFile
+            .resolve("version.properties")
+        cible.parentFile.mkdirs()
+        cible.writeText(
+            """
+            |# Généré par :java:genererVersionProps — NE PAS ÉDITER (fiche 059 I7).
+            |version=${project.version}
+            """.trimMargin() + "\n",
+        )
+    }
+}
+
+sourceSets.main {
+    resources.srcDir(dossierVersionGeneree)
+}
+
+tasks.processResources {
+    dependsOn(genererVersionProps)
+}
+
 dependencies {
     // Le moteur pilote le jar ecj PATCHÉ produit par :ecj-art (build-time,
     // ADR 0005/0018) : classes ecj + shims ART embarqués. compileOnly en
@@ -37,6 +75,16 @@ dependencies {
     // (les tests du cahier consomment le jar patché — fiche 013).
     compileOnly(project(mapOf("path" to ":ecj-art", "configuration" to "sortieEcjArt")))
     testImplementation(project(mapOf("path" to ":ecj-art", "configuration" to "sortieEcjArt")))
+
+    // Étage N8 — couche protocole (cycle de vie LSP, protocole riche) :
+    // liaisons Java publiques du protocole LSP (EPL-2.0, Maven Central —
+    // NOTICE n° 3, ADR 0015). Bibliothèque TIERS comme ecj ou JUnit : le
+    // clean-room du moteur (AGENTS.md) interdit de reprendre le CODE du
+    // vendored, pas d'utiliser les mêmes bibliothèques publiques. Le
+    // paquet `protocole` est le SEUL consommateur ; les paquets moteur
+    // restent libres de lsp4j (convention « la conversion vers le protocole
+    // est le travail de la couche hôte », TypesDiagnostics).
+    implementation("org.eclipse.lsp4j:org.eclipse.lsp4j:0.21.2")
 
     testImplementation(kotlin("test"))
     testImplementation("org.junit.jupiter:junit-jupiter:5.11.4")
