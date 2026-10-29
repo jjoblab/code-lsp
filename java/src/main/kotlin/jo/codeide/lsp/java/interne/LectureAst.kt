@@ -6,8 +6,10 @@ import org.eclipse.jdt.internal.compiler.ast.AbstractMethodDeclaration
 import org.eclipse.jdt.internal.compiler.ast.AllocationExpression
 import org.eclipse.jdt.internal.compiler.ast.Argument
 import org.eclipse.jdt.internal.compiler.ast.CompilationUnitDeclaration
+import org.eclipse.jdt.internal.compiler.ast.ConstructorDeclaration
 import org.eclipse.jdt.internal.compiler.ast.FieldDeclaration
 import org.eclipse.jdt.internal.compiler.ast.FieldReference
+import org.eclipse.jdt.internal.compiler.ast.ImportReference
 import org.eclipse.jdt.internal.compiler.ast.LambdaExpression
 import org.eclipse.jdt.internal.compiler.ast.LocalDeclaration
 import org.eclipse.jdt.internal.compiler.ast.MessageSend
@@ -336,10 +338,13 @@ public object LectureAst {
         override fun visit(localDeclaration: LocalDeclaration, scope: BlockScope?): Boolean = protege { visiteLocale(localDeclaration, scope) }
         override fun visit(fieldDeclaration: FieldDeclaration, scope: MethodScope?): Boolean = protege { visiteChamp(fieldDeclaration, scope) }
         override fun visit(methodDeclaration: MethodDeclaration, scope: ClassScope?): Boolean = protege { visiteMethode(methodDeclaration, scope) }
+        override fun visit(constructorDeclaration: ConstructorDeclaration, scope: ClassScope?): Boolean = protege { visiteConstructeur(constructorDeclaration, scope) }
         override fun visit(typeDeclaration: TypeDeclaration, scope: ClassScope?): Boolean = protege { visiteType(typeDeclaration, scope) }
         override fun visit(typeDeclaration: TypeDeclaration, scope: CompilationUnitScope?): Boolean = protege { visiteType(typeDeclaration, null) }
         override fun visit(argument: Argument, scope: BlockScope?): Boolean = protege { visiteArgument(argument, scope) }
+        override fun visit(importReference: ImportReference, scope: CompilationUnitScope?): Boolean = protege { visiteImport(importReference, scope) }
         override fun endVisit(methodDeclaration: MethodDeclaration, scope: ClassScope?): Unit = protegeUnit { finMethode(methodDeclaration, scope) }
+        override fun endVisit(constructorDeclaration: ConstructorDeclaration, scope: ClassScope?): Unit = protegeUnit { finConstructeur(constructorDeclaration, scope) }
 
         private fun protege(corps: () -> Boolean): Boolean = try {
             corps()
@@ -365,9 +370,12 @@ public object LectureAst {
         public open fun visiteLocale(node: LocalDeclaration, scope: BlockScope?): Boolean = true
         public open fun visiteChamp(node: FieldDeclaration, scope: MethodScope?): Boolean = true
         public open fun visiteMethode(node: MethodDeclaration, scope: ClassScope?): Boolean = true
+        public open fun visiteConstructeur(node: ConstructorDeclaration, scope: ClassScope?): Boolean = true
         public open fun visiteType(node: TypeDeclaration, scope: ClassScope?): Boolean = true
         public open fun visiteArgument(node: Argument, scope: BlockScope?): Boolean = true
+        public open fun visiteImport(node: ImportReference, scope: CompilationUnitScope?): Boolean = true
         public open fun finMethode(node: MethodDeclaration, scope: ClassScope?): Unit {}
+        public open fun finConstructeur(node: ConstructorDeclaration, scope: ClassScope?): Unit {}
     }
 
     /** Traduction lisible et sûre d'un type résolu. */

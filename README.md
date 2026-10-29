@@ -7,7 +7,7 @@
 > l'architecture IntelliJ PSI — étudiée en profondeur, embarquée nulle part,
 > greffée partout où elle prouve sa valeur.
 
-## État — étapes N1, N2, N3, N7 et N4 LIVRÉES — prochaine étape N5 (rename v2)
+## État — étapes N1, N2, N3, N4, N5 et N7 LIVRÉES — prochaine étape N6 (CodeAction v2)
 
 Décisions actées par le propriétaire le 28/10/2026 :
 
@@ -236,7 +236,25 @@ N5 → N6 → N8, T traversant) :
   de mots des sources — `Files.walk` retiré du chemin chaud, rappel =
   oracle (banc `:java:benchUsages` CI-bloquant : rappel 1,000, p95 ~62 ms
   < 100 ms) — 520 tests / 0 échec au dépôt.
-- **Étape suivante — N5 rename v2** (2 fiches, 17 comportements — moteur
-  de rename par phases, collisions typées) puis N6 (CodeAction v2) et N8
-  (cycle de vie LSP & protocole riche) — chaque étage borné par la parité
-  mesurée contre l'ancien moteur (banc croisé, ADR 0016).
+- **N5 rename v2 par phases** (livré) — le moteur de renommage sûr
+  structurel (fiche 026) : identification de cible par bindings (clé
+  structurelle `kind:paquet.Classe.membre` — homonymes départagés),
+  occurrences EXHAUSTIVES multi-fichiers sur l'index de mots (imports,
+  constructeurs et allocations compris pour un type — le constructeur
+  vise le type, l'import est une occurrence comme les autres),
+  court-circuit file-local des locales, rappel = oracle (balayage
+  complet) ; **collisions typées** AVANT écriture (ADR 0014 — identifiant
+  invalide, nom pris, masquage, override non suivi + re-résolution de
+  l'aperçu par diagnose différentiel) et overrides **opt-in explicite** ;
+  le service honnête (fiche 061) : `prepareRename` au placeholder et à
+  la plage EXACTS du jeton (caret au milieu compris), erreur typoÉE
+  `renommage.sansCible` (RequestFailed -32803, message FR, `data`
+  structuré) — jamais d'édition vide silencieuse — et le
+  `WorkspaceEdit` sous la forme NÉGOCIÉE (`changes` héritée ou
+  `documentChanges` versionnée au didOpen, jamais les deux) ;
+  preview = résultat (le moteur n'écrit jamais sur le disque) — 550
+  tests / 0 échec au dépôt.
+- **Étape suivante — N6 CodeAction v2** (4 fiches, 31 comportements —
+  ModCommand déclaratif sérialisable, correcteurs) puis N8 (cycle de vie
+  LSP & protocole riche) — chaque étage borné par la parité mesurée
+  contre l'ancien moteur (banc croisé, ADR 0016).

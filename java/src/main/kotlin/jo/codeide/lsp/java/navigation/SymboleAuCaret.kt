@@ -148,7 +148,7 @@ internal class RegistreUnite : LectureAst.VisiteurResilient() {
  * `otherBindings[i - 1]` (convention ecj — le récepteur d'abord, les
  * chaînons ensuite).
  */
-internal class CollecteurSymbole(
+internal open class CollecteurSymbole(
     private val source: String,
     private val offset: Int,
 ) : LectureAst.VisiteurResilient() {

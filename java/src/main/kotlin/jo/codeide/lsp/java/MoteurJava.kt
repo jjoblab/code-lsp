@@ -28,6 +28,10 @@ import jo.codeide.lsp.java.navigation.ServiceSelection
 import jo.codeide.lsp.java.navigation.ServiceUsages
 import jo.codeide.lsp.java.navigation.Surbrillance
 import jo.codeide.lsp.java.navigation.Usage
+import jo.codeide.lsp.java.renommage.CibleRenommage
+import jo.codeide.lsp.java.renommage.ConflitRenommage
+import jo.codeide.lsp.java.renommage.MoteurRenommage
+import jo.codeide.lsp.java.renommage.OccurrenceRenommage
 import jo.codeide.lsp.java.interne.AideSignature
 import jo.codeide.lsp.java.interne.CacheParse
 import jo.codeide.lsp.java.interne.DiagnoseRapide
@@ -137,6 +141,9 @@ public class MoteurJava(
 
     /** Exécuteur de requêtes d'usages (étage N4 — QueryExecutor), paresseux. */
     private var serviceUsages: ServiceUsages? = null
+
+    /** Moteur de renommage par phases (étage N5 — ADR 0014), paresseux. */
+    private var moteurRenommage: MoteurRenommage? = null
 
     /** États rapides par chemin (fiche 014/015). */
     private val etatsRapides = HashMap<String, DiagnoseRapide.Etat>()
@@ -681,6 +688,125 @@ public class MoteurJava(
      */
     public fun constructionsIndexMots(): Int = synchronized(this) { indexMotsSources().constructions() }
 
+    // ------------------------------------------------------------------ //
+    // Renommage par phases (étage N5 — cahier fiches 026 et 061)
+    // ------------------------------------------------------------------ //
+
+    /**
+     * La CIBLE de renommage au caret (étage N5 — cahier fiche 026) :
+     * le symbole identifié par bindings — nom actuel, genre, clé
+     * structurelle (« method:paquet.Classe.nom( » / « field:… » /
+     * « type:… ») et périmètre. Le nom d'un CONSTRUCTEUR vise le TYPE ;
+     * un segment d'IMPORT est une cible comme une autre ; une LOCALE
+     * est file-local.
+     *
+     * @param chemin le chemin logique du document interrogé.
+     * @param source le texte Java complet (tampon ouvert).
+     * @param offset la position du caret.
+     * @return la cible, ou null (caret hors identifiant renommable).
+     */
+    public fun cibleRenommageA(chemin: String, source: String, offset: Int): CibleRenommage? = synchronized(this) {
+        if (!isLikelyUsableInterne()) return null
+        return moteurRenommage().cibleA(chemin, source, offset)
+    }
+
+    /**
+     * Les occurrences du renommage par fichier (étage N5 — cahier
+     * fiche 026 : `renameProject`) : EXHAUSTIF sur les racines par clé
+     * de binding (homonymes exclus), imports et constructeurs compris
+     * pour un type ; les fichiers sans occurrence sont ABSENTS de la
+     * sortie. Une LOCALE court-circuite le balayage projet (une seule
+     * entrée : le fichier courant).
+     *
+     * @param chemin le chemin logique du document interrogé.
+     * @param source le texte du document (tampon ouvert — prime sur le disque).
+     * @param offset la position du caret.
+     * @param suivreOverrides suivre les déclarations outrépassées dans
+     *   les sous-types (opt-in explicite, faux par défaut — ADR 0014).
+     * @return la map triée fichier → occurrences (triées par offset).
+     */
+    public fun renommageProjet(
+        chemin: String,
+        source: String,
+        offset: Int,
+        suivreOverrides: Boolean = false,
+    ): Map<String, List<OccurrenceRenommage>> = synchronized(this) {
+        if (!isLikelyUsableInterne()) return emptyMap()
+        return moteurRenommage().renommageProjet(chemin, source, offset, suivreOverrides)
+    }
+
+    /**
+     * L'ORACLE du banc de renommage (étage N5) : les occurrences par
+     * BALAYAGE COMPLET des racines, même correspondance par clé — le
+     * rappel de [renommageProjet] est mesuré CONTRE cette map (« 0
+     * occurrence manquée », la moitié occurrences du critère « 0 conflit
+     * manqué (oracle) »). Ce chemin traverse exprès l'arborescence :
+     * JAMAIS sur le chemin chaud.
+     *
+     * @param chemin le chemin logique du document interrogé.
+     * @param source le texte du document (tampon ouvert).
+     * @param offset la position du caret.
+     * @return la map exhaustive (même forme que [renommageProjet]).
+     */
+    public fun renommageProjetParBalayageComplet(
+        chemin: String,
+        source: String,
+        offset: Int,
+    ): Map<String, List<OccurrenceRenommage>> = synchronized(this) {
+        if (!isLikelyUsableInterne()) return emptyMap()
+        return moteurRenommage().renommageProjetParBalayageComplet(chemin, source, offset)
+    }
+
+    /**
+     * Les COLLISIONS typées du renommage proposé (étage N5 — ADR 0014 :
+     * liste typée de collisions, détectées AVANT écriture) :
+     * identifiant invalide, nom pris, masquage, override non suivi,
+     * référence brisée par re-résolution de l'aperçu.
+     *
+     * @param chemin le chemin logique du document interrogé.
+     * @param source le texte du document (tampon ouvert).
+     * @param offset la position du caret.
+     * @param nouveauNom le nom proposé.
+     * @param suivreOverrides suivre les overrides (opt-in — supprime la
+     *   collision OVERRIDE_NON_SUIVI).
+     * @return les collisions typées (vide = renommage sûr).
+     */
+    public fun conflitsRenommage(
+        chemin: String,
+        source: String,
+        offset: Int,
+        nouveauNom: String,
+        suivreOverrides: Boolean = false,
+    ): List<ConflitRenommage> = synchronized(this) {
+        if (!isLikelyUsableInterne()) return emptyList()
+        return moteurRenommage().conflits(chemin, source, offset, nouveauNom, suivreOverrides)
+    }
+
+    /**
+     * Les éditions d'un renommage (étage N5 — phase EXÉCUTION) : le
+     * JETON remplacé EXACTEMENT par le nouveau nom, une édition par
+     * occurrence, offsets croissants.
+     *
+     * @param nouveauNom le nouveau nom.
+     * @param occurrences les occurrences retouchées (un seul fichier).
+     * @return les éditions triées par offset croissant.
+     */
+    public fun editionsRenommage(nouveauNom: String, occurrences: List<OccurrenceRenommage>): List<EditionTexte> =
+        moteurRenommage().editions(nouveauNom, occurrences)
+
+    /**
+     * L'APERÇU du renommage (étage N5 — preview = résultat) : la source
+     * après application des éditions — le moteur n'écrit JAMAIS sur le
+     * disque, l'aperçu est la preuve que la prévisualisation et le
+     * résultat coïncident.
+     *
+     * @param source la source originale du fichier.
+     * @param editions les éditions du renommage pour CE fichier.
+     * @return la source previewée.
+     */
+    public fun apercuRenommage(source: String, editions: List<EditionTexte>): String =
+        moteurRenommage().apercu(source, editions)
+
     /**
      * Indices inlay de l'unité (étage N3 — cahier fiches 002/003/030) :
      * paramètres « nom: » aux sites d'appel de méthodes SOURCE, types « : T »
@@ -1155,6 +1281,23 @@ public class MoteurJava(
         )
         serviceUsages = service
         return service
+    }
+
+    /** Moteur de renommage par phases (paresseux — index + résolution + diagnose + annuaire). */
+    private fun moteurRenommage(): MoteurRenommage {
+        moteurRenommage?.let { return it }
+        val moteur = MoteurRenommage(
+            racines = racines,
+            indexMots = indexMotsSources(),
+            resoudre = { chemin, source -> resolveUnit(chemin, source, genererCode = false)?.arbre },
+            diagnostiquer = { chemin, source -> diagnose(chemin, source) },
+            localiser = { fqcn ->
+                (runCatching { environnementNoms().trouverFqcn(fqcn) }.getOrNull()
+                    as? jo.codeide.lsp.java.classpath.EnvironnementNoms.Localisation.Source)?.fichier
+            },
+        )
+        moteurRenommage = moteur
+        return moteur
     }
 
     /**
