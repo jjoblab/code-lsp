@@ -8,6 +8,9 @@
 > (plan de migration ADR 0001 : « ré-estimation du programme de réécriture du
 > moteur, j-h par étage, cahier en main, soumise au propriétaire avant l'étage
 > noyau »).
+> **Recalage 1 (fin N1, §8.2) — EXÉCUTÉ le 29/10/2026 : voir
+> `RECALAGE-1.md`** (N1 livré au commit `ce291dc` ; vélocité mesurée,
+> re-projection N2–N8, décision de suite soumise).
 > **Date** : 28/10/2026. **Base** : cahier de spécifications (`docs/cahier-specifications/`
 > — 65 fiches, 449 comportements), étude PSI D1–D12, ADR 0001–0018.
 > **Discipline R5** (étude, §méthode) : chaque chiffre de ce document est
@@ -374,7 +377,8 @@ Le risque R4 (« sous-estimation ») se pilote par bornage, pas par promesse :
    n'est lancé sans que le précédent soit au vert ;
 2. **Recalage 1 — fin N1** : la vélocité réelle mesurée sur le premier étage
    (le plus gros socle) remplace les postulats d'abaque ; la fourchette
-   N2–N8 est re-projetée et re-soumise au propriétaire ;
+   N2–N8 est re-projetée et re-soumise au propriétaire —
+   **exécuté le 29/10/2026 : `RECALAGE-1.md`** (soumis) ;
 3. **Recalage 2 — fin N2** : l'étage le plus riche en design étant passé, la
    confiance sur N3–N8 est re-évaluée ;
 4. **Repli permanent** : le vendored demeure en production dans

@@ -7,7 +7,7 @@
 > l'architecture IntelliJ PSI — étudiée en profondeur, embarquée nulle part,
 > greffée partout où elle prouve sa valeur.
 
-## État — étage N1 (noyau moteur) LIVRÉ — prochaine étape : N2 (complétion & classement)
+## État — étage N1 (noyau moteur) LIVRÉ — recalage 1 SOUMIS — décision de suite attendue avant N2
 
 Décisions actées par le propriétaire le 28/10/2026 :
 
@@ -83,7 +83,8 @@ asserté avant le banc croisé ADR 0016).
 | `docs/etudes/moteur-java-psi/` | étude d'architecture IntelliJ PSI (D1–D12), synthèse, mesures du spike, alertes, annexes |
 | `docs/adr/` | ADR 0001–0018 (décisions d'architecture, statuts à jour) |
 | `docs/cahier-specifications/` | cahier des comportements attendus (extraction clean-room des 449 tests) — le contrat de la réécriture |
-| `docs/PLAN-REECRITURE.md` | **programme de réécriture chiffré** (étages N1–N8+T, fourchette 160–270 j-h) — **approuvé le 28/10/2026** (engagement borné N1 + banc croisé) |
+| `docs/PLAN-REECRITURE.md` | **programme de réécriture chiffré** (étages N1–N8+T, fourchette 160–270 j-h) — **approuvé le 28/10/2026** (engagement borné N1 + banc croisé) ; **recalage 1 exécuté le 29/10** |
+| `docs/RECALAGE-1.md` | **recalage de fin N1 (§8.2)** — vélocité mesurée, re-projection N2–N8, décision de suite soumise au propriétaire |
 | `docs/PROVENANCE-REPRISE.md` | manifeste de reprise sélective (règle R9 — registre des copies autorisées) |
 | `spike/` | bancs de mesure V1/V2/V3, scanner de compatibilité ART, gabarit appareil |
 | `java/` | **moteur Java LSP réécrit — étage N1 LIVRÉ** (noyau compilateur & environnement, 21 f. Kotlin clean-room, 128 tests, banc `:java:bench`) |
@@ -137,12 +138,17 @@ contrôle « anti-fichier-hors-registre » à chaque push.
   compléments §5 non réalisés (optionnels).
 - **Étage N1 (TERMINÉ le 29/10/2026)** : ~~noyau compilateur & environnement~~ ✓
   (25 fiches couvertes, 128 tests noyau + 4 intégration, `:testing` réécrite,
-  banc empreinte/latence en CI — détail en tête de page) ; le **recalage 1**
-  (§8.2) est DÛ au propriétaire : la vélocité mesurée sur le premier étage
-  remplace les postulats d'abaque et la fourchette N2–N8 est re-projetée.
-- **Prochaine étape — N2 complétion & classement** (9 fiches, 66
+  banc empreinte/latence en CI — détail en tête de page).
+- **Recalage 1 (fin N1, §8.2) — SOUMIS le 29/10/2026** : ~~vélocité mesurée,
+  re-projection N2–N8~~ ✓ (`docs/RECALAGE-1.md`) — N1 livré en 1 séance
+  continue (~6 h agent) ; densités mesurées sous le postulat (34,3 l. prod /
+  comportement) ; projection N2–N8+T : **6–9 séances effectives** en
+  exécution agent, fourchette humaine 160–270 j-h maintenue (R5) ;
+  **décision de suite (lancer N2 ?) attendue du propriétaire**.
+- **Étape suivante — N2 complétion & classement** (9 fiches, 66
   comportements : chaîne de weighers D8, split RPC, banc qualité
-  recall/top-1/MRR) puis, séquence confirmée (§10.3) : N3/N7 →
+  recall/top-1/MRR), au retour de la décision de suite ; puis, séquence
+  confirmée (§10.3) : N3/N7 →
   N4–N6 → N8 — chaque étage borné par la parité mesurée contre l'ancien
   moteur (banc croisé, ADR 0016) ; recalage d'estimation fin N2.
 
