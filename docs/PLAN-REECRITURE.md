@@ -11,6 +11,10 @@
 > **Recalage 1 (fin N1, §8.2) — EXÉCUTÉ le 29/10/2026 : voir
 > `RECALAGE-1.md`** (N1 livré au commit `ce291dc` ; vélocité mesurée,
 > re-projection N2–N8, décision de suite soumise).
+> **Recalage 2 (fin N2, §8.2) — EXÉCUTÉ le 29/10/2026 : voir
+> `RECALAGE-2.md`** (N2 livré aux commits `5d3ca1a`+`bc70055` ; confiance
+> N3–N8 re-évaluée sur les deux étages extrêmes de l'abaque, décision de
+> suite soumise).
 > **Date** : 28/10/2026. **Base** : cahier de spécifications (`docs/cahier-specifications/`
 > — 65 fiches, 449 comportements), étude PSI D1–D12, ADR 0001–0018.
 > **Discipline R5** (étude, §méthode) : chaque chiffre de ce document est
@@ -380,7 +384,9 @@ Le risque R4 (« sous-estimation ») se pilote par bornage, pas par promesse :
    N2–N8 est re-projetée et re-soumise au propriétaire —
    **exécuté le 29/10/2026 : `RECALAGE-1.md`** (soumis) ;
 3. **Recalage 2 — fin N2** : l'étage le plus riche en design étant passé, la
-   confiance sur N3–N8 est re-évaluée ;
+   confiance sur N3–N8 est re-évaluée — **exécuté le 29/10/2026 :
+   `RECALAGE-2.md`** (soumis ; aucun signal défavorable, facteur d'exécution
+   N2 inférieur à N1, projection N3–N8+T : 5–8 séances effectives) ;
 4. **Repli permanent** : le vendored demeure en production dans
    `codeide-lsp` jusqu'à la bascule (critère : parité du cahier **sur
    appareil**) — une pause ou un arrêt du programme ne dégrade rien ;

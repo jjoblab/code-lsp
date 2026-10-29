@@ -7,7 +7,7 @@
 > l'architecture IntelliJ PSI — étudiée en profondeur, embarquée nulle part,
 > greffée partout où elle prouve sa valeur.
 
-## État — étage N2 (complétion & classement) LIVRÉ — recalage 2 (fin N2) à la prochaine séance
+## État — étapes N1+N2 LIVRÉES — recalage 2 (fin N2) SOUMIS, décision de suite attendue
 
 Décisions actées par le propriétaire le 28/10/2026 :
 
@@ -115,8 +115,9 @@ hiérarchie non balayée par `availableMethods` d'ecj, internes
 | `docs/etudes/moteur-java-psi/` | étude d'architecture IntelliJ PSI (D1–D12), synthèse, mesures du spike, alertes, annexes |
 | `docs/adr/` | ADR 0001–0018 (décisions d'architecture, statuts à jour) |
 | `docs/cahier-specifications/` | cahier des comportements attendus (extraction clean-room des 449 tests) — le contrat de la réécriture |
-| `docs/PLAN-REECRITURE.md` | **programme de réécriture chiffré** (étages N1–N8+T, fourchette 160–270 j-h) — **approuvé le 28/10/2026** (engagement borné N1 + banc croisé) ; **recalage 1 exécuté le 29/10** |
+| `docs/PLAN-REECRITURE.md` | **programme de réécriture chiffré** (étages N1–N8+T, fourchette 160–270 j-h) — **approuvé le 28/10/2026** (engagement borné N1 + banc croisé) ; recalages 1 et 2 exécutés le 29/10 |
 | `docs/RECALAGE-1.md` | **recalage de fin N1 (§8.2)** — vélocité mesurée, re-projection N2–N8, décision de suite soumise au propriétaire |
+| `docs/RECALAGE-2.md` | **recalage de fin N2 (§8.2 — dernier recalage prévu)** — confiance N3–N8 re-évaluée sur les deux étages extrêmes de l'abaque, re-projection 5–8 séances effectives, décision de suite soumise |
 | `bancs/baselines/` | **baselines JSON signées des bancs qualité** (ADR 0016 — `completion.json` : complétion N2 ; re-baseline par PR dédiée) |
 | `docs/PROVENANCE-REPRISE.md` | manifeste de reprise sélective (règle R9 — registre des copies autorisées) |
 | `spike/` | bancs de mesure V1/V2/V3, scanner de compatibilité ART, gabarit appareil |
@@ -181,7 +182,7 @@ dormantes ne le sont plus) et le contrôle « anti-fichier-hors-registre ».
   continue (~6 h agent) ; densités mesurées sous le postulat (34,3 l. prod /
   comportement) ; projection N2–N8+T : **6–9 séances effectives** en
   exécution agent, fourchette humaine 160–270 j-h maintenue (R5) ;
-  **décision de suite (lancer N2 ?) attendue du propriétaire**.
+  **décision reçue : N2 lancé, gates Android requalifiées au fil de N2**.
 - **Étage N2 (TERMINÉ le 29/10/2026)** : ~~complétion & classement~~ ✓
   (9 fiches : 007/008/020/035/036/043/044/050/053 couvertes, échelle de
   variantes, chaîne D8 + gel + plafond honnête, split RPC, banc qualité
@@ -189,10 +190,25 @@ dormantes ne le sont plus) et le contrôle « anti-fichier-hors-registre ».
   recall ≥ baseline, top-1/MRR +5 pts vs naïf (+38,9/+28,5), p95 ≤
   baseline, zéro saut ; gates Android requalifiées en CI — détail en tête
   de page).
-- **Étape suivante — recalage 2 (fin N2, §8.2)** puis **N3 hover / inlay /
-  signatures** (5 fiches, 48 comportements) dans la séquence confirmée
-  (§10.3) : N3/N7 → N4–N6 → N8 — chaque étage borné par la parité mesurée
-  contre l'ancien moteur (banc croisé, ADR 0016).
+- **Recalage 2 (fin N2, §8.2 — dernier recalage prévu) — SOUMIS le
+  29/10/2026** : ~~confiance N3–N8 re-évaluée~~ ✓ (`docs/RECALAGE-2.md`) —
+  N2 livré en 3 h 01 d'horloge (trois segments de séance, dont une reprise
+  après compression de contexte — sans perte) contre 6 h 05 pour N1 ; densité prod **47,6 l./comp.,
+  DANS le postulat 40–62** (l'étage design est plus dense, comme postulé) ;
+  facteur d'exécution N2 **inférieur** à N1 (0,060–0,094 contre 0,11–0,20
+  h/j-h) — la question laissée ouverte par le recalage 1 reçoit une réponse
+  favorable ; re-projection N3–N8+T : **5–8 séances effectives** (9–25 h
+  agent), fourchette humaine 160–270 j-h maintenue (R5, centre de gravité
+  documenté bas) ; vérification indépendante du jour : build 344 tests /
+  0 échec / 1 ignoré, bancs rejoués verts (d8 1,000/1,000/1,000, p95
+  29,3 ms, 0 saut). **Décision de suite (lancer N3 ?) attendue du
+  propriétaire.**
+- **Étape suivante — N3 hover / inlay / signatures** (5 fiches, 48
+  comportements — premier étage qui **réutilise** le pipeline N2 : analyse de
+  contexte et bindings) dans la séquence confirmée (§10.3) : N3/N7 → N4–N6 →
+  N8 — chaque étage borné par la parité mesurée contre l'ancien moteur
+  (banc croisé, ADR 0016). Au-delà du recalage 2, la garde n'est plus
+  l'estimation mais le banc croisé (T) et la parité sur appareil (§8.5).
 
 Détail : `docs/PLAN-REECRITURE.md` (programme complet) et
 `docs/etudes/moteur-java-psi/00-synthese.md` §4 (historique du plan).
