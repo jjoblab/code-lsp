@@ -175,7 +175,7 @@ publications traversent la sérialisation Gson et les en-têtes
   `typeHierarchyProvider`, `workspaceSymbolProvider`,
   `inlayHintProvider`, et la capability maison
   `x-codeide.completionRanking` (§8).
-- `serverInfo` : nom **`lspjava`**, version **0.1.0** — lue de la
+- `serverInfo` : nom **`lspjava`**, version **1.0.0** — lue de la
   ressource embarquée `version.properties`, générée à la construction
   depuis la version du projet (fiche 059 I7 : jamais de version fantôme).
 
@@ -220,7 +220,7 @@ Extrait de réponse (seule la capability maison est tronquée ici, voir §8) :
       "workspaceSymbolProvider": true,
       "inlayHintProvider": true
     },
-    "serverInfo": { "name": "lspjava", "version": "0.1.0" }
+    "serverInfo": { "name": "lspjava", "version": "1.0.0" }
   }
 }
 ```
@@ -267,7 +267,7 @@ Exemple d'une session complète au fil :
 
 ```json
 {"jsonrpc":"2.0","id":1,"method":"initialize","params":{"rootUri":"file:///projet/demo","capabilities":{}}}
-{"jsonrpc":"2.0","id":1,"result":{"capabilities":{ … },"serverInfo":{"name":"lspjava","version":"0.1.0"}}}
+{"jsonrpc":"2.0","id":1,"result":{"capabilities":{ … },"serverInfo":{"name":"lspjava","version":"1.0.0"}}}
 {"jsonrpc":"2.0","method":"initialized","params":{}}
 {"jsonrpc":"2.0","id":2,"method":"textDocument/hover","params":{ … }}
 {"jsonrpc":"2.0","id":2,"result":{ … }}
