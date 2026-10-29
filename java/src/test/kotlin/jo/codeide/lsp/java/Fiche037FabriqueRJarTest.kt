@@ -11,48 +11,20 @@ import kotlin.test.assertTrue
  * Fiche 037 — PopupSpontaneReproTestHelper : fabrique du R.jar « réaliste »
  * (aapt2-like) — source `R.java` compilée, 4 entrées exactement.
  *
- * La compilation passe par ecj EN MÉMOIRE ([OutilsFixture.compilerEnMemoire])
- * — l'équivalent Kotlin du javac du cahier, sans dépendance environnementale ;
+ * La compilation passe par ecj EN MÉMOIRE ([OutilsFixture.fabriquerRJar] —
+ * l'équivalent Kotlin du javac du cahier, sans dépendance environnementale) ;
  * tout échec de compilation est fatal (la fixture est supposée toujours
- * compiler).
+ * compiler). La fabrique est PARTAGÉE avec la fiche 036 (le cahier : la
+ * version dupliquée du test de repro, « la version partagée est celle du
+ * helper » — la réécriture la concentre dans [OutilsFixture]).
  */
 class Fiche037FabriqueRJarTest {
-
-    /** La source R.java du cahier : classe finale, classes internes statiques vides. */
-    private val SOURCE_R = """
-        package com.example.monip;
-
-        public final class R {
-            public static final class style {
-            }
-
-            public static final class id {
-            }
-
-            public static final class string {
-            }
-        }
-    """.trimIndent()
 
     /**
      * buildRJar : rend le chemin d'un jar contenant exactement 4 entrées —
      * R, R$style, R$id, R$string — compilées depuis la source embarquée.
      */
-    private fun buildRJar(dossier: Path): Path {
-        val classes = OutilsFixture.compilerEnMemoire(
-            dossier,
-            mapOf("/com/example/monip/R.java" to SOURCE_R),
-        )
-        assertEquals(4, classes.size, "4 classes compilées : ${classes.keys}")
-        val jar = dossier.resolve("r-bench.jar")
-        val entrees = LinkedHashMap<String, ByteArray>()
-        entrees["com/example/monip/R.class"] = classes.getValue("com/example/monip/R.class")
-        entrees["com/example/monip/R\$style.class"] = classes.getValue("com/example/monip/R\$style.class")
-        entrees["com/example/monip/R\$id.class"] = classes.getValue("com/example/monip/R\$id.class")
-        entrees["com/example/monip/R\$string.class"] = classes.getValue("com/example/monip/R\$string.class")
-        OutilsFixture.ecrireJar(jar, entrees)
-        return jar
-    }
+    private fun buildRJar(dossier: Path): Path = OutilsFixture.fabriquerRJar(dossier)
 
     @Test
     fun buildRJarQuatreEntrees() {

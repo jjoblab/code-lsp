@@ -56,15 +56,19 @@ public class ReponseCompletion(
  * @param environnementFournisseur l'environnement de noms (annuaire).
  * @param arbreOriginal fournit l'arbre résolu de la source ORIGINALE
  *   (cache de parse) pour la sonde à chaud — null si indisponible.
+ * @param chainePersonnalisee chaîne de classement de remplacement (BANC
+ *   de qualité ADR 0016 : la baseline « naïve » est une chaîne
+ *   alphabétique seule — null = chaîne standard D8 de l'étage).
  */
 public class ServiceCompletion(
     private val pontFournisseur: () -> PontEcj,
     private val environnementFournisseur: () -> EnvironnementNoms,
     private val arbreOriginal: (String, String) -> CompilationUnitDeclaration?,
+    private val chainePersonnalisee: ChaineClassement? = null,
 ) {
 
-    /** Chaîne de classement standard (statistiques désactivées par défaut). */
-    private val chaine: ChaineClassement = ChaineClassement()
+    /** Chaîne de classement (statistique désactivée par défaut ; banc : remplaçable). */
+    private val chaine: ChaineClassement = chainePersonnalisee ?: ChaineClassement()
 
     /** Arrangement (gel + trim honnête) — un par moteur. */
     private val arrangement: ArrangementListe = ArrangementListe(chaine)
@@ -141,34 +145,90 @@ public class ServiceCompletion(
         val reference = type as? ReferenceBinding ?: return emptyList()
         val items = mutableListOf<ItemCompletion>()
         try {
-            for (champ in reference.availableFields() ?: emptyArray()) {
-                if (statique && !champ.isStatic()) continue
-                if (!statique && champ.isStatic()) continue
-                items.add(
-                    ItemCompletion(
-                        libelle = String(champ.name),
-                        nature = NatureItem.CHAMP,
-                        detail = LectureAst.lisible(champ.type),
-                    ),
-                )
-            }
-            for (methode in reference.availableMethods() ?: emptyArray()) {
-                if (methode.isConstructor()) continue
-                if (statique && !methode.isStatic()) continue
-                if (!statique && methode.isStatic()) continue
-                items.add(
-                    ItemCompletion(
-                        libelle = String(methode.selector),
-                        nature = NatureItem.METHODE,
-                        detail = signature(methode),
-                    ),
-                )
+            // La hiérarchie COMPLÈTE est balayée (fiche 020) : les méthodes
+            // et champs hérités — jusqu'à Object — sont proposés. ecj ne le
+            // fait PAS tout seul (`availableMethods` ne rend que les
+            // DÉCLARÉES du type — constat du banc de qualité N2 : aucun
+            // stub `toString()` sur un identifiant nu, `notify`/`wait`
+            // absents des membres d'un String) ; la redéfinition la plus
+            // DÉRIVÉE gagne (la collecte va du type vers les ancêtres et
+            // le dédoublonnage garde la première occurrence).
+            for (typeCourant in hierarchie(reference)) {
+                for (champ in champsOuHerites(typeCourant)) {
+                    if (statique && !champ.isStatic()) continue
+                    if (!statique && champ.isStatic()) continue
+                    items.add(
+                        ItemCompletion(
+                            libelle = String(champ.name),
+                            nature = NatureItem.CHAMP,
+                            detail = LectureAst.lisible(champ.type),
+                        ),
+                    )
+                }
+                for (methode in methodesOuHeritees(typeCourant)) {
+                    if (methode.isConstructor()) continue
+                    if (statique && !methode.isStatic()) continue
+                    if (!statique && methode.isStatic()) continue
+                    items.add(
+                        ItemCompletion(
+                            libelle = String(methode.selector),
+                            nature = NatureItem.METHODE,
+                            detail = signature(methode),
+                        ),
+                    )
+                }
             }
         } catch (_: Exception) {
             // binding incomplet : ce qui a été collecté suffit
         }
         return items.distinctBy { it.libelle to it.nature }
     }
+
+    /**
+     * Hiérarchie complète d'un type : lui-même, ses superclasses (jusqu'à
+     * Object) et ses interfaces (directes et héritées) — l'ordre va du plus
+     * DÉRIVÉ au plus ancien (la première occurrence d'un nom lors du
+     * dédoublonnage est la redéfinition la plus dérivée).
+     *
+     * Les types d'ecj sont protégés contre les cycles par une garde
+     * d'identité (le recovery peut fabriquer des hiérarchies bouclées —
+     * jamais de boucle infinie).
+     */
+    private fun hierarchie(base: ReferenceBinding): List<ReferenceBinding> {
+        val resultat = mutableListOf<ReferenceBinding>()
+        val vus = java.util.IdentityHashMap<ReferenceBinding, Boolean>()
+        fun visiter(type: ReferenceBinding?) {
+            if (type == null || vus.containsKey(type)) return
+            vus[type] = true
+            resultat.add(type)
+            try {
+                visiter(type.superclass())
+                for (interface_ in type.superInterfaces() ?: emptyArray()) {
+                    visiter(interface_)
+                }
+            } catch (_: Exception) {
+                // hiérarchie non connectée : le type seul suffit
+            }
+        }
+        visiter(base)
+        return resultat
+    }
+
+    /** Champs DÉCLARÉS d'un type (défensif — liaison incomplète tolérée). */
+    private fun champsOuHerites(type: ReferenceBinding): Array<org.eclipse.jdt.internal.compiler.lookup.FieldBinding> =
+        try {
+            type.availableFields() ?: emptyArray()
+        } catch (_: Exception) {
+            emptyArray()
+        }
+
+    /** Méthodes DÉCLARÉES d'un type (défensif — liaison incomplète tolérée). */
+    private fun methodesOuHeritees(type: ReferenceBinding): Array<MethodBinding> =
+        try {
+            type.availableMethods() ?: emptyArray()
+        } catch (_: Exception) {
+            emptyArray()
+        }
 
     /** Membres STATIQUES du qualifier de type (fiche 020 : jamais une méthode d'instance). */
     private fun membresStatiques(contexte: ContexteCompletion): List<ItemCompletion> {
@@ -336,14 +396,23 @@ public class ServiceCompletion(
         if (englobant != null) {
             val vus = mutableSetOf<String>()
             try {
-                for (methode in englobant.availableMethods() ?: emptyArray()) {
-                    if (methode.isConstructor()) continue
-                    if (methode.isStatic()) continue
-                    if (methode.isPrivate()) continue
-                    val nom = String(methode.selector)
-                    if (nom in vus) continue
-                    vus.add(nom)
-                    items.add(stubOverride(methode))
+                // Stubs d'override de TOUTE la hiérarchie (fiche 007) : le
+                // point même du stub est de redéfinir une méthode HÉRITÉE —
+                // toString() sur `toStr|` ne vit dans aucune méthode
+                // déclarée du type (constat du banc de qualité N2). La
+                // redéfinition la plus dérivée est proposée (première
+                // occurrence du sélecteur dans le balayage).
+                for (typeCourant in hierarchie(englobant)) {
+                    for (methode in methodesOuHeritees(typeCourant)) {
+                        if (methode.isConstructor()) continue
+                        if (methode.isStatic()) continue
+                        if (methode.isPrivate()) continue
+                        if (methode.isFinal()) continue
+                        val nom = String(methode.selector)
+                        if (nom in vus) continue
+                        vus.add(nom)
+                        items.add(stubOverride(methode))
+                    }
                 }
             } catch (_: Exception) {
                 // hiérarchie incomplète : les stubs déjà collectés suffisent

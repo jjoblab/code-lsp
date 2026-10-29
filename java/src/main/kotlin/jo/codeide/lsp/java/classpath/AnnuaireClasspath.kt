@@ -78,6 +78,16 @@ public enum class Origine {
  * (fiche 032 : le filtre `$` s'applique en aval de l'index ; fiche 036 : le
  * popup spontané ne doit plus proposer les `R$*`).
  *
+ * La partie jrt de l'annuaire ne porte que la SURFACE PUBLIQUE de la
+ * plateforme (`java.*`, `javax.*`, `org.w3c.dom.*`, `org.xml.sax.*`) —
+ * les paquets internes de l'image (`jdk.*`, `com.sun.*`, `org.graalvm`…)
+ * ne fuient jamais dans le popup (constat du banc de qualité N2 : un
+ * `com.sun...IntExpr` dépassait `Integer` au matching insensible à la
+ * casse). L'annuaire n'étant que le CATALOGUE de complétion, ce filtre ne
+ * touche pas la résolution du compilateur (le repli de
+ * [EnvironnementNoms.trouverFqcn] interroge racines/jars/jrt directement,
+ * fiche 042).
+ *
  * @param racines racines sources du module (paquets = chemins relatifs).
  * @param jars jars du classpath (ordre préservé, doublons écartés).
  * @param accesJrt accès jrt (null en régime instantané — l'annuaire ne voit
@@ -154,9 +164,10 @@ public class AnnuaireClasspath(
         garantirPhasesUnEtDeux()
         val structure = paquets[paquet] ?: paquets.computeIfAbsent(paquet) { Paquet() }
         if (!structure.types.isEmpty()) return rendu(structure, paquet)
-        // Paquet jrt non encore listé : listing à la demande (phase 2).
+        // Paquet jrt non encore listé : listing à la demande (phase 2) —
+        // surface publique seule (les internes ne fuient jamais).
         val jrt = accesJrt
-        if (jrt != null && jrt.estPaquet(paquet)) {
+        if (jrt != null && estSurfacePubliqueJdk(paquet) && jrt.estPaquet(paquet)) {
             synchronized(this) {
                 if (structure.types.isEmpty()) {
                     for (nom in jrt.nomsClassesDuPaquet(paquet)) {
@@ -320,15 +331,31 @@ public class AnnuaireClasspath(
         synchronized(this) {
             if (indexConstruit) return
             garantirPhasesUnEtDeux()
-            // La traversée jrt intégrale remplace le listing par paquet.
+            // La traversée jrt intégrale remplace le listing par paquet —
+            // surface PUBLIQUE seule (les internes ne fuient jamais).
             val jrt = accesJrt
             if (jrt != null) {
-                jrt.parcourirClasses { cheminClasse -> enregistrer(cheminClasse, Origine.JRT) }
+                jrt.parcourirClasses { cheminClasse ->
+                    val derniereBarre = cheminClasse.lastIndexOf('/')
+                    if (derniereBarre > 0) {
+                        val paquet = cheminClasse.substring(0, derniereBarre).replace('/', '.')
+                        if (estSurfacePubliqueJdk(paquet)) {
+                            enregistrer(cheminClasse, Origine.JRT)
+                        }
+                    }
+                }
             }
             construireIndexParNom()
             indexConstruit = true
         }
     }
+
+    /** La surface publique de la plateforme JDK (complétion uniquement). */
+    private fun estSurfacePubliqueJdk(paquet: String): Boolean =
+        paquet == "java" || paquet.startsWith("java.") ||
+            paquet == "javax" || paquet.startsWith("javax.") ||
+            paquet == "org.w3c.dom" || paquet.startsWith("org.w3c.dom.") ||
+            paquet == "org.xml.sax" || paquet.startsWith("org.xml.sax.")
 
     /** Enregistre une entrée de classe dans la carte (paquet en points). */
     private fun enregistrer(cheminClasse: String, origine: Origine) {
@@ -391,6 +418,7 @@ public class AnnuaireClasspath(
     private fun fusionnerSegmentsJrt() {
         val jrt = accesJrt ?: return
         for (paquet in jrt.paquetsConnus()) {
+            if (!estSurfacePubliqueJdk(paquet)) continue
             paquets.computeIfAbsent(paquet) { Paquet() }
         }
         segmentsJrtFusionnes = true

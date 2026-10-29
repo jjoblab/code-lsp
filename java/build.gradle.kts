@@ -68,3 +68,20 @@ tasks.register<JavaExec>("bench") {
     // comparables d'une étape à l'autre).
     jvmArgs("-Xmx2g", "-XX:+UseSerialGC")
 }
+
+// Banc de QUALITÉ de complétion (étage N2 — critère de sortie, ADR 0016) :
+// recall/top-1/MRR + p95 + zéro saut sur corpus versionné, comparés à la
+// baseline JSON signée (bancs/baselines/completion.json) — la tâche ÉCHOUE
+// sur régression (CI bloquante, ADR 0016 option 1). Re-signature : PR
+// dédiée avec -Presigner.
+tasks.register<JavaExec>("benchQualite") {
+    group = "verification"
+    description = "Banc de qualité de complétion N2 (recall/top-1/MRR vs baseline signée) — échoue sur régression."
+    mainClass.set("jo.codeide.lsp.java.banc.BancQualiteCompletionKt")
+    classpath = bancSourceSet.runtimeClasspath
+    jvmArgs("-Xmx2g", "-XX:+UseSerialGC")
+    systemProperty("banc.baseline", rootProject.file("bancs/baselines/completion.json").absolutePath)
+    if (project.hasProperty("resigner")) {
+        args("--resigner")
+    }
+}

@@ -1,0 +1,16 @@
+{
+  "note": "Baseline du banc de qualité de complétion (ADR 0016 — signée par le commit qui la porte ; re-baseline par PR dédiée uniquement). 'naif' = chaîne alphabétique seule (statu quo sans design D8) ; 'd8' = chaîne livrée. Tolérance latence : p95 ≤ max(50 ms, baseline × 1,5).",
+  "corpus": "completion-n2 v1 (18 positions)",
+  "signee": "2026-10-29",
+  "d8": {
+    "recall": 1.000,
+    "top1": 1.000,
+    "mrr": 1.000,
+    "p95_ms": 32.46
+  },
+  "naif": {
+    "recall": 1.000,
+    "top1": 0.611,
+    "mrr": 0.715
+  }
+}

@@ -49,6 +49,63 @@ jobs:
       - name: Banc du noyau (:java:bench)
         run: ./gradlew :java:bench --no-daemon --stacktrace
 
+  # Requalification des gates environnementales (RECALAGE-1 §5.1, décision
+  # propriétaire : « au fil de N2 avec le SDK Android en CI »). Le jar seul
+  # suffit — PAS de sdkmanager ni de licence : la plateforme est livrée en
+  # zip officiel (dl.google.com, repository2-3.xml) et la variable
+  # ANDROID_JAR ouvre les gates Fiche033 ×3 + Fiche004 + les tests de
+  # complétion android.jar de l'étage N2 (036/043/044/050/053).
+  # Fiche004 exige en plus l'AAR appcompat dans le cache Gradle (chemin que
+  # le test sonde) : téléchargé depuis maven.google.com, sans build.
+  # Les 2 gates `model.json` (Fiche010/Fiche039) restent dormantes : elles
+  # exigent l'artefact appareil du propriétaire (jamais simulé).
+  gates-android:
+    name: Gates Android (SDK 34 en CI)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Gradle
+        uses: gradle/actions/setup-gradle@v4
+      - name: android.jar (plateforme 34, ext12)
+        run: |
+          curl -sSfL --retry 3 -o p34.zip "https://dl.google.com/android/repository/platform-34-ext12_r01.zip"
+          unzip -o -q p34.zip 'android-34-ext12/android.jar' -d sdk
+          echo "ANDROID_JAR=$PWD/sdk/android-34-ext12/android.jar" >> "$GITHUB_ENV"
+      - name: AAR appcompat (cache Gradle sondé par Fiche004)
+        run: |
+          mkdir -p "$HOME/.gradle/caches/modules-2/files-2.1/androidx.appcompat/appcompat/ci-gate"
+          curl -sSfL --retry 3 -o "$HOME/.gradle/caches/modules-2/files-2.1/androidx.appcompat/appcompat/ci-gate/appcompat-1.7.0.aar" \
+            "https://maven.google.com/androidx/appcompat/appcompat/1.7.0/appcompat-1.7.0.aar"
+      - name: Tests avec gates ouvertes (:java:test)
+        run: ./gradlew :java:test --no-daemon --stacktrace
+
+  # Critère de sortie de l'étage N2 (PLAN-REECRITURE §4, ADR 0016 option 1) :
+  # le banc de qualité de complétion compare recall/top-1/MRR + p95 + sauts
+  # de liste à la baseline SIGNÉE (bancs/baselines/completion.json) et fait
+  # ÉCHOUER la CI en cas de régression ; re-signature par PR dédiée
+  # (-Presigner). Corpus jrt seul : le job tourne sans SDK.
+  banc-qualite:
+    name: Banc qualité complétion (baseline signée)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Gradle
+        uses: gradle/actions/setup-gradle@v4
+      - name: Banc qualité (:java:benchQualite)
+        run: ./gradlew :java:benchQualite --no-daemon --stacktrace
+
   provenance:
     name: Manifeste de provenance (anti-fichier-hors-registre)
     runs-on: ubuntu-latest

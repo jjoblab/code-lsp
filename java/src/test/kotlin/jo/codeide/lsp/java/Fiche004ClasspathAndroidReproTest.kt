@@ -39,12 +39,7 @@ class Fiche004ClasspathAndroidReproTest {
         }
     """.trimIndent()
 
-    private fun androidJar(): Path? = listOf(
-        "/home/z/android-sdk/platforms/android-34/android.jar",
-        "/home/z/android-sdk/platforms/android-35/android.jar",
-        "/home/z/tools/android-sdk/platforms/android-34/android.jar",
-        "/home/z/tools/android-sdk/platforms/android-35/android.jar",
-    ).map(Path::of).firstOrNull { Files.isRegularFile(it) }
+    private fun androidJar(): Path? = OutilsFixture.androidJar()
 
     private fun appcompatClassesJar(): Path? {
         // AAR appcompat du cache Gradle : classes.jar à extraire.

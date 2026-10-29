@@ -73,4 +73,78 @@ object OutilsFixture {
             }
         }
     }
+
+    /**
+     * Localise le `android.jar` du SDK local (gates environnementales des
+     * fiches 033/036/043/044/050/053 — hypothèses VISIBLES du cahier).
+     *
+     * Candidats, dans l'ordre :
+     *  1. la variable d'environnement `ANDROID_JAR` (chemin direct —
+     *     requalification CI : le jar y est téléchargé sans SDK complet) ;
+     *  2. `ANDROID_HOME/platforms/android-{34,35}/android.jar` ;
+     * 3. les chemins machine historiques du bac à sable.
+     *
+     * @return le chemin du jar, ou null (la classe appelante IGNORE ses
+     *   tests par `assumeTrue` — la gate dort, message visible).
+     */
+    fun androidJar(): Path? {
+        System.getenv("ANDROID_JAR")?.let { env ->
+            val p = Path.of(env)
+            if (Files.isRegularFile(p)) return p
+        }
+        val home = System.getenv("ANDROID_HOME") ?: "/home/z/android-sdk"
+        val candidats = listOf(
+            Path.of(home, "platforms/android-34/android.jar"),
+            Path.of(home, "platforms/android-35/android.jar"),
+            Path.of("/home/z/android-sdk/platforms/android-34/android.jar"),
+            Path.of("/home/z/android-sdk/platforms/android-35/android.jar"),
+            Path.of("/home/z/tools/android-sdk/platforms/android-34/android.jar"),
+            Path.of("/home/z/tools/android-sdk/platforms/android-35/android.jar"),
+        )
+        return candidats.firstOrNull { Files.isRegularFile(it) }
+    }
+
+    /** La source R.java du cahier (fiche 037) : classe finale, classes internes statiques vides. */
+    private val SOURCE_R = """
+        package com.example.monip;
+
+        public final class R {
+            public static final class style {
+            }
+
+            public static final class id {
+            }
+
+            public static final class string {
+            }
+        }
+    """.trimIndent()
+
+    /**
+     * Fabrique du R.jar « réaliste » (aapt2-like — fiche 037, partagée par
+     * la fiche 036) : la source `R.java` embarquée est compilée par ecj EN
+     * MÉMOIRE puis jarée — exactement 4 entrées (R, R$style, R$id,
+     * R$string).
+     *
+     * @param dossier le dossier de travail (le jar y est écrit).
+     * @return le chemin du jar `r-bench.jar`.
+     */
+    fun fabriquerRJar(dossier: Path): Path {
+        val classes = compilerEnMemoire(
+            dossier,
+            mapOf("/com/example/monip/R.java" to SOURCE_R),
+        )
+        check(classes.size == 4) { "4 classes compilées attendues : ${classes.keys}" }
+        val jar = dossier.resolve("r-bench.jar")
+        ecrireJar(
+            jar,
+            linkedMapOf(
+                "com/example/monip/R.class" to classes.getValue("com/example/monip/R.class"),
+                "com/example/monip/R\$style.class" to classes.getValue("com/example/monip/R\$style.class"),
+                "com/example/monip/R\$id.class" to classes.getValue("com/example/monip/R\$id.class"),
+                "com/example/monip/R\$string.class" to classes.getValue("com/example/monip/R\$string.class"),
+            ),
+        )
+        return jar
+    }
 }

@@ -62,13 +62,23 @@ public class MoteurJava(
 
     /**
      * Constructeur de commodité (moteur autonome, niveau hérité du défaut).
+     *
+     * @param chaineCompletion chaîne de classement de complétion de
+     *   remplacement (BANC de qualité ADR 0016 — la baseline « naïve » ;
+     *   null = chaîne standard D8).
      */
     public constructor(
         racines: List<Path> = emptyList(),
         jars: List<Path> = emptyList(),
         jdkHome: Path? = null,
         compliance: String = "17",
-    ) : this(racines, jars, jdkHome, compliance, null, null)
+        chaineCompletion: jo.codeide.lsp.java.completion.ChaineClassement? = null,
+    ) : this(racines, jars, jdkHome, compliance, null, null) {
+        this.chaineCompletion = chaineCompletion
+    }
+
+    /** Chaîne de classement de complétion de remplacement (banc ADR 0016). */
+    private var chaineCompletion: jo.codeide.lsp.java.completion.ChaineClassement? = null
 
     /** Environnement de noms (paresseux — le premier usage paie jrt/jars). */
     private var environnement: EnvironnementNoms? = null
@@ -599,6 +609,7 @@ public class MoteurJava(
             pontFournisseur = { pontEcj() },
             environnementFournisseur = { environnementNoms() },
             arbreOriginal = { chemin, source -> arbreOriginal(chemin, source) },
+            chainePersonnalisee = chaineCompletion,
         )
         serviceCompletion = service
         return service

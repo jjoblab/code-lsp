@@ -76,6 +76,13 @@ public class ArrangementListe(
      * Applique le gel aux items ordonnés : les survivants de la tête gelée
      * précédente reprennent LEUR rang exact, les autres comblent les trous
      * dans l'ordre de la chaîne.
+     *
+     * Cas de rétrécissement (découvert par la fiche 020) : quand le préfixe
+     * s'affine, la liste ordonnée peut compter MOINS d'items que la tête
+     * gelée précédente — les places non comblables restent alors vides,
+     * JAMAIS d'exception (le contrat « jamais null » de la fiche 035 ne
+     * doit pas servir de masque à un crash du gel : la levée avalée se
+     * manifestait comme une liste VIDE silencieuse).
      */
     private fun appliquerGel(cleContexte: String, ordonnee: List<ItemCompletion>): List<ItemCompletion> {
         val gelees = gels[cleContexte] ?: return ordonnee
@@ -93,11 +100,20 @@ public class ArrangementListe(
                 epargnes.add(item)
             }
         }
-        // 2. Les autres comblent les trous, dans l'ordre de la chaîne.
+        // 2. Les autres comblent les trous, dans l'ordre de la chaîne ; si
+        // la liste a rétréci, les places restantes restent vides (honnête).
         var curseur = 0
         val resultat = mutableListOf<ItemCompletion>()
         for (place in places) {
-            resultat.add(place ?: epargnes[curseur++])
+            if (place != null) {
+                resultat.add(place)
+                continue
+            }
+            val epargne = epargnes.getOrNull(curseur)
+            if (epargne != null) {
+                resultat.add(epargne)
+                curseur++
+            }
         }
         // 3. Le reliquat (au-delà des places gelées) suit.
         while (curseur < epargnes.size) resultat.add(epargnes[curseur++])
