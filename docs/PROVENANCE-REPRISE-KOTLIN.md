@@ -57,15 +57,16 @@
 | Jeux de données / digeste de parité | codeide-lsp:lsp/kotlin/src/test/resources | 1 f | jjoblab | idem | à vérifier | **reprendre comme données** | Conserver la valeur des 469 tests sans reprendre le code |
 | Grammaire officielle | **JetBrains/kotlin**:compiler/multiplatform-parsing @ version à épingler | ~9,6 k l. | JetBrains | **Apache-2.0** | propre (licence vérifiée) | **réobtenir depuis l'amont** (jamais depuis l'ancien dépôt) | R9.2 du prompt ; notice + registre obligatoires |
 
-## 4. Dépendances d'artefacts du futur module (aucune copie de code — chaîne à tenir à jour)
+## 4. Dépendances d'artefacts et vendoring du futur module (aucune copie de code ancien — chaîne à tenir à jour)
 
-| Artefact | Version | Licence | Rôle prévu | Points d'attention |
+| Élément | Source @ version | Licence | Rôle prévu | Points d'attention |
 |---|---|---|---|---|
-| `org.jetbrains:syntax-api` (+ `lang-syntax` transitif) | 0.3.340 (épinglée par le tag amont v2.3.0) | Apache-2.0 (sources) | Arbre de construction syntaxique | **Conditions des artefacts binaires intellij-dependencies à consigner** (miroir de l'alerte AL1 Java : aucun `META-INF/LICENSE` dans les jars — hypothèse Apache-2.0 à confirmer par le propriétaire) ; accès cache-redirector |
+| **Grammaire officielle vendorée (SPIKE — effectué)** | `JetBrains/kotlin`:compiler/multiplatform-parsing/common/src @ **tag v2.3.0** (`f95cb2f7`), extraction `git archive` du 2026-10-30 | **Apache-2.0** (LICENSE.txt + COPYRIGHT.txt copiés depuis `license/` du même tag ; `license/README.md` vérifié : AUCUNE exception sur ce chemin) | Base de mesure S2 du spike (et modèle du futur vendoring de production) | 23 f / 9 585 l. octet pour octet ; zéro modification locale ; re-sync = remplacement (ADR 0121) ; **jamais obtenue depuis `codeide-lsp`** (R9.2 du prompt) |
+| `org.jetbrains:syntax-api` (+ `lang-syntax` transitif) | 0.3.340 (épinglée par le tag amont v2.3.0) | Apache-2.0 (sources) | Arbre de construction syntaxique | **Conditions des artefacts binaires intellij-dependencies à consigner** (miroir AL1 Java : aucun `META-INF/LICENSE` dans les jars — hypothèse Apache-2.0 à confirmer par le propriétaire) ; accès cache-redirector |
 | `org.jetbrains:annotations` | 26.0.2 | Apache-2.0 | Annotations amont | Central |
 | `org.jetbrains.kotlin:kotlin-metadata-jvm` | 2.2.10 | Apache-2.0 | Décodage `@Metadata` | Central ; monter avec la chaîne d'outils |
 | `org.eclipse.lsp4j:lsp4j` | 0.21.2 | EPL-2.0 | Transport LSP (si le serveur vit dans le module, miroir `:java`) | — |
-| (voies (ii)/(iii) uniquement) `kotlin-compiler-embeddable` / artefacts Analysis API | à épingler | Apache-2.0 | Frontend K2 embarqué | Taille/dexage/shims à mesurer au spike (S1) ; `kotlinc-resources.zip` extrait au runtime, stdlib en ressource (leçons rapportées LSP_KOTLIN §2 — non vérifiées) |
+| (voies (ii)/(iii) uniquement) `kotlin-compiler-embeddable` | 2.2.10 | Apache-2.0 | Frontend K2 embarqué — **mesuré au spike, disqualifié pour l'APK** (53,6 Mo / 64 507 méthodes / ~2 170 motifs ART) | Jamais en compile-scope du module moteur (garde CI proposée, ADR 0120) ; pack dédié si mode profond |
 
 ## 5. Attributions d'origine (R9.5 — à conserver exactes lors de toute reprise)
 
@@ -94,3 +95,4 @@
 |---|---|
 | 2026-10-30 | Création du manifeste (Phase 0). Registres remplis : exclusions R9.3, 11 candidats évalués sans lecture du code, 5 dépendances d'artefacts. **Aucune copie effectuée.** |
 | 2026-10-30 | Spike (`spike-kotlin/`) : l'ancien moteur **exécuté comme oracle en boîte noire** (S0, miroir du protocole `preparer-oracle.sh` de l'étude Java) — jar construit dans le clone local de `codeide-lsp`, posé hors dépôt, jamais commité ; aucun fichier de production lu. Artefacts JetBrains/Kotlin téléchargés pour mesure uniquement. |
+| 2026-10-30 | **Vendoring amont EFFECTUÉ (spike uniquement)** : grammaire `compiler/multiplatform-parsing/common/src` @ tag v2.3.0 (`f95cb2f7`) obtenue par `git archive` depuis le clone amont (JAMAIS depuis codeide-lsp — R9.2 du prompt), posée dans `spike-kotlin/src/main/vendor/` avec LICENSE.txt/COPYRIGHT.txt du même tag et notice `VENDOR.md`. Vérification d'exception de licence : `license/README.md` @ v2.3.0 ne liste AUCUN fichier de ce chemin (grep vide). Usage : mesure S2 — ce n'est PAS la grammaire d'un moteur de production ; le vendoring de production suivra la même procédure à la vague 0 après décision ADR 0100. |
