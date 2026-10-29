@@ -61,16 +61,28 @@ JDK="$(trouver_jdk)" || {
 }
 echap "JDK : $JDK"
 
-# --- 2. Les checkouts épinglés (clone si absent, VÉRIFICATION du pin) -----
+# --- 2. Les checkouts épinglés (clone si absent, PLACEMENT au pin, vérification) -----
 obtenir_checkout() {
     local nom="$1" commit="$2" url="$3"
     local dossier="$TRAVAIL/$nom"
+    local gere_par_script=1
     if [ -n "${CODEIDE_LSP_DIR:-}" ] && [ "$nom" = "codeide-lsp" ]; then
         dossier="$CODEIDE_LSP_DIR"
+        gere_par_script=0
     fi
     if [ ! -d "$dossier/.git" ]; then
-        echap "clonage $nom ($url)…"
+        echap "clonage $nom ($url)…" >&2
         git clone "$url" "$dossier"
+    fi
+    if [ "$gere_par_script" = "1" ]; then
+        # NOTRE clone (dans .oracle/travail) : on le PLACE au commit épinglé —
+        # un clonage frais livre HEAD, le pin exige le checkout explicite
+        # (clone complet : le commit est déjà présent localement, sans réseau).
+        if ! git -C "$dossier" checkout --quiet "$commit" 2>/dev/null; then
+            echap "fetch $nom@$commit (commit absent du clone local)…" >&2
+            git -C "$dossier" fetch origin "$commit" "$commit":oracle-pin
+            git -C "$dossier" checkout --quiet "$commit"
+        fi
     fi
     local actuel
     actuel="$(git -C "$dossier" rev-parse HEAD)"
@@ -80,7 +92,8 @@ obtenir_checkout() {
             "$commit"*) ;;
             *)
                 echo "ERREUR : $nom est à $actuel, l'oracle est épinglé à $commit." >&2
-                echo "  (monter l'oracle de version = PR dédiée : re-pin + re-signature baseline)" >&2
+                echo "  (checkout fourni par CODEIDE_LSP_DIR : placez-le au pin ou retirez la variable ;" >&2
+                echo "   monter l'oracle de version = PR dédiée : re-pin + re-signature baseline)" >&2
                 exit 1
                 ;;
         esac
