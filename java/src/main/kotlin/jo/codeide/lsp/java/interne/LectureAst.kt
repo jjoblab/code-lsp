@@ -446,6 +446,34 @@ public object LectureAst {
             return true
         }
 
+        // Déclarations (étage N3 — fiche 020 : le hover sert aussi le NOM
+        // d'une méthode, d'un champ ou d'un type DÉCLARÉ, pas seulement les
+        // références). Priorité la plus basse : une référence ou un appel
+        // plus serré couvrant le caret gagne toujours.
+        override fun visiteMethode(node: MethodDeclaration, scope: ClassScope?): Boolean {
+            val binding = node.binding
+            val texte = if (binding != null) {
+                val retour = lisible(binding.returnType) ?: "?"
+                val params = (binding.parameters ?: emptyArray()).joinToString(", ") { lisible(it) ?: "?" }
+                "$retour ${String(node.selector)}($params)"
+            } else {
+                null
+            }
+            considerer(node.sourceStart, node.declarationSourceEnd, texte, PROFONDEUR_DECLARATION)
+            return true
+        }
+
+        override fun visiteChamp(node: FieldDeclaration, scope: MethodScope?): Boolean {
+            val type = lisible(node.binding?.type) ?: lisible(node.type?.resolvedType)
+            considerer(node.sourceStart, node.declarationSourceEnd, type?.let { "$it ${String(node.name)}" }, PROFONDEUR_DECLARATION)
+            return true
+        }
+
+        override fun visiteType(node: TypeDeclaration, scope: ClassScope?): Boolean {
+            considerer(node.sourceStart, node.declarationSourceEnd, lisible(node.binding), PROFONDEUR_DECLARATION)
+            return true
+        }
+
         private fun considerer(debut: Int, fin: Int, texte: String?, profondeur: Int) {
             if (texte == null) return
             if (offset < debut || offset > fin) return
@@ -457,6 +485,7 @@ public object LectureAst {
         companion object {
             const val PROFONDEUR_NOM = 2
             const val PROFONDEUR_APPEL = 1
+            const val PROFONDEUR_DECLARATION = 0
         }
     }
 

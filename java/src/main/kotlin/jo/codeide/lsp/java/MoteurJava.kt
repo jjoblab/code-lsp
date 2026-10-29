@@ -6,6 +6,8 @@ import jo.codeide.lsp.java.completion.ServiceCompletion
 import jo.codeide.lsp.java.diagnostics.Diagnostic
 import jo.codeide.lsp.java.diagnostics.Plage
 import jo.codeide.lsp.java.diagnostics.Severite
+import jo.codeide.lsp.java.inlay.IndiceInlay
+import jo.codeide.lsp.java.inlay.ServiceInlay
 import jo.codeide.lsp.java.interne.AideSignature
 import jo.codeide.lsp.java.interne.CacheParse
 import jo.codeide.lsp.java.interne.DiagnoseRapide
@@ -18,6 +20,10 @@ import jo.codeide.lsp.java.interne.UnitesSource
 import jo.codeide.lsp.java.outils.PlageCorps
 import jo.codeide.lsp.java.outils.ScannerCorps
 import jo.codeide.lsp.java.outils.SourceFocuser
+import jo.codeide.lsp.java.signature.AideSignatures
+import jo.codeide.lsp.java.survol.ServiceDefinitions
+import jo.codeide.lsp.java.survol.ServiceSurvolRiche
+import jo.codeide.lsp.java.survol.SurvolRiche
 import org.eclipse.jdt.internal.compiler.classfmt.ClassFileReader
 import org.eclipse.jdt.internal.compiler.env.ICompilationUnit
 import org.eclipse.jdt.internal.compiler.lookup.ReferenceBinding
@@ -383,13 +389,73 @@ public class MoteurJava(
     public fun hoverAt(chemin: String, source: String, offset: Int): String? = synchronized(this) {
         if (!isLikelyUsableInterne()) return null
         val cible = resoudrePourOffset(chemin, source, offset) ?: return null
-        return LectureAst.hover(cible.arbre, cible.position)
+        // Clôtures markdown (fiche 021 — contrat historique du hover
+        // texte : «```java\n…\n```») ; JAMAIS la documentation.
+        LectureAst.hover(cible.arbre, cible.position)?.let { "```java\n$it\n```" }
     }
 
     /**
-     * Aide de signature au caret (fiche 015) : même chaîne de service que
-     * [hoverAt] ; le paramètre actif = nombre d'arguments complets avant le
-     * caret.
+     * Survol RICHE au caret (étage N3 — cahier fiche 021) : la signature du
+     * symbole PLUS la javadoc de sa déclaration quand elle vit dans la même
+     * unité (documentation null sinon — périmètre honnête). Même chaîne de
+     * service à trois niveaux que [hoverAt].
+     *
+     * @param chemin chemin logique du document.
+     * @param source le texte Java complet.
+     * @param offset la position interrogée.
+     * @return le survol structuré, ou null (aucun nœud résolu à l'offset).
+     */
+    public fun survolRiche(chemin: String, source: String, offset: Int): SurvolRiche? = synchronized(this) {
+        if (!isLikelyUsableInterne()) return null
+        val cible = resoudrePourOffset(chemin, source, offset) ?: return null
+        ServiceSurvolRiche.survol(cible.arbre, cible.sourceArbre, cible.position)
+    }
+
+    /**
+     * Définition de la référence au caret (étage N3 — cahier fiche 020,
+     * partie définition) : la plage du NOM déclaré visé — locale (lien
+     * direct du binding), champ ou méthode de la même unité (registre des
+     * déclarations).
+     *
+     * @param chemin chemin logique du document.
+     * @param source le texte Java complet.
+     * @param offset la position interrogée.
+     * @return la plage de définition, ou null (référence non résolue ou
+     *   déclaration binaire — hors périmètre de l'étage).
+     */
+    public fun definition(chemin: String, source: String, offset: Int): Plage? = synchronized(this) {
+        if (!isLikelyUsableInterne()) return null
+        val cible = resoudrePourOffset(chemin, source, offset) ?: return null
+        ServiceDefinitions.definition(cible.arbre, cible.sourceArbre, cible.position)
+    }
+
+    /**
+     * Indices inlay de l'unité (étage N3 — cahier fiches 002/003/030) :
+     * paramètres « nom: » aux sites d'appel de méthodes SOURCE, types « : T »
+     * des `var` et des paramètres lambda implicites, frontières de
+     * chaînage multi-lignes. Liste DÉLIBÉRÉMENT non triée (paramètres avant
+     * types — contrat fiche 003) ; AUCUN filtrage par plage (responsabilité
+     * de l'éditeur).
+     *
+     * @param chemin chemin logique du document.
+     * @param source le texte Java complet.
+     * @return les indices de l'unité (vide en régime instantané).
+     */
+    public fun inlayHints(chemin: String, source: String): List<IndiceInlay> = synchronized(this) {
+        if (!isLikelyUsableInterne()) return emptyList()
+        val unite = resolveUnit(chemin, source, genererCode = false) ?: return emptyList()
+        ServiceInlay.indices(unite.arbre, source)
+    }
+
+    /**
+     * Aide de signature au caret (fiche 015, étendue N3 — cahier fiche
+     * 023) : même chaîne de service que [hoverAt], puis — si le texte
+     * vivant est cassé — le « niveau 4 » : variantes réparées résolues une
+     * à une jusqu'à ce qu'un appel couvre le caret (garde absolue : hors
+     * appel, null — jamais rien d'inventé hors d'une liste d'arguments). Le
+     * résolu arrive en tête des signatures, puis les surcharges du
+     * sélecteur (binaires comprises) ; le paramètre actif compte les
+     * virgules de séparation hors littéraux.
      *
      * @param chemin chemin logique du document.
      * @param source le texte Java complet.
@@ -398,8 +464,19 @@ public class MoteurJava(
      */
     public fun signatureHelp(chemin: String, source: String, offset: Int): AideSignature? = synchronized(this) {
         if (!isLikelyUsableInterne()) return null
-        val cible = resoudrePourOffset(chemin, source, offset) ?: return null
-        return LectureAst.aideSignature(cible.arbre, cible.position)
+        val cible = resoudrePourOffset(chemin, source, offset)
+        if (cible != null) {
+            val aide = AideSignatures.aide(cible.arbre, cible.sourceArbre, cible.position)
+            if (aide != null && aide.signatures.isNotEmpty()) return aide
+        }
+        // Niveau 4 (fiche 023) : texte vivant cassé — variantes réparées,
+        // la première qui résout un appel couvrant le caret gagne.
+        for (variante in AideSignatures.variantesReparees(source, offset)) {
+            val reponse = pontEcj().resoudre(unite(chemin, variante), false)
+            val aide = reponse.arbre?.let { AideSignatures.aide(it, variante, offset) }
+            if (aide != null && aide.signatures.isNotEmpty()) return aide
+        }
+        return null
     }
 
     /**
