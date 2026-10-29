@@ -1,0 +1,45 @@
+==============================================================
+ banc-bascule — parité & latences du moteur neuf (2026-10-29 13:56:04)
+ hôte : aarch64 / 15 / moto g06
+ java : openjdk version "17.0.19" 2026-04-21
+==============================================================
+== couverture du cahier (corpus 18 positions)
+  membre-longueur          ✓
+  membre-isEmpty           ✓
+  membre-toString          ✓
+  membre-champ-propre      ✓
+  membre-hierarchie        ✓
+  statique-valueOf         ✓
+  membre-z-champ           ✓
+  type-String              ✓
+  type-ArrayList           ✓
+  type-Integer             ✓
+  type-Override            ✓
+  nom-locale-domine        ✓
+  nom-champ                ✓
+  import-java-u            ✓
+  import-paquet-domine     ✓
+  refpaquet-List           ✓
+  corps-toString           ✓
+  case-ROUGE               ✓
+== couverture cahier : 18/18
+== latences de complétion par genre (5 passes mesurées après 2 échauffements)
+  CASE_LABEL       p50=  58.50 ms  p95=  66.60 ms  max=  66.60 ms (n=5)
+  CORPS_CLASSE     p50=  49.63 ms  p95=  50.25 ms  max=  50.25 ms (n=5)
+  MEMBRE           p50=  59.69 ms  p95=  75.73 ms  max=  78.81 ms (n=30)
+  MEMBRE_STATIQUE  p50=  41.50 ms  p95= 111.93 ms  max= 111.93 ms (n=5)
+  NOM              p50=  33.37 ms  p95=  60.39 ms  max=  60.39 ms (n=10)
+  REFERENCE_PAQUET p50=   8.63 ms  p95=  24.96 ms  max=  24.96 ms (n=15)
+  TYPE             p50=  39.36 ms  p95=  54.87 ms  max=  54.87 ms (n=20)
+  GLOBAL           p50=  42.93 ms  p95=  73.01 ms  max= 111.93 ms (n=90)
+== sauts de liste : 0 (contrat gel : 0 exigé)
+
+--- note de consignation ---------------------------------------------
+Transcript exact de la passe du 2026-10-29 13:56:04 (heure appareil),
+transmis par le propriétaire ; mise en page normalisée (espacement de la
+messagerie), valeurs strictement telles quelles (R5 — mesure réelle, jamais
+simulée). Kit testé : build/kit-bascule.zip sha256
+064715f78d6a1684bded6dbeeb2a15f3f75501d6d17a6e4859d445e026876d8e,
+assemblé le 29/10 17:23 UTC depuis le commit
+97cf1810934ea6d53c49e082288dba495b632ee6 (contenu moteur identique à
+3c9f387 — 97cf181 ne touche que la structure du zip).

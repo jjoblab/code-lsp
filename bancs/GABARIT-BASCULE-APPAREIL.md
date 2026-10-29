@@ -19,16 +19,22 @@
 
 ## 1. Environnement déclaré (à remplir)
 
+> **Passe reportée** : 2026-10-29 13:56:04 (heure appareil) — sortie brute
+> transmise par le propriétaire, reportée ci-dessous **telle quelle** (R5) ;
+> transcript intégral joint : [`resultats-bascule.txt`](resultats-bascule.txt).
+> Kit testé : `kit-bascule.zip` sha256 `064715f7…76d8e`, assemblé le 29/10
+> 17:23 UTC depuis le commit `97cf181`.
+
 | Champ | Valeur |
 |---|---|
-| Appareil (modèle) | *(à remplir)* |
-| SoC / RAM totale | *(à remplir)* |
-| Version d'Android (API) | *(à remplir)* |
-| Runtime d'exécution (Termux openjdk-__ / AndroidIDE…) | *(à remplir)* |
+| Appareil (modèle) | moto g06 |
+| SoC / RAM totale | *(à remplir — non rapporté par le transcript)* |
+| Version d'Android (API) | 15 (niveau API non rapporté par le transcript) |
+| Runtime d'exécution (Termux openjdk-__ / AndroidIDE…) | Termux — openjdk version « 17.0.19 » 2026-04-21 |
 | Mode (chargeur branché ? économie d'énergie ? autres apps) | *(à remplir)* |
-| Date et heure de la passe (heure appareil) | *(à remplir)* |
-| `resultats-bascule.txt` brut joint ? | *(oui/non — chemin)* |
-| Commit du moteur neuf testé (`git rev-parse HEAD`) | *(à remplir)* |
+| Date et heure de la passe (heure appareil) | 2026-10-29 13:56:04 |
+| `resultats-bascule.txt` brut joint ? | **oui** — `bancs/resultats-bascule.txt` (transcript exact de la passe) |
+| Commit du moteur neuf testé (`git rev-parse HEAD`) | `97cf1810934ea6d53c49e082288dba495b632ee6` |
 
 ## 2. Préparation du kit (poste de bureau, une fois par passe)
 
@@ -48,38 +54,45 @@ bash banc-bascule.sh > resultats-bascule.txt
 
 | Mesure | Valeur appareil | (référence CI JVM, pour mémoire) |
 |---|---|---|
-| Couverture du cahier (18 positions du corpus de parité) | *(x/18)* | 18/18 (recall 1.000 — `completion.json`) |
-| Positions en échec (noms + libellés manquants) | *(aucune / liste)* | aucune |
-| Sauts de liste (contrat gel, succession de frappe) | *(n)* | 0 |
+| Couverture du cahier (18 positions du corpus de parité) | **18/18** | 18/18 (recall 1.000 — `completion.json`) |
+| Positions en échec (noms + libellés manquants) | **aucune** (18 ✓ — transcript) | aucune |
+| Sauts de liste (contrat gel, succession de frappe) | **0** (0 exigé) | 0 |
 
 ## 4. Latences de complétion sur appareil (copier la section « latences » du transcript)
 
 | Genre de contexte | p50 appareil (ms) | p95 appareil (ms) | (p95 JVM bureau, pour mémoire) |
 |---|---|---|---|
-| MEMBRE | *(à remplir)* | *(à remplir)* | ≈ 30 ms (corpus N2, `completion.json`) |
-| MEMBRE_STATIQUE | *(à remplir)* | *(à remplir)* | — |
-| TYPE | *(à remplir)* | *(à remplir)* | — |
-| NOM | *(à remplir)* | *(à remplir)* | — |
-| IMPORT / REFERENCE_PAQUET | *(à remplir)* | *(à remplir)* | — |
-| CORPS_CLASSE / CASE_LABEL | *(à remplir)* | *(à remplir)* | — |
-| **GLOBAL** | *(à remplir)* | *(à remplir)* | 32,46 ms |
+| MEMBRE | 59,69 | 75,73 | ≈ 30 ms (corpus N2, `completion.json`) |
+| MEMBRE_STATIQUE | 41,50 | 111,93 (max = 111,93) | — |
+| TYPE | 39,36 | 54,87 | — |
+| NOM | 33,37 | 60,39 | — |
+| IMPORT / REFERENCE_PAQUET | 8,63 | 24,96 | — |
+| CORPS_CLASSE / CASE_LABEL | 49,63 / 58,50 | 50,25 / 66,60 | — |
+| **GLOBAL** | **42,93** | **73,01** (max = 111,93, n = 90) | 32,46 ms |
 
 Lecture honnête (aucun seuil n'est asserté par le banc de passe — R5) : le
-facteur appareil/JVM observé au spike était de **×8–14** ; la fiche 033 et les
-gates de latence CI (`Fiche033BancLatenceTest`) restent les bornes de
-non-régression côté JVM, la passe appareil documente la réalité de bout en
-bout pour la décision.
+facteur appareil/JVM observé au spike était de **×8–14** ; cette passe
+constate **×2,2 sur le p95 GLOBAL** (73,01 vs 32,46 baseline signée) et,
+en référence auxiliaire, ×6,9 sur le p50 GLOBAL (42,93 vs 6,23 — fumée
+bureau du même kit le 29/10, non signée) — soit un appareil **plus
+favorable que la bande du spike**. La fiche 033 et les gates de latence CI
+(`Fiche033BancLatenceTest`) restent les bornes de non-régression côté JVM,
+la passe appareil documente la réalité de bout en bout pour la décision.
 
 ## 5. Checklist de décision de bascule (§8.5 — à cocher par le propriétaire)
 
 | # | Critère | État | Preuve |
 |---|---|---|---|
-| 1 | Banc de parité croisé VERT en CI (oracle épinglé cb809e14) | ☐ | job CI `banc-parite` |
-| 2 | Couverture du cahier sur appareil = 18/18 (§3 ci-dessus) | ☐ | transcript de passe |
-| 3 | Latences §4 constatées sur appareil et consignées (§4 ci-dessus) | ☐ | transcript de passe |
+| 1 | Banc de parité croisé VERT en CI (oracle épinglé cb809e14) | ☑ | job CI `Banc parité croisée T (oracle vendored épinglé)` — **success** sur `97cf181` (29/10, vérifié via API GitHub Actions) |
+| 2 | Couverture du cahier sur appareil = 18/18 (§3 ci-dessus) | ☑ | transcript de passe — 18 ✓, aucun manquant |
+| 3 | Latences §4 constatées sur appareil et consignées (§4 ci-dessus) | ☑ | transcript de passe — p50/p95 par genre + GLOBAL consignés |
 | 4 | Deltas du banc croisé (`pertes_vs_oracle` — 165 libellés à la signature du 29/10) arbitrés classe par classe : bruit hors cahier / comportement à rattraper / divergence D8 assumée | ☐ | `bancs/baselines/parite-completion.json` + analyse jointe à la décision |
 | 5 | Gates `model.json` dormantes (Fiche010/Fiche039 — dette documentée RECALAGE-2 §5.1) : artefact fourni OU décision explicite de baser la bascule sur les autres couvertures | ☐ | décision consignée |
 | 6 | Plan de retour arrière actif (substitution composite inversée, ADR 0015 — 1 ligne) | ☐ | procédure CodeIDE |
+
+Critères 1–3 cochés sur preuves objectives (CI du 29/10 + transcript
+appareil) ; les critères 4–6 restent à arbitrer par le propriétaire avant
+la décision.
 
 ## 6. Décision (à remplir par le propriétaire)
 
