@@ -7,7 +7,7 @@
 > l'architecture IntelliJ PSI — étudiée en profondeur, embarquée nulle part,
 > greffée partout où elle prouve sa valeur.
 
-## État — programme de réécriture N1–N8 INTÉGRALEMENT LIVRÉ — reste T (banc de parité croisé)
+## État — programme de réécriture N1–N8 INTÉGRALEMENT LIVRÉ — étage T lancé (volet documentation livré, banc croisé en attente)
 
 Décisions actées par le propriétaire le 28/10/2026 :
 
@@ -121,7 +121,8 @@ hiérarchie non balayée par `availableMethods` d'ecj, internes
 | `bancs/baselines/` | **baselines JSON signées des bancs qualité** (ADR 0016 — `completion.json` : complétion N2 ; re-baseline par PR dédiée) |
 | `docs/PROVENANCE-REPRISE.md` | manifeste de reprise sélective (règle R9 — registre des copies autorisées) |
 | `spike/` | bancs de mesure V1/V2/V3, scanner de compatibilité ART, gabarit appareil |
-| `java/` | **moteur Java LSP réécrit — étages N1+N2 LIVRÉS** (noyau compilateur & environnement, complétion & classement avec échelle de variantes, chaîne D8, gel, banc qualité ; bancs `:java:bench` / `:java:benchQualite`) |
+| `java/` | **moteur Java LSP réécrit — étages N1–N8 INTÉGRALEMENT LIVRÉS** (noyau compilateur & environnement, complétion & classement avec échelle de variantes, hover/inlay/signatures, navigation & usages, rename v2, actions de code ModCommand, confort éditeur, cycle de vie LSP & protocole riche lsp4j ; bancs `:java:bench` / `:java:benchQualite` / `:java:benchUsages`) |
+| `USAGE.md` | **guide d'utilisation du serveur `lspjava`** — démarrage LSP, cycle de vie, chaque fonctionnalité avec exemples de requêtes/réponses, capability maison, extensions expérimentales, API in-process du moteur |
 | `testing/` | suite d'intégration moteur ↔ index CIDX — **réécrite en Kotlin neuf à l'étage N1** (adaptateur `IndexNoms` + 4 tests) |
 | `index/` | index disque CIDX — **repris contrôlé vague 1b** (17 f. main + 15 f. test + banc) |
 | `model/` | modèle de projet LSP + types du protocole réécrits — **repris contrôlé vague 1b** (6 f. main + 5 f. test + code neuf) |
@@ -129,6 +130,17 @@ hiérarchie non balayée par `availableMethods` d'ecj, internes
 | `scripts/` | vérifications obligatoires (`verifier-push.sh`, `verifier-provenance.sh`) |
 | `.githooks/` | crochet `pre-push` d'identité jjoblab (activation : `git config core.hooksPath .githooks`) |
 | `.github/workflows/` | CI (build + contrôles de provenance) |
+
+## Utilisation
+
+Voir **`USAGE.md`** — le guide complet : intégration LSP (lanceur lsp4j,
+négociation, cycle de vie, gardes d'erreur), chaque fonctionnalité avec
+exemples de requêtes/réponses JSON-RPC (complétion, survol, diagnostics,
+navigation, renommage, actions de code, formatage, pliage, symboles,
+lentilles, hiérarchies…), la capability maison
+`x-codeide.completionRanking`, les extensions expérimentales
+(`superDefinition`, `decompiledSource`) et l'API in-process du moteur
+(`MoteurJava`).
 
 ## Règles de travail
 
@@ -144,10 +156,11 @@ pas de JDK 21 complet, le plugin d'auto-provisionnement foojay le télécharge
 automatiquement (paramétré dans `settings.gradle.kts`).
 
 ```bash
-./gradlew build                    # build + tests (344 tests : 38 modèle + 84 index + 36 ecj-art + 182 noyau + 4 intégration)
+./gradlew build                    # build + tests (625 tests : 38 modèle + 84 index + 36 ecj-art + 463 noyau :java + 4 intégration)
 ./gradlew :ecj-art:patcherEcj      # produit ecj-art/build/ecj-patche/ecj-3.40.0-art.jar
 ./gradlew :java:bench              # banc empreinte/latence du noyau N1 (JVM séparée)
 ./gradlew :java:benchQualite       # banc qualité complétion N2 — ÉCHOUE sur régression vs baseline signée
+./gradlew :java:benchUsages        # banc usages N4 — rappel = oracle, p95 < 100 ms, CI-bloquant
 ANDROID_JAR=… ./gradlew :java:test # ouvre les gates Android (036/043/044/050/053 + 033/004)
 ```
 
@@ -214,6 +227,15 @@ dormantes ne le sont plus) et le contrôle « anti-fichier-hors-registre ».
   bascule à parité sur appareil (§8.5) — la garde n'est plus
   l'estimation (recalages 1 et 2 clos) mais le banc croisé et la parité
   mesurée.
+- **Étage T — volet documentation LIVRÉ le 29/10/2026** : guide
+  d'utilisation complet (**`USAGE.md`**) — démarrage du serveur (lanceur
+  lsp4j stdio/embarqué, négociation, sérialiseur de la capability
+  maison), cycle de vie et gardes d'erreur, synchronisation des
+  documents, **chaque fonctionnalité avec exemples de requêtes/réponses
+  JSON-RPC**, le protocole riche `x-codeide.completionRanking`, les
+  extensions expérimentales, l'API in-process du moteur et les bancs.
+  README et structure du dépôt alignés sur l'état N1–N8 (625 tests). Le
+  **banc de parité croisé** (cœur historique de T) reste à livrer.
 
 Détail : `docs/PLAN-REECRITURE.md` (programme complet) et
 `docs/etudes/moteur-java-psi/00-synthese.md` §4 (historique du plan).
@@ -288,3 +310,14 @@ N5 → N6 → N8, T traversant) :
   l'interface distante combinée. Les étages N1–N8 du plan §4 sont
   TOUS livrés ; reste **T** (banc de parité croisé ADR 0016 — oracle
   vendored en boîte noire) et la bascule à parité sur appareil.
+- **T transverse qualité — volet documentation (livré le 29/10/2026)** :
+  ~~guide d'utilisation~~ ✓ (**`USAGE.md`** — 13 sections : démarrage LSP
+  stdio/embarqué, négociation avec le sérialiseur de la capability
+  maison, cycle de vie et codes d'erreur exacts, synchronisation
+  copy-on-write, 17 fonctionnalités avec exemples de requêtes/réponses
+  JSON-RPC, protocole riche de classement, extensions expérimentales,
+  API in-process `MoteurJava`, environnement de compilation, bancs et
+  gates, conventions d'honnêteté) ; ~~README aligné~~ ✓ (structure du
+  dépôt N1–N8, construction 625 tests, section Utilisation, état T).
+  Le **banc de parité croisé** (cœur historique de T) et la bascule à
+  parité restent à livrer.

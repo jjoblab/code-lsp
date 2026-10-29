@@ -85,3 +85,7 @@ complètent les ADR (`docs/adr/`) — en cas de doute, l'ADR prime.
 3. `docs/cahier-specifications/` — cahier des comportements attendus
    (extraction des 449 tests de l'ancien moteur) : c'est le contrat.
 4. `spike/README.md` — bancs de mesure et chiffres de référence.
+5. `USAGE.md` — guide d'utilisation du serveur (`lspjava`) : surface LSP
+   exacte (capabilities, extensions expérimentales), API in-process du
+   moteur — la référence avant toute modification de comportement visible
+   du client.
