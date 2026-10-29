@@ -97,14 +97,51 @@ dependencies {
 val bancSourceSet =
     sourceSets.create("bench") {
         java.srcDir("src/bench/kotlin")
+        // Format d'échange partagé avec le pilote oracle (source of truth
+        // unique du JSON corpus/résultats, sans dépendance).
+        java.srcDir("src/formatBanc/kotlin")
         compileClasspath += sourceSets.main.get().output + sourceSets.main.get().compileClasspath
         runtimeClasspath += sourceSets.main.get().output + sourceSets.main.get().runtimeClasspath
     }
+
+// ---------------------------------------------------------------------------
+// Étage T — banc de PARITÉ CROISÉE (ADR 0016) : le même corpus rejoué contre
+// le vendored (oracle en boîte noire, SOUS-PROCESSUS) et le moteur neuf.
+// Trois source sets dédiés :
+//  - `bancStubs`     : STUBS des signatures publiques du vendored — servent
+//                      UNIQUEMENT à compiler le pilote ; JAMAIS sur un
+//                      classpath d'exécution (alarme au chargement) ;
+//  - `piloteOracle`  : le pilote du sous-processus oracle — SANS AUCUNE
+//                      dépendance du dépôt (classpath runtime = jar vendored
+//                      + lsp4j/gson du vendored + kotlin-stdlib) ;
+//  - `formatBanc`    : le format d'échange JSON maison, partagé par le pilote
+//                      et l'orchestrateur (et par les tests du cahier).
+// ---------------------------------------------------------------------------
+val bancStubsSourceSet = sourceSets.create("bancStubs") {
+    java.srcDir("src/bancStubs/kotlin")
+}
+
+val piloteOracleSourceSet = sourceSets.create("piloteOracle") {
+    java.srcDir("src/piloteOracle/kotlin")
+    java.srcDir("src/formatBanc/kotlin")
+    compileClasspath += bancStubsSourceSet.output
+}
+
+// Le format d'échange est testé depuis la suite standard (FormatEchangeTest).
+sourceSets.named("test") {
+    java.srcDir("src/formatBanc/kotlin")
+}
 
 dependencies {
     // Le banc exécute le moteur CONTRE le jar ecj patché (comme les tests —
     // main est compileOnly, le runtime du banc doit le porter).
     "benchImplementation"(project(mapOf("path" to ":ecj-art", "configuration" to "sortieEcjArt")))
+
+    // Compilations des source sets du banc croisé : kotlin-stdlib seul
+    // (le pilote ne doit porter AUCUNE dépendance du dépôt — isolation du
+    // sous-processus oracle, cf. bancStubs/piloteOracle ci-dessus).
+    "bancStubsImplementation"(kotlin("stdlib"))
+    "piloteOracleImplementation"(kotlin("stdlib"))
 }
 
 tasks.register<JavaExec>("bench") {
@@ -143,4 +180,31 @@ tasks.register<JavaExec>("benchUsages") {
     mainClass.set("jo.codeide.lsp.java.banc.BancUsagesKt")
     classpath = bancSourceSet.runtimeClasspath
     jvmArgs("-Xmx2g", "-XX:+UseSerialGC")
+}
+
+// Banc de PARITÉ CROISÉE (étage T — cœur historique, ADR 0016) : le même
+// corpus rejoué contre le vendored (oracle en boîte noire, sous-processus
+// JVM isolé piloté par DriverOracle) et le moteur neuf (in-process) ;
+// baselines JSON signées (bancs/baselines/parite-completion.json) ; la
+// tâche ÉCHOUE sur régression (CI bloquante). Prérequis (gate, motif
+// ANDROID_JAR) : .oracle/ construit par scripts/preparer-oracle.sh —
+// absent localement = banc IGNORÉ (exit 0) ; la CI construit l'oracle
+// d'abord, le banc y est donc bloquant. Re-signature : PR dédiée avec
+// -Presigner.
+tasks.register<JavaExec>("benchParite") {
+    group = "verification"
+    description = "Banc de parité croisé T (oracle vendored vs moteur neuf, ADR 0016) — échoue sur régression."
+    mainClass.set("jo.codeide.lsp.java.banc.BancPariteCroiseKt")
+    classpath = bancSourceSet.runtimeClasspath
+    jvmArgs("-Xmx2g", "-XX:+UseSerialGC")
+    systemProperty("banc.baseline", rootProject.file("bancs/baselines/parite-completion.json").absolutePath)
+    systemProperty("banc.oracle", rootProject.file(".oracle").absolutePath)
+    systemProperty(
+        "banc.piloteClasses",
+        piloteOracleSourceSet.output.joinToString(File.pathSeparator),
+    )
+    dependsOn(piloteOracleSourceSet.output)
+    if (project.hasProperty("resigner")) {
+        args("--resigner")
+    }
 }

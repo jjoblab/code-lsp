@@ -7,7 +7,7 @@
 > l'architecture IntelliJ PSI — étudiée en profondeur, embarquée nulle part,
 > greffée partout où elle prouve sa valeur.
 
-## État — programme de réécriture N1–N8 INTÉGRALEMENT LIVRÉ — étage T lancé (volet documentation livré, banc croisé en attente)
+## État — programme de réécriture N1–N8 INTÉGRALEMENT LIVRÉ — étage T LIVRÉ (banc de parité croisé en CI) — reste la bascule sur appareil (§8.5, gabarit fourni)
 
 Décisions actées par le propriétaire le 28/10/2026 :
 
@@ -118,10 +118,11 @@ hiérarchie non balayée par `availableMethods` d'ecj, internes
 | `docs/PLAN-REECRITURE.md` | **programme de réécriture chiffré** (étages N1–N8+T, fourchette 160–270 j-h) — **approuvé le 28/10/2026** (engagement borné N1 + banc croisé) ; recalages 1 et 2 exécutés le 29/10 |
 | `docs/RECALAGE-1.md` | **recalage de fin N1 (§8.2)** — vélocité mesurée, re-projection N2–N8, décision de suite soumise au propriétaire |
 | `docs/RECALAGE-2.md` | **recalage de fin N2 (§8.2 — dernier recalage prévu)** — confiance N3–N8 re-évaluée sur les deux étages extrêmes de l'abaque, re-projection 5–8 séances effectives, décision de suite soumise |
-| `bancs/baselines/` | **baselines JSON signées des bancs qualité** (ADR 0016 — `completion.json` : complétion N2 ; re-baseline par PR dédiée) |
+| `bancs/baselines/` | **baselines JSON signées des bancs qualité** (ADR 0016 — `completion.json` : complétion N2 ; `parite-completion.json` : parité croisée T ; re-baseline par PR dédiée) |
+| `bancs/GABARIT-BASCULE-APPAREIL.md` | **gabarit de passe bascule sur appareil** (étage T §8.5 — protocole + tables à remplir par le propriétaire, R5 : jamais simulé) |
 | `docs/PROVENANCE-REPRISE.md` | manifeste de reprise sélective (règle R9 — registre des copies autorisées) |
 | `spike/` | bancs de mesure V1/V2/V3, scanner de compatibilité ART, gabarit appareil |
-| `java/` | **moteur Java LSP réécrit — étages N1–N8 INTÉGRALEMENT LIVRÉS** (noyau compilateur & environnement, complétion & classement avec échelle de variantes, hover/inlay/signatures, navigation & usages, rename v2, actions de code ModCommand, confort éditeur, cycle de vie LSP & protocole riche lsp4j ; bancs `:java:bench` / `:java:benchQualite` / `:java:benchUsages`) |
+| `java/` | **moteur Java LSP réécrit — étages N1–N8 INTÉGRALEMENT LIVRÉS** (noyau compilateur & environnement, complétion & classement avec échelle de variantes, hover/inlay/signatures, navigation & usages, rename v2, actions de code ModCommand, confort éditeur, cycle de vie LSP & protocole riche lsp4j ; bancs `:java:bench` / `:java:benchQualite` / `:java:benchUsages` / `:java:benchParite`) |
 | `USAGE.md` | **guide d'utilisation du serveur `lspjava`** — démarrage LSP, cycle de vie, chaque fonctionnalité avec exemples de requêtes/réponses, capability maison, extensions expérimentales, API in-process du moteur |
 | `testing/` | suite d'intégration moteur ↔ index CIDX — **réécrite en Kotlin neuf à l'étage N1** (adaptateur `IndexNoms` + 4 tests) |
 | `index/` | index disque CIDX — **repris contrôlé vague 1b** (17 f. main + 15 f. test + banc) |
@@ -222,11 +223,18 @@ dormantes ne le sont plus) et le contrôle « anti-fichier-hors-registre ».
   correcteurs~~ ✓ (N6) ; ~~cycle de vie LSP, protocole riche &
   intégration~~ ✓ (N8 — 5 fiches, 44 comportements verts, 625 tests /
   0 échec). **Le programme de réécriture N1–N8 est INTÉGRALEMENT livré.**
-- **Reste T** (banc de parité croisé ADR 0016 — corpus rejoué contre le
-  vendored en oracle boîte noire, baselines signées, CI bloquante) et la
-  bascule à parité sur appareil (§8.5) — la garde n'est plus
-  l'estimation (recalages 1 et 2 clos) mais le banc croisé et la parité
-  mesurée.
+- **Étage T — banc de parité croisé LIVRÉ le 29/10/2026** : le même corpus
+  (completion-n2 v1 — 18 positions + 4 frappes) est rejoué contre le
+  **vendored en oracle boîte noire** (jar `codeide-lsp@cb809e14` construit
+  épinglé par `scripts/preparer-oracle.sh`, exécuté en sous-processus JVM
+  isolé via `DriverOracle`) et le moteur neuf (in-process) ; la baseline
+  **`bancs/baselines/parite-completion.json`** est signée (couverture cahier
+  1.000/1.000 ; 165 deltas bruts documentés pour l'arbitrage de bascule) ;
+  la CI **échoue** sur régression (job `banc-parite` : couverture cahier en
+  baisse, libellé perdu, dérive de l'oracle). Le **gabarit de passe bascule
+  sur appareil** (§8.5 — `bancs/GABARIT-BASCULE-APPAREIL.md` + kit
+  `scripts/kit-bascule.sh`) est fourni : la mesure sur appareil et la
+  décision de bascule reviennent au propriétaire (R5 : jamais simulées).
 - **Étage T — volet documentation LIVRÉ le 29/10/2026** : guide
   d'utilisation complet (**`USAGE.md`**) — démarrage du serveur (lanceur
   lsp4j stdio/embarqué, négociation, sérialiseur de la capability
@@ -318,6 +326,16 @@ N5 → N6 → N8, T traversant) :
   JSON-RPC, protocole riche de classement, extensions expérimentales,
   API in-process `MoteurJava`, environnement de compilation, bancs et
   gates, conventions d'honnêteté) ; ~~README aligné~~ ✓ (structure du
-  dépôt N1–N8, construction 625 tests, section Utilisation, état T).
-  Le **banc de parité croisé** (cœur historique de T) et la bascule à
-  parité restent à livrer.
+  dépôt N1–N8, construction 625 tests, section Utilisation, état T) ;
+  ~~banc de parité croisé~~ ✓ (**livré le 29/10/2026** — oracle vendored
+  épinglé cb809e14 en boîte noire exécuté en sous-processus via des STUBS
+  de compilation à alarme, corpus de parité versionné, format d'échange
+  JSON maison, baseline `parite-completion.json` signée, CI bloquante
+  `banc-parite`, gardes falsifiées : libellé perdu / dérive oracle /
+  couverture cahier) ; ~~gabarit bascule appareil~~ ✓ (fourni —
+  `bancs/GABARIT-BASCULE-APPAREIL.md`, kit `scripts/kit-bascule.sh`, banc
+  de passe `BancBasculeAppareil` : couverture cahier + latences p50/p95
+  par genre + zéro saut, 18/18 constaté sur JVM de bureau). **Reste à T :
+  la passe appareil et la décision de bascule du propriétaire** (§8.5 —
+  checklist à 6 points dans le gabarit, dont l'arbitrage des 165 deltas
+  bruts et les gates `model.json` dormantes).

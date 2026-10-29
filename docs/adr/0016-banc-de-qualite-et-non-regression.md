@@ -1,6 +1,6 @@
 # ADR 0016 — Banc de qualité et non-régression (baselines versionnées, échec de CI)
 
-- **Statut** : Proposé
+- **Statut** : Accepté (exécuté par étapes — banc qualité N2 le 29/10/2026, banc de parité croisée étage T le 29/10/2026)
 - **Date** : 2026-10-28
 
 ## Contexte
@@ -37,6 +37,20 @@
 ## Décision proposée
 
 **Option 1** : les quatre bancs entrent au fur et à mesure des vagues ( ordre : empreinte+latence en vague 0 — CI existe déjà côté CodeIDE à compléter ; complétion avant la vague ADR 0012 ; diagnostics avant ADR 0013 ; greffes avant 0013/0014 ) ; toute baseline est versionnée dans `bancs/baselines/` ( JSON signé du commit ) ; la CI **échoue** sur régression ; l'appareil reste le juge final ( gabarit `spike/appareil/` — mesures à retourner par le propriétaire, jamais simulées ).
+
+> **Exécution (étage T, 29/10/2026)** : le **banc de parité croisée** — cœur
+> historique de T — est livré : corpus completion-n2 v1 ( 18 positions + 4
+> frappes ) rejoué contre le vendored **oracle en boîte noire** ( jar
+> `codeide-lsp@cb809e14` construit épinglé par `scripts/preparer-oracle.sh`,
+> exécuté en SOUS-PROCESSUS JVM isolé — le pilote ne touche que les points
+> d'entrée publics, compilé contre des stubs à alarme ) et le moteur neuf ;
+> baseline `bancs/baselines/parite-completion.json` signée ( couverture
+> cahier 1,000/1,000 ; 165 deltas bruts documentés pour l'arbitrage de
+> bascule §8.5 ) ; job CI `banc-parite` BLOQUANT ( échec sur couverture en
+> baisse, libellé perdu, dérive de l'oracle ) ; gabarit de passe appareil
+> fourni ( `bancs/GABARIT-BASCULE-APPAREIL.md` + kit `scripts/kit-bascule.sh` ).
+> L'extension du corpus aux autres capacités ( diagnostics, greffes,
+> empreinte ) suit la discipline d'enrichissement par PR.
 
 ## Conséquences
 

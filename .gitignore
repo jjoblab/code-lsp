@@ -15,3 +15,6 @@ build/
 local.properties
 *.hprof
 .DS_Store
+
+# Oracle du banc de parité croisée (étage T — construit par scripts/preparer-oracle.sh, JAMAIS committé, R6.4)
+.oracle/

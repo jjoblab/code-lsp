@@ -77,6 +77,8 @@ Caractéristiques saillantes, verrouillées par le cahier :
 ./gradlew :java:benchQualite       # banc qualité complétion — ÉCHOUE sur régression
                                     #   vs baseline signée bancs/baselines/completion.json
 ./gradlew :java:benchUsages        # banc usages — rappel 1,000, p95 < 100 ms, CI-bloquant
+./gradlew :java:benchParite        # banc de parité croisée T — oracle vendored vs moteur neuf
+                                    #   (prérequis : bash scripts/preparer-oracle.sh → .oracle/)
 ANDROID_JAR=… ./gradlew :java:test # ouvre les gates Android (fiches 033/004/036/043/044/050/053)
 ```
 
@@ -1026,9 +1028,14 @@ moteur.
 | `./gradlew :java:bench` | banc empreinte/latence du noyau (JVM séparée) : diagnose complet p50 11,7 ms / p95 39,8 ms, **diagnose rapide p50 1,5 ms**, hover p50 0,12 ms, complétion membres p50 0,04 ms, tas au repos 16 Mo |
 | `./gradlew :java:benchQualite` | banc qualité complétion (ADR 0016) — corpus versionné 18 positions, baseline signée `bancs/baselines/completion.json` : **recall 1,000 / top-1 1,000 / MRR 1,000** (naïf : 0,611/0,715), zéro saut de liste, p95 31 ms — **ÉCHOUE sur régression** |
 | `./gradlew :java:benchUsages` | banc usages (ADR 0014) — rappel 1,000 (oracle), p95 ~62 ms < 100 ms, **CI-bloquant** |
+| `bash scripts/preparer-oracle.sh` | construit l'**oracle vendored** du banc croisé (clone `codeide-lsp` épinglé cb809e14 + `:lsp:java:jar`, JVM pur — aucun SDK Android) → `.oracle/` (jamais committé, R6.4) |
+| `./gradlew :java:benchParite` | **banc de parité croisée** (étage T, ADR 0016) — le même corpus (18 positions + 4 frappes) rejoué contre le vendored (**boîte noire en sous-processus JVM isolé**, pilote compilé contre des stubs à alarme) et le moteur neuf (in-process) ; baseline signée `bancs/baselines/parite-completion.json` : couverture cahier **1,000 / 1,000**, 165 deltas bruts documentés — **ÉCHOUE** sur couverture en baisse, libellé perdu ou dérive de l'oracle ; oracle absent = banc ignoré avec message (exit 0), la CI le construit d'abord (job `banc-parite` **bloquant**) |
+| `bash scripts/kit-bascule.sh` | assemble le **kit de passe bascule sur appareil** (§8.5) : classes du banc + du moteur, ecj patché, dépendances, `banc-bascule.sh` — protocole et tables dans `bancs/GABARIT-BASCULE-APPAREIL.md` (R5 : mesures réelles du propriétaire, jamais simulées) |
 | `ANDROID_JAR=… ./gradlew :java:test` | ouvre les gates Android (fiches 033/004/036/043/044/050/053) — la CI télécharge android.jar API 34 (zip officiel) + AAR appcompat |
 
 Re-baseline : par **PR dédiée** uniquement (ADR 0016 — jamais en passant).
+Re-pin de l'oracle (montée de version du vendored) : PR dédiée de re-pin +
+re-signature de `parite-completion.json` (les stubs de façade suivent).
 
 ## 13. Conventions d'honnêteté et limites connues
 
@@ -1043,7 +1050,9 @@ Re-baseline : par **PR dédiée** uniquement (ADR 0016 — jamais en passant).
   par le renommage (N5) et le protocole (N8), jamais par ces édits.
 - **Version 0.1.0 = pré-bascule** : la parité sur appareil du plan §8.5
   n'est pas encore démontrée ; la version 1.0.0 attendra la bascule à
-  parité.
+  parité (le banc croisé CI-joué en couvre la partie déterministe —
+  `bancs/baselines/parite-completion.json` ; la passe appareil relève du
+  propriétaire, `bancs/GABARIT-BASCULE-APPAREIL.md`).
 - **Organisation des imports** : API moteur seulement (§7.17) — pas
   encore d'action `source.organizeImports` au fil LSP.
 - Le serveur n'écrit **jamais** sur le disque : preview = résultat

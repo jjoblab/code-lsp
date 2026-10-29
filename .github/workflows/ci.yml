@@ -108,6 +108,34 @@ jobs:
       - name: Banc usages (:java:benchUsages)
         run: ./gradlew :java:benchUsages --no-daemon --stacktrace
 
+  # ÉTAGE T — banc de PARITÉ CROISÉE (ADR 0016, cœur historique de T) : le
+  # même corpus rejoué contre le vendored (oracle en boîte noire, exécuté
+  # depuis le dépôt codeide-lsp au COMMIT ÉPINGLÉ) et le moteur neuf ;
+  # baseline SIGNÉE (bancs/baselines/parite-completion.json) ; la CI ÉCHOUE
+  # sur régression (couverture cahier, libellé perdu, dérive de l'oracle).
+  # L'oracle est CONSTRUIT par scripts/preparer-oracle.sh (clone épinglé +
+  # :lsp:java:jar du vendored, JVM pur — aucun SDK Android) ; dépôts publics
+  # clonés anonymement ; .oracle/ jamais committé (R6.4). Le JDK du runner
+  # porte javac (setup-java complet). Re-pin de l'oracle = PR dédiée de
+  # re-signature.
+  banc-parite:
+    name: Banc parité croisée T (oracle vendored épinglé)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Gradle
+        uses: gradle/actions/setup-gradle@v4
+      - name: Construction de l'oracle vendored (commit épinglé cb809e14)
+        run: bash scripts/preparer-oracle.sh
+      - name: Banc de parité croisée (:java:benchParite)
+        run: ./gradlew :java:benchParite --no-daemon --stacktrace
+
   provenance:
     name: Manifeste de provenance (anti-fichier-hors-registre)
     runs-on: ubuntu-latest
