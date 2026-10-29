@@ -7,7 +7,7 @@
 > l'architecture IntelliJ PSI — étudiée en profondeur, embarquée nulle part,
 > greffée partout où elle prouve sa valeur.
 
-## État — mesure sur appareil retournée (28/10) — prochaine étape : étage N1
+## État — étage N1 (noyau moteur) LIVRÉ — prochaine étape : N2 (complétion & classement)
 
 Décisions actées par le propriétaire le 28/10/2026 :
 
@@ -46,15 +46,35 @@ faute d'action P1). **122 tests repris verts** (38 modèle + 84 index).
 `:testing` est reportée à l'étage noyau du moteur (elle éprouve le moteur
 à réécrire).
 
-**Vague 1c (28/10/2026) — patcheur `ecj-art` réécrit en Kotlin clean-room** :
-remap de `Runtime$Version` + redirections `readAllBytes`/`readNBytes` vers des
-shims embarqués (sémantique JEP 322 et javadoc JDK, éprouvée en différentiel
-contre l'oracle JVM), pilotés par une **liste de shims versionnée**
-(`liste-shims-3.40.0.txt`, ADR 0018) que la CI confronte au scan du jar
-entrant. Le jar sortant est re-scanné : **aucun motif sensible résiduel**
-toléré ; le registre EPL-2.0 des modifications est embarqué
-(`META-INF/ECJ-ART-MODIFICATIONS.txt`). 36 tests (dont compilation de fumée
-avec le jar ecj patché). Tâche Gradle : `./gradlew :ecj-art:patcherEcj`.
+**Étage N1 (29/10/2026) — noyau compilateur & environnement LIVRÉ** :
+le module `:java` (moteur) est écrit **depuis le cahier de spécifications
+uniquement** (clean-room intégral, 21 fichiers Kotlin neufs, KDoc français,
+`explicitApi`, bytecode 17) : pilotage d'ecj 3.40.0 **patché** via `:ecj-art`
+(bridge `Compiler.resolve` — arbres vivants, jamais nettoyés), routage de
+classpath **sources → jars → jrt → stubs intrinsèques** (fiche 042) avec
+FQCN **longest-match** (fiche 010), jrt runtime **ou externe** via
+`jrt-fs.jar` + URLClassLoader/ServiceLoader (fiche 031), lecteur ZIP brut
+propre (fiche 038 — parité octet à octet avec `ZipFile`), caches
+présence/localisation/parse (fiches 006/024/025), **diagnose rapide par
+corps de méthode** avec équivalence stricte contre témoin neuf (fiche 014),
+chaîne de features à 3 niveaux — arbre focalisé / arbre réel / réduction
+`SourceFocuser` (fiches 015/041), **repli syntaxe instantané** sans
+plateforme (fiche 028), moteur **par module** avec routeur fichier→module
+relu à chaque requête (fiches 034/047), ordonnanceur à worker unique avec
+supersession par fichier + jeton d'annulation coopératif (fiches 048/046),
+enrichissement de hiérarchie « absent du classpath : X (requis par Y) »
+(fiche 019). **128 tests** (25 fiches N1 couvertes — les 6 dépendant de
+l'environnement SDK/model.json s'ignorent proprement par hypothèses
+visibles). Suite d'intégration `:testing` **réécrite en Kotlin neuf**
+(mutation consignée au manifeste §3 : l'ancienne suite était couplée à
+l'API vendored) : adaptateur `IndexNoms` sur le CIDX réel + 4 tests
+(parité avec/sans index, autorité à PRÊT, filtre `$`, réouverture chaude).
+**Banc empreinte/latence en CI** (`:java:bench`, corpus sans android.jar) :
+diagnose complet p50 11,7 ms / p95 39,8 ms, **diagnose rapide p50 1,5 ms**
+(frappe confinée — ~8× plus vite que le complet), hover p50 0,12 ms,
+complétion de membres p50 0,04 ms, tas au repos 16 Mo (JDK 21 de bureau,
+corpus 20 classes — nombres à comparer entre versions, aucun seuil
+asserté avant le banc croisé ADR 0016).
 
 ## Structure du dépôt
 
@@ -66,7 +86,8 @@ avec le jar ecj patché). Tâche Gradle : `./gradlew :ecj-art:patcherEcj`.
 | `docs/PLAN-REECRITURE.md` | **programme de réécriture chiffré** (étages N1–N8+T, fourchette 160–270 j-h) — **approuvé le 28/10/2026** (engagement borné N1 + banc croisé) |
 | `docs/PROVENANCE-REPRISE.md` | manifeste de reprise sélective (règle R9 — registre des copies autorisées) |
 | `spike/` | bancs de mesure V1/V2/V3, scanner de compatibilité ART, gabarit appareil |
-| `java/`, `testing/` | modules Gradle du domaine moteur Java (squelettes — moteur réécrit en étages) |
+| `java/` | **moteur Java LSP réécrit — étage N1 LIVRÉ** (noyau compilateur & environnement, 21 f. Kotlin clean-room, 128 tests, banc `:java:bench`) |
+| `testing/` | suite d'intégration moteur ↔ index CIDX — **réécrite en Kotlin neuf à l'étage N1** (adaptateur `IndexNoms` + 4 tests) |
 | `index/` | index disque CIDX — **repris contrôlé vague 1b** (17 f. main + 15 f. test + banc) |
 | `model/` | modèle de projet LSP + types du protocole réécrits — **repris contrôlé vague 1b** (6 f. main + 5 f. test + code neuf) |
 | `ecj-art/` | patcheur build-time d'ecj pour ART — **réécriture Kotlin clean-room vague 1c** (scanner, patcheur, shims, liste versionnée) |
@@ -88,12 +109,13 @@ pas de JDK 21 complet, le plugin d'auto-provisionnement foojay le télécharge
 automatiquement (paramétré dans `settings.gradle.kts`).
 
 ```bash
-./gradlew build                    # build + tests (158 tests : 38 modèle + 84 index + 36 ecj-art)
+./gradlew build                    # build + tests (290 tests : 38 modèle + 84 index + 36 ecj-art + 128 noyau + 4 intégration)
 ./gradlew :ecj-art:patcherEcj      # produit ecj-art/build/ecj-patche/ecj-3.40.0-art.jar
+./gradlew :java:bench              # banc empreinte/latence du noyau N1 (JVM séparée)
 ```
 
-La CI (`.github/workflows/ci.yml`) exécute le build et le contrôle
-« anti-fichier-hors-registre » à chaque push.
+La CI (`.github/workflows/ci.yml`) exécute le build, le banc du noyau et le
+contrôle « anti-fichier-hors-registre » à chaque push.
 
 ## Feuille de route (résumé)
 
@@ -110,16 +132,19 @@ La CI (`.github/workflows/ci.yml`) exécute le build et le contrôle
 - **Mesure sur appareil (porte d'entrée de N1, décision §10.2) — RETOURNÉE
   le 28/10/2026** : passe 14:33 (heure appareil) sur moto g06 / Android 15 /
   OpenJDK 17.0.19 (aarch64) — `spike/appareil/GABARIT-RESULTATS.md` rempli +
-  transcript brut `spike/appareil/resultats-appareil.txt` (commit 3c7158d),
-  valeurs consignées telles quelles (R5). Passe sur JVM (Termux) — ART non
-  testé (gabarit §6, vague « spike ART ») ; compléments §5 (GC ART,
-  répétition, thermique, app réelle) non réalisés (optionnels).
-- **Prochaine étape — étage N1 (noyau moteur)** (25 fiches, 124 comportements, 30–54 j-h :
-  env/ecj/parse/diagnostics + `:testing` + bancs) puis, séquence confirmée
-  (§10.3) : complétion (weighers, D8) / hover-inlay / confort →
-  navigation/usages/rename/code actions → cycle de vie LSP — chaque étage
-  borné par la parité mesurée contre l'ancien moteur (banc croisé, ADR
-  0016) ; recalages d'estimation fin N1 et fin N2.
+  transcript brut (commit 3c7158d), valeurs consignées telles quelles (R5).
+  Passe sur JVM (Termux) — ART non testé (vague « spike ART ») ;
+  compléments §5 non réalisés (optionnels).
+- **Étage N1 (TERMINÉ le 29/10/2026)** : ~~noyau compilateur & environnement~~ ✓
+  (25 fiches couvertes, 128 tests noyau + 4 intégration, `:testing` réécrite,
+  banc empreinte/latence en CI — détail en tête de page) ; le **recalage 1**
+  (§8.2) est DÛ au propriétaire : la vélocité mesurée sur le premier étage
+  remplace les postulats d'abaque et la fourchette N2–N8 est re-projetée.
+- **Prochaine étape — N2 complétion & classement** (9 fiches, 66
+  comportements : chaîne de weighers D8, split RPC, banc qualité
+  recall/top-1/MRR) puis, séquence confirmée (§10.3) : N3/N7 →
+  N4–N6 → N8 — chaque étage borné par la parité mesurée contre l'ancien
+  moteur (banc croisé, ADR 0016) ; recalage d'estimation fin N2.
 
 Détail : `docs/PLAN-REECRITURE.md` (programme complet) et
 `docs/etudes/moteur-java-psi/00-synthese.md` §4 (historique du plan).

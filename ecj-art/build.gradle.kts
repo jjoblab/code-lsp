@@ -94,3 +94,16 @@ tasks.register<JavaExec>("patcherEcj") {
         },
     )
 }
+
+// Sortie consommable : le jar ecj patché (classes ecj + shims embarqués) mis à
+// disposition du module :java (étage N1 — le moteur pilote ecj PATCHÉ, ADR 0001
+// §2/0005) via une configuration sortante. Le motif task de la notation
+// d'artefact exploite la sortie unique déclarée ci-dessus (outputs.file).
+val sortieEcjArt: Configuration by configurations.creating {
+    isCanBeConsumed = true
+    isCanBeResolved = false
+}
+
+artifacts {
+    add("sortieEcjArt", tasks.named("patcherEcj"))
+}
