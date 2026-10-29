@@ -86,7 +86,7 @@ la passe appareil documente la réalité de bout en bout pour la décision.
 | 1 | Banc de parité croisé VERT en CI (oracle épinglé cb809e14) | ☑ | job CI `Banc parité croisée T (oracle vendored épinglé)` — **success** sur `97cf181` (29/10, vérifié via API GitHub Actions) |
 | 2 | Couverture du cahier sur appareil = 18/18 (§3 ci-dessus) | ☑ | transcript de passe — 18 ✓, aucun manquant |
 | 3 | Latences §4 constatées sur appareil et consignées (§4 ci-dessus) | ☑ | transcript de passe — p50/p95 par genre + GLOBAL consignés |
-| 4 | Deltas du banc croisé (`pertes_vs_oracle` — 165 libellés à la signature du 29/10) arbitrés classe par classe : bruit hors cahier / comportement à rattraper / divergence D8 assumée | ☐ | `bancs/baselines/parite-completion.json` + analyse jointe à la décision |
+| 4 | Deltas du banc croisé (`pertes_vs_oracle` — 165 libellés à la signature du 29/10) arbitrés classe par classe : bruit hors cahier / comportement à rattraper / divergence D8 assumée | ☐ | `bancs/baselines/parite-completion.json` + **analyse préparée : [`ANALYSE-DELTAS-BASCULE.md`](ANALYSE-DELTAS-BASCULE.md)** (proposition : 103 bruit / 62 divergence assumée / 0 à rattraper, deux notes post-bascule bornées) — arbitrage final et validation au propriétaire |
 | 5 | Gates `model.json` dormantes (Fiche010/Fiche039 — dette documentée RECALAGE-2 §5.1) : artefact fourni OU décision explicite de baser la bascule sur les autres couvertures | ☐ | décision consignée |
 | 6 | Plan de retour arrière actif (substitution composite inversée, ADR 0015 — 1 ligne) | ☐ | procédure CodeIDE |
 
