@@ -41,15 +41,41 @@ import org.eclipse.lsp4j.services.LanguageClient
  * version la plus fraîche gagne toujours (le client rend les publications
  * par URI : la dernière efface la précédente).
  *
+ * **Régimes du moteur** (INTEGRATION-CODEIDE §3.3, option B) : le
+ * publicateur consomme un FOURNISSEUR `(chemin) -> MoteurJava?` — la
+ * forme FIGÉE (constructeur de compatibilité) sert un moteur unique
+ * capturé à initialize ; la forme VIVANTE résout le moteur AU TIR,
+ * dans la fenêtre du debounce, par le ROUTAGE fichier → module de
+ * l'environnement (fiche 047 : le routeur est relu à chaque requête,
+ * une reconfiguration à chaud route le document changé vers SON
+ * nouveau moteur sans reconstruction du publicateur). Un fournisseur
+ * qui rend null NE PUBLIE PAS : l'absence de publication est le
+ * comportement exact de l'absence de publicateur (jamais une liste
+ * vide mensongère, qui effacerait des squiggles sans diagnostic).
+ *
  * @param client le client LSP (bout publishDiagnostics).
- * @param moteur le moteur hôte (diagnose complet, replis internes).
  * @param etats le magasin des documents ouverts (instantanés vivants).
+ * @param fournisseur le résolveur du moteur par chemin de document.
  */
 public class PublicateurDiagnostics(
     private val client: LanguageClient,
-    private val moteur: MoteurJava,
     private val etats: EtatsDocuments,
+    private val fournisseur: (chemin: String) -> MoteurJava?,
 ) {
+
+    /**
+     * La forme FIGÉE (compatibilité des tests du cahier) : le moteur
+     * unique construit à initialize sert toutes les publications.
+     *
+     * @param client le client LSP (bout publishDiagnostics).
+     * @param moteur le moteur hôte (diagnose complet, replis internes).
+     * @param etats le magasin des documents ouverts (instantanés vivants).
+     */
+    public constructor(
+        client: LanguageClient,
+        moteur: MoteurJava,
+        etats: EtatsDocuments,
+    ) : this(client, etats, { _ -> moteur })
 
     /** Le fil unique des publications (ordre + jamais de fil RPC bloqué). */
     private val ordonnanceur = Executors.newSingleThreadScheduledExecutor { runnable ->
@@ -80,26 +106,30 @@ public class PublicateurDiagnostics(
 
     /**
      * Le tir : lit l'instantané VIVANT à cet instant (la version et le
-     * texte font foi — fiche 059 I5), compile, convertit, publie. Document
-     * fermé entre-temps → liste VIDE (effacement des squiggles).
+     * texte font foi — fiche 059 I5), résout le moteur par le ROUTAGE du
+     * jour (fiche 047 — relu à CHAQUE tir, une reconfiguration à chaud
+     * route sans reconstruction), compile, convertit, publie. Document
+     * fermé entre-temps → liste VIDE (effacement des squiggles) ; moteur
+     * introuvable → AUCUNE publication (l'absence de publicateur, jamais
+     * une liste vide mensongère).
      *
      * @param uri l'URI du document à publier.
      */
     private fun tirer(uri: String) {
         enAttente.remove(uri)
-        val instantane = etats.instantane(uri)
-        val params = if (instantane == null) {
-            PublishDiagnosticsParams(uri, emptyList())
-        } else {
-            val chemin = ConvertisseurLsp.cheminDeUri(uri) ?: uri
-            val diagnostics = moteur.diagnose(chemin, instantane.texte)
-            val repere = ConvertisseurLsp.repere(instantane.texte)
-            PublishDiagnosticsParams(
-                uri,
-                ConvertisseurLsp.diagnostics(diagnostics, repere),
-            )
+        val instantane = etats.instantane(uri) ?: run {
+            client.publishDiagnostics(PublishDiagnosticsParams(uri, emptyList()))
+            return
         }
-        params.version = instantane?.version?.toInt()
+        val chemin = ConvertisseurLsp.cheminDeUri(uri) ?: uri
+        val moteur = fournisseur(chemin) ?: return
+        val diagnostics = moteur.diagnose(chemin, instantane.texte)
+        val repere = ConvertisseurLsp.repere(instantane.texte)
+        val params = PublishDiagnosticsParams(
+            uri,
+            ConvertisseurLsp.diagnostics(diagnostics, repere),
+        )
+        params.version = instantane.version.toInt()
         client.publishDiagnostics(params)
     }
 

@@ -233,3 +233,62 @@ que tout ce que le moteur neuf ANNONCE est bien consommé.
 - **Périmètre** : les LSP Kotlin et XML ne bougent pas dans ce plan —
   ils restent servis par `codeide-lsp` (habitat unique Java seulement,
   conformément à l'instruction du propriétaire du 30/10/2026).
+
+## 7. Exécution (30/10 au soir) — arbitrage tranché, I0–I3 exécutés
+
+**Arbitrage §3.3 : OPTION B** (routeur multi-modules AU PROTOCOLE) —
+motif de la décision : le critère 6 d'acceptation tranche en pratique
+(« une session LSP Java vivante par projet ; pas de reconstruction
+moteur à chaque reconfiguration ; l'invariant ADR 0211 tient côté hôte
+adapté ») ; sous le régime E4 mesuré sur appareil (10 ouvertures de
+session en 1,4 s pour 2 modules), l'option A (fabrique figée)
+reconstruirait moteur + index à chaque re-connexion (≈16 Mo l'unité) et
+violerait le critère — la direction propriétaire « tout connecté,
+cohérent » du 30/10 impose B.
+
+| Étape | État | Preuve |
+|---|---|---|
+| **I0** Préparation | **FAIT** | rails vérifiés au HEAD (`code-lsp` 62dbbee, `codeide-lsp` bc11253, `CodeIDE` 8450bb7) ; oracle du banc croisé présent (`.oracle/`, empreintes vérifiées) |
+| **I1** Adaptation de `:lsp:host` | **FAIT** | 4 fichiers main + 5 fichiers de test adaptés (surface réelle mesurée en cours de chantier : `SessionLsp`, `OrchestrateurLsp`, `AdaptateurIndexNoms`, `KotlinLanguageServer` + `NavigationCible` NOUVEAU ; tests : `OrchestrateurLspTest`, `CapacitesLspPariteTest`, `harnais/OutilsHarnais`, `harnais/ServeurStdioJava`, `utilisateurs/ExperienceU2ViewsE2ETest`) + `settings.gradle.kts` (rails mavenLocal filtré / Packages / composite opt-in) + `lsp/host/build.gradle.kts` (coordonnée 1.1.0 + compagnon runtimeOnly) |
+| **I2** DEV sans jeton | **FAIT** | `publishToMavenLocal` de code-lsp v1.1.0 (`version.properties=1.1.0` dans le jar) ; l'hôte résout la coordonnée depuis mavenLocal et COMPILE contre la façade `jo.codeide.lsp.java.*` ; le montage complet (BoucleLocale équivalent) est couvert par la fiche 066 côté moteur |
+| **I3** Non-régression hôte | **FAIT** | **257 tests d'hôte VERTS** contre la façade neuve — dont les scénarios E2E stdio du harnais (D1 live-republish après sync, D1bis ViewBinding généré, D2 définition inter-fichiers, D4 racine GENERATED, D5 bindings ecj) et `AlignementLsp4jTest` ; côté moteur : 631 tests verts + **banc de parité croisée VERT** (oracle épinglé, baseline signée inchangée) |
+
+**Corrections apportées AU MOTEUR pour l'intégration** (v1.1.0 —
+chacune mesurée par un test) :
+
+1. **Régime vivant** — `ServeurLangageJava(environnement) { rappel }` :
+   résolution du moteur PAR REQUÊTE (routeur fiche 047 relu à chaque
+   requête), services dérivés à FOURNISSEURS (publicateur résout au TIR,
+   renommage par document, symboles d'espace aux racines des contextes),
+   `decompiledSource` sonde les moteurs VIVANTS (motif ADR 0215),
+   sonde publique `environnement()` — garde : **fiche 066** (7 tests :
+   routage par module, repli défaut, diagnostics routés, reconfiguration
+   à chaud SANS re-initialize, invariant ADR 0211 à travers 5 syncs,
+   sonde vivants, live-republish) ;
+2. **Contrat de sérialisation `superDefinition`** — `CibleSuperRpc`
+   aligné sur le vendord `{path, start, end, label}` (miroir exact du
+   client cel-lsp — la v1.0.0 n'aurait transporté que `{path, libelle}`
+   et le picker client aurait perdu offsets et libellé) — verrouillé
+   côté fil par l'enrichissement de la fiche 054 ;
+3. **LIVE-REPUBLISH** — auditeur de contexte : chaque remplacement
+   EFFECTIF republie les documents OUVERTS du module remplacé (motif
+   `ContextListener` du vendord — le scénario E2E D1 de l'hôte
+   l'exigeait) ;
+4. **`cheminDeUri` double forme** — `file:/path` (`File.toUri()` du
+   client/harnais) admis en plus de `file:///path` : sans elle, le
+   ROUTEUR recevait l'URI BRUTE, rien ne routait (définitions vides,
+   moteur défaut au lieu du module — MESURÉ par les échecs D1–D5 du
+   harnais avant correction) ;
+5. **Annonce `experimental`** — `superDefinitionProvider` /
+   `decompiledSourceProvider` annoncées, miroir du vendord (le client
+   conditionne ses entrées UI à cette annonce — sans elle les boutons
+   disparaîtraient silencieusement) ; TABLE_JAVA du test de parité L0
+   mise à jour en miroir des capabilities réelles du moteur réécrit.
+
+**Reste** : **I4** (bump du catalogue CodeIDE vers l'`:host` 1.23.0
+publié + release CodeIDE), **I5** (passe appareil complète — fiches
+004/010/039, re-vérification E1–E4, témoin `serverInfo = 1.1.0` dans les
+logs), **I6** (retrait physique du vendored après « 2 versions sans
+régression »). Le retour arrière reste 1 ligne (substitution inverse) ;
+`:lsp:java` vendord reste au build (gelé, plus consommé par AUCUN
+module).

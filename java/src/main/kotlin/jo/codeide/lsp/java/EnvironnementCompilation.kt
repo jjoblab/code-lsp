@@ -55,6 +55,50 @@ public class EnvironnementCompilation(
     /** Ordre d'insertion des modules (pour [moteursVivants] après le défaut). */
     private val ordreModules = mutableListOf<String>()
 
+    /**
+     * Inventaire ordonné des racines sources des CONTEXTES posés (défaut
+     * en tête, puis modules dans l'ordre de leur première pose) — la
+     * surface de balayage des symboles d'espace de l'étage N8 quand le
+     * serveur vit sur un environnement (INTEGRATION-CODEIDE §3.3,
+     * option B) : les moteurs étant paresseux, cet inventaire ne dépend
+     * PAS de leur construction — un module nourri par la sync mais
+     * jamais sollicité expose déjà SES racines.
+     *
+     * @return les racines vivantes (photographie ordonnée, dédoublonnée).
+     */
+    public fun racinesSources(): List<Path> = synchronized(verrou) {
+        val resultat = LinkedHashSet<Path>()
+        contextes[""]?.let { resultat.addAll(it.racines) }
+        for (cle in ordreModules) {
+            if (cle != "") {
+                contextes[cle]?.let { resultat.addAll(it.racines) }
+            }
+        }
+        return resultat.toList()
+    }
+
+    /**
+     * Photographie des RACINES du contexte DÉFAUT (sonde d'état —
+     * l'orchestrateur hôte et ses tests y vérifient le nourrissage du
+     * contexte défaut avant/après les sync).
+     *
+     * @return les racines du contexte défaut (photographie).
+     */
+    public fun racinesDefaut(): List<Path> = synchronized(verrou) {
+        contextes[""]?.racines ?: emptyList()
+    }
+
+    /**
+     * Photographie des JARS du contexte DÉFAUT (sonde d'état — les tests
+     * d'orchestration de l'hôte y vérifient la plateforme du toolchain
+     * avant toute sync, motif h4 écart 1).
+     *
+     * @return les jars du contexte défaut (photographie).
+     */
+    public fun jarsDefaut(): List<Path> = synchronized(verrou) {
+        contextes[""]?.jars ?: emptyList()
+    }
+
     /** Index de noms partagé (champ de l'environnement). */
     private var indexNoms: IndexNoms? = null
 
@@ -248,6 +292,14 @@ public class EnvironnementCompilation(
             return // no-op système : même moteur, zéro notification
         }
         contextes[cle] = nouveau
+        // L'ordre d'insertion vit à la PREMIÈRE POSE DE CONTEXTE (pas à la
+        // première construction du moteur) : [racinesSources] expose les
+        // racines d'un module nourri mais jamais encore sollicité, tandis
+        // que [moteursVivants] n'itère que les moteurs EXISTANTS — même
+        // sortie qu'avant pour elle.
+        if (cle != "" && cle !in ordreModules) {
+            ordreModules.add(cle)
+        }
         moteurs.remove(cle)?.dispose()
         for (auditeur in auditeurs.toList()) {
             auditeur(cle)

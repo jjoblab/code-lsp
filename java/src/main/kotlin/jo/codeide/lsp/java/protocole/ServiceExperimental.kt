@@ -19,7 +19,11 @@ import org.eclipse.lsp4j.services.LanguageServer
  *  - `superDefinition` : le « GO TO Super » — la méthode de BASE d'une
  *    redéfinition au caret. La réponse est une liste de cibles à champ
  *    `path` (la forme du vendored, verrouillée par la fiche 054 : « son
- *    chemin se termine par Base.java ») ;
+ *    chemin se termine par Base.java ») ; depuis l'intégration
+ *    CodeIDE (INTEGRATION-CODEIDE §2), les champs suivent le CONTRAT
+ *    DE SÉRIALISATION exact du vendored (`NavigationTarget` : `path`,
+ *    `start`, `end`, `label`) — le client cel-lsp consomme son miroir
+ *    TEL QUEL, aucune adaptation client n'est requise ;
  *  - `decompiledSource` : la source d'un FQCN BINAIRE (la définition a
  *    répondu `jdt://decompiled/<fqcn>` — le client demande ici le
  *    tampon lecture-seule). La réponse porte un champ `source`.
@@ -65,15 +69,23 @@ public interface LangageServeurDistant : LanguageServer, ServiceExperimental
 
 /**
  * Une cible « GO TO Super » sur le fil (fiche 054 : « superDefinition
- * rend une liste de cibles à champ path »).
+ * rend une liste de cibles à champ path ») — champs ALIGNÉS sur le
+ * contrat de sérialisation du vendored (`NavigationTarget`), miroir
+ * exact du client cel-lsp : Gson mappe les propriétés une à une, le
+ * client lit `path`/`start`/`end`/`label` sans modification.
  *
- * @property path le chemin de la source de la méthode de BASE.
- * @property libelle le libellé picker (« nom  ·  conteneur » — deux
+ * @property path le chemin de la source de la méthode de BASE (sans
+ *   préfixe `file://`).
+ * @property start l'offset du NOM déclaré dans cette source.
+ * @property end la fin (exclusive) du nom.
+ * @property label le libellé picker (« nom  ·  conteneur » — deux
  *   espaces autour du séparateur, contrat N4).
  */
 public data class CibleSuperRpc(
     public val path: String,
-    public val libelle: String,
+    public val start: Int,
+    public val end: Int,
+    public val label: String,
 )
 
 /**

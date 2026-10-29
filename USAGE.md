@@ -175,7 +175,7 @@ publications traversent la sérialisation Gson et les en-têtes
   `typeHierarchyProvider`, `workspaceSymbolProvider`,
   `inlayHintProvider`, et la capability maison
   `x-codeide.completionRanking` (§8).
-- `serverInfo` : nom **`lspjava`**, version **1.0.0** — lue de la
+- `serverInfo` : nom **`lspjava`**, version **1.1.0** — lue de la
   ressource embarquée `version.properties`, générée à la construction
   depuis la version du projet (fiche 059 I7 : jamais de version fantôme).
 
@@ -220,7 +220,7 @@ Extrait de réponse (seule la capability maison est tronquée ici, voir §8) :
       "workspaceSymbolProvider": true,
       "inlayHintProvider": true
     },
-    "serverInfo": { "name": "lspjava", "version": "1.0.0" }
+    "serverInfo": { "name": "lspjava", "version": "1.1.0" }
   }
 }
 ```
@@ -230,6 +230,86 @@ Extrait de réponse (seule la capability maison est tronquée ici, voir §8) :
 > le champ maison `x-codeide.completionRanking` **n'apparaît pas sur le
 > fil** — Gson sérialise les champs du type déclaré et la sous-classe
 > perdrait son champ propre (mesuré sur le fil — §8).
+
+### 4.4 Le régime vivant — intégration hôte (multi-modules à chaud)
+
+Pour l'intégration CodeIDE (`:lsp:host`, docs/`INTEGRATION-CODEIDE.md`
+§3.3 option B), le serveur se construit sur un **environnement vivant**
+possédé par l'HÔTE au lieu de la fabrique figée :
+
+```kotlin
+import jo.codeide.lsp.java.EnvironnementCompilation
+import jo.codeide.lsp.java.protocole.ServeurLangageJava
+
+val environnement = EnvironnementCompilation(jdkHome = jdkDuProjet)
+environnement.routeurFichierModule = { chemin ->
+    // l'instantané COURANT du modèle (relu à CHAQUE requête, fiche 047)
+    modele?.associer(chemin)?.nom
+}
+environnement.remplacerContexteModule(":app", racinesDeApp, jarsDeApp)
+environnement.setIndexNoms(adaptateurIndex)
+
+// UNE session LSP Java par projet — le moteur naît PAR REQUÊTE
+// (routage fichier → module), les syncs remplacent les CONTEXTES à chaud.
+val serveur = ServeurLangageJava(environnement) { /* rappel d'arrêt (registre des serveurs vivants) */ }
+```
+
+Deux régimes, deux constructeurs :
+
+| | régime FIGÉ (fabrique, §4.1) | régime VIVANT (environnement) |
+|---|---|---|
+| moteur | naît de la racine à `initialize`, ne bouge plus | résolu **par requête** par le routeur fichier → module (fiche 047, relu à chaque requête) |
+| reconfiguration | — (reconnexion requise) | `remplacerContexteModule` **à chaud** (sémantiques replaceAll fiche 034 : effectif = moteur du module reconstruit, redondant = no-op) — jamais de re-initialize |
+| diagnostics | moteur figé | moteur du module résolu **au tir** (fenêtre du debounce) |
+| renommage | moteur figé | moteur du document renommé (résolution par requête) |
+| `decompiledSource` | moteur figé | sonde des moteurs **vivants** : défaut d'abord, puis modules (motif ADR 0215 du vendored) |
+| libération | — | le serveur **ne dispose jamais** l'environnement — l'hôte le possède et le libère à la fermeture de la session (miroir exact du vendored `JavaLanguageServer`) |
+
+L'invariant ADR 0211 (« nourrissage moteur unique par sync ») tient par
+construction : l'hôte nourrit l'environnement, le serveur route — la
+garde d'acceptation est la fiche 066 du cahier (routage, reconfiguration
+à chaud, session unique à travers N syncs, diagnostics routés, sonde des
+moteurs vivants).
+
+### 4.4 Le régime vivant — intégration hôte (multi-modules à chaud)
+
+Pour l'intégration CodeIDE (`:lsp:host`, docs/`INTEGRATION-CODEIDE.md`
+§3.3 option B), le serveur se construit sur un **environnement vivant**
+possédé par l'HÔTE au lieu de la fabrique figée :
+
+```kotlin
+import jo.codeide.lsp.java.EnvironnementCompilation
+import jo.codeide.lsp.java.protocole.ServeurLangageJava
+
+val environnement = EnvironnementCompilation(jdkHome = jdkDuProjet)
+environnement.routeurFichierModule = { chemin ->
+    // l'instantané COURANT du modèle (relu à CHAQUE requête, fiche 047)
+    modele?.associer(chemin)?.nom
+}
+environnement.remplacerContexteModule(":app", racinesDeApp, jarsDeApp)
+environnement.setIndexNoms(adaptateurIndex)
+
+// UNE session LSP Java par projet — le moteur naît PAR REQUÊTE
+// (routage fichier → module), les syncs remplacent les CONTEXTES à chaud.
+val serveur = ServeurLangageJava(environnement) { /* rappel d'arrêt */ }
+```
+
+Deux régimes, deux constructeurs :
+
+| | régime FIGÉ (fabrique, §4.1) | régime VIVANT (environnement) |
+|---|---|---|
+| moteur | naît de la racine à `initialize`, ne bouge plus | résolu **par requête** par le routeur fichier → module (fiche 047, relu à chaque requête) |
+| reconfiguration | — (reconnexion requise) | `remplacerContexteModule` **à chaud** (sémantiques replaceAll fiche 034 : effectif = moteur du module reconstruit, redondant = no-op) — jamais de re-initialize |
+| diagnostics | moteur figé | moteur du module résolu **au tir** (fenêtre du debounce) |
+| renommage | moteur figé | moteur du document renommé (résolution par requête) |
+| `decompiledSource` | moteur figé | sonde des moteurs **vivants** : défaut d'abord, puis modules (motif ADR 0215 du vendored) |
+| libération | — | le serveur **ne dispose jamais** l'environnement — l'hôte le possède et le libère à la fermeture de la session (miroir exact du vendored `JavaLanguageServer`) |
+
+L'invariant ADR 0211 (« nourrissage moteur unique par sync ») tient par
+construction : l'hôte nourrit l'environnement, le serveur route — la
+garde d'acceptation est la fiche 066 du cahier (routage par module,
+reconfiguration à chaud sans re-initialize, session unique à travers N
+syncs, diagnostics routés, sonde des moteurs vivants).
 
 ## 5. Cycle de vie et gardes protocolaires
 
@@ -267,7 +347,7 @@ Exemple d'une session complète au fil :
 
 ```json
 {"jsonrpc":"2.0","id":1,"method":"initialize","params":{"rootUri":"file:///projet/demo","capabilities":{}}}
-{"jsonrpc":"2.0","id":1,"result":{"capabilities":{ … },"serverInfo":{"name":"lspjava","version":"1.0.0"}}}
+{"jsonrpc":"2.0","id":1,"result":{"capabilities":{ … },"serverInfo":{"name":"lspjava","version":"1.1.0"}}}
 {"jsonrpc":"2.0","method":"initialized","params":{}}
 {"jsonrpc":"2.0","id":2,"method":"textDocument/hover","params":{ … }}
 {"jsonrpc":"2.0","id":2,"result":{ … }}
@@ -915,8 +995,11 @@ Deux méthodes JSON-RPC héritées du protocole maison du vendored
 ### 9.1 `superDefinition` — le « GO TO Super »
 
 La méthode de BASE d'une redéfinition au caret. Réponse : liste de
-cibles à champ `path` (la forme du vendored), libellé picker
-« nom  ·  conteneur » (deux espaces autour du séparateur). Liste VIDE
+cibles à champ `path` (la forme du vendored), **contrat de sérialisation
+exact du vendord `NavigationTarget` — miroir du client cel-lsp, aucun
+champ renommé** : `path`, `start`, `end` (offsets du JETON nom déclaré
+dans la source cible) et `label` (libellé picker « nom  ·  conteneur »,
+deux espaces autour du séparateur). Liste VIDE
 honnête si le caret ne porte pas de redéfinition (I9). Exemple — dans un
 projet où `Demo.greet` REDÉFINIT `Base.greet` :
 
@@ -928,7 +1011,7 @@ projet où `Demo.greet` REDÉFINIT `Base.greet` :
 
 ```json
 {"jsonrpc":"2.0","id":30,"result":[
-  {"path":"/projet/demo/src/base/Base.java","libelle":"greet  ·  Base"}
+  {"path":"/projet/demo/src/base/Base.java","start":76,"end":81,"label":"greet  ·  Base"}
 ]}
 ```
 
@@ -1050,12 +1133,14 @@ re-signature de `parite-completion.json` (les stubs de façade suivent).
   ADR 0015), requête tolérante vide.
 - **Quick-fixes mono-fichier** (fiche 063) : le multi-fichiers passe
   par le renommage (N5) et le protocole (N8), jamais par ces édits.
-- **Version 1.0.0 = bascule §8.5 SIGNÉE (30/10/2026)** : checklist 6/6 du
+- **Version 1.0.0 = bascule §8.5 SIGNÉE (30/10/2026)** ; **version 1.1.0 = intégration CodeIDE (§4.4 : régime vivant, option B arbitrée ; superDefinition aligné contrat vendord ; fiche 066)** : checklist 6/6 du
   gabarit `bancs/GABARIT-BASCULE-APPAREIL.md` (passe appareil moto g06 —
   18/18, 0 saut, p50/p95 GLOBAL 42,93/73,01 ms ; deltas 165 arbitrés
   103/62/0 — `ANALYSE-DELTAS-BASCULE.md`) ; `serverInfo.version` rend
-  désormais **1.0.0** (générée du dépôt, fiche 059 I7) ; mise en œuvre
-  client : `docs/BASCULE-CODEIDE.md` ; suivi post-bascule borné au §6 du
+  désormais **1.1.0** (générée du dépôt, fiche 059 I7 — la 1.0.0 était
+  celle de la signature de bascule, la 1.1.0 celle de l'intégration) ;
+  mise en œuvre client : `docs/BASCULE-CODEIDE.md` +
+  `docs/INTEGRATION-CODEIDE.md` ; suivi post-bascule borné au §6 du
   gabarit.
 - **Organisation des imports** : API moteur seulement (§7.17) — pas
   encore d'action `source.organizeImports` au fil LSP.

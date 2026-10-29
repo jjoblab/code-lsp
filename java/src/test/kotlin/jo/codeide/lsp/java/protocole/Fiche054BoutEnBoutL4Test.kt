@@ -303,6 +303,26 @@ class Fiche054BoutEnBoutL4Test {
             cibles[0].path.endsWith("Base.java"),
             "le chemin se termine par Base.java — la méthode de BASE est la cible — trouvé : ${cibles[0].path}",
         )
+        // Contrat de sérialisation du vendored (INTEGRATION-CODEIDE §2) :
+        // {path, start, end, label} — miroir exact du client cel-lsp. La
+        // cible transporte la plage du NOM déclaré DANS la source cible.
+        assertTrue(
+            cibles[0].start < cibles[0].end,
+            "la plage du nom est bien formée (${cibles[0].start} < ${cibles[0].end})",
+        )
+        val extrait = runCatching {
+            Files.readString(dossier.resolve("demo/Base.java")).substring(cibles[0].start, cibles[0].end)
+        }.getOrDefault("<hors-bornes>")
+        assertEquals(
+            "signaler",
+            extrait,
+            "start/end délimitent le JETON « signaler » dans Base.java (contrat vendord, miroir cel-lsp)",
+        )
+        assertEquals(
+            "signaler  ·  Base",
+            cibles[0].label,
+            "libellé picker exact « signaler  ·  Base » (deux espaces autour du séparateur)",
+        )
     }
 
     /** decompiledSourceSurUneClasseDuJdkRendLaSource — decompiledSource sur un FQCN du JDK. */

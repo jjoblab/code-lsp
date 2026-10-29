@@ -250,11 +250,24 @@ public object ConvertisseurLsp {
      * Le chemin moteur d'une URI `file://` (le miroir de [uriDeFichier] ;
      * les URI non `file` rendent null — le serveur ignore le document).
      *
+     * Les DEUX formes canoniques du protocole sont admises (contrat du
+     * vendord `uriToPath`, repris pour l'intégration CodeIDE) : `file:///`
+     * (trois barres — la forme LSP usuelle) ET `file:/` (UNE barre — la
+     * forme de `File.toUri()` de Java, celle du client cel-lsp et du
+     * harnais d'audit) ; sans cette seconde forme, le ROUTAGE fichier →
+     * module recevrait l'URI BRUTE et rien ne routerait (définitions
+     * vides, moteur défaut au lieu du module — écart mesuré par le
+     * harnais `ScenariosJavaAndroidTest` D1–D5).
+     *
      * @param uri l'URI du document.
      * @return le chemin moteur, ou null.
      */
     public fun cheminDeUri(uri: String): String? =
-        if (uri.startsWith("file://")) uri.removePrefix("file://") else null
+        when {
+            uri.startsWith("file://") -> uri.removePrefix("file://")
+            uri.startsWith("file:/") -> uri.removePrefix("file:")
+            else -> null
+        }
 
     /**
      * Le `DocumentHighlight` LSP d'une surbrillance moteur (fiche 054 :

@@ -246,6 +246,21 @@ public object CapacitesServeur {
         // PAS de semanticTokens : aucun service moteur — règle matrice
         // (ADR 0015 : capacité non testée = non annoncée).
 
+        // Extensions MAISON (fiche 054 — INTEGRATION-CODEIDE §2) :
+        // `superDefinition` et `decompiledSource` sont annoncées dans
+        // `experimental`, miroir EXACT du vendord (clés
+        // `superDefinitionProvider` / `decompiledSourceProvider`) : le
+        // client cel-lsp conditionne ses entrées UI GO TO « Super » et
+        // « source décompilée » à cette annonce — SANS elle, les boutons
+        // disparaîtraient silencieusement (écart d'intégration, critère 2
+        // de « tout connecté, cohérent »).
+        capacites.setExperimental(
+            mapOf(
+                "superDefinitionProvider" to true,
+                "decompiledSourceProvider" to true,
+            ),
+        )
+
         return InitializeResult(capacites, ServerInfo(NOM_SERVEUR, versionDuDepot()))
     }
 

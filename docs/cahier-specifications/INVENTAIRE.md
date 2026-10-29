@@ -71,5 +71,6 @@
 | 063 | `CodeActionServiceTest` | 415 | 15 | D | `lsp/java/src/test/java/jo/lspjava/services/CodeActionServiceTest.java` |
 | 064 | `CreateMethodFixTest` | 212 | 5 | D | `lsp/java/src/test/java/jo/lspjava/services/CreateMethodFixTest.java` |
 | 065 | `JavaProblemFamilyTest` | 116 | 8 | D | `lsp/java/src/test/java/jo/lspjava/services/JavaProblemFamilyTest.java` |
+| 066 | `EnvironnementVivantServeurTest` | NÉO | 6 | D | né de l'intégration CodeIDE (régime vivant au protocole, INTEGRATION-CODEIDE §3.3 option B) — `java/src/test/kotlin/jo/codeide/lsp/java/protocole/Fiche066EnvironnementVivantTest.kt` |
 
-| **Total** | 65 classes | **16229** | **449** | A–D | — |
+| **Total** | 66 classes | **16229** | **455** | A–D | — |

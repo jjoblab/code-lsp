@@ -17,6 +17,12 @@ plugins {
 // 1.0.0 : BASCULE §8.5 SIGNÉE le 30/10/2026 (gabarit
 // bancs/GABARIT-BASCULE-APPAREIL.md — checklist 6/6, passe appareil moto g06
 // 18/18 / 0 saut, deltas arbitrés 103/62/0).
+// 1.1.0 : INTÉGRATION CODEIDE (docs/INTEGRATION-CODEIDE.md §3.3, option B
+// arbitrée) — constructeur VIVANT ServeurLangageJava(environnement) :
+// routeur multi-modules AU PROTOCOLE (résolution par requête, replaceAll
+// à chaud, jamais de re-initialize, invariant ADR 0211) ; contrat de
+// sérialisation superDefinition ALIGNÉ sur le vendord {path, start, end,
+// label} (miroir cel-lsp — aucune adaptation client requise) ; fiche 066.
 allprojects {
-    version = "1.0.0"
+    version = "1.1.0"
 }

@@ -3,6 +3,7 @@ package jo.codeide.lsp.java.protocole
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.CompletableFuture
+import jo.codeide.lsp.java.EnvironnementCompilation
 import jo.codeide.lsp.java.MoteurJava
 import jo.codeide.lsp.java.completion.ChaineClassement
 import jo.codeide.lsp.java.completion.ContexteClassement
@@ -133,6 +134,26 @@ import org.eclipse.lsp4j.services.WorkspaceService
  * repose sur un rappel déclenché à `shutdown` PUIS confirmé à `exit` —
  * 0 appel après initialize, 1 après shutdown, 2 après le cycle complet.
  *
+ * **Régimes du moteur** (INTEGRATION-CODEIDE §3.3, option B — routeur
+ * multi-modules AU PROTOCOLE) : DEUX constructeurs, DEUX régimes.
+ *
+ *  - **régime FIGÉ** (constructeur principal, fabrique) : le moteur
+ *    naît de la racine annoncée à `initialize` et ne bouge plus — le
+ *    régime des tests du cahier et du lanceur stdio autonome ;
+ *  - **régime VIVANT** (constructeur `environnement`) : le serveur vit
+ *    sur un [EnvironnementCompilation] possédé par l'HÔTE — UNE session
+ *    LSP Java par projet, le moteur résolu PAR REQUÊTE par le ROUTAGE
+ *    fichier → module (fiche 047, relu à CHAQUE requête), les
+ *    reconfigurations de l'hôte remplacent les CONTEXTES à chaud
+ *    (sémantiques replaceAll fiche 034 : remplacement effectif = moteur
+ *    du module reconstruit, redondant = no-op) — JAMAIS de
+ *    reconstruction du serveur ni re-initialize. L'invariant ADR 0211
+ *    (« nourrissage moteur unique par sync ») tient par construction :
+ *    l'hôte nourrit l'environnement, le serveur route. Le serveur NE
+ *    DISPOSE PAS l'environnement (il ne le possède pas — l'hôte le
+ *    libère à la fermeture de la session, miroir exact du vendored
+ *    `JavaLanguageServer`).
+ *
  * @param fabriqueMoteur la fabrique du moteur pour la racine annoncée à
  *   `initialize` (null = serveur SANS environnement de compilation —
  *   protocole pur, fiche 055 ; le défaut : un moteur sur la racine,
@@ -145,6 +166,36 @@ public class ServeurLangageJava(
     },
     private val rappelArret: Runnable? = null,
 ) : LanguageServer, TextDocumentService, WorkspaceService, ServiceExperimental {
+
+    /**
+     * Le régime VIVANT (INTEGRATION-CODEIDE §3.3, option B) : le serveur
+     * sur l'environnement de compilation de l'HÔTE — moteur résolu PAR
+     * REQUÊTE par le routeur fichier → module, contextes remplacés À
+     * CHAUD par l'orchestrateur, index partagé de l'environnement.
+     *
+     * @param environnement l'environnement possédé par l'hôte (le
+     *   serveur ne le libère JAMAIS — miroir du vendored).
+     * @param rappelArret le rappel d'arrêt (shutdown puis exit), ou null.
+     */
+    public constructor(
+        environnement: EnvironnementCompilation,
+        rappelArret: Runnable? = null,
+    ) : this(fabriqueMoteur = { _ -> null }, rappelArret = rappelArret) {
+        envVivant = environnement
+    }
+
+    /** L'environnement vivant branché (null = régime figé). */
+    private var envVivant: EnvironnementCompilation? = null
+
+    /**
+     * L'environnement VIVANT branché (sonde publique — l'HÔTE et ses tests
+     * d'orchestration y vérifient les moteurs par module, les niveaux et
+     * les diagnostics ; null en régime figé, l'instance POSÉDÉE PAR L'HÔTE
+     * en régime vivant — le serveur ne le libère jamais).
+     *
+     * @return l'environnement du régime vivant, ou null.
+     */
+    public fun environnement(): EnvironnementCompilation? = envVivant
 
     /** La machine à états du cycle de vie (observable par l'hôte/tests). */
     public val cycle: CycleVie = CycleVie()
@@ -234,13 +285,53 @@ public class ServeurLangageJava(
         // non prêt, fiche 056 : liste vide, jamais d'exception).
         val racine = params.rootUri?.let { ConvertisseurLsp.cheminDeUri(it) }?.let { Path.of(it) }
         racinesServeur = if (racine != null && Files.isDirectory(racine)) listOf(racine) else emptyList()
-        moteur = if (racine != null && Files.isDirectory(racine)) fabriqueMoteur(racine) else fabriqueMoteur(null)
 
-        // Les services dérivés du moteur.
-        moteur?.let { m ->
-            publicateur = PublicateurDiagnostics(clientOuRefus(), m, etats)
-            serviceRenommage = ServiceRenommage(m, capsEspaceDeTravail)
-            symbolesEspace = SymbolesEspace(racines = { listOfNotNull(racine.takeIf { Files.isDirectory(it) }) })
+        // Régime VIVANT (option B) : le moteur ne naît PAS ici — il naît
+        // PAR REQUÊTE, par le routeur fichier → module de l'environnement
+        // (fiche 047). Les services dérivés consomment l'ENVIRONNEMENT :
+        // publicateur à fournisseur (résolution au TIR, dans la fenêtre
+        // du debounce), renommage à fournisseur (résolution par document),
+        // symboles d'espace aux RACINES DES CONTEXTES (indépendantes des
+        // moteurs construits). Une reconfiguration de l'hôte (sync
+        // Gradle) traverse le serveur SANS re-initialize.
+        val env = envVivant
+        if (env != null) {
+            publicateur = PublicateurDiagnostics(clientOuRefus(), etats, env::moteurPourFichier)
+            serviceRenommage = ServiceRenommage(env::moteurPourFichier, capsEspaceDeTravail)
+            symbolesEspace = SymbolesEspace(racines = { env.racinesSources() })
+            moteur = null
+
+            // LIVE-REPUBLISH (motif ContextListener du vendord — le
+            // scénario E2E de l'hôte : les faux « cannot be resolved »
+            // s'effacent dès que la sync nourrit le moteur du module) :
+            // chaque remplacement EFFECTIF de contexte REPUBLIE les
+            // documents OUVERTS du module remplacé — le publicateur
+            // résoudra le NOUVEAU moteur au tir (fenêtre du debounce).
+            // L'auditeur vit sous le verrou de l'ENV : demander() ne fait
+            // que PLANIFIER (jamais de compilation ici, jamais de
+            // re-prise du verrou — aucun interblocage possible).
+            env.ajouterAuditeurContexte { cle ->
+                for (uri in etats.urisOuverts) {
+                    val chemin = ConvertisseurLsp.cheminDeUri(uri) ?: uri
+                    val module = try {
+                        env.routeurFichierModule?.invoke(chemin)
+                    } catch (_: Exception) {
+                        null
+                    }
+                    if (module == cle) {
+                        publicateur?.demander(uri)
+                    }
+                }
+            }
+        } else {
+            moteur = if (racine != null && Files.isDirectory(racine)) fabriqueMoteur(racine) else fabriqueMoteur(null)
+
+            // Les services dérivés du moteur (régime figé).
+            moteur?.let { m ->
+                publicateur = PublicateurDiagnostics(clientOuRefus(), m, etats)
+                serviceRenommage = ServiceRenommage(m, capsEspaceDeTravail)
+                symbolesEspace = SymbolesEspace(racines = { listOfNotNull(racine.takeIf { Files.isDirectory(it) }) })
+            }
         }
 
         cycle.surInitialize()
@@ -309,6 +400,20 @@ public class ServeurLangageJava(
 
     /** Le client branché (ou un client muet si le lanceur n'a pas connecté). */
     private fun clientOuRefus(): LanguageClient = client ?: ClientMuet
+
+    /**
+     * Le moteur DE LA REQUÊTE : le ROUTAGE fichier → module de
+     * l'environnement vivant (fiche 047 — le routeur est RELU à chaque
+     * requête : un modèle remplacé par la sync suivante route aussitôt,
+     * un routeur fautif replie sur le contexte défaut) ; à défaut, le
+     * moteur figé du régime fabrique (construit à initialize). Null =
+     * protocole pur (liste vide, jamais d'exception — convention I9).
+     *
+     * @param chemin le chemin logique du document interrogé.
+     * @return le moteur du module du document (ou le moteur figé).
+     */
+    private fun moteurPour(chemin: String): MoteurJava? =
+        envVivant?.moteurPourFichier(chemin) ?: moteur
 
     // ----------------------------------------------------------------- //
     // Synchronisation des documents (fiche 059 — plein texte)
@@ -407,7 +512,7 @@ public class ServeurLangageJava(
         // Convention I9 : hover → null quand il n'y a rien (le client a
         // un repli) — jamais une structure vide.
         val survol = document?.let { (chemin, texte) ->
-            moteur?.survolRiche(chemin, texte, offsetDe(texte, params.position))
+            moteurPour(chemin)?.survolRiche(chemin, texte, offsetDe(texte, params.position))
         }
         return CompletableFuture.completedFuture(survol?.let(::survolLsp))
     }
@@ -429,7 +534,7 @@ public class ServeurLangageJava(
         val document = documentDe(uri)
         val reponse = document?.let { (chemin, texte) ->
             etats.calculerFraiche(uri) { instantane ->
-                moteur?.completer(chemin, instantane.texte, offsetDe(instantane.texte, params.position))
+                moteurPour(chemin)?.completer(chemin, instantane.texte, offsetDe(instantane.texte, params.position))
             }
         }
         val liste = reponse ?: jo.codeide.lsp.java.completion.ReponseCompletion(emptyList(), 0, jo.codeide.lsp.java.completion.GenreContexte.INCONNU)
@@ -503,7 +608,7 @@ public class ServeurLangageJava(
         val uri = params.textDocument.uri
         val document = documentDe(uri)
         val aide = document?.let { (chemin, texte) ->
-            moteur?.signatureHelp(chemin, texte, offsetDe(texte, params.position))
+            moteurPour(chemin)?.signatureHelp(chemin, texte, offsetDe(texte, params.position))
         }
         val reponse = SignatureHelp()
         reponse.signatures = aide?.signatures?.map { candidat ->
@@ -540,7 +645,7 @@ public class ServeurLangageJava(
         val uri = params.textDocument.uri
         val document = documentDe(uri) ?: return emptyList()
         val (chemin, texte) = document
-        val moteur = moteur ?: return emptyList()
+        val moteur = moteurPour(chemin) ?: return emptyList()
         val cibles = when (params) {
             is TypeDefinitionParams -> moteur.typeDefinition(chemin, texte, offsetDe(texte, params.position))
             is ImplementationParams -> moteur.implementation(chemin, texte, offsetDe(texte, params.position))
@@ -563,7 +668,7 @@ public class ServeurLangageJava(
         val uri = params.textDocument.uri
         val document = documentDe(uri) ?: return CompletableFuture.completedFuture(emptyList())
         val (chemin, texte) = document
-        val moteur = moteur ?: return CompletableFuture.completedFuture(emptyList())
+        val moteur = moteurPour(chemin) ?: return CompletableFuture.completedFuture(emptyList())
         // Parité stricte (§10.4, fiche 054) : le VENDORED ne rendait que
         // les références du DOCUMENT COURANT (l'appel inter-fichiers
         // U.java n'était PAS rendu — « écart moteur assumé, verrouillé
@@ -592,7 +697,7 @@ public class ServeurLangageJava(
         val uri = params.textDocument.uri
         val document = documentDe(uri) ?: return CompletableFuture.completedFuture(emptyList())
         val (chemin, texte) = document
-        val moteur = moteur ?: return CompletableFuture.completedFuture(emptyList())
+        val moteur = moteurPour(chemin) ?: return CompletableFuture.completedFuture(emptyList())
         val surbrillances = moteur.surbrillances(chemin, texte, offsetDe(texte, params.position))
         val repere = ConvertisseurLsp.repere(texte)
         return CompletableFuture.completedFuture(surbrillances.map { ConvertisseurLsp.surlignage(it, repere) })
@@ -603,7 +708,7 @@ public class ServeurLangageJava(
         val uri = params.textDocument.uri
         val document = documentDe(uri) ?: return CompletableFuture.completedFuture(emptyList())
         val (chemin, texte) = document
-        val moteur = moteur ?: return CompletableFuture.completedFuture(emptyList())
+        val moteur = moteurPour(chemin) ?: return CompletableFuture.completedFuture(emptyList())
         val symboles = SymbolesDocument(moteur).symboles(chemin, texte)
         return CompletableFuture.completedFuture(symboles.map { Either.forRight(it) })
     }
@@ -617,7 +722,7 @@ public class ServeurLangageJava(
         val uri = params.textDocument.uri
         val document = documentDe(uri) ?: return CompletableFuture.completedFuture(emptyList())
         val (chemin, texte) = document
-        val moteur = moteur ?: return CompletableFuture.completedFuture(emptyList())
+        val moteur = moteurPour(chemin) ?: return CompletableFuture.completedFuture(emptyList())
         val formate = moteur.formater(texte)
         if (formate == null || formate == texte) return CompletableFuture.completedFuture(emptyList())
         // Une édition pleine page : le texte reconstruit EST le texte
@@ -632,8 +737,8 @@ public class ServeurLangageJava(
         garde<List<TextEdit>>()?.let { return it }
         val uri = params.textDocument.uri
         val document = documentDe(uri) ?: return CompletableFuture.completedFuture(emptyList())
-        val texte = document.second
-        val moteur = moteur ?: return CompletableFuture.completedFuture(emptyList())
+        val (chemin, texte) = document
+        val moteur = moteurPour(chemin) ?: return CompletableFuture.completedFuture(emptyList())
         val repere = ConvertisseurLsp.repere(texte)
         val debut = repere.offset(params.range.start)
         val fin = repere.offset(params.range.end)
@@ -646,7 +751,7 @@ public class ServeurLangageJava(
         val uri = params.textDocument.uri
         val document = documentDe(uri) ?: return CompletableFuture.completedFuture(emptyList())
         val (chemin, texte) = document
-        val moteur = moteur ?: return CompletableFuture.completedFuture(emptyList())
+        val moteur = moteurPour(chemin) ?: return CompletableFuture.completedFuture(emptyList())
         val repere = ConvertisseurLsp.repere(texte)
         val offset = repere.offset(params.position)
         // Fiche 058 : no-op (liste VIDE) si le caractère tapé ne
@@ -666,7 +771,7 @@ public class ServeurLangageJava(
         val uri = params.textDocument.uri
         val document = documentDe(uri) ?: return CompletableFuture.completedFuture(emptyList())
         val (chemin, texte) = document
-        val moteur = moteur ?: return CompletableFuture.completedFuture(emptyList())
+        val moteur = moteurPour(chemin) ?: return CompletableFuture.completedFuture(emptyList())
         val repere = ConvertisseurLsp.repere(texte)
         val chaines = moteur.chainesSelection(chemin, texte, params.positions.map { repere.offset(it) })
         return CompletableFuture.completedFuture(
@@ -680,7 +785,7 @@ public class ServeurLangageJava(
         garde<List<FoldingRange>>()?.let { return it }
         val uri = params.textDocument.uri
         val document = documentDe(uri) ?: return CompletableFuture.completedFuture(emptyList())
-        val moteur = moteur ?: return CompletableFuture.completedFuture(emptyList())
+        val moteur = moteurPour(document.first) ?: return CompletableFuture.completedFuture(emptyList())
         // I9 : liste non-null VIDE (moteur utilisable + aucun pli).
         val texte = document.second
         val repere = ConvertisseurLsp.repere(texte)
@@ -704,7 +809,7 @@ public class ServeurLangageJava(
         val uri = params.textDocument.uri
         val document = documentDe(uri) ?: return CompletableFuture.completedFuture(emptyList())
         val (chemin, texte) = document
-        val moteur = moteur ?: return CompletableFuture.completedFuture(emptyList())
+        val moteur = moteurPour(chemin) ?: return CompletableFuture.completedFuture(emptyList())
         val indices = moteur.inlayHints(chemin, texte)
         val repere = ConvertisseurLsp.repere(texte)
         return CompletableFuture.completedFuture(
@@ -756,7 +861,10 @@ public class ServeurLangageJava(
         val uri = params.textDocument.uri
         val document = documentDe(uri)
         val service = serviceRenommage
-        if (document == null || service == null || moteur == null) {
+        // Régime vivant : la garde moteur passe par le ROUTAGE du document
+        // renommé (fiche 047) — le champ figé resterait null en mode
+        // environnement et rejetterait le rename à tort.
+        if (document == null || service == null || moteurPour(document.first) == null) {
             // I8 — erreur TYPIE RequestFailed (-32803), message FR contenant
             // « Aucun symbole renommable » (fiche 059) — jamais un
             // WorkspaceEdit vide silencieux. Le rejet passe par un FUTUR
@@ -812,7 +920,7 @@ public class ServeurLangageJava(
         val uri = params.textDocument.uri
         val document = documentDe(uri) ?: return CompletableFuture.completedFuture(emptyList())
         val (chemin, texte) = document
-        val moteur = moteur ?: return CompletableFuture.completedFuture(emptyList())
+        val moteur = moteurPour(chemin) ?: return CompletableFuture.completedFuture(emptyList())
         val service = jo.codeide.lsp.java.actionscode.ServiceActionsCode(moteur)
         // Les diagnostics du contexte voyagent en forme moteur (le
         // service N6 consomme les diagnostics moteur).
@@ -851,7 +959,7 @@ public class ServeurLangageJava(
         garde<List<CodeLens>>()?.let { return it }
         val uri = params.textDocument.uri
         val document = documentDe(uri) ?: return CompletableFuture.completedFuture(emptyList())
-        val moteur = moteur ?: return CompletableFuture.completedFuture(emptyList())
+        val moteur = moteurPour(document.first) ?: return CompletableFuture.completedFuture(emptyList())
         val lentilles = LentillesCode(moteur, etats)
         return CompletableFuture.completedFuture(
             lentilles.lentilles(uri, document.first, document.second),
@@ -860,7 +968,13 @@ public class ServeurLangageJava(
 
     override fun resolveCodeLens(unresolved: CodeLens): CompletableFuture<CodeLens> {
         garde<CodeLens>()?.let { return it }
-        val moteur = moteur ?: return CompletableFuture.completedFuture(unresolved)
+        // L'ancre (uri) transportée par la lentille route le moteur du
+        // document PORTEUR (fiche 047) — le resolve sans ancre retombe
+        // sur le moteur défaut, et [LentillesCode.resoudre] rend la
+        // lentille TELLE QUELLE faute d'uri/offset complets.
+        val uriLentille = champDataChaine(unresolved.data, "uri")
+        val cheminLentille = uriLentille?.let { ConvertisseurLsp.cheminDeUri(it) } ?: uriLentille ?: ""
+        val moteur = moteurPour(cheminLentille) ?: return CompletableFuture.completedFuture(unresolved)
         val lentilles = LentillesCode(moteur, etats)
         return CompletableFuture.completedFuture(lentilles.resoudre(unresolved))
     }
@@ -874,7 +988,7 @@ public class ServeurLangageJava(
         val uri = params.textDocument.uri
         val document = documentDe(uri) ?: return CompletableFuture.completedFuture(emptyList())
         val (chemin, texte) = document
-        val moteur = moteur ?: return CompletableFuture.completedFuture(emptyList())
+        val moteur = moteurPour(chemin) ?: return CompletableFuture.completedFuture(emptyList())
         val offset = offsetDe(texte, params.position)
         val cible = moteur.typeAuCaret(chemin, texte, offset)
             // Convention contextType (fiche 058) : un caret SANS référence
@@ -895,7 +1009,7 @@ public class ServeurLangageJava(
         if (uri == null || offset == null) return CompletableFuture.completedFuture(emptyList())
         val document = documentDe(uri) ?: return CompletableFuture.completedFuture(emptyList())
         val (chemin, texte) = document
-        val moteur = moteur ?: return CompletableFuture.completedFuture(emptyList())
+        val moteur = moteurPour(chemin) ?: return CompletableFuture.completedFuture(emptyList())
         val supertypes = moteur.supertypesDirects(chemin, texte, offset)
         return CompletableFuture.completedFuture(supertypes.map { itemTypeHierarchie(it) })
     }
@@ -907,7 +1021,7 @@ public class ServeurLangageJava(
         if (uri == null || offset == null) return CompletableFuture.completedFuture(emptyList())
         val document = documentDe(uri) ?: return CompletableFuture.completedFuture(emptyList())
         val (chemin, texte) = document
-        val moteur = moteur ?: return CompletableFuture.completedFuture(emptyList())
+        val moteur = moteurPour(chemin) ?: return CompletableFuture.completedFuture(emptyList())
         val sousTypes = moteur.sousTypes(chemin, texte, offset)
         return CompletableFuture.completedFuture(sousTypes.map { itemTypeHierarchie(it) })
     }
@@ -917,7 +1031,7 @@ public class ServeurLangageJava(
         val uri = params.textDocument.uri
         val document = documentDe(uri) ?: return CompletableFuture.completedFuture(emptyList())
         val (chemin, texte) = document
-        val moteur = moteur ?: return CompletableFuture.completedFuture(emptyList())
+        val moteur = moteurPour(chemin) ?: return CompletableFuture.completedFuture(emptyList())
         val offset = offsetDe(texte, params.position)
         // Fiche 058 : le prepare sur un APPEL rend la DÉCLARATION de la
         // MÉTHODE APPELÉE (utilise dans Base.java) ; le prepare sur le NOM
@@ -961,7 +1075,7 @@ public class ServeurLangageJava(
         if (uri == null || offset == null) return CompletableFuture.completedFuture(emptyList())
         val document = documentDe(uri) ?: return CompletableFuture.completedFuture(emptyList())
         val (chemin, texte) = document
-        val moteur = moteur ?: return CompletableFuture.completedFuture(emptyList())
+        val moteur = moteurPour(chemin) ?: return CompletableFuture.completedFuture(emptyList())
         val entrants = moteur.appelsEntrants(chemin, texte, offset)
         return CompletableFuture.completedFuture(
             entrants.map { appelant ->
@@ -987,7 +1101,7 @@ public class ServeurLangageJava(
         if (uri == null || offset == null) return CompletableFuture.completedFuture(emptyList())
         val document = documentDe(uri) ?: return CompletableFuture.completedFuture(emptyList())
         val (chemin, texte) = document
-        val moteur = moteur ?: return CompletableFuture.completedFuture(emptyList())
+        val moteur = moteurPour(chemin) ?: return CompletableFuture.completedFuture(emptyList())
         val sortants = moteur.appelsSortants(chemin, texte, offset)
         return CompletableFuture.completedFuture(
             sortants.mapNotNull { cible ->
@@ -1119,9 +1233,13 @@ public class ServeurLangageJava(
         return repere.plage(jo.codeide.lsp.java.diagnostics.Plage(indice, indice + extrait.length))
     }
 
-    /** Le fichier d'une classe par son FQN (noms canoniques paquet ↔ chemin). */
+    /** Le fichier d'une classe par son FQN (noms canoniques paquet ↔ chemin).
+     *  Régime vivant : les racines DES CONTEXTES de l'environnement
+     *  (défaut puis modules — fiche 047) ; régime figé : la racine
+     *  serveur captée à initialize. */
     private fun fichierDeClasse(fqn: String): Path? {
-        for (racine in racinesServeur) {
+        val racines = envVivant?.racinesSources() ?: racinesServeur
+        for (racine in racines) {
             val fichier = racine.resolve(fqn.replace('.', '/') + ".java")
             if (Files.isRegularFile(fichier)) return fichier
         }
@@ -1137,17 +1255,44 @@ public class ServeurLangageJava(
         val uri = params.textDocument.uri
         val document = documentDe(uri) ?: return CompletableFuture.completedFuture(emptyList())
         val (chemin, texte) = document
-        val moteur = moteur ?: return CompletableFuture.completedFuture(emptyList())
+        val moteur = moteurPour(chemin) ?: return CompletableFuture.completedFuture(emptyList())
         val cibles = moteur.superDefinition(chemin, texte, offsetDe(texte, params.position))
         return CompletableFuture.completedFuture(
             cibles.mapNotNull { cible ->
-                cible.chemin?.let { CibleSuperRpc(it.toString(), cible.libelle) }
+                // Contrat de sérialisation du vendored (`NavigationTarget`)
+                // — miroir exact du client cel-lsp : path/start/end/label,
+                // la cible BINAIRE (chemin null) n'est pas servie (le
+                // picker super est une navigation SOURCE).
+                cible.chemin?.let {
+                    CibleSuperRpc(
+                        path = it.toString(),
+                        start = cible.plage?.debutOffset ?: 0,
+                        end = cible.plage?.finOffset ?: 0,
+                        label = cible.libelle,
+                    )
+                }
             },
         )
     }
 
     override fun decompiledSource(params: ParamsFqcnRpc): CompletableFuture<SourceDecompileeRpc> {
         garde<SourceDecompileeRpc>()?.let { return it }
+        // Régime VIVANT — ADR 0215 (motif exact du vendored
+        // `JavaTextDocumentService.decompiledSource`) : le classpath
+        // pertinent est celui du module APPELANT (perdu à cette frontière)
+        // — on sonde les moteurs VIVANTS sans en construire : DÉFAUT
+        // d'abord, puis modules ([EnvironnementCompilation.moteursVivants]
+        // rend déjà cet ordre) ; la première source trouvée gagne.
+        val env = envVivant
+        if (env != null) {
+            for (moteur in env.moteursVivants()) {
+                val source = moteur.decompiledSource(params.fqcn)
+                if (source != null) {
+                    return CompletableFuture.completedFuture(SourceDecompileeRpc(source))
+                }
+            }
+            return CompletableFuture.completedFuture(SourceDecompileeRpc(null))
+        }
         val moteur = moteur
             ?: return CompletableFuture.completedFuture(SourceDecompileeRpc(null))
         return CompletableFuture.completedFuture(SourceDecompileeRpc(moteur.decompiledSource(params.fqcn)))

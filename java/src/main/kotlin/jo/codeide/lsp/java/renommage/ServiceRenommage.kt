@@ -31,14 +31,35 @@ import jo.codeide.lsp.java.outils.EditionTexte
  * de décision utilisateur locale) ; [renommage] calcule toujours les
  * éditions (modèle serveur-calcule / client-applique, ADR 0014).
  *
- * @param moteur le moteur hôte (phases du renommage).
+ * **Régimes du moteur** (INTEGRATION-CODEIDE §3.3, option B) : le service
+ * consomme un FOURNISSEUR `(chemin) -> MoteurJava?` — la forme FIGÉE
+ * (constructeur de compatibilité) sert le moteur unique capturé à
+ * initialize ; la forme VIVANTE résout le moteur du document RENOMMÉ par
+ * le ROUTAGE fichier → module (fiche 047, relu à chaque requête : une
+ * reconfiguration à chaud sert le nouveau moteur sans reconstruction du
+ * service — le miroir des versions DID PAR le service survit aux sync).
+ *
+ * @param moteur le résolveur du moteur par chemin de document.
  * @param capacites les capacités d'édition d'espace de travail
  *   annoncées par le client à initialize (négociation de forme).
  */
 public class ServiceRenommage(
-    private val moteur: MoteurJava,
+    private val moteur: (chemin: String) -> MoteurJava?,
     private val capacites: CapsEspaceDeTravailClient = CapsEspaceDeTravailClient(),
 ) {
+
+    /**
+     * La forme FIGÉE (compatibilité des tests du cahier) : le moteur
+     * unique sert toutes les requêtes.
+     *
+     * @param moteur le moteur hôte (phases du renommage).
+     * @param capacites les capacités d'édition d'espace de travail
+     *   annoncées par le client à initialize (négociation de forme).
+     */
+    public constructor(
+        moteur: MoteurJava,
+        capacites: CapsEspaceDeTravailClient = CapsEspaceDeTravailClient(),
+    ) : this({ _ -> moteur }, capacites)
 
     /** Les versions courantes des documents ouverts (miroir didOpen). */
     private val versions = HashMap<String, Long>()
@@ -78,6 +99,7 @@ public class ServiceRenommage(
      *   dialogue).
      */
     public fun preparerRenommage(chemin: String, source: String, offset: Int): PreparationRenommage? {
+        val moteur = moteur(chemin) ?: return null
         val cible = moteur.cibleRenommageA(chemin, source, offset) ?: return null
         val placeholder = try {
             if (cible.jeton.debutOffset in 0..source.length && cible.jeton.finOffset <= source.length) {
@@ -114,6 +136,7 @@ public class ServiceRenommage(
         offset: Int,
         nouveauNom: String,
     ): EditionEspaceDeTravail {
+        val moteur = moteur(chemin) ?: throw RenommageSansCible(positionSource(source, offset))
         val cible = moteur.cibleRenommageA(chemin, source, offset)
             ?: throw RenommageSansCible(positionSource(source, offset))
 
@@ -165,18 +188,22 @@ public class ServiceRenommage(
         nouveauNom: String,
         suivreOverrides: Boolean = false,
     ): List<ConflitRenommage> =
-        moteur.conflitsRenommage(chemin, source, offset, nouveauNom, suivreOverrides)
+        moteur(chemin)?.conflitsRenommage(chemin, source, offset, nouveauNom, suivreOverrides) ?: emptyList()
 
     /**
      * L'APERÇU du renommage (preview = résultat, ADR 0014) : la source
-     * d'UN fichier après application de ses éditions.
+     * d'UN fichier après application de ses éditions — la fonction est
+     * PURE (application d'édits), le moteur n'y est que porteur : le
+     * régime vivant résout le moteur DÉFAUT (toujours construisible),
+     * l'aperçu est RENDU TEL QUEL si aucun moteur n'existe (honnête,
+     * jamais une exception sur une fonction pure).
      *
      * @param source la source originale du fichier.
      * @param editions les éditions du renommage pour CE fichier.
      * @return la source previewée.
      */
     public fun apercu(source: String, editions: List<EditionTexte>): String =
-        moteur.apercuRenommage(source, editions)
+        moteur("")?.apercuRenommage(source, editions) ?: source
 
     /**
      * La cible courante du renommage (diagnostic client : nom, genre,
@@ -188,7 +215,7 @@ public class ServiceRenommage(
      * @return la cible, ou null.
      */
     public fun cible(chemin: String, source: String, offset: Int): CibleRenommage? =
-        moteur.cibleRenommageA(chemin, source, offset)
+        moteur(chemin)?.cibleRenommageA(chemin, source, offset)
 
     // ------------------------------------------------------------------ //
     // Outils internes
