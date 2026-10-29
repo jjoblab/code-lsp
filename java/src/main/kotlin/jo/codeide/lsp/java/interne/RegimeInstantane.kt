@@ -97,16 +97,28 @@ public object RegimeInstantane {
             else -> Severite.INFO
         }
         // Plage NORMALISÉE (contrat fiche 013 : jamais plus dégénérée que
-        // 1 caractère) : les bornes inconnues d'ecj (-1) et les plages vides
-        // deviennent une plage d'un caractère.
+        // 1 caractère). Découverte figée N6 (sonde sur le jar ecj 3.40) :
+        // IProblem.getSourceEnd() est une borne INCLUSIVE — la plage du
+        // moteur étant EXCLUSIVE (TypesDiagnostics), la fin publiée vaut
+        // sourceEnd + 1. N1 posait sourceEnd TEL QUEL : toute plage
+        // multi-caractères était raccourcie d'un jeton (invisible aux
+        // contrats faibles des fiches 001/013 — listes auto-cohérentes de
+        // la fiche 014 — mais létale pour les correcteurs N6, qui insèrent
+        // au bord EXACT du jeton). Les bornes inconnues d'ecj (-1) et les
+        // plages vides restent une plage d'un caractère.
         val debut = probleme.getSourceStart().coerceAtLeast(0)
         val finBrut = probleme.getSourceEnd().coerceAtLeast(debut)
-        val fin = if (finBrut > debut) finBrut else debut + 1
+        val fin = finBrut + 1
         return Diagnostic(
             severite = severite,
             message = probleme.getMessage(),
             plage = Plage(debut, fin),
             code = probleme.getID().toString(),
+            // Arguments STRUCTURÉS (étage N6) : les pièces {0}/{1}… AVANT
+            // interpolation — stables entre locales, contrat du dispatch
+            // ID-FIRST des correcteurs (fiches 063/064/065/051 : jamais de
+            // parsing du message localisé).
+            arguments = probleme.getArguments()?.toList() ?: emptyList(),
         )
     }
 }

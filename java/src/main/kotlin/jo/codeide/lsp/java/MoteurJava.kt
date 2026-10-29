@@ -145,6 +145,9 @@ public class MoteurJava(
     /** Moteur de renommage par phases (étage N5 — ADR 0014), paresseux. */
     private var moteurRenommage: MoteurRenommage? = null
 
+    /** Service de code actions v2 (étage N6 — ADR 0013), paresseux. */
+    private var serviceActionsCode: jo.codeide.lsp.java.actionscode.ServiceActionsCode? = null
+
     /** États rapides par chemin (fiche 014/015). */
     private val etatsRapides = HashMap<String, DiagnoseRapide.Etat>()
 
@@ -807,6 +810,68 @@ public class MoteurJava(
     public fun apercuRenommage(source: String, editions: List<EditionTexte>): String =
         moteurRenommage().apercu(source, editions)
 
+    // ------------------------------------------------------------------ //
+    // Étage N6 — code actions v2 (ModCommand) & correcteurs
+    // ------------------------------------------------------------------ //
+
+    /**
+     * Les actions correctrices d'une liste de diagnostics (étage N6 —
+     * cahier fiche 063 ; ADR 0013 : quick-fixes à édits réels, plans
+     * déclaratifs sérialisables) : le miroir moteur du
+     * `textDocument/codeAction` LSP. Le dispatch est ID-FIRST et
+     * Locale-indépendant ; l'exécution est déléguée au client (le moteur
+     * n'écrit JAMAIS sur le disque).
+     *
+     * @param chemin le chemin logique du document.
+     * @param source le texte Java complet (tampon ouvert).
+     * @param diagnostics les diagnostics du contexte de la requête.
+     * @return les actions (chacune porte des édits non vides ; vide si
+     *   aucune famille corrigible).
+     */
+    public fun actionsCode(
+        chemin: String,
+        source: String,
+        diagnostics: List<Diagnostic>,
+    ): List<jo.codeide.lsp.java.actionscode.ActionCode> = synchronized(this) {
+        serviceActionsCode().actions(chemin, source, diagnostics)
+    }
+
+    /**
+     * Les actions correctrices d'UN diagnostic (étage N6 — montage
+     * synthétique du cahier : le banc appelle correcteur par correcteur).
+     *
+     * @param chemin le chemin logique du document.
+     * @param source le texte Java complet (tampon ouvert).
+     * @param diagnostic le diagnostic à corriger.
+     * @return les actions (0 à N — try-catch ET throws se servent ensemble).
+     */
+    public fun actionsCodePour(
+        chemin: String,
+        source: String,
+        diagnostic: Diagnostic,
+    ): List<jo.codeide.lsp.java.actionscode.ActionCode> = synchronized(this) {
+        serviceActionsCode().actions(chemin, source, diagnostic)
+    }
+
+    /**
+     * Le déclassement honnête des imports Data Binding (étage N6 — cahier
+     * fiche 051) : la couche de PUBLICATION déclasse en HINT les imports
+     * `.databinding` non résolus d'un module SANS classes générées (le
+     * remède est un Build) — avec coupure honnête : dès que la première
+     * classe générée existe (racines sources ou jars du moteur), plus
+     * AUCUN downgrade sur ce paquet. Le diagnose du moteur reste SANS
+     * compromis ; les autres diagnostics passent INTACTS.
+     *
+     * @param diagnostics les diagnostics publiés par le moteur.
+     * @return la liste PUBLIÉE (diagnostics déclassés ou intacts).
+     */
+    public fun declasserDatabinding(diagnostics: List<Diagnostic>): List<Diagnostic> =
+        jo.codeide.lsp.java.actionscode.DeclassementDatabinding.declasser(
+            diagnostics,
+            racines,
+            jars,
+        )
+
     /**
      * Indices inlay de l'unité (étage N3 — cahier fiches 002/003/030) :
      * paramètres « nom: » aux sites d'appel de méthodes SOURCE, types « : T »
@@ -1298,6 +1363,14 @@ public class MoteurJava(
         )
         moteurRenommage = moteur
         return moteur
+    }
+
+    /** Service de code actions v2 (paresseux — correcteurs texte + index des noms). */
+    private fun serviceActionsCode(): jo.codeide.lsp.java.actionscode.ServiceActionsCode {
+        serviceActionsCode?.let { return it }
+        val service = jo.codeide.lsp.java.actionscode.ServiceActionsCode(moteur = this)
+        serviceActionsCode = service
+        return service
     }
 
     /**

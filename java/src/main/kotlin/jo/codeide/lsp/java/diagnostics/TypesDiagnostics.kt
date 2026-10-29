@@ -44,8 +44,9 @@ public data class Plage(
  *
  * L'identité de valeur ([equals] de la classe de données) est le contrat
  * d'équivalence du diagnose rapide (fiche 014) : deux listes sont « strictement
- * identiques » ssi tailles, offsets début/fin, sévérités, messages et codes
- * correspondent un à un. C'est pourquoi [code] fait partie de l'identité.
+ * identiques » ssi tailles, offsets début/fin, sévérités, messages, codes et
+ * arguments correspondent un à un. C'est pourquoi [code] fait partie de
+ * l'identité.
  *
  * @property severite niveau normalisé du problème.
  * @property message message du compilateur (vocabulaire ecj, `Locale.ROOT`
@@ -54,10 +55,18 @@ public data class Plage(
  * @property code identifiant du problème ecj (`getID()`), transporté pour la
  *   parité stricte et le classement par familles côté hôte ; peut être nul
  *   pour les diagnostics synthétiques du moteur (enrichissement de hiérarchie).
+ * @property arguments les arguments STRUCTURÉS du problème ecj
+ *   (`IProblem.getArguments()` — étage N6, cahier fiches 063/064/051) : les
+ *   pièces du message AVANT interpolation (`{0}`, `{1}`…), stables entre
+ *   locales. Le dispatch ID-FIRST des correcteurs et la reconnaissance du
+ *   paquet Data Binding se font sur ces arguments, JAMAIS sur le message
+ *   localisé (fiche 065 : « le dispatch est Locale-indépendant »). Vide pour
+ *   les diagnostics synthétiques du moteur.
  */
 public data class Diagnostic(
     public val severite: Severite,
     public val message: String,
     public val plage: Plage,
     public val code: String? = null,
+    public val arguments: List<String> = emptyList(),
 )
