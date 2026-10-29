@@ -72,6 +72,9 @@ java -Xmx2g -cp "banc-classes:main-classes:libs/*" \
 FIN
 chmod +x "$KIT/banc-bascule.sh"
 
-(cd build && zip -qr kit-bascule.zip kit-bascule)
+# Zip à PLAT (racine = banc-bascule.sh) : les commandes documentées ci-dessus
+# et au gabarit §2 (« unzip -o kit-bascule.zip -d bascule && cd bascule »)
+# doivent être exactes telles quelles sur l'appareil.
+(cd "$KIT" && zip -qr ../kit-bascule.zip .)
 echap "kit PRÊT : $(pwd)/build/kit-bascule.zip ($(du -h build/kit-bascule.zip | cut -f1))"
 echap "appareil : unzip -o kit-bascule.zip -d bascule && cd bascule && bash banc-bascule.sh"
