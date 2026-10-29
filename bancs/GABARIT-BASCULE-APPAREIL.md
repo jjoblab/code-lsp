@@ -93,21 +93,23 @@ la passe appareil documente la réalité de bout en bout pour la décision.
 Critères 1–3 cochés sur preuves objectives (CI du 29/10 + transcript
 appareil) ; critères 4–6 arbitrés le **30/10** par décision déléguée du
 propriétaire (« je te laisse décider de la marche à suivre pour le critère 4,
-continue pour 5 et 6 ») et consignés ci-dessus. La décision finale (§6)
-reste à signer par le propriétaire.
+continue pour 5 et 6 ») et consignés ci-dessus. Décision finale **signée
+le 30/10** (§6 ci-après).
 
-## 6. Décision (à remplir par le propriétaire)
+## 6. Décision (signée)
 
-> **Proposition préparée le 30/10** : les critères 1–6 sont cochés (preuves
-> §5) ; la décision ci-dessous est une **proposition** — la bascule ne prend
-> effet qu'à la signature du propriétaire.
+> **Décision SIGNÉE le 30/10/2026** par le propriétaire (message « bascule ») —
+> checklist §5 6/6 sur preuves ; la présente consigne la décision et le suivi
+> post-bascule borné. Mise en œuvre côté client (CodeIDE) : procédure
+> préparée au [`docs/BASCULE-CODEIDE.md`](../docs/BASCULE-CODEIDE.md).
 
-- Décision de bascule : **proposition — BASCULE**. Motif : 0 comportement du
-  cahier ou de la politique du moteur neuf perdu contre l'oracle (banc croisé
-  VERT sur CI `97cf181`, deltas arbitrés 103/62/0) ; parité constatée sur
-  appareil (18/18, 0 saut — §3) ; latences réelles consignées (p50/p95 GLOBAL
-  42,93/73,01 ms — §4, appareil plus favorable que la bande du spike ×8–14) ;
-  retour arrière en 1 ligne sans re-déploiement (critère 6).
+- Décision de bascule : **BASCULE — signée le 30/10/2026**. Motif : 0
+  comportement du cahier ou de la politique du moteur neuf perdu contre
+  l'oracle (banc croisé VERT sur CI `97cf181`, deltas arbitrés 103/62/0) ;
+  parité constatée sur appareil (18/18, 0 saut — §3) ; latences réelles
+  consignées (p50/p95 GLOBAL 42,93/73,01 ms — §4, appareil plus favorable
+  que la bande du spike ×8–14) ; retour arrière en 1 ligne sans
+  re-déploiement (critère 6).
 - **Suivi post-bascule borné** (non bloquant) :
   1. filtrer les membres package-private lus au bytecode (`valueOfCodePoint`,
      `coder`, `value`, `hash`, `hashIsZero`, `isLatin1`) — aligner les MEMBRES
@@ -116,5 +118,6 @@ reste à signer par le propriétaire.
      bas de liste (seul cas défendable : `CopyOnWriteArrayList` — ANALYSE §6) ;
   3. ouvrir les gates `model.json` (Fiche010/Fiche039) sur export réel ou
      équivalent régénérable (critère 5).
-- Date, signature : *(en attente du propriétaire)*
+- Date, signature : **2026-10-30 — propriétaire (jjoblab)**, décision
+  transmise en séance (« bascule ») et consignée par l'agent le jour même.
 - Transcript brut joint : `bancs/resultats-bascule.txt` (§1)

@@ -7,7 +7,7 @@
 > l'architecture IntelliJ PSI — étudiée en profondeur, embarquée nulle part,
 > greffée partout où elle prouve sa valeur.
 
-## État — programme de réécriture N1–N8 INTÉGRALEMENT LIVRÉ — étage T LIVRÉ (banc de parité croisé en CI) — reste la bascule sur appareil (§8.5, gabarit fourni)
+## État — N1–N8 + T INTÉGRALEMENT LIVRÉS — BASCULE §8.5 SIGNÉE le 30/10/2026 (checklist 6/6, version 1.0.0)
 
 Décisions actées par le propriétaire le 28/10/2026 :
 
@@ -119,7 +119,8 @@ hiérarchie non balayée par `availableMethods` d'ecj, internes
 | `docs/RECALAGE-1.md` | **recalage de fin N1 (§8.2)** — vélocité mesurée, re-projection N2–N8, décision de suite soumise au propriétaire |
 | `docs/RECALAGE-2.md` | **recalage de fin N2 (§8.2 — dernier recalage prévu)** — confiance N3–N8 re-évaluée sur les deux étages extrêmes de l'abaque, re-projection 5–8 séances effectives, décision de suite soumise |
 | `bancs/baselines/` | **baselines JSON signées des bancs qualité** (ADR 0016 — `completion.json` : complétion N2 ; `parite-completion.json` : parité croisée T ; re-baseline par PR dédiée) |
-| `bancs/GABARIT-BASCULE-APPAREIL.md` | **gabarit de passe bascule sur appareil** (étage T §8.5 — protocole + tables à remplir par le propriétaire, R5 : jamais simulé) |
+| `bancs/GABARIT-BASCULE-APPAREIL.md` | **gabarit de passe bascule sur appareil REMPLI ET SIGNÉ le 30/10/2026** (étage T §8.5 — passe moto g06 : 18/18, 0 saut ; R5 : valeurs réelles, jamais simulées) ; [`bancs/resultats-bascule.txt`](bancs/resultats-bascule.txt) : transcript brut ; [`bancs/ANALYSE-DELTAS-BASCULE.md`](bancs/ANALYSE-DELTAS-BASCULE.md) : arbitrage des 165 deltas (103 bruit / 62 assumées / 0 à rattraper) |
+| `docs/BASCULE-CODEIDE.md` | **procédure de mise en œuvre de la bascule côté client CodeIDE** (substitution composite ADR 0015 — DEV composite / production GitHub Packages ; retour arrière 1 ligne) |
 | `docs/PROVENANCE-REPRISE.md` | manifeste de reprise sélective (règle R9 — registre des copies autorisées) |
 | `spike/` | bancs de mesure V1/V2/V3, scanner de compatibilité ART, gabarit appareil |
 | `java/` | **moteur Java LSP réécrit — étages N1–N8 INTÉGRALEMENT LIVRÉS** (noyau compilateur & environnement, complétion & classement avec échelle de variantes, hover/inlay/signatures, navigation & usages, rename v2, actions de code ModCommand, confort éditeur, cycle de vie LSP & protocole riche lsp4j ; bancs `:java:bench` / `:java:benchQualite` / `:java:benchUsages` / `:java:benchParite`) |

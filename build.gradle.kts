@@ -14,8 +14,9 @@ plugins {
 // Étage N8 : la ressource `version.properties` embarquée dans le serveur
 // (fiche 059, I7) est GÉNÉRÉE depuis cette valeur — serverInfo.version du
 // protocole et version du dépôt restent synchronisées par construction.
-// 0.1.0 : pré-bascule (la parité sur appareil du plan §8 n'est pas encore
-// démontrée — la version 1.0.0 attendra la bascule à parité).
+// 1.0.0 : BASCULE §8.5 SIGNÉE le 30/10/2026 (gabarit
+// bancs/GABARIT-BASCULE-APPAREIL.md — checklist 6/6, passe appareil moto g06
+// 18/18 / 0 saut, deltas arbitrés 103/62/0).
 allprojects {
-    version = "0.1.0"
+    version = "1.0.0"
 }

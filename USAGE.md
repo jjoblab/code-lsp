@@ -107,7 +107,9 @@ trois interfaces lsp4j `LanguageServer`, `TextDocumentService`,
 
 Le serveur n'impose pas de binaire autonome : le branchement de
 substitution dans CodeIDE (dépôt tiers) est coordonné côté propriétaire
-(plan §4, note N8). L'intégrateur câble un lanceur lsp4j autour de
+(plan §4, note N8) — **procédure préparée : `docs/BASCULE-CODEIDE.md`**
+(décision de bascule §8.5 signée le 30/10/2026). L'intégrateur câble un
+lanceur lsp4j autour de
 `ServeurLangageJava` — sur stdio pour un processus séparé, sur tuyaux en
 mémoire pour un serveur embarqué.
 
@@ -1048,14 +1050,13 @@ re-signature de `parite-completion.json` (les stubs de façade suivent).
   ADR 0015), requête tolérante vide.
 - **Quick-fixes mono-fichier** (fiche 063) : le multi-fichiers passe
   par le renommage (N5) et le protocole (N8), jamais par ces édits.
-- **Version 0.1.0 = pré-bascule** : la décision §8.5 n'est pas encore
-  signée ; la passe appareil du 29/10 (moto g06 — 18/18, 0 saut,
-  p50/p95 GLOBAL 42,93/73,01 ms) est consignée dans
-  `bancs/GABARIT-BASCULE-APPAREIL.md` — checklist **6/6** (arbitrages
-  4–6 consignés le 30/10, dont `ANALYSE-DELTAS-BASCULE.md` pour les 165
-  deltas), proposition de bascule en §6 en attente de signature ; la
-  version 1.0.0 attendra la bascule signée (partie déterministe :
-  `bancs/baselines/parite-completion.json`).
+- **Version 1.0.0 = bascule §8.5 SIGNÉE (30/10/2026)** : checklist 6/6 du
+  gabarit `bancs/GABARIT-BASCULE-APPAREIL.md` (passe appareil moto g06 —
+  18/18, 0 saut, p50/p95 GLOBAL 42,93/73,01 ms ; deltas 165 arbitrés
+  103/62/0 — `ANALYSE-DELTAS-BASCULE.md`) ; `serverInfo.version` rend
+  désormais **1.0.0** (générée du dépôt, fiche 059 I7) ; mise en œuvre
+  client : `docs/BASCULE-CODEIDE.md` ; suivi post-bascule borné au §6 du
+  gabarit.
 - **Organisation des imports** : API moteur seulement (§7.17) — pas
   encore d'action `source.organizeImports` au fil LSP.
 - Le serveur n'écrit **jamais** sur le disque : preview = résultat
