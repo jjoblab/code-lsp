@@ -94,7 +94,11 @@ public class ServiceCompletion(
             val filtres = filtrer(candidats, contexte.prefixe)
             val cle = cleDeGel(chemin, contexte)
             val reponse = arrangement.arranger(cle, filtres, ContexteClassement(contexte.genre, contexte.prefixe))
-            ReponseCompletion(reponse.items, reponse.totalDisponible, contexte.genre)
+            // Gabarits (étage N7, fiche 029) : injection POST-arrangement —
+            // la chaîne D8 et le gel des têtes restent intacts ; la clé
+            // exacte domine, la clé partielle reste discrète.
+            val items = jo.codeide.lsp.java.gabarits.ServiceGabarits.enrichir(reponse.items, contexte, source, offset)
+            ReponseCompletion(items, reponse.totalDisponible, contexte.genre)
         } catch (_: Exception) {
             // Aucune levée ne franchit la frontière du service (fiche 035) :
             // un échec interne rend une liste vide honnête.

@@ -6,8 +6,17 @@ import jo.codeide.lsp.java.completion.ServiceCompletion
 import jo.codeide.lsp.java.diagnostics.Diagnostic
 import jo.codeide.lsp.java.diagnostics.Plage
 import jo.codeide.lsp.java.diagnostics.Severite
+import jo.codeide.lsp.java.formatage.FormateurSource
+import jo.codeide.lsp.java.formatage.StyleFormattage
+import jo.codeide.lsp.java.hierarchie.AppelantEntrant
+import jo.codeide.lsp.java.hierarchie.CibleMethodeHierarchie
+import jo.codeide.lsp.java.hierarchie.CibleSortante
+import jo.codeide.lsp.java.hierarchie.CibleTypeHierarchie
+import jo.codeide.lsp.java.hierarchie.ServiceHierarchies
 import jo.codeide.lsp.java.inlay.IndiceInlay
 import jo.codeide.lsp.java.inlay.ServiceInlay
+import jo.codeide.lsp.java.imports.OrganisateurImports
+import jo.codeide.lsp.java.imports.PropositionImports
 import jo.codeide.lsp.java.interne.AideSignature
 import jo.codeide.lsp.java.interne.CacheParse
 import jo.codeide.lsp.java.interne.DiagnoseRapide
@@ -17,9 +26,12 @@ import jo.codeide.lsp.java.interne.PontEcj
 import jo.codeide.lsp.java.interne.RegimeInstantane
 import jo.codeide.lsp.java.interne.UniteResolue
 import jo.codeide.lsp.java.interne.UnitesSource
+import jo.codeide.lsp.java.outils.EditionTexte
 import jo.codeide.lsp.java.outils.PlageCorps
 import jo.codeide.lsp.java.outils.ScannerCorps
 import jo.codeide.lsp.java.outils.SourceFocuser
+import jo.codeide.lsp.java.pliage.Pli
+import jo.codeide.lsp.java.pliage.ServicePliage
 import jo.codeide.lsp.java.signature.AideSignatures
 import jo.codeide.lsp.java.survol.ServiceDefinitions
 import jo.codeide.lsp.java.survol.ServiceSurvolRiche
@@ -97,6 +109,9 @@ public class MoteurJava(
 
     /** Service de complétion & classement (étage N2), paresseux. */
     private var serviceCompletion: ServiceCompletion? = null
+
+    /** Service de hiérarchies (étage N7), paresseux — projet multi-fichiers. */
+    private var serviceHierarchies: ServiceHierarchies? = null
 
     /** États rapides par chemin (fiche 014/015). */
     private val etatsRapides = HashMap<String, DiagnoseRapide.Etat>()
@@ -597,6 +612,169 @@ public class MoteurJava(
     }
 
     // ------------------------------------------------------------------ //
+    // Étage N7 — confort éditeur : formatage, pliage, imports, hiérarchies
+    // ------------------------------------------------------------------ //
+
+    /**
+     * Formate la source entière (étage N7 — cahier fiches 016/017).
+     *
+     * Le formateur est une fonction PURE du texte (clean-room Kotlin — le
+     * jar ecj patché n'embarque pas le formateur JDT) : aucune résolution,
+     * aucune dépendance au classpath — exécutable tel quel sur Android/ART.
+     *
+     * @param source le texte Java complet.
+     * @param style le style de formatage (Eclipse par défaut).
+     * @return le texte formaté, ou null si imparsable (jamais mutilé).
+     */
+    public fun formater(source: String, style: StyleFormattage = StyleFormattage.ECLIPSE): String? =
+        FormateurSource(compliance, style).format(source)
+
+    /**
+     * Formate la PLAGE demandée (fiche 016) — le résultat égale
+     * l'application des éditions de [editionsFormatagePlage].
+     *
+     * @param source le texte Java complet.
+     * @param debut le début de la plage.
+     * @param longueur la longueur de la plage (0 → source inchangée).
+     * @param style le style de formatage.
+     * @return le texte résultat, ou null si imparsable.
+     */
+    public fun formaterPlage(
+        source: String,
+        debut: Int,
+        longueur: Int,
+        style: StyleFormattage = StyleFormattage.ECLIPSE,
+    ): String? = FormateurSource(compliance, style).formatRange(source, debut, longueur)
+
+    /**
+     * Éditions de formatage de la PLAGE (fiche 016) : confinées à la plage,
+     * ordre croissant, disjointes ; liste VIDE pour une plage vide (jamais
+     * null) ; null pour une source imparsable.
+     *
+     * @param source le texte Java complet.
+     * @param debut le début de la plage.
+     * @param longueur la longueur de la plage.
+     * @param style le style de formatage.
+     * @return les éditions, une liste vide, ou null.
+     */
+    public fun editionsFormatagePlage(
+        source: String,
+        debut: Int,
+        longueur: Int,
+        style: StyleFormattage = StyleFormattage.ECLIPSE,
+    ): List<EditionTexte>? = FormateurSource(compliance, style).editionsRange(source, debut, longueur)
+
+    /**
+     * Régions de pliage de l'unité (étage N7 — cahier fiches 011/052) :
+     * fonction PURE du texte — le pliage ne dépend d'aucune résolution de
+     * type (moteur vide au cahier).
+     *
+     * @param source le texte Java complet.
+     * @return les régions en offsets (ordre du document).
+     */
+    public fun plis(source: String): List<Pli> = ServicePliage.plis(source)
+
+    /**
+     * Organise les imports de l'unité (étage N7 — cahier fiche 022) :
+     * identification par BINDINGS, exemptions (java.lang, même paquet,
+     * on-demand), bloc trié, plage de remplacement.
+     *
+     * @param chemin le chemin logique du document.
+     * @param source le texte Java complet.
+     * @return la proposition, ou null (régime instantané / imparsable).
+     */
+    public fun organiserImports(chemin: String, source: String): PropositionImports? = synchronized(this) {
+        if (!isLikelyUsableInterne()) return null
+        val arbre = resolveUnit(chemin, source, genererCode = false)?.arbre ?: return null
+        OrganisateurImports.organiser(arbre, source)
+    }
+
+    /**
+     * Type au caret dans la hiérarchie (étage N7 — cahier fiche 018) :
+     * référence ou déclaration, localisée dans les SOURCES du projet —
+     * jamais d'URI factice pour un binaire (règle D3).
+     *
+     * @param chemin le chemin logique du document.
+     * @param source le texte Java complet.
+     * @param offset la position interrogée.
+     * @return la cible, ou null.
+     */
+    public fun typeAuCaret(chemin: String, source: String, offset: Int): CibleTypeHierarchie? = synchronized(this) {
+        if (!isLikelyUsableInterne()) return null
+        serviceHierarchies().typeAuCaret(chemin, source, offset)
+    }
+
+    /**
+     * Supertypes DIRECTS du type au caret (fiche 018) : superclasse et
+     * interfaces, localisées dans les sources du projet.
+     *
+     * @param chemin le chemin logique du document.
+     * @param source le texte Java complet.
+     * @param offset la position interrogée (nom déclaré du type).
+     * @return les supertypes directs (binaires écartés).
+     */
+    public fun supertypesDirects(chemin: String, source: String, offset: Int): List<CibleTypeHierarchie> = synchronized(this) {
+        if (!isLikelyUsableInterne()) return emptyList()
+        serviceHierarchies().supertypesDirects(chemin, source, offset)
+    }
+
+    /**
+     * Sous-types du type au caret (fiche 018) : balayage des racines
+     * sources du projet (balayage froid — l'index CIDX arrive en N4).
+     *
+     * @param chemin le chemin logique du document.
+     * @param source le texte Java complet.
+     * @param offset la position interrogée (nom déclaré du type).
+     * @return les sous-types localisés.
+     */
+    public fun sousTypes(chemin: String, source: String, offset: Int): List<CibleTypeHierarchie> = synchronized(this) {
+        if (!isLikelyUsableInterne()) return emptyList()
+        serviceHierarchies().sousTypes(chemin, source, offset)
+    }
+
+    /**
+     * Méthode au caret (fiche 018) : l'appel résolu vers sa déclaration,
+     * ou la déclaration elle-même — localisée dans les sources projet.
+     *
+     * @param chemin le chemin logique du document.
+     * @param source le texte Java complet.
+     * @param offset la position interrogée.
+     * @return la cible, ou null.
+     */
+    public fun methodeAuCaret(chemin: String, source: String, offset: Int): CibleMethodeHierarchie? = synchronized(this) {
+        if (!isLikelyUsableInterne()) return null
+        serviceHierarchies().methodeAuCaret(chemin, source, offset)
+    }
+
+    /**
+     * Appels ENTRANTS de la méthode au caret (fiche 018) : balayage des
+     * racines, groupés par méthode appelante (une entrée, sites multiples).
+     *
+     * @param chemin le chemin logique du document.
+     * @param source le texte Java complet.
+     * @param offset la position interrogée (nom déclaré de la méthode).
+     * @return les appelants entrants (vide sans méthode au caret).
+     */
+    public fun appelsEntrants(chemin: String, source: String, offset: Int): List<AppelantEntrant> = synchronized(this) {
+        if (!isLikelyUsableInterne()) return emptyList()
+        serviceHierarchies().appelsEntrants(chemin, source, offset)
+    }
+
+    /**
+     * Appels OUTANTS de la méthode au caret (fiche 018) : résolus vers des
+     * déclarations SOURCE du projet — cibles binaires écartées (règle D3).
+     *
+     * @param chemin le chemin logique du document.
+     * @param source le texte Java complet.
+     * @param offset la position interrogée (nom déclaré de la méthode).
+     * @return les cibles sortantes avec leurs sites.
+     */
+    public fun appelsSortants(chemin: String, source: String, offset: Int): List<CibleSortante> = synchronized(this) {
+        if (!isLikelyUsableInterne()) return emptyList()
+        serviceHierarchies().appelsSortants(chemin, source, offset)
+    }
+
+    // ------------------------------------------------------------------ //
     // Invalidations et cycle de vie
     // ------------------------------------------------------------------ //
 
@@ -662,6 +840,18 @@ public class MoteurJava(
 
     /** Sonde interne de plateforme (sous verrou). */
     private fun isLikelyUsableInterne(): Boolean = environnementNoms().jrtDisponible()
+
+    /** Service de hiérarchies (paresseux — racines + résolution + annuaire). */
+    private fun serviceHierarchies(): ServiceHierarchies {
+        serviceHierarchies?.let { return it }
+        val nouveau = ServiceHierarchies(
+            racines = racines,
+            resoudre = { chemin, source -> resolveUnit(chemin, source, genererCode = false)?.arbre },
+            localiser = { fqcn -> runCatching { environnementNoms().trouverFqcn(fqcn) }.getOrNull() },
+        )
+        serviceHierarchies = nouveau
+        return nouveau
+    }
 
     /** Environnement de noms paresseux (jrt + jars ouverts au premier usage). */
     private fun environnementNoms(): EnvironnementNoms {

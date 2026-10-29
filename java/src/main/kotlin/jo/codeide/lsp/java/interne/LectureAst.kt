@@ -100,6 +100,13 @@ public enum class NatureItem {
  *   annotation — fiche 050 : badge « @ » côté client).
  * @property correspondance le grade de matching du préfixe (banc de
  *   qualité — la dominance du préfixe, fiche 008).
+ * @property pertinence la pertinence contractuelle des gabarits (étage N7,
+ *   fiche 029 : 2500 clé exacte — en tête, 100 clé partielle — discrète ;
+ *   null = l'item ordinaire n'en porte pas).
+ * @property editionsAdditionnelles les éditions ADDITIONNELLES du snippet
+ *   (étage N7, fiche 029) : suppression du récepteur d'une postfixe,
+ *   insertion d'import — en offsets de la source ORIGINALE, JAMAIS en
+ *   chevauchement de la plage principale (contrainte LSP).
  */
 public data class ItemCompletion(
     public val libelle: String,
@@ -110,6 +117,8 @@ public data class ItemCompletion(
     public val extrait: Boolean = false,
     public val marqueur: String? = null,
     public val correspondance: GradeCorrespondance? = null,
+    public val pertinence: Int? = null,
+    public val editionsAdditionnelles: List<jo.codeide.lsp.java.outils.EditionTexte> = emptyList(),
 )
 
 /**
