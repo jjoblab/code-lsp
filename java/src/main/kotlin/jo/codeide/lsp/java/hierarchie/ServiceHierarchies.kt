@@ -95,8 +95,11 @@ public data class CibleSortante(
  * hiérarchie exige le projet multi-fichiers, pas l'unité isolée — les
  * sources se résolvent entre elles par l'environnement de noms (sonde
  * disque sur les racines), et la localisation FQN → fichier passe par ce
- * même annuaire. Le balayage des racines est FROID (requête explicite) —
- * le chemin chaud (QueryExecutor sur CIDX) relève de l'étage N4.
+ * même annuaire. Depuis l'étage N4, le balayage des racines partage
+ * l'ÉNUMÉRATION de l'index de mots des sources (construction froide
+ * unique — plus aucun `Files.walk` par requête) ; le QueryExecutor des
+ * usages (`references`/`documentHighlight`) vit dans
+ * [jo.codeide.lsp.java.navigation.ServiceUsages].
  *
  * Règle D3 : ne JAMAIS fabriquer d'URI pour un élément binaire — soit la
  * source projet, soit null / liste vide.
@@ -104,11 +107,15 @@ public data class CibleSortante(
  * @param racines les racines sources du projet.
  * @param resoudre résout une unité (chemin logique, texte) en arbre bindé.
  * @param localiser localise un FQN (annuaire de noms du moteur).
+ * @param enumererFichiers l'énumération PARTAGÉE des sources (étage N4 :
+ *   l'index de mots des sources — construction froide unique, plus
+ *   AUCUN `Files.walk` par requête) ; null = balayage propre (repli).
  */
 public class ServiceHierarchies(
     private val racines: List<Path>,
     private val resoudre: (String, String) -> CompilationUnitDeclaration?,
     private val localiser: (String) -> EnvironnementNoms.Localisation?,
+    private val enumererFichiers: (() -> List<Path>)? = null,
 ) {
 
     // ------------------------------------------------------------------ //
@@ -168,6 +175,19 @@ public class ServiceHierarchies(
         val declaration = declarationTypeAuCaret(arbre, source, offset) ?: return emptyList()
         val binding = (declaration.binding as? ReferenceBinding) ?: return emptyList()
         val fqnCible = binding.compoundName?.joinToString(".") { String(it) } ?: return emptyList()
+        return sousTypesDeFqn(fqnCible)
+    }
+
+    /**
+     * Sous-types DIRECTS d'un FQN (étage N4 — le point d'entrée du routeur
+     * de navigation `implementation`, fiche 060) : balayage des racines
+     * sources — chaque type déclaré dont la hiérarchie DIRECTE referme la
+     * cible, imbriqués du même fichier compris.
+     *
+     * @param fqnCible le FQN du type dont les héritiers sont cherchés.
+     * @return les sous-types localisés (vide si la cible n'est pas source).
+     */
+    public fun sousTypesDeFqn(fqnCible: String): List<CibleTypeHierarchie> {
         val resultat = ArrayList<CibleTypeHierarchie>()
         for (fichier in balayerSources()) {
             val texte = try {
@@ -271,14 +291,27 @@ public class ServiceHierarchies(
         } catch (_: Exception) {
             null
         } ?: return null
-        val localisation = localiser(fqn) as? EnvironnementNoms.Localisation.Source ?: return null
+        // Localisation par le type TOP-NIVEAU : un type IMBRIQUÉ vit dans le
+        // fichier de son englobant (la sonde de présence ne connaît que les
+        // fichiers `paquet/Top.java` — étage N4, fiche 060 : la sous-classe
+        // imbriquée du même fichier doit être localisée).
+        var top = binding
+        val fqnTop = try {
+            while (top.enclosingType() != null) top = top.enclosingType()
+            top.compoundName?.joinToString(".") { String(it) } ?: fqn
+        } catch (_: Exception) {
+            fqn
+        }
+        val localisation = localiser(fqnTop) as? EnvironnementNoms.Localisation.Source ?: return null
         val texte = try {
             localisation.fichier.readText()
         } catch (_: Exception) {
             return null
         }
         val arbre = resoudre(localisation.fichier.toString(), texte) ?: return null
-        val nomSimple = fqn.substringAfterLast('.')
+        // Le nom composé d'un type membre porte un « $ » (forme binaire
+        // ecj) : le nom SIMPLE est le dernier segment APRÈS le « $ ».
+        val nomSimple = fqn.substringAfterLast('.').substringAfterLast('$')
         val declaration = trouverDeclarationType(arbre, texte, nomSimple) ?: return null
         val plageNom = plageNomType(declaration, texte) ?: return null
         // La déclaration s'étend au DÉBUT DE LIGNE de son en-tête : les
@@ -420,8 +453,13 @@ public class ServiceHierarchies(
         return fqn to String(binding.selector)
     }
 
-    /** Les fichiers source des racines (balayage froid — l'index arrive en N4). */
+    /**
+     * Les fichiers source des racines — l'énumération PARTAGÉE de l'index
+     * de mots quand elle est branchée (étage N4 : plus aucun `Files.walk`
+     * par requête), sinon le balayage propre.
+     */
     private fun balayerSources(): List<Path> {
+        enumererFichiers?.let { return it() }
         val fichiers = ArrayList<Path>()
         for (racine in racines) {
             if (!Files.isDirectory(racine)) continue

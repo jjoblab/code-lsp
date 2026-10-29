@@ -17,6 +17,17 @@ import jo.codeide.lsp.java.inlay.IndiceInlay
 import jo.codeide.lsp.java.inlay.ServiceInlay
 import jo.codeide.lsp.java.imports.OrganisateurImports
 import jo.codeide.lsp.java.imports.PropositionImports
+import jo.codeide.lsp.java.navigation.CibleNavigation
+import jo.codeide.lsp.java.navigation.CibleSuper
+import jo.codeide.lsp.java.navigation.ChaineSelection
+import jo.codeide.lsp.java.navigation.GenreSurbrillance
+import jo.codeide.lsp.java.navigation.IndexMotsSources
+import jo.codeide.lsp.java.navigation.ServiceDecompilation
+import jo.codeide.lsp.java.navigation.ServiceNavigation
+import jo.codeide.lsp.java.navigation.ServiceSelection
+import jo.codeide.lsp.java.navigation.ServiceUsages
+import jo.codeide.lsp.java.navigation.Surbrillance
+import jo.codeide.lsp.java.navigation.Usage
 import jo.codeide.lsp.java.interne.AideSignature
 import jo.codeide.lsp.java.interne.CacheParse
 import jo.codeide.lsp.java.interne.DiagnoseRapide
@@ -33,7 +44,6 @@ import jo.codeide.lsp.java.outils.SourceFocuser
 import jo.codeide.lsp.java.pliage.Pli
 import jo.codeide.lsp.java.pliage.ServicePliage
 import jo.codeide.lsp.java.signature.AideSignatures
-import jo.codeide.lsp.java.survol.ServiceDefinitions
 import jo.codeide.lsp.java.survol.ServiceSurvolRiche
 import jo.codeide.lsp.java.survol.SurvolRiche
 import org.eclipse.jdt.internal.compiler.classfmt.ClassFileReader
@@ -112,6 +122,21 @@ public class MoteurJava(
 
     /** Service de hiérarchies (étage N7), paresseux — projet multi-fichiers. */
     private var serviceHierarchies: ServiceHierarchies? = null
+
+    /** Index de mots des sources (étage N4 — QueryExecutor), paresseux. */
+    private var indexMotsSources: IndexMotsSources? = null
+
+    /** Routeur de navigation (étage N4), paresseux. */
+    private var serviceNavigation: ServiceNavigation? = null
+
+    /** Service de décompilation (étage N4), paresseux. */
+    private var serviceDecompilation: ServiceDecompilation? = null
+
+    /** Service de sélection & formatage à la frappe (étage N4), paresseux. */
+    private var serviceSelection: ServiceSelection? = null
+
+    /** Exécuteur de requêtes d'usages (étage N4 — QueryExecutor), paresseux. */
+    private var serviceUsages: ServiceUsages? = null
 
     /** États rapides par chemin (fiche 014/015). */
     private val etatsRapides = HashMap<String, DiagnoseRapide.Etat>()
@@ -427,22 +452,234 @@ public class MoteurJava(
     }
 
     /**
-     * Définition de la référence au caret (étage N3 — cahier fiche 020,
-     * partie définition) : la plage du NOM déclaré visé — locale (lien
-     * direct du binding), champ ou méthode de la même unité (registre des
-     * déclarations).
+     * Définition de la référence au caret (étage N4 — cahier fiche 049) :
+     * le ROUTEUR complet du GO TO definition — intra-fichier (locale,
+     * champ, méthode ou type de l'unité courante), puis PROJET (le type
+     * déclarant se localise par l'annuaire, la cible est la plage du JETON
+     * nom dans SA source), puis BINAIRE (`jdt://decompiled/…`, plage
+     * vide — le client appelle ensuite [decompiledSource]).
+     *
+     * Le remappage vers la source ORIGINALE est garanti (fiche 062) :
+     * quand la résolution passe par une source RÉDUITE (SourceFocuser),
+     * les plages rendues sont traduites en coordonnées du document
+     * original — jamais en coordonnées réduites.
+     *
+     * @param chemin chemin logique du document.
+     * @param source le texte Java complet.
+     * @param offset la position du caret.
+     * @return les cibles (liste NON NULL, vide honnête — fiche 049 :
+     *   document inconnu ou curseur hors symbole).
+     */
+    public fun definition(chemin: String, source: String, offset: Int): List<CibleNavigation> = synchronized(this) {
+        if (!isLikelyUsableInterne()) return emptyList()
+        val cible = resoudrePourOffset(chemin, source, offset) ?: return emptyList()
+        val cibles = serviceNavigation().definition(chemin, cible.arbre, cible.sourceArbre, cible.position)
+        return cibles.map { c -> remapperCourante(c, cible.remap) }
+    }
+
+    /**
+     * Définition du TYPE du symbole au caret (étage N4 — cahier fiche
+     * 062) : la variable vise la déclaration de son TYPE ; le type
+     * BINAIRE rend l'URI synthétique `jdt://decompiled/<chemin>.java` à
+     * plage VIDE ; le type de base rend une liste VIDE.
+     *
+     * @param chemin chemin logique du document.
+     * @param source le texte Java complet.
+     * @param offset la position du caret.
+     * @return les cibles (0 ou 1 — remappées en coordonnées originales).
+     */
+    public fun typeDefinition(chemin: String, source: String, offset: Int): List<CibleNavigation> = synchronized(this) {
+        if (!isLikelyUsableInterne()) return emptyList()
+        val cible = resoudrePourOffset(chemin, source, offset) ?: return emptyList()
+        val cibles = serviceNavigation().typeDefinition(chemin, cible.arbre, cible.sourceArbre, cible.position)
+        return cibles.map { c -> remapperCourante(c, cible.remap) }
+    }
+
+    /**
+     * Implémentations du type au caret (étage N4 — cahier fiche 060) :
+     * les héritiers et implémenteurs DIRECTS du type en contexte —
+     * balayage inter-fichiers des racines (l'énumération de l'index de
+     * mots), une cible par héritier sur le NOM de classe.
+     *
+     * @param chemin chemin logique du document.
+     * @param source le texte Java complet.
+     * @param offset la position du caret.
+     * @return les cibles (vide si aucune descendance directe).
+     */
+    public fun implementation(chemin: String, source: String, offset: Int): List<CibleNavigation> = synchronized(this) {
+        if (!isLikelyUsableInterne()) return emptyList()
+        val cible = resoudrePourOffset(chemin, source, offset) ?: return emptyList()
+        return serviceNavigation().implementation(chemin, cible.arbre, cible.sourceArbre, cible.position)
+    }
+
+    /**
+     * Super au caret (étage N4 — cahier fiches 049/060) : le membre
+     * OUTREPASSÉ dans le supertype (libellé « nom  ·  Classe »), sinon
+     * les supertypes DIRECTS du type en contexte (libellé « Nom  ·  paquet »)
+     * — un supertype BINAIRE ne rend AUCUNE cible (règle D3).
+     *
+     * @param chemin chemin logique du document.
+     * @param source le texte Java complet.
+     * @param offset la position du caret.
+     * @return les cibles internes (chemin + plage + libellé picker).
+     */
+    public fun superDefinition(chemin: String, source: String, offset: Int): List<CibleSuper> = synchronized(this) {
+        if (!isLikelyUsableInterne()) return emptyList()
+        val cible = resoudrePourOffset(chemin, source, offset) ?: return emptyList()
+        return serviceNavigation().superDefinition(chemin, cible.arbre, cible.sourceArbre, cible.position)
+    }
+
+    /**
+     * FQN au caret (étage N4 — cahier fiche 005 : `fqcnAt`) : la sonde du
+     * câble « GO TO sur cible binaire » côté serveur LSP.
      *
      * @param chemin chemin logique du document.
      * @param source le texte Java complet.
      * @param offset la position interrogée.
-     * @return la plage de définition, ou null (référence non résolue ou
-     *   déclaration binaire — hors périmètre de l'étage).
+     * @param cibleType `targetType` du cahier : faux → la classe
+     *   DÉCLARANTE du symbole ; vrai → le TYPE du symbole.
+     * @return le FQN, ou null (caret sans binding, type de base, source
+     *   vide, offset hors bornes).
      */
-    public fun definition(chemin: String, source: String, offset: Int): Plage? = synchronized(this) {
+    public fun fqcnAt(chemin: String, source: String, offset: Int, cibleType: Boolean = false): String? = synchronized(this) {
         if (!isLikelyUsableInterne()) return null
+        if (source.isEmpty()) return null
+        if (offset < 0 || offset > source.length) return null
         val cible = resoudrePourOffset(chemin, source, offset) ?: return null
-        ServiceDefinitions.definition(cible.arbre, cible.sourceArbre, cible.position)
+        return serviceNavigation().fqcnAt(chemin, cible.arbre, cible.sourceArbre, cible.position, cibleType)
     }
+
+    /**
+     * Sonde de type binaire (étage N4 — cahier fiche 005 : `isBinaryType`) :
+     * vrai ssi le FQCN existe et vit hors des sources du projet.
+     *
+     * @param fqcn le FQCN testé (null/vide → faux).
+     * @return vrai pour un jar, l'image jrt ou un stub intrinsèque.
+     */
+    public fun isBinaryType(fqcn: String?): Boolean = synchronized(this) {
+        if (fqcn.isNullOrEmpty()) return false
+        if (!isLikelyUsableInterne()) return false
+        return serviceDecompilation().estTypeBinaire(fqcn)
+    }
+
+    /**
+     * La source d'un type binaire (étage N4 — cahier fiche 009 :
+     * `decompiledSource`) : la source ATTACHÉE du JDK (`lib/src.zip`)
+     * sinon le STUB décompilé minimal (en-tête « Decompiled from … »,
+     * méthodes publiques comprises).
+     *
+     * @param fqcn le FQCN (null/vide → null, sans exiger de JDK).
+     * @return le texte Java, ou null (FQCN inconnu).
+     */
+    public fun decompiledSource(fqcn: String?): String? = synchronized(this) {
+        if (fqcn.isNullOrEmpty()) return null
+        return serviceDecompilation().sourceDecompilee(fqcn)
+    }
+
+    /**
+     * Les chaînes de sélection aux positions demandées (étage N4 — cahier
+     * fiche 027) : le miroir moteur de `textDocument/selectionRange` —
+     * STRICTEMENT croissantes (chaque niveau contient strictement le
+     * précédent — contrat LSP 3.17), escalade complète jeton → expression
+     * → instruction → bloc → déclaration → type → unité, sommet = toute
+     * la source.
+     *
+     * Tolérances verrouillées : offsets hors bornes ou source vide →
+     * chaîne ABSENTE ; source imparsable → chaîne partielle mais BORNÉE.
+     *
+     * @param chemin chemin logique du document.
+     * @param source le texte Java complet.
+     * @param offsets les positions interrogées.
+     * @return une chaîne par offset (null = position invalide).
+     */
+    public fun chainesSelection(chemin: String, source: String, offsets: List<Int>): List<ChaineSelection?> = synchronized(this) {
+        if (!isLikelyUsableInterne()) return offsets.map { null }
+        return serviceSelection().chainesSelection(chemin, source, offsets)
+    }
+
+    /**
+     * La cible de formatage à la frappe (étage N4 — cahier fiche 027) :
+     * le miroir moteur de `textDocument/onTypeFormatting` — la
+     * construction qui SE TERMINE au caractère tapé (`}` → la méthode
+     * entière, `;` → l'instruction).
+     *
+     * @param chemin chemin logique du document.
+     * @param source le texte Java complet.
+     * @param offset la position du caractère tapé.
+     * @param declencheur le déclencheur demandé (`}` ou `;`).
+     * @return la plage cible, ou null (déclencheur hors liste, caractère
+     *   différent à l'offset).
+     */
+    public fun plageFormattable(chemin: String, source: String, offset: Int, declencheur: Char): Plage? = synchronized(this) {
+        if (!isLikelyUsableInterne()) return null
+        return serviceSelection().plageFormattable(chemin, source, offset, declencheur)
+    }
+
+    /**
+     * Les usages du symbole au caret (étage N4 — ADR 0014 : le
+     * QueryExecutor sur l'index de mots, `Files.walk` retiré du chemin
+     * chaud) : le miroir moteur de `textDocument/references` — EXHAUSTIF
+     * sur les racines, par clé de binding (homonymes départagés par le
+     * propriétaire et l'arité).
+     *
+     * @param chemin chemin logique du document interrogé.
+     * @param source le texte du document (tampon ouvert — prime sur le disque).
+     * @param offset la position du caret.
+     * @param inclureDeclaration inclure la déclaration (paramètre LSP).
+     * @return les usages triés (chemin, offset) — vide honnête.
+     */
+    public fun references(
+        chemin: String,
+        source: String,
+        offset: Int,
+        inclureDeclaration: Boolean = true,
+    ): List<Usage> = synchronized(this) {
+        if (!isLikelyUsableInterne()) return emptyList()
+        return serviceUsages().references(chemin, source, offset, inclureDeclaration)
+    }
+
+    /**
+     * Les usages par BALAYAGE COMPLET (étage N4) : l'ORACLE du banc et des
+     * tests — toutes les sources des racines résolues, même correspondance
+     * par clé que [references]. Ce chemin traverse volontiers
+     * l'arborescence : il n'est JAMAIS sur le chemin chaud (c'est le
+     * vérificateur du critère « rappel usages = oracle »).
+     *
+     * @param chemin chemin logique du document interrogé.
+     * @param source le texte du document (tampon ouvert).
+     * @param offset la position du caret.
+     * @return les usages exhaustifs (même forme que [references]).
+     */
+    public fun referencesParBalayageComplet(chemin: String, source: String, offset: Int): List<Usage> = synchronized(this) {
+        if (!isLikelyUsableInterne()) return emptyList()
+        return serviceUsages().referencesParBalayageComplet(chemin, source, offset)
+    }
+
+    /**
+     * Les surbrillances du document courant (étage N4) : le miroir moteur
+     * de `textDocument/documentHighlight` — toutes les occurrences du
+     * symbole au caret dans le document SEUL, avec leur genre (méthode et
+     * type → TEXTE ; variable → ECRITURE sur la déclaration et les cibles
+     * d'affectation, LECTURE sinon).
+     *
+     * @param chemin chemin logique du document.
+     * @param source le texte Java complet.
+     * @param offset la position du caret.
+     * @return les surbrillances (vide honnête).
+     */
+    public fun surbrillances(chemin: String, source: String, offset: Int): List<Surbrillance> = synchronized(this) {
+        if (!isLikelyUsableInterne()) return emptyList()
+        return serviceUsages().surbrillances(chemin, source, offset)
+    }
+
+    /**
+     * Le nombre de constructions FROIDES de l'index de mots (étage N4) :
+     * l'observable du critère « `Files.walk` retiré du chemin chaud » —
+     * 1 après N requêtes si aucune invalidation.
+     *
+     * @return le nombre de constructions de l'index.
+     */
+    public fun constructionsIndexMots(): Int = synchronized(this) { indexMotsSources().constructions() }
 
     /**
      * Indices inlay de l'unité (étage N3 — cahier fiches 002/003/030) :
@@ -547,14 +784,15 @@ public class MoteurJava(
         val etat = etatsRapides[chemin]
         if (etat?.arbreFocalise != null && etat.source == source && etat.corpsHote != null && etat.corpsHote!!.contient(offset)) {
             compteurFastResolve++
-            return CibleLecture(etat.arbreFocalise!!.arbre, offset, etat.arbreFocalise!!.source)
+            return CibleLecture(etat.arbreFocalise!!.arbre, offset, etat.arbreFocalise!!.source) { p -> p }
         }
         val entree = cacheParse.obtenir(chemin, source)
         if (entree != null) {
             compteurCachedResolve++
             val position = entree.focused?.mapAvant(offset) ?: offset
             val sourceArbre = entree.focused?.source() ?: source
-            return CibleLecture(entree.unite.arbre, position, sourceArbre)
+            val remap: (Int) -> Int = entree.focused?.let { f -> { p -> f.mapBack(p) } } ?: { p -> p }
+            return CibleLecture(entree.unite.arbre, position, sourceArbre, remap)
         }
         val focused = SourceFocuser.focusAndMap(source, offset)
         val reponse = pontEcj().resoudre(unite(chemin, focused.source()), genererCode = false)
@@ -566,14 +804,22 @@ public class MoteurJava(
             genererCode = false,
             focused = if (focused.source().length != source.length) focused else null,
         )
-        return CibleLecture(reponse.arbre, focused.offset(), focused.source())
+        val remap: (Int) -> Int = { p -> focused.mapBack(p) }
+        return CibleLecture(reponse.arbre, focused.offset(), focused.source(), remap)
     }
 
-    /** Cible de lecture : arbre + position d'interrogation + source dans le système de l'arbre. */
+    /**
+     * Cible de lecture : arbre + position d'interrogation + source dans le
+     * système de l'arbre + traduction inverse réduite → ORIGINALE
+     * (identité quand la résolution n'a pas réduit la source — fiche 062 :
+     * les plages rendues au client vivent TOUJOURS en coordonnées
+     * originales).
+     */
     private class CibleLecture(
         val arbre: org.eclipse.jdt.internal.compiler.ast.CompilationUnitDeclaration?,
         val position: Int,
         val sourceArbre: String,
+        val remap: (Int) -> Int,
     )
 
     // ------------------------------------------------------------------ //
@@ -792,11 +1038,15 @@ public class MoteurJava(
 
     /**
      * Invalide le cache de présence source (événement Created d'un `.java`
-     * observé — fiche 006 : la nouvelle classe devient visible immédiatement).
+     * observé — fiche 006 : la nouvelle classe devient visible immédiatement)
+     * ET l'index de mots des sources (étage N4 : les fichiers créés ou
+     * disparus deviennent candidats — la reconstruction est froide et
+     * paresseuse, à la prochaine requête d'usages).
      */
     public fun invalidateSourcePresence() {
         synchronized(this) {
             environnementNoms().cachePresence.invalider()
+            indexMotsSources?.invalider()
         }
     }
 
@@ -848,9 +1098,75 @@ public class MoteurJava(
             racines = racines,
             resoudre = { chemin, source -> resolveUnit(chemin, source, genererCode = false)?.arbre },
             localiser = { fqcn -> runCatching { environnementNoms().trouverFqcn(fqcn) }.getOrNull() },
+            enumererFichiers = { indexMotsSources().fichiers() },
         )
         serviceHierarchies = nouveau
         return nouveau
+    }
+
+    /** Index de mots des sources (paresseux — construction froide unique). */
+    private fun indexMotsSources(): IndexMotsSources {
+        indexMotsSources?.let { return it }
+        val index = IndexMotsSources(racines)
+        indexMotsSources = index
+        return index
+    }
+
+    /** Routeur de navigation (paresseux — résolution + annuaire + hiérarchies). */
+    private fun serviceNavigation(): ServiceNavigation {
+        serviceNavigation?.let { return it }
+        val service = ServiceNavigation(
+            resoudre = { chemin, source -> resolveUnit(chemin, source, genererCode = false)?.arbre },
+            localiser = { fqcn -> runCatching { environnementNoms().trouverFqcn(fqcn) }.getOrNull() },
+            sousTypesDeFqn = { fqn -> serviceHierarchies().sousTypesDeFqn(fqn) },
+        )
+        serviceNavigation = service
+        return service
+    }
+
+    /** Service de décompilation (paresseux — environnement + home JDK). */
+    private fun serviceDecompilation(): ServiceDecompilation {
+        serviceDecompilation?.let { return it }
+        val service = ServiceDecompilation(
+            environnement = { environnementNoms() },
+            jdkHomeExplicite = jdkHome,
+        )
+        serviceDecompilation = service
+        return service
+    }
+
+    /** Service de sélection (paresseux — résolution de la source complète). */
+    private fun serviceSelection(): ServiceSelection {
+        serviceSelection?.let { return it }
+        val service = ServiceSelection(
+            resoudre = { chemin, source -> resolveUnit(chemin, source, genererCode = false)?.arbre },
+        )
+        serviceSelection = service
+        return service
+    }
+
+    /** Exécuteur de requêtes d'usages (paresseux — index + résolution). */
+    private fun serviceUsages(): ServiceUsages {
+        serviceUsages?.let { return it }
+        val service = ServiceUsages(
+            racines = racines,
+            indexMots = indexMotsSources(),
+            resoudre = { chemin, source -> resolveUnit(chemin, source, genererCode = false)?.arbre },
+        )
+        serviceUsages = service
+        return service
+    }
+
+    /**
+     * Remappe une cible vers la source ORIGINALE quand elle vit dans le
+     * document courant (les plages de l'unité courante sont calculées sur
+     * la source de l'arbre — potentiellement réduite, fiche 062) ; les
+     * cibles PROJET et BINAIRE vivent dans LEUR source (disque / URI
+     * synthétique) : identité.
+     */
+    private fun remapperCourante(cible: CibleNavigation, remap: (Int) -> Int): CibleNavigation {
+        if (cible.genre != jo.codeide.lsp.java.navigation.GenreCible.SOURCE_COURANTE) return cible
+        return cible.copy(plage = Plage(remap(cible.plage.debutOffset), remap(cible.plage.finOffset)))
     }
 
     /** Environnement de noms paresseux (jrt + jars ouverts au premier usage). */

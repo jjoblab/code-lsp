@@ -7,7 +7,7 @@
 > l'architecture IntelliJ PSI — étudiée en profondeur, embarquée nulle part,
 > greffée partout où elle prouve sa valeur.
 
-## État — étapes N1+N2 LIVRÉES — recalage 2 (fin N2) SOUMIS, décision de suite attendue
+## État — étapes N1, N2, N3, N7 et N4 LIVRÉES — prochaine étape N5 (rename v2)
 
 Décisions actées par le propriétaire le 28/10/2026 :
 
@@ -212,3 +212,31 @@ dormantes ne le sont plus) et le contrôle « anti-fichier-hors-registre ».
 
 Détail : `docs/PLAN-REECRITURE.md` (programme complet) et
 `docs/etudes/moteur-java-psi/00-synthese.md` §4 (historique du plan).
+
+Historique des livraisons (séquence confirmée N1 → N2 → N3 → N7 → N4 →
+N5 → N6 → N8, T traversant) :
+
+- **N1 noyau compilateur & environnement** (livré) — pont ecj patché,
+  routeur de classpaths, ordonnanceur, diagnostics, repli syntaxe,
+  caches, patcheur ecj-art ; recalage 1 exécuté (`RECALAGE-1.md`).
+- **N2 complétion & classement** (livré) — pipeline complet + échelle de
+  variantes, banc qualité CI-bloquante ; recalage 2 exécuté
+  (`RECALAGE-2.md`) — dernier recalage d'estimation prévu.
+- **N3 hover riche, inlay hints & signatures niveau 4** (livré) — 6 fiches,
+  55 comportements verts (399 tests au dépôt).
+- **N7 confort éditeur** (livré) — formateur clean-room, pliage,
+  organisateur d'imports, gabarits, hiérarchies (458 tests au dépôt).
+- **N4 navigation & usages** (livré) — routeur GO TO complet
+  (intra-fichier → projet → binaire `jdt://decompiled/`, `superDefinition`
+  aux libellés picker exacts, `implementation` croix-fichiers), câble
+  binaire (`fqcnAt`/`isBinaryType`/`decompiledSource` — source attachée ou
+  stub), chaînes de sélection strictement croissantes + cible de formatage
+  à la frappe, et le **QueryExecutor des usages** (ADR 0014) :
+  `references`/`documentHighlight` exhaustifs par clé de binding sur index
+  de mots des sources — `Files.walk` retiré du chemin chaud, rappel =
+  oracle (banc `:java:benchUsages` CI-bloquant : rappel 1,000, p95 ~62 ms
+  < 100 ms) — 520 tests / 0 échec au dépôt.
+- **Étape suivante — N5 rename v2** (2 fiches, 17 comportements — moteur
+  de rename par phases, collisions typées) puis N6 (CodeAction v2) et N8
+  (cycle de vie LSP & protocole riche) — chaque étage borné par la parité
+  mesurée contre l'ancien moteur (banc croisé, ADR 0016).

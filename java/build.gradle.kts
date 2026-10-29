@@ -85,3 +85,14 @@ tasks.register<JavaExec>("benchQualite") {
         args("--resigner")
     }
 }
+
+// Banc des USAGES de l'étage N4 (critère de sortie — ADR 0014 : QueryExecutor
+// sur index de mots, rappel = oracle, p95 < 100 ms, Files.walk hors chemin
+// chaud) — la tâche ÉCHOUE si une gate n'est pas tenue (CI bloquante).
+tasks.register<JavaExec>("benchUsages") {
+    group = "verification"
+    description = "Banc des usages N4 (rappel vs oracle, p95 < 100 ms, index froid unique) — échoue sur régression."
+    mainClass.set("jo.codeide.lsp.java.banc.BancUsagesKt")
+    classpath = bancSourceSet.runtimeClasspath
+    jvmArgs("-Xmx2g", "-XX:+UseSerialGC")
+}

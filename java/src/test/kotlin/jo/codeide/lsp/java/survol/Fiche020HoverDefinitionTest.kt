@@ -118,11 +118,12 @@ class Fiche020HoverDefinitionTest {
 
     @Test
     fun definitionOfLocalVariable() {
-        // Caret sur « message » dans « return message » — la plage vise la
+        // Caret sur « message » dans « return message » — la cible vise la
         // DÉCLARATION « String message ».
         val offset = offsetDe(SOURCE, "return message") + "return ".length
-        val plage = MOTEUR.definition(CHEMIN, SOURCE, offset)
-        assertNotNull(plage, "plage de définition servie")
+        val cible = MOTEUR.definition(CHEMIN, SOURCE, offset).firstOrNull()
+        assertNotNull(cible, "cible de définition servie")
+        val plage = cible.plage
         val debutDeclaration = offsetDe(SOURCE, "String message")
         assertTrue(
             plage.debutOffset >= debutDeclaration && plage.debutOffset < debutDeclaration + 50,
@@ -132,11 +133,12 @@ class Fiche020HoverDefinitionTest {
 
     @Test
     fun definitionOfField() {
-        // Caret sur « counter » dans « counter + 1 » — la plage vise le
+        // Caret sur « counter » dans « counter + 1 » — la cible vise le
         // champ déclaré « private int counter ».
         val offset = offsetDe(SOURCE, "counter + 1")
-        val plage = MOTEUR.definition(CHEMIN, SOURCE, offset)
-        assertNotNull(plage)
+        val cible = MOTEUR.definition(CHEMIN, SOURCE, offset).firstOrNull()
+        assertNotNull(cible)
+        val plage = cible.plage
         val debutDeclaration = offsetDe(SOURCE, "private int counter")
         assertTrue(
             plage.debutOffset >= debutDeclaration && plage.debutOffset < debutDeclaration + 25,
@@ -146,7 +148,7 @@ class Fiche020HoverDefinitionTest {
 
     @Test
     fun definitionOfMethodCall() {
-        // Source avec « return decorate(name); » — la plage vise la méthode
+        // Source avec « return decorate(name); » — la cible vise la méthode
         // déclarée « private String decorate ».
         val source = SOURCE.replace(
             "int total = counter + 1;",
@@ -156,8 +158,9 @@ class Fiche020HoverDefinitionTest {
             "private String decorate(String value) {\n                    return \"[\" + value + \"]\";\n                }\n\n                public int getCounter() {",
         )
         val offset = offsetDe(source, "decorate(\"x\")")
-        val plage = MOTEUR.definition(CHEMIN, source, offset)
-        assertNotNull(plage, "plage de définition de la méthode appelée")
+        val cible = MOTEUR.definition(CHEMIN, source, offset).firstOrNull()
+        assertNotNull(cible, "cible de définition de la méthode appelée")
+        val plage = cible.plage
         val debutDeclaration = offsetDe(source, "private String decorate")
         assertTrue(
             plage.debutOffset >= debutDeclaration && plage.debutOffset < debutDeclaration + 30,
