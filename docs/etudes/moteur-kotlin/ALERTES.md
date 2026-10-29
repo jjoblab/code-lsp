@@ -1,0 +1,96 @@
+# ALERTES — anomalies, risques de provenance, écarts avec le prompt de mission
+
+> Étude « moteur Kotlin » (dépôt `jjoblab/code-lsp`, branche
+> `etude/moteur-kotlin`). Document vivant : toute nouvelle alerte s'ajoute
+> ici (R6.5 : signaler factuellement, sans corriger ni minimiser).
+
+## 1. Écarts entre les affirmations du prompt (§2 « État de l'existant, à VÉRIFIER ») et la réalité vérifiée
+
+| # | Affirmation du prompt | Vérification (faite) | Statut |
+|---|---|---|---|
+| A-K1 | « ≈ 30 800 lignes Kotlin (80 fichiers) **+** grammaire officielle vendorée (≈ 9 900 lignes) » | Mesuré @ `bc11253` : `src/main` **total 30 782 l. / 80 f. incluant** le vendor (9 585 l. / 23 f.) ; production propre **21 197 l. / 57 f.**. Le « 30 800/80 » est exact mais **contient déjà** le vendor — le prompt invite à les additionner (≈ 40 700), ce qui serait un double comptage | **Écart de lecture** — chiffres réaffirmés : propre 21 197, vendor 9 585, total 30 782 |
+| A-K2 | « ≈ 469 tests (comptage @Test, à vérifier) » | **469 méthodes `@Test` dans 53 fichiers / 15 853 l.** [mesuré, `rg --count-matches`] | **Conforme** |
+| A-K3 | « grammaire vendorée ≈ 9 900 lignes, JetBrains, Apache-2.0 » | 9 585 l. / 23 f. `.kt` [mesuré] (écart −3 % — fichiers non-`.kt` de la notice exclus du comptage) ; Apache-2.0 confirmé par `LICENSE.txt`/`COPYRIGHT.txt` du répertoire vendor + notice tierce | **Conforme (précision)** |
+| A-K4 | « plus gros fichiers : DiagnosticsSemantiques ≈ 1 780, SessionLangageKotlinParse ≈ 1 240, ResolutionKotlin ≈ 990 » | Mesuré : 1 784 / 1 241 / 990 — suivi de `OccurrencesKotlin` 875, `CompletionKotlin` 817, `SymbolesProjet` 759, `MembresManquantsKotlin` 731 | **Conforme** |
+| A-K5 | « la résolution sémantique est heuristique » | Confirmé par les ADR elles-mêmes : surcharges par nom + arité, typage borné, smart casts positionnels, inférence par attente — la couverture est un sous-ensemble arbitraire (voir `00b-inventaire-existant.md` §2.3) | **Conforme** |
+| A-K6 | « branche `etude/moteur-kotlin` ; rebase-la souvent sur `main` » | **Aucune branche `main` n'existe dans `code-lsp`** [mesuré, `git ls-remote --heads`] : seule `origin/etude/moteur-java` existe (défaut). Le commit 970cacf mentionne un push sur `origin/main` (8450bb7) mais la branche n'est plus sur le distant | **Écart** — la branche d'étude a été créée depuis `etude/moteur-java` (HEAD) ; rebaser sur `etude/moteur-java` en attendant une éventuelle recréation de `main` — décision propriétaire |
+| A-K7 | « l'agent Java travaille en parallèle » | L'étude Java est **terminée et publiée** : moteur `:java` v1.0.0 (tag v1.0.0, GitHub Packages), ADR 0001–0018 pour la plupart acceptés/transformés, Java archivé côté `codeide-lsp` (ADR 0233 ancien). Pas de concurrence d'écriture constatée | **Conforme** (coordination sans conflit — périmètres disjoints) |
+| A-K8 | Matrice des capacités (colonne Kotlin) : « Super-définition (expérimental) ❌ » | L'ADR 0210 de l'ancien dépôt documente un `superDefinition` Kotlin **livré** (moteur `SuperKotlinTest` 10 tests, hôte L2, harnais E9) — la matrice `LSP_MATRICE_CAPACITES.md` affiche ❌ sur la ligne Super | **Écart interne de l'ancien dépôt** — signalé factuellement ; le cahier retient les TESTS (verrouillés) comme vérité |
+
+## 2. Risques de provenance (R6.5 — signalés factuellement, non corrigés)
+
+- **P-K1 — Filiation documentaire GPL-3.0** : les décisions D1/D2/D5/D8 et
+  le §2 « Enseignements » de `LSP_KOTLIN.md` (ancien dépôt) déclarent
+  s'appuyer sur l'étude d'un **projet tiers de référence sous GPL-3.0**
+  (« aucune ligne de code réutilisée » — non vérifiable sans lire du code
+  GPL). Ce projet **n'a pas été consulté** pendant la présente mission
+  (R6.2/R9.4 respectés). La vérification objective de similarité
+  d'expression est **recommandée au propriétaire comme audit séparé**,
+  confié à un rôle distinct des implémenteurs. Toute reprise (voie B/C)
+  des zones dont la conception est issue de ces enseignements devra en
+  tenir compte dans le registre.
+- **P-K2 — Conditions des artefacts binaires intellij-dependencies** :
+  miroir de l'alerte AL1 Java — les jars `org.jetbrains:syntax-api`
+  n'embarquent pas de `META-INF/LICENSE` ; licence des sources
+  Apache-2.0 ; l'hypothèse Apache-2.0 pour les **binaires** reste à
+  confirmer par le propriétaire avant tout embarquement définitif.
+- **P-K3 — Conformité R6.2 de l'étude** : aucune source GPL/AGPL ni de
+  licence non vérifiée consultée (terrains : `code-lsp` et `codeide-lsp`
+  [proprio jjoblab], `JetBrains/kotlin` [Apache-2.0], artefacts publics
+  Maven Central / intellij-dependencies, spécification Kotlin et doc
+  publique JetBrains/Android, spec LSP). `Kotlin/kotlin-lsp` (incubateur
+  JetBrains annoncé pré-alpha) : **licence vérifiée avant lecture** —
+  voir `01-architectures-analyse-kotlin.md` §0 (Apache-2.0 constaté au
+  dépôt ; consultation limitée aux documents de conception publics).
+
+## 3. Anomalies et découvertes à caractère d'alerte (issues de l'étude)
+
+- **AL-K1 — H1/H2 du rapport faux positifs (26/10)** : la troncation du
+  scan ne se reflétait pas dans `estUniversConna()` (H1) et les sources
+  générées KSP/Hilt/Room sous `build/` sont invisibles (H2) — confirmés
+  par reproduction. Le rapport recommande les correctifs (étape B) ;
+  **l'état exact à HEAD (bc11253) n'a pas été re-vérifié test par test**
+  (hors périmètre de lecture) : le cahier verrouille ce que les tests
+  couvrent à ce commit.
+- **AL-K2 — Grammaire figée v2.3.0** : ADR 0119 (renonciation
+  `languageVersion`) — le `kt.syntax` sur du Kotlin 2.4+ est signalé
+  (honnête) ; la fréquence augmentera avec l'écosystème. Le re-vendoring
+  est scripté mais manuel (2×/an) et lie la montée de syntax-api à la
+  chaîne d'outils (bootstrap 2.2.x).
+- **AL-K3 — L'historique de correction vit dans les tests** : 24 classes
+  `Reproduction*` [mesuré] — signal structurel : la résolution a été
+  construite correctif par correctif ; un moteur refondé devra re-découvrir
+  ces 24 familles **via le cahier** (elles y sont toutes fichées).
+
+## 4. Écarts d'exécution de la mission (transparence)
+
+- **E-K1 — Démarrage différé** : la mission a été envoyée le 29/10 au
+  soir ; l'environnement de travail était **vierge** au 30/10 (aucun
+  clone, aucun livrable) — le travail n'a commencé que le 30/10, après
+  relance du propriétaire. Aucune heure de travail antérieure n'est à
+  porter au crédit de l'étude ; le compte rendu final chiffre ce qui a
+  été réellement produit.
+- **E-K2 — Aucun appareil Android disponible** : conformément au §7 du
+  prompt, seules (a) l'analyse statique ART, (b) les mesures JVM
+  (limites basses) et (c) le point d'entrée appareil sont produits.
+  Aucune mesure appareil n'est prétendue.
+- **E-K3 — Jeton GitHub** : fourni par le propriétaire en clair dans le
+  canal ; utilisé exclusivement en variable d'environnement et en URL de
+  clone distant — **jamais écrit dans un fichier suivi ni commité**
+  (vérifié : `git log -p | grep ghp_` vide). Recommandation usuelle :
+  le révoquer après la mission.
+- **E-K4 — Mesures JVM de bureau** : environnement bac à sable
+  conteneurisé (2 cœurs effectifs constatés sur les mesures Java
+  antérieures) — toute mesure est une **limite basse**, incertitude
+  documentée dans `02-spike-mesures.md` (variabilité p95 ±×1,5 entre
+  passes constatée par l'étude Java — AL6 Java).
+
+## 5. Points restés « à vérifier » (non clos par l'étude)
+
+- Comportement GC ART (SoftReference/ReferenceQueue) — appareil requis.
+- Conditions exactes des artefacts binaires intellij-dependencies
+  (P-K2) — action propriétaire.
+- État réel (à HEAD) des correctifs recommandés par le rapport faux
+  positifs (AL-K1) — le cahier fixe le périmètre testé.
+- Fréquence réelle du `kt.syntax` sur code Kotlin 2.4+ en production —
+  donnée d'usage appareil, hors portée.

@@ -1,0 +1,29 @@
+# DEMANDES-INTERFACE — évolutions des modules partagés demandées par le moteur Kotlin
+
+> R3 du prompt : le moteur Kotlin ne modifie **ni** `:model`, **ni**
+> `:index`, **ni** `:java` (lecture seule). Toute évolution nécessaire de
+> ces modules partagés est consignée ici ; **le propriétaire arbitre**.
+> Ce document est vivant : chaque demande porte son statut
+> (proposée / arbitrée / rejetée) et le renvoi vers l'ADR de l'étude qui
+> la motive.
+
+## Statut au 2026-10-30
+
+| # | Demande | Module visé | Motivation (ADR) | Statut |
+|---|---|---|---|---|
+| D-K1 | **Aucune pour la Phase 0** — l'inventaire et le cahier n'exigent aucune évolution des modules partagés | — | — | — |
+
+## Demandes anticipées (hors Phase 0 — à confirmer par les ADR de domaine)
+
+> Ces points sont des **questions ouvertes** consignées pendant l'étude ;
+> ils ne deviennent des demandes formelles que si l'ADR 0100 retient une
+> voie qui les rend nécessaires.
+
+| # | Sujet | Question ouverte | Module | ADR porteur |
+|---|---|---|---|---|
+| Q-K1 | Extension CIDX aux appelables Kotlin | L'index CIDX (`:index`, repris de l'ancien dépôt) décrit les membres des `.class` Java ; l'ancien moteur Kotlin maintient un **second** index disque (`.kidx`, clés `top:`/`ext:`) pour les appelables Kotlin. Faut-il (a) étendre CIDX aux clés taggées Kotlin, (b) garder un index dédié dans `:kotlin`, ou (c) fusionner les formats ? | `:index` | ADR 0108 (K5) |
+| Q-K2 | Décodage `@Metadata` dans `:index` | Même question pour le décodeur `kotlin-metadata-jvm` : vit-il dans `:index` (partagé Java/Kotlin) ou dans `:kotlin` ? | `:index` | ADR 0108 |
+| Q-K3 | Types du modèle de symboles | Le futur modèle Kotlin (K2) doit-il partager des types avec `:model` (`ProjetLsp`, classpath v8) ou rester autonome derrière le SPI ? | `:model` | ADR 0105 |
+| Q-K4 | Contrat de pack langue | Le descripteur `version.properties` (pack Kotlin téléchargeable, D6 ancien) doit-il s'aligner sur le mécanisme de publication `:java` (GitHub Packages, façade unique) ? | `:java` (convention) | ADR 0118 |
+| Q-K5 | Interop croisée | Le moteur Java expose-t-il ses stubs/bindings au moteur Kotlin (navigation croisée) par une interface publique documentée ? | `:java` | ADR 0110 |
+| Q-K6 | Banc de qualité commun | Le banc ADR 0016 (recall/top-1/MRR, corpus fixe) doit être étendu au Kotlin « banc commun avec Java » (critère §4 du prompt) — le corpus et les métriques vivent-ils dans `:testing` ? | `:testing` | ADR 0119 |
