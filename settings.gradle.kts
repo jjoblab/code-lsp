@@ -35,3 +35,7 @@ include(":index")
 include(":model")
 include(":testing")
 include(":ecj-art")
+// Module de mesure isolé de l'étude « moteur Kotlin » (Phase 2 du prompt de
+// mission) — NON PUBLIÉ, tâches désactivées sans -PspikeKotlin (voir
+// spike-kotlin/build.gradle.kts) : la CI du domaine Java n'est pas affectée.
+include(":spike-kotlin")

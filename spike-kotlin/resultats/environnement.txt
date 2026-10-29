@@ -1,0 +1,6 @@
+# Environnement des mesures (R5 — rejouable)
+date: 2026-10-29T23:10:09Z
+java: openjdk version "21.0.13" 2026-10-20
+cœurs disponibles: 2
+mémoire: 3.9 Gio
+machine: bac à sable conteneurisé (JVM de bureau, 2 cœurs effectifs — miroir E-K4 de l'étude Java)
