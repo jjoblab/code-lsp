@@ -285,6 +285,20 @@ chacune mesurée par un test) :
    disparaîtraient silencieusement) ; TABLE_JAVA du test de parité L0
    mise à jour en miroir des capabilities réelles du moteur réécrit.
 
+**Publication EFFECTUÉE** : tag **`v1.1.0`** (annoté, `fcb636b`) →
+workflow Publication **vert** (run `40972384002`) ; les artefacts
+`jo-codeide-lsp-java:1.1.0` + compagnon `ecj-art:1.1.0` résolvent sur
+`maven.pkg.github.com/jjoblab/code-lsp` (POM vérifié, HTTP 200). CI de la
+branche verte sur les deux commits du chantier (runs `40970906201`,
+`40972359111`). Premier passage du run `40970928331` : échec CI sur
+l'enrichissement 054 — le test n'avait tourné qu'en CI (gate android.jar
+ouverte là, ignorée localement) et la fixture `@TempDir` de la fiche
+était piégée (champ RÉINJECTÉ par JUnit après le `@BeforeAll`, sur un
+AUTRE répertoire que le paramètre : les relectures disque post-@BeforeAll
+lisaient un répertoire VIDE) — corrigé par fixture racine MANUELLE
+(`fcb636b`, motif Fiche026/066) ; re-tag et publication au second
+passage. Côté hôte : `codeide-lsp` poussé (`ac7a953`, v1.23.0).
+
 **Reste** : **I4** (bump du catalogue CodeIDE vers l'`:host` 1.23.0
 publié + release CodeIDE), **I5** (passe appareil complète — fiches
 004/010/039, re-vérification E1–E4, témoin `serverInfo = 1.1.0` dans les
