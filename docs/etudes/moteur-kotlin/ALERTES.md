@@ -77,7 +77,8 @@
 - **E-K3 — Jeton GitHub** : fourni par le propriétaire en clair dans le
   canal ; utilisé exclusivement en variable d'environnement et en URL de
   clone distant — **jamais écrit dans un fichier suivi ni commité**
-  (vérifié : `git log -p | grep ghp_` vide). Recommandation usuelle :
+  (vérifié : recherche du préfixe de jeton dans l'historique complet —
+  vide). Recommandation usuelle :
   le révoquer après la mission.
 - **E-K4 — Mesures JVM de bureau** : environnement bac à sable
   conteneurisé (2 cœurs effectifs constatés sur les mesures Java
