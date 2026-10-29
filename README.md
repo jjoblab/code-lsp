@@ -120,7 +120,7 @@ hiérarchie non balayée par `availableMethods` d'ecj, internes
 | `docs/RECALAGE-2.md` | **recalage de fin N2 (§8.2 — dernier recalage prévu)** — confiance N3–N8 re-évaluée sur les deux étages extrêmes de l'abaque, re-projection 5–8 séances effectives, décision de suite soumise |
 | `bancs/baselines/` | **baselines JSON signées des bancs qualité** (ADR 0016 — `completion.json` : complétion N2 ; `parite-completion.json` : parité croisée T ; re-baseline par PR dédiée) |
 | `bancs/GABARIT-BASCULE-APPAREIL.md` | **gabarit de passe bascule sur appareil REMPLI ET SIGNÉ le 30/10/2026** (étage T §8.5 — passe moto g06 : 18/18, 0 saut ; R5 : valeurs réelles, jamais simulées) ; [`bancs/resultats-bascule.txt`](bancs/resultats-bascule.txt) : transcript brut ; [`bancs/ANALYSE-DELTAS-BASCULE.md`](bancs/ANALYSE-DELTAS-BASCULE.md) : arbitrage des 165 deltas (103 bruit / 62 assumées / 0 à rattraper) |
-| `docs/BASCULE-CODEIDE.md` | **procédure de mise en œuvre de la bascule côté client CodeIDE** (substitution composite ADR 0015 — DEV composite / production GitHub Packages ; retour arrière 1 ligne) |
+| `docs/BASCULE-CODEIDE.md` | **procédure de mise en œuvre de la bascule côté client CodeIDE** (substitution composite ADR 0015 — DEV composite / production GitHub Packages : publication **configurée le 30/10** — `jo.codeide.lsp.java:jo-codeide-lsp-java:1.0.0` + compagnon `jo-codeide-lsp-java-ecj-art` sur tag `v*` ; retour arrière 1 ligne) |
 | `docs/PROVENANCE-REPRISE.md` | manifeste de reprise sélective (règle R9 — registre des copies autorisées) |
 | `spike/` | bancs de mesure V1/V2/V3, scanner de compatibilité ART, gabarit appareil |
 | `java/` | **moteur Java LSP réécrit — étages N1–N8 INTÉGRALEMENT LIVRÉS** (noyau compilateur & environnement, complétion & classement avec échelle de variantes, hover/inlay/signatures, navigation & usages, rename v2, actions de code ModCommand, confort éditeur, cycle de vie LSP & protocole riche lsp4j ; bancs `:java:bench` / `:java:benchQualite` / `:java:benchUsages` / `:java:benchParite`) |
@@ -131,7 +131,7 @@ hiérarchie non balayée par `availableMethods` d'ecj, internes
 | `ecj-art/` | patcheur build-time d'ecj pour ART — **réécriture Kotlin clean-room vague 1c** (scanner, patcheur, shims, liste versionnée) |
 | `scripts/` | vérifications obligatoires (`verifier-push.sh`, `verifier-provenance.sh`) |
 | `.githooks/` | crochet `pre-push` d'identité jjoblab (activation : `git config core.hooksPath .githooks`) |
-| `.github/workflows/` | CI (build + contrôles de provenance) |
+| `.github/workflows/` | CI (build + contrôles de provenance) et publication (`publish.yml` : tag `v*`, build de vérification puis `publish` vers GitHub Packages) |
 
 ## Utilisation
 

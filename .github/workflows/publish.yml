@@ -1,0 +1,60 @@
+# Publication Maven vers GitHub Packages — bascule §8.5 (décision signée le
+# 30/10/2026, voie PRODUCTION de docs/BASCULE-CODEIDE.md §3.2.1).
+#
+# Déclenchement : push d'un TAG v* (la CI standard ci.yml ne couvre que les
+# branches — un tag ne la déclenche PAS). Publication APRÈS vérification
+# complète : build + 625 tests du moteur (jamais de publication non testée —
+# même exigence que les jobs CI, R5).
+#
+# Artefacts publiés (coordonnées fixées dans les build.gradle.kts) :
+#   jo.codeide.lsp.java:jo-codeide-lsp-java:<version>        (moteur, :java)
+#   jo.codeide.lsp.java:jo-codeide-lsp-java-ecj-art:<version> (compagnon ecj
+#   patché, :ecj-art — runtime compileOnly du moteur, EPL-2.0)
+# Le tag porte la version du dépôt (ex. v1.0.0) ; la version PUBLIÉE reste
+# celle de build.gradle.kts (allprojects) — serverInfo.version et dépôt
+# synchronisés par construction (fiche 059 I7).
+#
+# Jetons : GITHUB_ACTOR + GITHUB_TOKEN automatiques d'Actions — permissions
+# packages:write ci-dessous (le jeton de workflow par défaut suffit, AUCUN
+# secret personnel à créer).
+name: Publication
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    name: Vérification puis publication (JDK 21)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      # Vérification AVANT publication : build = compilation + tests de tous
+      # les modules (les bancs JavaExec restent hors du cycle `build`, même
+      # contrat que le job « Build et tests » de ci.yml).
+      - name: Vérification (build + tests)
+        run: ./gradlew build --no-daemon --stacktrace
+
+      # Publication des deux artefacts vers maven.pkg.github.com/jjoblab/code-lsp.
+      # `publish` couvre toutes les publications déclarées (moteur + compagnon).
+      - name: Publication
+        run: ./gradlew publish --no-daemon --stacktrace
+        env:
+          GITHUB_ACTOR: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

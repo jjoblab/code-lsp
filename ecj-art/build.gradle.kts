@@ -19,6 +19,7 @@ import org.gradle.process.CommandLineArgumentProvider
 
 plugins {
     kotlin("jvm")
+    `maven-publish`
 }
 
 kotlin {
@@ -106,4 +107,82 @@ val sortieEcjArt: Configuration by configurations.creating {
 
 artifacts {
     add("sortieEcjArt", tasks.named("patcherEcj"))
+}
+
+// ---------------------------------------------------------------------------
+// Publication Maven du COMPAGNON RUNTIME (bascule §8.5 — voie PRODUCTION
+// GitHub Packages, docs/BASCULE-CODEIDE.md §3.2.1) :
+//   jo.codeide.lsp.java:jo-codeide-lsp-java-ecj-art:<version du dépôt>
+//   → https://maven.pkg.github.com/jjoblab/code-lsp (workflow publish.yml).
+// Le moteur (:java) déclare le jar ecj patché en compileOnly (« l'hôte
+// fournit le jar », ADR 0005) : le consommateur PRODUCTION ajoute CE
+// compagnon au classpath runtime. Jamais d'ecj embarqué dans l'artefact
+// moteur — séparation de licences Apache-2.0 / EPL-2.0 (ADR 0017).
+// Ce n'est PAS une publication de composant (pas de from(components)) :
+// l'artefact publié est le JAR PATCHÉ lui-même, octet pour octet — jamais
+// re-conditionné (signatures retirées à la fabrication, registre des
+// modifications embarqué : META-INF/ECJ-ART-MODIFICATIONS.txt).
+// Jetons : mêmes propriétés/variables que :java (githubPackagesUtilisateur /
+// githubPackagesJeton, sinon GITHUB_ACTOR / GITHUB_TOKEN).
+// ---------------------------------------------------------------------------
+val depotGithubPackages = uri("https://maven.pkg.github.com/jjoblab/code-lsp")
+val utilisateurPackages = providers.gradleProperty("githubPackagesUtilisateur")
+    .orElse(providers.environmentVariable("GITHUB_ACTOR"))
+val jetonPackagesMoteur = providers.gradleProperty("githubPackagesJeton")
+    .orElse(providers.environmentVariable("GITHUB_TOKEN"))
+
+// Le jar patché comme Provider dérivé de la tâche : la dépendance de
+// construction voyage AVEC le provider (publish ne peut pas précéder le
+// patchage — même garantie que la configuration sortieEcjArt ci-dessus).
+val jarEcjPatche = tasks.named<JavaExec>("patcherEcj").map { it.outputs.files.singleFile }
+
+publishing {
+    repositories {
+        maven {
+            name = "GitHubPackages"
+            url = depotGithubPackages
+            credentials {
+                username = utilisateurPackages.orNull ?: ""
+                password = jetonPackagesMoteur.orNull ?: ""
+            }
+        }
+    }
+    publications {
+        create<MavenPublication>("compagnonEcjArt") {
+            groupId = "jo.codeide.lsp.java"
+            artifactId = "jo-codeide-lsp-java-ecj-art"
+            version = project.version.toString()
+            artifact(jarEcjPatche)
+
+            pom {
+                name.set("ecj 3.40.0 patché ART — compagnon runtime du moteur Java LSP de CodeIDE")
+                description.set(
+                    "Jar ecj 3.40.0 réécrit pour le runtime Android/ART (minSdk 26) : " +
+                        "renommages Runtime.Version / StackWalker / readAllBytes vers les shims " +
+                        "jo.codeide.lsp.ecjart.compat, signatures retirées, registre des " +
+                        "modifications embarqué (META-INF/ECJ-ART-MODIFICATIONS.txt, " +
+                        "EPL-2.0). Compagnon runtime du moteur jo-codeide-lsp-java " +
+                        "(dépendance compileOnly : l'hôte ajoute ce jar au classpath).",
+                )
+                url.set("https://github.com/jjoblab/code-lsp")
+                licenses {
+                    license {
+                        name.set("Eclipse Public License 2.0")
+                        url.set("https://www.eclipse.org/legal/epl-2.0/")
+                    }
+                }
+                developers {
+                    developer {
+                        id.set("jjoblab")
+                        name.set("jjoblab")
+                    }
+                }
+                scm {
+                    connection.set("scm:git:https://github.com/jjoblab/code-lsp.git")
+                    developerConnection.set("scm:git:https://github.com/jjoblab/code-lsp.git")
+                    url.set("https://github.com/jjoblab/code-lsp")
+                }
+            }
+        }
+    }
 }

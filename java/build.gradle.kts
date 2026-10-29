@@ -9,7 +9,32 @@
 // Bytecode 17 (consommable par la chaîne Android/ART d8 — convention dépôt).
 plugins {
     kotlin("jvm")
+    `maven-publish`
 }
+
+// ---------------------------------------------------------------------------
+// Publication Maven — bascule §8.5 (décision signée le 30/10/2026), voie
+// PRODUCTION GitHub Packages (docs/BASCULE-CODEIDE.md §3.2.1). Coordonnées
+// FIXÉES ici (rien ne les épingle ailleurs) :
+//   jo.codeide.lsp.java:jo-codeide-lsp-java:<version du dépôt>
+//   → https://maven.pkg.github.com/jjoblab/code-lsp (workflow publish.yml,
+//     déclenché sur tag v*).
+// Le COMPAGNON RUNTIME (jar ecj patché de :ecj-art) est publié SOUS sa
+// propre coordonnée par le module :ecj-art — le moteur reste ecj-less par
+// construction (compileOnly : « l'hôte fournit le jar », ADR 0005) et la
+// séparation de licences Apache-2.0 / EPL-2.0 est préservée (ADR 0017 :
+// jamais d'ecj embarqué dans l'artefact moteur).
+// Jetons : propriétés Gradle `githubPackagesUtilisateur` /
+// `githubPackagesJeton`, sinon variables d'environnement GITHUB_ACTOR /
+// GITHUB_TOKEN (fournies par Actions au publish) — JAMAIS codées en dur.
+// publishToMavenLocal fonctionne sans jeton (dépôt local, aucun contact
+// réseau) : c'est le chemin de test documenté (BASCULE-CODEIDE §3.2).
+// ---------------------------------------------------------------------------
+val depotGithubPackages = uri("https://maven.pkg.github.com/jjoblab/code-lsp")
+val utilisateurPackages = providers.gradleProperty("githubPackagesUtilisateur")
+    .orElse(providers.environmentVariable("GITHUB_ACTOR"))
+val jetonPackages = providers.gradleProperty("githubPackagesJeton")
+    .orElse(providers.environmentVariable("GITHUB_TOKEN"))
 
 kotlin {
     jvmToolchain(21)
@@ -22,6 +47,20 @@ kotlin {
 java {
     sourceCompatibility = JavaVersion.VERSION_17
     targetCompatibility = JavaVersion.VERSION_17
+    // Sources publiées avec l'artefact (navigation IDE du consommateur —
+    // la KDoc française du moteur y est lisible ; pas de jar javadoc :
+    // dokka hors périmètre, GitHub Packages ne l'exige pas).
+    withSourcesJar()
+}
+
+// Le jar sources voit le répertoire GENERE version-n8 (srcDir de resources
+// du source set main) : dépendance explicite pour l'ordre (validation
+// Gradle des sorties implicites) + exclusion de la ressource générée —
+// version.properties est un artefact de construction (fiche 059 I7 :
+// « NE PAS ÉDITER »), pas une source.
+tasks.named<Jar>("sourcesJar") {
+    dependsOn(genererVersionProps)
+    exclude("**/version.properties")
 }
 
 tasks.test {
@@ -206,5 +245,69 @@ tasks.register<JavaExec>("benchParite") {
     dependsOn(piloteOracleSourceSet.output)
     if (project.hasProperty("resigner")) {
         args("--resigner")
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Publication Maven du moteur (bascule §8.5 — cf. préambule en tête de
+// fichier pour les coordonnées et le contrat de jetons).
+//
+// Invariants vérifiés par la publication elle-même :
+//  - `version.properties` (serverInfo.version = 1.0.0, fiche 059 I7) est
+//    dans le jar : la ressource générée passe par processResources, donc
+//    par la sortie du jar publié — jamais de version fantôme ;
+//  - le POM ne porte PAS ecj (compileOnly : « l'hôte fournit le jar ») —
+//    le compagnon `jo-codeide-lsp-java-ecj-art` est publié par :ecj-art ;
+//  - lsp4j 0.21.2 est la seule dépendance runtime déclarée (scope runtime
+//    dans le POM, consommable par une chaîne Gradle Android).
+// ---------------------------------------------------------------------------
+publishing {
+    repositories {
+        maven {
+            name = "GitHubPackages"
+            url = depotGithubPackages
+            credentials {
+                username = utilisateurPackages.orNull ?: ""
+                password = jetonPackages.orNull ?: ""
+            }
+        }
+    }
+    publications {
+        create<MavenPublication>("moteur") {
+            from(components["java"])
+            groupId = "jo.codeide.lsp.java"
+            artifactId = "jo-codeide-lsp-java"
+            version = project.version.toString()
+
+            pom {
+                name.set("Moteur Java LSP de CodeIDE (réécriture intégrale)")
+                description.set(
+                    "Moteur d'analyse Java LSP de CodeIDE — réécriture intégrale en Kotlin " +
+                        "(bascule §8.5 signée le 30/10/2026). Façades publiques : " +
+                        "jo.codeide.lsp.java.protocole.ServeurLangageJava (LSP) et " +
+                        "jo.codeide.lsp.java.MoteurJava (in-process). Bytecode 17 " +
+                        "(chaîne Android/ART d8). Le jar ecj patché (compagnon runtime, " +
+                        "compileOnly) est publié séparément : jo-codeide-lsp-java-ecj-art.",
+                )
+                url.set("https://github.com/jjoblab/code-lsp")
+                licenses {
+                    license {
+                        name.set("Apache License 2.0")
+                        url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
+                    }
+                }
+                developers {
+                    developer {
+                        id.set("jjoblab")
+                        name.set("jjoblab")
+                    }
+                }
+                scm {
+                    connection.set("scm:git:https://github.com/jjoblab/code-lsp.git")
+                    developerConnection.set("scm:git:https://github.com/jjoblab/code-lsp.git")
+                    url.set("https://github.com/jjoblab/code-lsp")
+                }
+            }
+        }
     }
 }

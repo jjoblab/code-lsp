@@ -20,7 +20,7 @@
 | Façade publique in-process : `jo.codeide.lsp.java.MoteurJava` (tests/bancs, §10 du `USAGE.md`) | `java/src/main/kotlin/.../MoteurJava.kt` |
 | Mode autonome `setStandaloneMode(true)` + lanceur stdio lsp4j documentés (exemple complet) | `USAGE.md` §4.1 |
 | CI **VERTE** sur le commit de la signature (6/6 jobs : banc parité croisée, banc qualité, empreinte/latence, gates Android, provenance, build/tests) | API GitHub Actions, commit `5b0db74` |
-| **Non fait** : publication `maven-publish` vers GitHub Packages — aucun bloc `publishing` dans le dépôt | constat du 30/10 (prérequis §3.2) |
+| **Fait (30/10, PR publication)** : bloc `maven-publish` dans `:java` **et** `:ecj-art` — moteur `jo.codeide.lsp.java:jo-codeide-lsp-java:1.0.0` + compagnon runtime `jo.codeide.lsp.java:jo-codeide-lsp-java-ecj-art:1.0.0` (jar ecj 3.40.0 patché, EPL-2.0 — le moteur est ecj-less par construction, compileOnly : « l'hôte fournit le jar ») ; workflow `publish.yml` (tag `v*`, build de vérification puis publication, `packages: write`) ; `publishToMavenLocal` vérifié : `version.properties=1.0.0` dans le jar, POM sans ecj, lsp4j runtime seule, bytecode 17 | `java/build.gradle.kts`, `ecj-art/build.gradle.kts`, `.github/workflows/publish.yml` (constat du 30/10 au soir — le « non fait » du matin est résolu) |
 
 ## 2. Point d'intégration (inchangé par construction)
 
@@ -50,15 +50,34 @@ de l'artefact moteur.
    écart d'intégration : la consigner et arbitrer (le moteur reste sous
    bancs bloquants dans `code-lsp`).
 
-### 3.2 PRODUCTION — GitHub Packages (prérequis à créer dans code-lsp)
+### 3.2 PRODUCTION — GitHub Packages (publication CONFIGURÉE le 30/10/2026)
 
-1. **À faire dans `code-lsp`** : ajouter le bloc `maven-publish` au module
-   `:java` (publication `jo.codeide.lsp.java:jo-codeide-lsp-java:1.0.0`
-   vers `maven.pkg.github.com/jjoblab/code-lsp`) — PR dédiée, la CI
-   publie sur tag. La coordonnée Maven exacte est à fixer dans cette PR
-   (rien ne l'épingle aujourd'hui).
-2. Dans `CodeIDE` : déclarer le dépôt GitHub Packages (auth token
-   `jjoblab`) et remplacer la dépendance moteur par la coordonnée publiée.
+1. **Fait dans `code-lsp`** (PR publication du 30/10) : bloc `maven-publish` dans le
+   module `:java` — publication **`jo.codeide.lsp.java:jo-codeide-lsp-java:1.0.0`**
+   vers `maven.pkg.github.com/jjoblab/code-lsp` — et dans `:ecj-art` le
+   **compagnon runtime** `jo.codeide.lsp.java:jo-codeide-lsp-java-ecj-art:1.0.0`
+   (jar ecj 3.40.0 patché, octet pour octet — le vendored embarquait ecj dans
+   son jar, le neuf le déclare `compileOnly` : le consommateur ajoute le
+   compagnon au classpath runtime, séparation de licences Apache-2.0 / EPL-2.0
+   préservée, ADR 0017). La CI publie sur **tag `v*`** (`publish.yml` : build de
+   vérification puis `publish`, jetons `GITHUB_ACTOR`/`GITHUB_TOKEN` automatiques
+   d'Actions, permissions `packages: write` — aucun secret personnel à créer).
+   Vérification locale sans jeton : `./gradlew :java:publishToMavenLocal
+   :ecj-art:publishToMavenLocal` (constats du 30/10 : `version.properties=1.0.0`
+   embarquée, POM sans ecj, lsp4j 0.21.2 runtime seule, bytecode 17, jar sources
+   sans ressource générée, compagnon avec registre EPL-2.0).
+2. Dans `CodeIDE` : déclarer le dépôt GitHub Packages (auth token `jjoblab`)
+   pour le groupe `jo.codeide.lsp.java` et consommer la coordonnée publiée —
+   **rails posés le 30/10** (dépôt + filtre `includeGroup` + catalogue +
+   substitution composite sur opt-in, même recette que les frères LayoutLib /
+   codeide-tooling / codeide-lsp). **Re-vérification au HEAD `54e99c6`** (exigée
+   en §2) : la dépendance moteur vit dans le **POM de l'hôte**
+   (`com.github.jjoblab.codeide-lsp:host`, dépôt vendored) — l'hôte consomme la
+   façade `jo.lspjava.*` (4 fichiers, surface étroite : `CompilationEnvironment`,
+   `JavaLanguageServer`, `IndexNoms`, `NavigationTarget`). Le branchement de
+   l'hôte sur la façade neuve (`jo.codeide.lsp.java.*`) est le **chaînon
+   restant** — effort « à estimer dans ce dépôt » (PLAN-REECRITURE §7.4) ; le
+   POM publié ci-dessus est la coordonnée exacte que cette adaptation déclarera.
 3. Incrément de version CodeIDE selon sa convention de release.
 
 ### 3.3 Retour arrière (critère 6 du gabarit — 1 ligne)
