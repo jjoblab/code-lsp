@@ -1049,10 +1049,12 @@ re-signature de `parite-completion.json` (les stubs de façade suivent).
 - **Quick-fixes mono-fichier** (fiche 063) : le multi-fichiers passe
   par le renommage (N5) et le protocole (N8), jamais par ces édits.
 - **Version 0.1.0 = pré-bascule** : la décision §8.5 n'est pas encore
-  prise ; la passe appareil du 29/10 (moto g06 — 18/18, 0 saut,
+  signée ; la passe appareil du 29/10 (moto g06 — 18/18, 0 saut,
   p50/p95 GLOBAL 42,93/73,01 ms) est consignée dans
-  `bancs/GABARIT-BASCULE-APPAREIL.md` (critères 4–6 à arbitrer) ; la
-  version 1.0.0 attendra la bascule à parité (partie déterministe :
+  `bancs/GABARIT-BASCULE-APPAREIL.md` — checklist **6/6** (arbitrages
+  4–6 consignés le 30/10, dont `ANALYSE-DELTAS-BASCULE.md` pour les 165
+  deltas), proposition de bascule en §6 en attente de signature ; la
+  version 1.0.0 attendra la bascule signée (partie déterministe :
   `bancs/baselines/parite-completion.json`).
 - **Organisation des imports** : API moteur seulement (§7.17) — pas
   encore d'action `source.organizeImports` au fil LSP.

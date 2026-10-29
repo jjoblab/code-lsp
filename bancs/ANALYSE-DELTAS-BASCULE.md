@@ -167,6 +167,21 @@ Avec ce classement, le critère §8.5 « 0 comportement perdu contre
 l'oracle » se vérifie : rien de perdu n'est un comportement du cahier ou
 de la politique du neuf — tout ce qui manque est du bruit ou de l'assumé.
 
+**Décision d'arbitrage (critère 4 — déléguée par le propriétaire,
+2026-10-30)** : la classification **103 bruit hors cahier / 62
+divergences assumées / 0 à rattraper** est **ADOPTÉE**. La lecture
+alternative est **écartée** : l'admission graduée de la fiche 008
+(sous-chaîne « admise seulement ≥ 3 caractères ») est implémentée et
+testée comme **filtrage/classement des candidats collectés**
+(`CorrespondanceGraduee`, appliquée à tous les genres) ; la collecte TYPE
+depuis l'annuaire est préfixe-ancrée **par design** (surface publique,
+index par préfixe), et la proposition floue de l'oracle en positions de
+recovery est précisément le bruit que cette analyse classe (103
+libellés). L'extension de collecte aux grades hump/sous-chaîne (unique
+cas défendable : `CopyOnWriteArrayList`) et le filtrage des membres
+package-private restent inscrits au **suivi post-bascule borné** du
+gabarit §6 — non bloquants.
+
 ## 7. Annexe — les 165 libellés, verdict par libellé
 
 | Position | Libellé | Module JDK (vérifié jrt) | Verdict proposé | Motif |

@@ -86,16 +86,35 @@ la passe appareil documente la réalité de bout en bout pour la décision.
 | 1 | Banc de parité croisé VERT en CI (oracle épinglé cb809e14) | ☑ | job CI `Banc parité croisée T (oracle vendored épinglé)` — **success** sur `97cf181` (29/10, vérifié via API GitHub Actions) |
 | 2 | Couverture du cahier sur appareil = 18/18 (§3 ci-dessus) | ☑ | transcript de passe — 18 ✓, aucun manquant |
 | 3 | Latences §4 constatées sur appareil et consignées (§4 ci-dessus) | ☑ | transcript de passe — p50/p95 par genre + GLOBAL consignés |
-| 4 | Deltas du banc croisé (`pertes_vs_oracle` — 165 libellés à la signature du 29/10) arbitrés classe par classe : bruit hors cahier / comportement à rattraper / divergence D8 assumée | ☐ | `bancs/baselines/parite-completion.json` + **analyse préparée : [`ANALYSE-DELTAS-BASCULE.md`](ANALYSE-DELTAS-BASCULE.md)** (proposition : 103 bruit / 62 divergence assumée / 0 à rattraper, deux notes post-bascule bornées) — arbitrage final et validation au propriétaire |
-| 5 | Gates `model.json` dormantes (Fiche010/Fiche039 — dette documentée RECALAGE-2 §5.1) : artefact fourni OU décision explicite de baser la bascule sur les autres couvertures | ☐ | décision consignée |
-| 6 | Plan de retour arrière actif (substitution composite inversée, ADR 0015 — 1 ligne) | ☐ | procédure CodeIDE |
+| 4 | Deltas du banc croisé (`pertes_vs_oracle` — 165 libellés à la signature du 29/10) arbitrés classe par classe : bruit hors cahier / comportement à rattraper / divergence D8 assumée | ☑ | **arbitrage délégué ADOPTÉ (30/10)** : 103 bruit hors cahier / 62 divergences assumées / **0 à rattraper** — décision et lecture alternative écartée consignées au §6 de [`ANALYSE-DELTAS-BASCULE.md`](ANALYSE-DELTAS-BASCULE.md), annexe libellé par libellé (chaque classe vérifiée `jrt` + code des deux moteurs) |
+| 5 | Gates `model.json` dormantes (Fiche010/Fiche039 — dette documentée RECALAGE-2 §5.1) : artefact fourni OU décision explicite de baser la bascule sur les autres couvertures | ☑ | **décision explicite (30/10) : baser la bascule sur les autres couvertures** — banc croisé CI bloquant (oracle épinglé, 18/18) + banc qualité signé + passe appareil §3/§4 ; les 2 gates restent dormantes (hypothèses `assumeTrue` visibles, jamais simulées — R5), à ouvrir post-bascule sur export réel du propriétaire ou équivalent régénérable (piste notée fiche 039) |
+| 6 | Plan de retour arrière actif (substitution composite inversée, ADR 0015 — 1 ligne) | ☑ | « Inverser la substitution composite de `CodeIDE/settings.gradle.kts` (l. 226–251) — `:lsp:host` re-pointe sur le moteur vendored, l'état d'avant est reconstruit **sans re-déploiement du client** (ADR 0015) ; drapeaux serveur off si vagues actives » |
 
 Critères 1–3 cochés sur preuves objectives (CI du 29/10 + transcript
-appareil) ; les critères 4–6 restent à arbitrer par le propriétaire avant
-la décision.
+appareil) ; critères 4–6 arbitrés le **30/10** par décision déléguée du
+propriétaire (« je te laisse décider de la marche à suivre pour le critère 4,
+continue pour 5 et 6 ») et consignés ci-dessus. La décision finale (§6)
+reste à signer par le propriétaire.
 
 ## 6. Décision (à remplir par le propriétaire)
 
-- Décision de bascule : *(bascule / ajournement — motif)*
-- Date, signature : *(à remplir)*
-- Transcript brut joint : *(chemin)*
+> **Proposition préparée le 30/10** : les critères 1–6 sont cochés (preuves
+> §5) ; la décision ci-dessous est une **proposition** — la bascule ne prend
+> effet qu'à la signature du propriétaire.
+
+- Décision de bascule : **proposition — BASCULE**. Motif : 0 comportement du
+  cahier ou de la politique du moteur neuf perdu contre l'oracle (banc croisé
+  VERT sur CI `97cf181`, deltas arbitrés 103/62/0) ; parité constatée sur
+  appareil (18/18, 0 saut — §3) ; latences réelles consignées (p50/p95 GLOBAL
+  42,93/73,01 ms — §4, appareil plus favorable que la bande du spike ×8–14) ;
+  retour arrière en 1 ligne sans re-déploiement (critère 6).
+- **Suivi post-bascule borné** (non bloquant) :
+  1. filtrer les membres package-private lus au bytecode (`valueOfCodePoint`,
+     `coder`, `value`, `hash`, `hashIsZero`, `isLatin1`) — aligner les MEMBRES
+     sur le choix « surface publique » déjà porté par les TYPES (ANALYSE §5) ;
+  2. *(optionnel)* étendre la collecte TYPE aux grades hump/sous-chaîne, en
+     bas de liste (seul cas défendable : `CopyOnWriteArrayList` — ANALYSE §6) ;
+  3. ouvrir les gates `model.json` (Fiche010/Fiche039) sur export réel ou
+     équivalent régénérable (critère 5).
+- Date, signature : *(en attente du propriétaire)*
+- Transcript brut joint : `bancs/resultats-bascule.txt` (§1)
