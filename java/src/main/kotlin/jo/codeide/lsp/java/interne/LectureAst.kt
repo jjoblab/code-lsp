@@ -1,5 +1,6 @@
 package jo.codeide.lsp.java.interne
 
+import jo.codeide.lsp.java.completion.GradeCorrespondance
 import org.eclipse.jdt.internal.compiler.ASTVisitor
 import org.eclipse.jdt.internal.compiler.ast.AbstractMethodDeclaration
 import org.eclipse.jdt.internal.compiler.ast.AllocationExpression
@@ -29,6 +30,13 @@ import org.eclipse.jdt.internal.compiler.lookup.VariableBinding
  * Nature d'un item de complétion (étage N1, cahier fiche 028) — kinds
  * DISTINCTS exigés par le contrat : FIELD / VARIABLE / KEYWORD / CLASS /
  * METHOD / PARAMETER.
+ *
+ * Étage N2 (complétion & classement) : le répertoire s'étend aux candidats
+ * des fiches 007/008/043/044/050 — paquets (kind LSP Module), interfaces,
+ * constantes d'enum (kind LSP Enum), snippets (stubs d'override, fiche 007)
+ * et types annotation (kind LSP Class + marqueur `data` — fiche 050). Les
+ * valeurs s'ajoutent EN FIN : l'ordre de l'énumération ordonne le repli
+ * instantané N1 (contrat préservé).
  */
 public enum class NatureItem {
     /** Type déclaré dans l'unité courante. */
@@ -48,17 +56,60 @@ public enum class NatureItem {
 
     /** Mot-clé du langage Java. */
     MOT_CLE,
+
+    /** Sous-paquet (segment simple) — kind LSP Module (fiche 050). */
+    PAQUET,
+
+    /** Type interface — kind LSP Interface (fiche 050). */
+    INTERFACE,
+
+    /** Type annotation (`@interface`) — kind LSP Class + data "annotation" (fiche 050). */
+    ANNOTATION,
+
+    /** Constante d'enum (labels de switch, valeurs d'annotation) — kind LSP Enum (fiche 007). */
+    CONSTANTE_ENUM,
+
+    /** Extrait de code — stub d'override (fiche 007) — kind LSP Snippet. */
+    EXTRAIT,
 }
 
 /**
  * Un item de complétion.
  *
- * @property libelle le texte insérable proposé au client.
+ * Étage N2 : l'item porte le CONTRAT CLIENT complet des fiches 007/008/
+ * 036/043/044/050 — texte d'insertion distinct du libellé (segment simple
+ * pour un paquet, extrait de code pour un stub), détail (FQN du paquet,
+ * signature de méthode), proposition d'auto-import, marqueur `data` LSP
+ * (p. ex. `annotation`) et grade de correspondance (banc de qualité).
+ * Les champs nouveaux ont des VALEURS PAR DÉFAUT : les appels N1
+ * (`ItemCompletion(libelle, nature)`) restent valides — compatibilité de
+ * source conservée.
+ *
+ * @property libelle le texte affiché proposé au client (p. ex. `toString(`
+ *   pour un stub d'override — fiche 007).
  * @property nature la nature de l'item (kind LSP côté hôte).
+ * @property texteInsertion le texte inséré (null = le libellé) — JAMAIS un
+ *   FQN en contexte de paquet déjà tapé (règle d'or 5, fiche 044).
+ * @property detail le détail affichable (FQN complet d'un paquet — règle
+ *   d'or 5 ; signature d'une méthode).
+ * @property autoImportFqn l'import proposé avec l'item (null = aucun) —
+ *   JAMAIS en contexte d'import déjà tapé (règle d'or 4, fiche 044).
+ * @property extrait vrai ssi l'item est un snippet LSP (stubs d'override,
+ *   fiche 007 : `$0` final obligatoire).
+ * @property marqueur le champ `data` LSP (p. ex. `annotation` pour un type
+ *   annotation — fiche 050 : badge « @ » côté client).
+ * @property correspondance le grade de matching du préfixe (banc de
+ *   qualité — la dominance du préfixe, fiche 008).
  */
 public data class ItemCompletion(
     public val libelle: String,
     public val nature: NatureItem,
+    public val texteInsertion: String? = null,
+    public val detail: String? = null,
+    public val autoImportFqn: String? = null,
+    public val extrait: Boolean = false,
+    public val marqueur: String? = null,
+    public val correspondance: GradeCorrespondance? = null,
 )
 
 /**

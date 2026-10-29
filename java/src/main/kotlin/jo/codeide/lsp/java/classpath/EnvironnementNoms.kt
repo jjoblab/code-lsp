@@ -48,6 +48,11 @@ public class EnvironnementNoms(
     /** Accès jrt (null si la plateforme est absente — régime instantané). */
     public val accesJrt: AccesJrt? = AccesJrt.ouvrir(jdkHome)
 
+    /** Annuaire du classpath (étage N2 — complétion), paresseux et unique. */
+    public val annuaire: AnnuaireClasspath by lazy {
+        AnnuaireClasspath(racines, jars, accesJrt)
+    }
+
     /** Indique si une image jrt est chargée (sonde de plateforme). */
     public fun jrtDisponible(): Boolean = accesJrt != null
 

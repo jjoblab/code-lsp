@@ -1,6 +1,8 @@
 package jo.codeide.lsp.java
 
 import jo.codeide.lsp.java.classpath.EnvironnementNoms
+import jo.codeide.lsp.java.completion.ReponseCompletion
+import jo.codeide.lsp.java.completion.ServiceCompletion
 import jo.codeide.lsp.java.diagnostics.Diagnostic
 import jo.codeide.lsp.java.diagnostics.Plage
 import jo.codeide.lsp.java.diagnostics.Severite
@@ -76,6 +78,9 @@ public class MoteurJava(
 
     /** Cache de parse LRU (fiche 025). */
     private val cacheParse = CacheParse()
+
+    /** Service de complétion & classement (étage N2), paresseux. */
+    private var serviceCompletion: ServiceCompletion? = null
 
     /** États rapides par chemin (fiche 014/015). */
     private val etatsRapides = HashMap<String, DiagnoseRapide.Etat>()
@@ -400,17 +405,32 @@ public class MoteurJava(
      * @return les items de complétion.
      */
     public fun complete(chemin: String, source: String?, offset: Int): List<ItemCompletion> = synchronized(this) {
-        if (source.isNullOrEmpty()) return emptyList()
+        completer(chemin, source, offset).items
+    }
+
+    /**
+     * Complétion RICHE au caret (étage N2 — fiches 007/008/035/043/044) :
+     * le pipeline complet — analyse de contexte (sonde à chaud puis source
+     * marquée), collecte par genre, filtrage gradué (le préfixe domine,
+     * bonus −200), chaîne de peseurs D8, gel des têtes et plafond honnête
+     * de 120 items (total réel communiqué).
+     *
+     * En régime instantané (fiche 028), le service rend la complétion du
+     * fichier courant (champs/méthodes/locales/mots-clés filtrés par
+     * préfixe) — le repli est natif, jamais une levée.
+     *
+     * @param chemin chemin logique du document.
+     * @param source le texte Java (null ou vide toléré).
+     * @param offset la position du caret.
+     * @return la réponse (items + total disponible + genre) — jamais nulle.
+     */
+    public fun completer(chemin: String, source: String?, offset: Int): ReponseCompletion = synchronized(this) {
+        if (source.isNullOrEmpty()) return ReponseCompletion(emptyList(), 0, jo.codeide.lsp.java.completion.GenreContexte.INCONNU)
         if (!isLikelyUsableInterne()) {
-            return RegimeInstantane.completionInstantanee(pontEcj(), unite(chemin, source), source, offset)
+            val items = RegimeInstantane.completionInstantanee(pontEcj(), unite(chemin, source), source, offset)
+            return ReponseCompletion(items, items.size, jo.codeide.lsp.java.completion.GenreContexte.NOM)
         }
-        val cible = resoudrePourOffset(chemin, source, offset)
-        if (cible != null) {
-            val sourceArbre = cible.sourceArbre
-            val membres = LectureAst.completionMembres(cible.arbre, sourceArbre, cible.position)
-            if (membres.isNotEmpty()) return membres
-        }
-        return RegimeInstantane.completionInstantanee(pontEcj(), unite(chemin, source), source, offset)
+        serviceCompletion().completer(chemin, source, offset)
     }
 
     /**
@@ -570,6 +590,31 @@ public class MoteurJava(
         val pont = PontEcj(environnementNoms(), compliance)
         this.pont = pont
         return pont
+    }
+
+    /** Service de complétion paresseux (étage N2). */
+    private fun serviceCompletion(): ServiceCompletion {
+        serviceCompletion?.let { return it }
+        val service = ServiceCompletion(
+            pontFournisseur = { pontEcj() },
+            environnementFournisseur = { environnementNoms() },
+            arbreOriginal = { chemin, source -> arbreOriginal(chemin, source) },
+        )
+        serviceCompletion = service
+        return service
+    }
+
+    /**
+     * Arbre résolu de la source ORIGINALE (cache de parse puis résolution
+     * fraîche) — la sonde à chaud de la complétion y lit les récepteurs.
+     */
+    private fun arbreOriginal(chemin: String, source: String): org.eclipse.jdt.internal.compiler.ast.CompilationUnitDeclaration? {
+        val existante = cacheParse.obtenir(chemin, source)
+        if (existante != null) return existante.unite.arbre
+        val reponse = pontEcj().resoudre(unite(chemin, source), genererCode = false)
+        val uniteResolue = UniteResolue(reponse.arbre, chemin, source, genererCode = false)
+        cacheParse.ranger(chemin, source, uniteResolue, genererCode = false, focused = null)
+        return reponse.arbre
     }
 
     /** Unité de compilation en mémoire. */

@@ -49,12 +49,78 @@ public class AccesJrt private constructor(
     public fun estPaquet(paquet: String): Boolean = paquetsVersModules.containsKey(paquet)
 
     /**
+     * Ensemble des paquets déclarés par l'image (étage N2 — segments de
+     * l'annuaire de classpath, sans nouvelle traversée du système de
+     * fichiers : la carte a été construite à l'ouverture).
+     *
+     * @return les noms de paquets connus (en points).
+     */
+    public fun paquetsConnus(): Set<String> = paquetsVersModules.keys.toSet()
+
+    /**
      * Modules déclarant un paquet (sonde de diagnostic).
      *
      * @param paquet nom du paquet en points.
      * @return la liste (possiblement vide) des noms de modules.
      */
     public fun modulesDe(paquet: String): List<String> = paquetsVersModules[paquet]?.toList() ?: emptyList()
+
+    /**
+     * Noms simples des classes POSÉES dans un paquet (étage N2 — annuaire de
+     * classpath) : liste le répertoire du paquet dans chaque module qui le
+     * déclare. Paresseux et sans cache interne : l'appelant (annuaire) mémorise.
+     *
+     * @param paquet nom du paquet en points.
+     * @return les noms simples des `.class` du paquet (imbriqués `$` compris —
+     *   le filtrage est en aval, fiche 032).
+     */
+    public fun nomsClassesDuPaquet(paquet: String): List<String> {
+        val modules = paquetsVersModules[paquet] ?: return emptyList()
+        val noms = mutableListOf<String>()
+        for (module in modules) {
+            val dossier = racineModules.resolve(module).resolve(paquet.replace('.', '/'))
+            if (!Files.isDirectory(dossier)) continue
+            try {
+                Files.list(dossier).use { entrees ->
+                    entetes@ for (entree in entrees) {
+                        val nom = entree.fileName.toString()
+                        if (nom.endsWith(".class")) noms.add(nom.removeSuffix(".class"))
+                    }
+                }
+            } catch (_: Exception) {
+                // module illisible : écarté
+            }
+        }
+        return noms
+    }
+
+    /**
+     * Traversée intégrale de l'image (étage N2 — index des noms) : rend à
+     * [consommateur] le chemin de CHAQUE fichier de classe sous
+     * `/modules/<module>/<paquet>/…` (forme `paquet/Nom.class`), une seule
+     * passe. Réservé à la construction de l'index par préfixe de l'annuaire.
+     *
+     * @param consommateur receveur de chaque chemin de classe (barres `/`).
+     */
+    public fun parcourirClasses(consommateur: (String) -> Unit) {
+        val racine = fs.getPath("/modules")
+        if (!Files.isDirectory(racine)) return
+        try {
+            Files.walk(racine).use { flux ->
+                flux.filter { Files.isRegularFile(it) && it.fileName.toString().endsWith(".class") }
+                    .forEach { chemin ->
+                        val relatif = racine.relativize(chemin).toString()
+                        // Le premier segment est le module : l'entrée de classe
+                        // commence après (forme paquet/Nom.class).
+                        val premiereBarre = relatif.indexOf('/')
+                        if (premiereBarre > 0) consommateur(relatif.substring(premiereBarre + 1))
+                    }
+            }
+        } catch (_: Exception) {
+            // image illisible : traversée avortée, l'appelant garde le partiel
+        }
+    }
+
 
     /**
      * Lit les octets du fichier de classe d'un FQCN dans l'image.
