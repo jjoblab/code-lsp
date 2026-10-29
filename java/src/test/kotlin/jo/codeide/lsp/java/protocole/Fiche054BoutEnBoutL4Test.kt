@@ -28,7 +28,6 @@ import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
-import org.junit.jupiter.api.io.TempDir
 
 /**
  * Fiche 054 — JavaL4BoutEnBoutTest : suite E2E multi-capacités du « lot
@@ -53,8 +52,14 @@ import org.junit.jupiter.api.io.TempDir
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class Fiche054BoutEnBoutL4Test {
 
-    @TempDir
-    lateinit var dossier: Path
+    /**
+     * La racine des fixtures (MANUELLE — motif Fiche026/066 : le champ
+     * @TempDir est RÉINJECTÉ par JUnit après le @BeforeAll, sur un AUTRE
+     * répertoire que le paramètre — les relectures disque post-@BeforeAll
+     * (le contrat start/end du superDefinition) liraient un répertoire
+     * VIDE : NoSuchElementException silencieuse).
+     */
+    private lateinit var dossier: Path
 
     /** Le serveur réel de la suite (montage du cahier). */
     private var boucle: BoucleLocale? = null
@@ -104,8 +109,8 @@ class Fiche054BoutEnBoutL4Test {
     """.trimIndent() + "\n"
 
     @BeforeAll
-    fun avantTout(@TempDir racine: Path) {
-        dossier = racine
+    fun avantTout() {
+        dossier = Files.createTempDirectory("fiche054-l4")
         // Hypothèse d'environnement VISIBLE du cahier : sans android.jar,
         // les tests du lot sont IGNORÉS (gate dormante — la CI l'ouvre).
         val androidJar = jo.codeide.lsp.java.OutilsFixture.androidJar()
