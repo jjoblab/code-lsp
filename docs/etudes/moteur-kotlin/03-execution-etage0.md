@@ -84,7 +84,9 @@ MODULE se fait au `:kotlin:bench` (constantes de méthode inchangées).
 
 **Dexage d8 (build-tools r34, `--release --min-api 26`, pile chaude
 complète : moteur + syntax-api + lang-syntax + annotations + stdlib)
-[mesuré au bac à sable — E-K2 levé de fait : d8 téléchargé et exécuté] :**
+[mesuré au bac à sable PUIS CONFIRMÉ PAR LA CI — run 40983625879, job
+« Moteur Kotlin - scan ART + dexage d8 », chiffres identiques à l'octet
+près : le dex est déterministe] :**
 
 | Mesure | Valeur | Seuil étage 0 | Verdict |
 |---|---:|---:|---|
@@ -102,6 +104,11 @@ mémoire : l'oracle ancien complet = 876 998 o / 287 classes [mesuré spike]).
 | Parité grammaire verte | **Atteinte** | 14/14 tests fiches 010–012 : corpus 280 fichiers SANS marqueur d'erreur + digeste baseline signée (280 lignes) + tolérance (0 lever) + fixtures |
 | Zéro fichier hors registre | **Atteint** | `scripts/verifier-provenance.sh` rc=0 (trois régimes OK) ; test négatif validé (rc=1 sur fichier de zone non inscrit) |
 | 0 motif ART | **Atteint** | Moteur + pile spécifique : AUCUNE référence sensible (tableau §3) |
+
+**CI VERTE sur le commit de clôture** (run `40983625879`, commit `d175a14` —
+9/9 jobs : build, banc-noyau, gates-android, banc-qualité, banc-parité,
+provenance [étendu kotlin/], **kotlin-parite, kotlin-art, kotlin-banc** —
+API GitHub Actions, consulté le 30/10 à 01:05 UTC).
 
 **L'étage 0 est CLOS sur ses quatre critères.** La suite (étage 1) attend :
 le gabarit appareil rempli (porte d'entrée, §5 du gabarit) et les arbitrages
