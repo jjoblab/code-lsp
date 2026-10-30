@@ -47,6 +47,11 @@
 > interne gagne), `kt.typeMismatch`/`kt.argumentCount`/`kt.unsafeNullable`/
 > `kt.unreachable`/`kt.valReassign` et le quick-fix `importsCandidats` ;
 > 59/204 comportements diagnostics verts (fiches 017+022+006+046).**
+> **Clôture (30/10) — VAGUE 2B CLOSE : CI VERTE 9/9 sur le commit de
+> livraison `20fd00b` (run `41081927798`, première tentative) ; 191 tests
+> verts toolchain 17, scan ART 6 × AUCUNE, dex 25 152 méthodes /
+> 3 936 216 o (identiques au bac à sable, seuils tenus — E-K8 à 94 %) ;
+> la vague 2c (membres hérités) est la suivante (§6.4).**
 
 ## 1. Périmètre de l'étage (plan §4 — cahier en main)
 
@@ -326,18 +331,28 @@ et la question de la vue JVM des membres du classpath) est la suivante.
 
 ### 6.4 Clôture de la vague 2b
 
-**CI attendue sur le commit de livraison** (les 9 tâches : build/tests
-JDK 21, bancs noyau/qualité/parité T, gates Android, provenance, et les
-trois jobs Kotlin — suite du module toolchain 17 attendue à 191 tests,
-scan ART 6 × AUCUNE, dexage d8 25 152 / 3 936 216 o, banc JDK 17). La
-consultation du run et la clôture formelle suivent le push.
+**CI VERTE 9/9 sur le commit de livraison `20fd00b`** (run `41081927798`,
+consulté le 30/10 — PREMIÈRE TENTATIVE, aucun écart d'exécution) : build
+et tests JDK 21, bancs noyau/qualité/parité T, gates Android, provenance
+(rc=0), et les trois jobs Kotlin — suite du module **191 tests VERTS sur
+la toolchain 17** (fiches 010-013 + 049/042/041 + 002-005/008/009/034 +
+synthétiques R1/R2 + 017/022/006 + **046**), scan ART **6 × « AUCUNE »**
+sur la pile complète (moteur 208 classes / 267 méthodes déclarées —
+ServiceLoader OK descripteur vérifié), dexage d8 **25 152 références de
+méthodes / 3 936 216 o (3,75 Mo)** [mesurés par la CI — IDENTIQUES au bac
+à sable, seuils étage 0 tenus, E-K8 à 94 %], banc empreinte/latence sous
+JDK 17 (froid 126,6/17,4 ms, p50 5,3/12,0 ms, p95 15,1/18,3 ms,
+productions 5 448/31 368 et jetons 4 210/24 274 — déterminisme IDENTIQUE,
+marqueurs d'erreur 0, tas 2 008 Kio sur le runner).
 
-**LA VAGUE 2B EST LIVRÉE sur preuves bac à sable** : les familles
-sémantiques K4 de la fiche 046 sont vertes (39/39 — typage borné, smart
-casts positionnels, lambdas par attente, les cinq codes `kt.*`,
-gardes KP8/ADR 0203, `importsCandidats`), la vue JVM des membres du
-classpath est posée (lecteur maison piloté par les entrées) et le tableau
-règles × spec est rempli (P13, A12-A17, G5 verrouillé, frontières 2b).
-59/204 comportements diagnostics verts. La vague 2c (membres hérités :
-clôture des supertypes, chaîne profondeur 7 du monde Views — fiches
-044/028/032/040/029, 44 comportements) est la suivante.
+**LA VAGUE 2B EST CLOSE sur preuve mécanique** : les familles sémantiques
+K4 sont livrées — la vue JVM des membres du classpath (lecteur maison
+piloté par les entrées, décision Q-K1 à minima), les smart casts
+positionnels, les lambdas par attente, la liaison positionnelle, les cinq
+codes `kt.typeMismatch`/`kt.argumentCount`/`kt.unsafeNullable`/
+`kt.unreachable`/`kt.valReassign`, les sélecteurs sur récepteurs de
+bibliothèque (ADR 0223) et le quick-fix `importsCandidats` ; 39/39
+comportements de la fiche 046 verts, 59/204 au critère §2. La vague 2c
+(membres hérités : clôture des supertypes, chaîne profondeur 7 du monde
+Views, frère projet ouvert vivant — fiches 044/028/032/040/029, 44
+comportements) est la suivante.
