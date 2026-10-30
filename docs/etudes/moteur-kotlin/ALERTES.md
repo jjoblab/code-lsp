@@ -189,6 +189,9 @@
   seuil CI échoue toujours au-delà de 6 Mo) ; les leviers alternatifs
   (Q-K2 décodeur maison, Q-K1) restent consignés si le budget devait
   fondre à nouveau.
+  - *Actualisation vague 2d (31/10, clôture `df77e91`)* : 25 287 méthodes /
+    3 985 408 o — +14 méthodes / +5 260 o, **63 %** du budget 6 Mo et
+    77 % du seuil méthodes ; la marge tient, surveillance maintenue.
 
 ## 5. Points restés « à vérifier » (non clos par l'étude)
 

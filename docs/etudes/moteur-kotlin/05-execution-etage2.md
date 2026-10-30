@@ -96,6 +96,12 @@
 > TYPEALIAS de bibliothèque en chemin qualifié (voie d-bis) et le TYPE des
 > CHAMPS de bibliothèque (descripteur de champ = type NU) ; 128/204
 > comportements diagnostics verts.**
+> **Clôture (31/10) — VAGUE 2D CLOSE : CI VERTE 9/9 sur le commit de
+> livraison `df77e91` (run `41102336444`, première tentative) ; 260 tests
+> verts toolchain 17, scan ART 6 × AUCUNE, dex 25 287 méthodes /
+> 3 985 408 o (identiques au bac à sable, seuils tenus sous le NOUVEAU
+> budget 6 Mo — E-K8 à 63 %) ; la vague 2e (KMP, sources générées,
+> troncation, Compose, `.gradle.kts`) est la suivante (§8.4).**
 
 ## 1. Périmètre de l'étage (plan §4 — cahier en main)
 
@@ -653,3 +659,34 @@ builtin — fiches 023/024/026/033/037, 25 comportements) est la suivante.
 - **Provenance** : `verifier-provenance.sh` rc=0 (aucune reprise nouvelle
   — code NEUF intégral ; kotlinx-coroutines en dépendance de TEST seule,
   jamais dans la pile chaude).
+
+### 8.4 Clôture de la vague 2d
+
+**CI VERTE 9/9 sur le commit de livraison `df77e91`** (run `41102336444`,
+consulté le 31/10 — PREMIÈRE TENTATIVE, aucun écart d'exécution) : build
+et tests JDK 21, bancs noyau/qualité/parité T, gates Android, provenance,
+et les trois jobs Kotlin — suite du module **260 tests VERTS sur la
+toolchain 17** (fiches 010-013 + 049/042/041 + 002-005/008/009/034 +
+synthétiques R1/R2 + 017/022/006 + 046 + 044/028/032/040/029 +
+**023/024/026/033/037**), scan ART **6 × « AUCUNE »** sur la pile complète
+(moteur 225 classes / 276 méthodes déclarées — ServiceLoader OK
+descripteur vérifié), dexage d8 **25 287 références de méthodes /
+3 985 408 o (3,80 Mo)** — IDENTIQUES au bac à sable, seuils étage 0 tenus
+**sous le NOUVEAU budget** (≤ 32 768 méthodes, ≤ 6 Mo — budget T1 élevé
+par le propriétaire le 31/10, E-K8 : 63 % du budget taille), banc
+empreinte/latence sous JDK 17 (froid 337,1/39,9 ms, p50 10,7/32,8 ms,
+p95 24,6/43,3 ms, productions 5 448/31 368 et jetons 4 210/24 274 —
+déterminisme IDENTIQUE, marqueurs d'erreur 0, tas 2 009 Kio sur le
+runner).
+
+**LA VAGUE 2D EST CLOSE sur preuve mécanique** : le classpath côté Kotlin
+est livré — les compagnons (projet et classpath, la porte à trois états),
+les objets `INSTANCE` (survol typé et propriétaire déclarant), les
+extensions sur les maillons distanciés (coroutines réelles), les
+intrinsèques réputées (voie 6-bis), les typealias de bibliothèque en
+chemin qualifié (voie d-bis) et le type des champs de bibliothèque ;
+25/25 comportements des fiches 023/024/026/033/037 verts, **128/204** au
+critère §2. La vague 2e (KMP expect/actual deux racines, sources générées
+`build/generated`, troncation du scan réfléchie dans l'univers, motifs
+Compose stdlib réel, scripts `.gradle.kts` muets sans modèle Gradle —
+fiches 030/031/035/036/025/027, 32 comportements) est la suivante.
