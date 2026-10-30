@@ -64,6 +64,7 @@ internal object NavigationDocuments {
         autres: List<Pair<String, DocumentOuvert>>,
         scan: ScanSources?,
         deplacement: Int,
+        externes: List<Pair<String, String>> = emptyList(),
     ): List<EmplacementKotlin> {
         val identifiant = jetonIdentifierA(cible.arbre.noeud, deplacement) ?: return emptyList()
         val nom = identifiant.texte
@@ -92,9 +93,22 @@ internal object NavigationDocuments {
         // 3. Les déclarations externes du scan (L1) — l'URI de fichier du
         // scanner et la plage du nom (fiche 031 : l'usage va vers
         // l'`expect` de commonMain).
-        val externe = scan?.declaration(nom) ?: return emptyList()
-        val plage = externe.plageNom ?: return emptyList()
-        return listOf(EmplacementKotlin(uri = externe.uri, plage = plage))
+        val externe = scan?.declaration(nom)
+        if (externe != null) {
+            val plage = externe.plageNom ?: return emptyList()
+            return listOf(EmplacementKotlin(uri = externe.uri, plage = plage))
+        }
+
+        // 4. Les types du MODÈLE externe (vague 2f — fiche 047 : la
+        // définition d'une référence Kotlin OUVRE LE JAVA du scan ; la
+        // classe ViewBinding ouvre le FICHIER DE LAYOUT — l'URI portée par
+        // la contribution, la plage nulle d'une source non lue).
+        for ((nomSimple, uriExterne) in externes) {
+            if (nomSimple == nom && uriExterne.isNotEmpty()) {
+                return listOf(EmplacementKotlin(uri = uriExterne, plage = PlageTexte(0, 0)))
+            }
+        }
+        return emptyList()
     }
 
     /**

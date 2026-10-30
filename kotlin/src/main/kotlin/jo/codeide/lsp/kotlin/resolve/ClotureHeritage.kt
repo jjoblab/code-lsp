@@ -128,6 +128,15 @@ internal class PileThis private constructor(private val couches: List<CoucheThis
         couches.firstNotNullOfOrNull { it.cloture?.membre(nom) }
 
     /**
+     * Les MEMBRES de toutes les couches (vague 2f — fiche 047 : dans un
+     * `with(récepteur) { … }` les membres du récepteur implicite se
+     * proposent SANS sélecteur — la complétion de nom les collecte de la
+     * pile entière, la profonde d'abord).
+     */
+    internal val membresDesCouches: Set<String>
+        get() = couches.flatMapTo(LinkedHashSet()) { it.cloture?.membres?.keys.orEmpty() }
+
+    /**
      * Le TYPE d'un membre de la pile (vague 2c — le typage des récepteurs
      * implicites : `layoutInflater` type `LayoutInflater`, `compte` type
      * `Int`, l'imbriquée `Resultats` type `Base$Resultats`).
@@ -491,6 +500,32 @@ internal object Couches {
                         }
                     } else {
                         noeud.enfants.forEach { marcher(it, chemin) }
+                    }
+                }
+                KtNodeTypes.CALL_EXPRESSION -> {
+                    // Vague 2f (fiche 047) : la lambda traînante d'un
+                    // `with(récepteur) { … }` porte le PREMIER ARGUMENT en
+                    // this implicite (miroir de la passe sémantique).
+                    val nom = noeud.enfants
+                        .firstOrNull { it.genre == KtNodeTypes.REFERENCE_EXPRESSION }
+                        ?.texteCanonique
+                    val coucheWith = if (nom == "with") {
+                        val premierArgument = noeud.enfants
+                            .firstOrNull { it.genre == KtNodeTypes.VALUE_ARGUMENT_LIST }
+                            ?.enfants?.firstOrNull { it.genre == KtNodeTypes.VALUE_ARGUMENT }
+                            ?.enfants?.firstOrNull()
+                        premierArgument?.let {
+                            TypageBorne.typeDeLexpression(it, univers, liaison, pile)
+                                ?.let { type -> deType(univers, type) }
+                        }
+                    } else {
+                        null
+                    }
+                    for (enfant in noeud.enfants) {
+                        if (enfant.genre == KtNodeTypes.LAMBDA_ARGUMENT && coucheWith != null) {
+                            pile = pile.empiler(coucheWith)
+                        }
+                        marcher(enfant, chemin)
                     }
                 }
                 else -> noeud.enfants.forEach { marcher(it, chemin) }

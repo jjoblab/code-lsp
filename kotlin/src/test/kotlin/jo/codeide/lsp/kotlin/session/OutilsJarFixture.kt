@@ -25,12 +25,13 @@ import java.util.zip.ZipOutputStream
  */
 internal object OutilsJarFixture {
 
-    /** Un membre de fixture (nom, descripteur JVMS §4.3, champ ou méthode, drapeau statique). */
+    /** Un membre de fixture (nom, descripteur JVMS §4.3, champ ou méthode, drapeaux). */
     internal class Membre(
         internal val nom: String,
         internal val descripteur: String,
         internal val estChamp: Boolean,
         internal val estStatique: Boolean = false,
+        internal val estAbstrait: Boolean = false,
     )
 
     /** Un bâtisseur accumulant les classes avant écriture. */
@@ -74,6 +75,9 @@ internal object OutilsJarFixture {
 
     /** Une méthode STATIQUE de fixture (vague 2d — le compagnon `@JvmStatic`). */
     internal fun methodeStatique(nom: String, descripteur: String): Membre = Membre(nom, descripteur, false, estStatique = true)
+
+    /** Une méthode ABSTRAITE de fixture (vague 2f — l'interface binaire, ACC_ABSTRACT 0x0401). */
+    internal fun methodeAbstraite(nom: String, descripteur: String): Membre = Membre(nom, descripteur, false, estAbstrait = true)
 
     /** Les octets d'un class-file minimal (pool dédupliqué, membres sans attributs). */
     private fun octetsClasse(fqcn: String, superFqcn: String?, membres: List<Membre>): ByteArray {
@@ -120,8 +124,12 @@ internal object OutilsJarFixture {
                 for (membre in duGenre) {
                     // ACC_PUBLIC (jamais SYNTHETIC/BRIDGE) ; ACC_STATIC pour
                     // les membres statiques (vague 2d — INSTANCE des objets,
-                    // compagnons, const) — 0x0009.
-                    flux.writeShort(if (membre.estStatique) 0x0009 else 0x0001)
+                    // compagnons, const) — 0x0009 ; ACC_ABSTRACT pour les
+                    // méthodes d'interface (vague 2f) — 0x0401.
+                    var acces = 0x0001
+                    if (membre.estStatique) acces = acces or 0x0008
+                    if (membre.estAbstrait) acces = acces or 0x0400
+                    flux.writeShort(acces)
                     flux.writeShort(indexDe(membre.nom))
                     flux.writeShort(indexDe(membre.descripteur))
                     flux.writeShort(0) // attributes_count.

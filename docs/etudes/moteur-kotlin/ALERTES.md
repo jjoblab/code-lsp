@@ -192,6 +192,10 @@
   - *Actualisation vague 2d (31/10, clôture `df77e91`)* : 25 287 méthodes /
     3 985 408 o — +14 méthodes / +5 260 o, **63 %** du budget 6 Mo et
     77 % du seuil méthodes ; la marge tient, surveillance maintenue.
+  - *Actualisation vagues 2e/2f (31/10, livraisons `53da2ef` et à
+    suivre)* : 2e 25 343 / 4 000 812 o (64 %) ; 2f 25 420 méthodes /
+    4 030 652 o (3,84 Mo) — méthodes 78 % du plafond, taille **64 %** ;
+    la marge tient pour la vague de clôture 2g, surveillance maintenue.
 
 ## 5. Points restés « à vérifier » (non clos par l'étude)
 

@@ -157,6 +157,45 @@ public interface SessionLangageKotlin : AutoCloseable {
     public fun importsCandidats(uri: String, deplacement: Int): List<String>
 
     /**
+     * Rend les CORRECTIFS DE TEXTE du document (étage 2 vague 2f — fiche
+     * 016 : accès non sûr `?.`/`!!`/entourage, conversions de littéraux).
+     *
+     * Le moteur RE-PROUVE le document courant (jamais un diagnostic
+     * périmé) : un correctif existe SI ET SEULEMENT SI le diagnostic
+     * correspondant existe — la matrice de conversion est FERMÉE par
+     * famille, les cibles non primitives ne reçoivent que le changement
+     * de type, les accès sûrs et gardes de nullité ne reçoivent RIEN
+     * (D3).
+     *
+     * @param uri l'identifiant du document ;
+     * @return les correctifs en ordre du document ; liste VIDE pour un
+     * document inconnu/fermé ou sans correctif — jamais `null`, jamais
+     * d'exception.
+     */
+    public fun correctifsTexte(uri: String): List<CorrectifTexteKotlin>
+
+    /**
+     * Rend le correctif « IMPLÉMENTER LES MEMBRES MANQUANTS » de la
+     * déclaration de type sous le point (étage 2 vague 2f — fiche 020,
+     * chantier P1-C ADR 0229) : les membres ABSTRAITS des supertypes
+     * (projet par la clôture, classpath par la vue JVM — getters/setters
+     * appariés en propriétés, paramètres de type substitués par la clause
+     * écrite) insérés après le dernier membre, dans le corps créé en fin
+     * d'en-tête s'il est absent, ou remplaçant un corps vide.
+     *
+     * Conservateur (D3) : une cible interface ou abstraite ELLE-MÊME, une
+     * clause NUE sur un supertype générique, ou une clôture non fermée ne
+     * produisent RIEN.
+     *
+     * @param uri l'identifiant du document ;
+     * @param deplacement l'offset du caret DANS le nom de la déclaration ;
+     * @return le correctif d'insertion ; liste VIDE sans déclaration
+     * visée, sans supertype ou sous garde D3 — jamais `null`, jamais
+     * d'exception.
+     */
+    public fun membresManquants(uri: String, deplacement: Int): List<CorrectifTexteKotlin>
+
+    /**
      * Re-scanne les racines sources du classpath (L1) : les déclarations
      * externes deviennent résolvables pour le survol à partir de la requête
      * suivante.

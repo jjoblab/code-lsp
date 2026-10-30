@@ -81,6 +81,20 @@ internal class TypeProjet(
     internal val parametresPrimaire: List<ParametreProjet> = emptyList(),
     internal val membresCompagnon: List<MembreProjet> = emptyList(),
     internal val nomCompagnon: String? = null,
+    /**
+     * Les NOMS des paramètres de TYPE de la déclaration (`T` — vague 2f,
+     * fiche 020 : la clause d'implémentation `: Depot<String>` substitue
+     * `T` par `String` ; une clause NUE sur un supertype générique laisse
+     * le membre MUET, D3).
+     */
+    internal val parametresType: List<String> = emptyList(),
+    /**
+     * Les membres sont SOUS-RAPPORTÉS (vague 2f — fiche 047 : `BuildConfig`
+     * — la classe seule est synthétisée, ses champs réels vivent dans la
+     * génération AGP que le moteur ne lit pas) : le jeu n'est PAS complet,
+     * l'absence d'un sélecteur ne se prouve JAMAIS (muet, D3).
+     */
+    internal val membresSousRapportes: Boolean = false,
 ) {
 
     /**
@@ -90,10 +104,11 @@ internal class TypeProjet(
      * sélecteur s'y PROUVE (fiche 022).
      *
      * @return `true` si le jeu de membres est complet ; `false` si un
-     * héritage écrit ou le régime enum ouvre l'univers (muet, D3).
+     * héritage écrit, le régime enum ou des membres sous-reportés ouvrent
+     * l'univers (muet, D3).
      */
     internal val absenceFiable: Boolean
-        get() = supertypesEcrits.isEmpty() && genre != GenreTypeProjet.ENUM
+        get() = supertypesEcrits.isEmpty() && genre != GenreTypeProjet.ENUM && !membresSousRapportes
 
     /** Les noms de membres déclarés et synthétisés (avec doublons éventuels). */
     internal val nomsMembres: List<String>
@@ -145,6 +160,12 @@ internal class MembreProjet(
     internal val genre: GenreMembreProjet,
     internal val typeRetourNomme: String?,
     internal val parametres: List<ParametreProjet> = emptyList(),
+    /**
+     * Le membre est ABSTAIT (vague 2f — fiche 020 : un `fun` SANS corps, une
+     * propriété SANS initialiseur — la matière du quick-fix « implémenter
+     * les membres manquants », jamais les membres CONCRETS du supertype).
+     */
+    internal val estAbstrait: Boolean = false,
 )
 
 /**
@@ -568,12 +589,26 @@ internal class ModeleProjet private constructor(
                                 MembreProjet(
                                     n, GenreMembreProjet.FONCTION, typeRetourEcrit(membre),
                                     parametresDeclares(membre),
+                                    estAbstrait = membre.enfants.none {
+                                        it.genre != KtNodeTypes.BLOCK &&
+                                            it.genre != KtNodeTypes.TYPE_REFERENCE &&
+                                            it.genre != KtNodeTypes.MODIFIER_LIST &&
+                                            it.genre != KtNodeTypes.VALUE_PARAMETER_LIST &&
+                                            it.genre != KtNodeTypes.TYPE_PARAMETER_LIST
+                                    },
                                 ),
                             )
                         }
                         KtNodeTypes.PROPERTY -> {
                             val n = nomDeDeclaration(membre) ?: continue
-                            membres.add(MembreProjet(n, GenreMembreProjet.PROPRIETE, typeEcritPropriete(membre)))
+                            membres.add(
+                                MembreProjet(
+                                    n, GenreMembreProjet.PROPRIETE, typeEcritPropriete(membre),
+                                    estAbstrait = membre.enfants.none {
+                                        it.genre != KtNodeTypes.TYPE_REFERENCE && it.genre != KtNodeTypes.MODIFIER_LIST
+                                    },
+                                ),
+                            )
                         }
                         KtNodeTypes.CLASS -> {
                             // Un type IMBRIQUÉ du corps est un MEMBRE du
@@ -612,6 +647,7 @@ internal class ModeleProjet private constructor(
                 parametresPrimaire = parametresPrimaire,
                 membresCompagnon = membresCompagnon,
                 nomCompagnon = nomCompagnon,
+                parametresType = nomsParametresType(noeud),
             )
             if (estData && nbProprietesCtor > 0) {
                 type = type.avecSynthesesData(nbProprietesCtor)
@@ -627,7 +663,17 @@ internal class ModeleProjet private constructor(
         }
 
         /**
-         * Les membres FUN/PROPERTY du CORPS d'un compagnon (vague 2d —
+         * Les NOMS des paramètres de TYPE d'une déclaration (vague 2f —
+         * fiche 020 : `class Depot<T>` porte `["T"]`).
+         */
+        private fun nomsParametresType(noeud: NoeudArbre): List<String> {
+            return noeud.enfantsDe(KtNodeTypes.TYPE_PARAMETER_LIST).firstOrNull()
+                ?.enfantsDe(KtNodeTypes.TYPE_PARAMETER)
+                ?.mapNotNull { nomDeDeclaration(it) }
+                .orEmpty()
+        }
+
+        /** Les membres FUN/PROPERTY du CORPS d'un compagnon (vague 2d —
          * fiche 024 : la portée STATIQUE du conteneur) — le même dépouillement
          * que les membres d'instance, types de retour compris.
          */

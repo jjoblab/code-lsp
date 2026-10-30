@@ -118,6 +118,13 @@
 > passe sémantique ne les voyait JAMAIS : le Kotlin standard du script
 > résout désormais, la garde D3 s'y exerce) ; 160/204 comportements
 > diagnostics verts.**
+> **Clôture (31/10) — VAGUE 2E CLOSE : CI VERTE 9/9 sur le commit de
+> livraison `53da2ef` (run `41105114444`, première tentative) ; 292 tests
+> verts toolchain 17, scan ART 6 × AUCUNE (moteur 230 classes / 281
+> méthodes), dex 25 343 méthodes / 4 000 812 o (identiques au bac à
+> sable, seuils tenus — E-K8 à 64 %) ; la vague 2f (correctifs texte,
+> membres manquants, synthétiques + fusion, multi-langue, `with`) est la
+> suivante (§9.4).**
 
 ## 1. Périmètre de l'étage (plan §4 — cahier en main)
 
@@ -136,7 +143,7 @@
 
 | Critère | État | Preuve |
 |---|---|---|
-| 204 comportements diagnostics verts (23 fiches du domaine) | EN COURS — 160/204 | Vague 2a (§5) : fiches 017 (8/8) + 022 (8/8) + 006 (4/4) ; vague 2b (§6) : fiche 046 (39/39) ; vague 2c (§7) : fiches 044 (13/13) + 028 (12/12) + 032 (3/3) + 040 (11/11) + 029 (5/5) ; vague 2d (§8) : fiches 023 (2/2) + 024 (7/7) + 026 (2/2) + 033 (9/9) + 037 (5/5) ; vague 2e (§9) : fiches 030 (5/5) + 031 (5/5) + 035 (2/2) + 036 (3/3) + 025 (12/12) + 027 (5/5) |
+| 204 comportements diagnostics verts (23 fiches du domaine) | EN COURS — 204/204 attendus à la clôture 2f | Vague 2a (§5) : fiches 017 (8/8) + 022 (8/8) + 006 (4/4) ; vague 2b (§6) : fiche 046 (39/39) ; vague 2c (§7) : fiches 044 (13/13) + 028 (12/12) + 032 (3/3) + 040 (11/11) + 029 (5/5) ; vague 2d (§8) : fiches 023 (2/2) + 024 (7/7) + 026 (2/2) + 033 (9/9) + 037 (5/5) ; vague 2e (§9) : fiches 030 (5/5) + 031 (5/5) + 035 (2/2) + 036 (3/3) + 025 (12/12) + 027 (5/5) |
 | Zéro faux positif corpus quatre mondes | OUVERT | — |
 | Banc fidélité baseline signée | OUVERT | — |
 
@@ -766,5 +773,62 @@ fiches 030/031/035/036/025/027, 32 comportements) est la suivante.
   p50 6,2/23,1 ms, p95 31,0/48,6 ms, productions 5 448/31 368 et jetons
   4 210/24 274 — déterminisme IDENTIQUE, marqueurs d'erreur 0,
   tas 3 701 Kio.
+- **Provenance** : `verifier-provenance.sh` rc=0 (aucune reprise nouvelle
+  — code NEUF intégral).
+
+## 10. Vague 2f — correctifs texte, membres manquants, synthétiques, multi-langue, `with` (31/10, fiches 016/020/047)
+
+### 10.1 Périmètre exécuté
+
+| # | Item | État | Détail |
+|---|---|---|---|
+| 1 | Correctifs texte — accès non sûr (fiche 016) | **Fait** | NOUVEAU CONTRAT SPI `correctifsTexte(uri): List<CorrectifTexteKotlin>` + `session/CorrectifsTexte.kt` : les MÊMES prédicats que la passe typée (liaison de RÉGION — l'outermost fonction/propriété englobante, miroir de la passe), trois formes — « Accès sûr » (le POINT du segment devient `?.`), « Assertion non nulle » (`!!` inséré après le récepteur), « Entourer » (l'INSTRUCTION entière remplacée par `if (x != null) { … }` — MULTI-LIGNE par défaut, EN LIGNE quand l'instruction PARTAGE sa ligne, JAMAIS au premier niveau sans bloc, D3) ; l'alignement correctif ⟺ diagnostic tient PAR CONSTRUCTION (le moteur re-prouve — un diagnostic périmé rend vide) |
+| 2 | Correctifs texte — conversions (fiche 016) | **Fait** | « Changer le type » (le type écrit devient la famille du littéral) + « Convertir » (la matrice FERMÉE par famille : `toInt`/`toLong`/`toDouble`/`toString` — cible PRIMITIVE seule) ; cible non primitive = changement de type seul, type nullable ou conversion numérique légitime = RIEN (D3) |
+| 3 | Membres manquants P1-C (fiche 020) | **Fait** | NOUVEAU CONTRAT SPI `membresManquants(uri, deplacement)` + `session/MembresManquants.kt` : les membres ABSTRAITS des supertypes (PROJET — `MembreProjet.estAbstrait`, un `fun` SANS corps ni expression, une propriété SANS initialiseur ; CLASSPATH — ACC_ABSTRACT du bytecode, `MembreJvm.estAbstrait`), les paramètres de TYPE SUBSTITUÉS par la clause écrite (`TypeProjet.parametresType` ; clause NUE sur générique = muet, D3), getters/setters APPARIÉS en `var` (getter seul en `val`), l'insertion après le DERNIER MEMBRE, le corps CRÉÉ en fin d'en-tête, le corps VIDE REMPLACÉ ; cible interface/abstraite = RIEN (D3) |
+| 4 | Synthétiques + fusion AVEC COUPURE (fiche 047) | **Fait** | La couture `NourrissageMoteur.groupesSynthetiques()` (l'implémentation interne du moteur délègue) et la FUSION dans `contributionsAuConsult` : chaque groupe (R avec ses familles en types imbriqués pointés, ViewBinding/DataBinding avec champs des ids + inflate/bind + variables, BuildConfig) entre au modèle de preuves TANT qu'aucune classe RÉELLE du même FQCN (document ouvert ou scan) ne l'EFFACE — la coupure est testée (un `R.java` réel vide le groupe) ; `BuildConfig` porte `membresSousRapportes` (le type résout, ses champs jamais prouvés absents, D3) |
+| 5 | Multi-langue Java↔Kotlin (fiche 047) | **Fait** | Le lecteur Java (2a) nourrissait déjà le modèle : la classe Java est PROPOSÉE en complétion de nom et RÉSOLUE, ses membres (méthodes, STATIQUES, propriété synthétique du getter ADR 0219) résolus et proposés, le TYPE du getter type la chaîne continue, l'ARITÉ du constructeur Java n'est JAMAIS contrôlée (le lecteur ne porte pas les constructeurs — sous-rapport honnête) ; la DÉFINITION d'une référence Kotlin OUVRE le `.java` (les types externes du modèle portent leur URI — quatrième maillon de `NavigationDocuments.definition`, partagé avec le layout des bindings) |
+| 6 | Récepteurs implicites `with` (fiche 047) | **Fait** | La lambda traînante d'un `with(récepteur) { … }` porte le PREMIER ARGUMENT en this implicite — les trois chemins alignés : la passe sémantique (`pileImpliciteWith`), la pile au caret (`Couches.aPosition` — branche CALL_EXPRESSION) et la complétion de nom (`PileThis.membresDesCouches` : les membres du récepteur se proposent SANS sélecteur) ; le récepteur TRAVERSE les littéraux emboîtés |
+| 7 | SAM classpath (fiche 047) | **Fait** | `TypageBorne.attenteSelecteurClasspath` : la lambda d'un sélecteur sur récepteur CLASSPATH typé (`vue.setOnClickListener { v -> … }`) est typée par l'attente SAM — le paramètre du membre lu dans la vue JVM, l'interface SAM relue, sa méthode UNIQUE rend le type du paramètre (`v` type `View`) ; la liaison et la pile descendent désormais dans `attenteLambdaAuPoint` |
+| 8 | Correctif de régression découvert par la suite | **Fait** | La branche CALL_EXPRESSION re-marchait la CALLEE (émission DOUBLÉE des noms nus signalés — 4 tests 006/044 rouges) : la callee ne re-marche plus, les 336 tests repassent |
+| 9 | Tests neufs | **Fait** | 44 comportements aux noms exacts du cahier : fiche 016 (13) + 020 (10) + 047 (21) — projet Android factice sur disque (manifeste + res/layout + values + drawable + source Java), jars réels, fixture d'interface binaire ACC_ABSTRACT |
+
+### 10.2 Décisions d'exécution consignées (pas dans le plan initial)
+
+1. **L'alignement correctif ⟺ diagnostic tient par CONSTRUCTION, pas par
+   cache** : `correctifsTexte` re-dérive les correctifs des MÊMES
+   prédicats que la passe typée sur l'arbre COURANT — jamais un
+   diagnostic sérialisé n'est réutilisé (un document évolué rend
+   exactement ses correctifs présents, le test « périmé » le prouve).
+2. **La région de la passe est l'OUTERMOST fonction/propriété** : la
+   liaison d'une fonction couvre ses propriétés locales (les paramètres
+   y vivent) — le correctif suit la MÊME règle (première découverte en
+   descente), pas la région la plus profonde.
+3. **`BuildConfig` est sous-reporté par NATURE** : le groupe ne
+   synthétise que la CLASSE (les champs réels vivent dans la génération
+   AGP) — le drapeau `membresSousRapportes` coupe la preuve d'absence
+   des sélecteurs (muet, D3) quand R reste absence-fiable (ses familles
+   et entrées sont ÉNUMÉRÉES des ressources).
+4. **La définition externe partage UN maillon modèle** : le `.java` du
+   scan et le `.xml` de layout d'un binding entrent par la même liste
+   (nom simple → URI portée par la contribution) — jamais re-parsés, la
+   plage est nulle (l'ouverture suffit, l'étage 3 précisera).
+
+### 10.3 Preuves du bac à sable (avant poussée)
+
+- **Suite** : 336 tests VERTS sur la toolchain 17 (292 + 44 — fiches
+  016/020/047 vertes 44/44), baseline de parité RE-SIGNÉE 357 → 360
+  fichiers (les 3 fichiers de test neufs).
+- **Jar moteur** : 675 906 o (+33 205 vs 2e — les deux contrats SPI de
+  correctifs, la fusion synthétique et le SAM classpath).
+- **Scan ART pile complète** : 6 × « AUCUNE » (moteur 236 classes / 287
+  méthodes déclarées — +6/+6, ServiceLoader OK), rc=0.
+- **Dexage d8** (build-tools 34 local, min-api 26) : **25 420 références
+  de méthodes / 4 030 652 o (3,84 Mo)** — +77 méthodes / +29 840 o vs
+  2e ; seuils tenus : méthodes 78 % du plafond 32 768, taille **64 % du
+  budget 6 Mo** (E-K8 surveillance).
+- **Banc JDK 17** (bac à sable, 2 cœurs) : froid 202,1/24,6 ms,
+  p50 6,2/26,8 ms, p95 30,6/55,4 ms, productions 5 448/31 368 et jetons
+  4 210/24 274 — déterminisme IDENTIQUE, marqueurs d'erreur 0,
+  tas 3 699 Kio.
 - **Provenance** : `verifier-provenance.sh` rc=0 (aucune reprise nouvelle
   — code NEUF intégral).

@@ -70,13 +70,13 @@ internal object TypageBorne {
                 // `it` implicite : l'attente à paramètre unique le type
                 // (une locale nommée `it` prime — garde documentaire).
                 if (nom == "it" && !univers.possedeNomDeclare("it")) {
-                    attenteLambdaAuPoint(univers.arbre, noeud.debut, univers)
+                    attenteLambdaAuPoint(univers.arbre, noeud.debut, univers, liaison, pile)
                         ?.takeIf { it.size == 1 }
                         ?.let { return univers.resoudreTypeEcrit(it.single()) }
                 }
                 // Un PARAMÈTRE DE LAMBDA explicite : l'attente de la lambda
                 // le type à son INDEX (fiche 046 — `repeter(2) { s -> … }`).
-                attenteLambdaAuPoint(univers.arbre, noeud.debut, univers)?.let { attente ->
+                attenteLambdaAuPoint(univers.arbre, noeud.debut, univers, liaison, pile)?.let { attente ->
                     indiceParametreLambda(univers.arbre, noeud.debut, nom)?.let { indice ->
                         attente.getOrNull(indice)?.let { return univers.resoudreTypeEcrit(it) }
                     }
@@ -501,6 +501,8 @@ internal object TypageBorne {
         arbre: KtFichier,
         position: Int,
         univers: UniversPreuves,
+        liaison: MarcheTypee.Liaison? = null,
+        pile: PileThis = PileThis.VIDE,
     ): List<String>? {
         // La lambda englobante la plus profonde.
         val litteral = chaineAncetres(arbre.noeud, position)
@@ -518,7 +520,7 @@ internal object TypageBorne {
                 val appel = chaineAncetres(arbre.noeud, parent.debut)
                     .getOrNull(chaineAncetres(arbre.noeud, parent.debut).indexOf(parent) - 1)
                 if (appel?.genre == KtNodeTypes.CALL_EXPRESSION) {
-                    attenteDeLappel(appel, univers)
+                    attenteDeLappel(appel, univers) ?: attenteSelecteurClasspath(appel, univers, liaison, pile)
                 } else {
                     null
                 }
@@ -527,6 +529,54 @@ internal object TypageBorne {
             KtNodeTypes.PROPERTY -> attenteDePropriete(parent)
             else -> null
         }
+    }
+
+    /**
+     * L'attente d'une lambda passée à un SÉLECTEUR sur récepteur CLASSPATH
+     * typé (vague 2f — fiche 047 : `vue.setOnClickListener { v -> … }` —
+     * le paramètre du membre est une interface SAM de bibliothèque, sa
+     * méthode UNIQUE type la lambda). La chaîne remonte au DOT porteur,
+     * le récepteur se type, le membre se lit dans la vue JVM.
+     */
+    private fun attenteSelecteurClasspath(
+        appel: NoeudArbre,
+        univers: UniversPreuves,
+        liaison: MarcheTypee.Liaison?,
+        pile: PileThis,
+    ): List<String>? {
+        val nom = appel.enfants
+            .firstOrNull { it.genre == KtNodeTypes.REFERENCE_EXPRESSION }
+            ?.texteCanonique.orEmpty()
+        if (nom.isEmpty()) return null
+        val chaine = chaineAncetres(univers.arbre.noeud, appel.debut)
+        val porteur = chaine.getOrNull(chaine.indexOf(appel) - 1) ?: return null
+        if (porteur.genre != KtNodeTypes.DOT_QUALIFIED_EXPRESSION &&
+            porteur.genre != KtNodeTypes.SAFE_ACCESS_EXPRESSION
+        ) {
+            return null
+        }
+        val recepteur = porteur.enfants.firstOrNull() ?: return null
+        val liaisonEffective = liaison
+            ?: MarcheTypee.Liaison(arbre = univers.arbre, univers = univers, region = null)
+        val typeRecepteur = typeDeLexpression(recepteur, univers, liaisonEffective, pile) ?: return null
+        if (typeRecepteur !is TypeValeur.Jvm) return null
+        val vue = univers.vueJvm ?: return null
+        val membre = vue.membreChaine(univers.mapeJvm(typeRecepteur.fqcn), nom) ?: return null
+        // Le paramètre d'index de la lambda : l'argument ORDINAIRE compte
+        // (le trailing lambda est le DERNIER paramètre du membre).
+        val signatures = membre.signatures.filter { !it.estChamp }
+        for (signature in signatures) {
+            val parametres = signature.parametres ?: continue
+            val sam = parametres.lastOrNull() ?: continue
+            // L'interface SAM de bibliothèque : sa méthode UNIQUE type la
+            // lambda (les paramètres de CETTE méthode).
+            val declares = vue.membresDeclares(sam) ?: continue
+            val methodes = declares.membres.filter { !it.estChamp }
+            if (methodes.size != 1) continue
+            val attente = methodes.single().parametres() ?: continue
+            return attente.map { it.substringAfterLast('.') }
+        }
+        return null
     }
 
     /**

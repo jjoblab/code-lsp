@@ -486,6 +486,10 @@ internal class UniversPreuves(
         // Scan partiel : le modèle du projet n'est pas complet.
         if (etatScan == EtatScan.PARTIEL) return Verdict.MUET
 
+        // Les membres SOUS-REPORTÉS (vague 2f — fiche 047 : `BuildConfig`)
+        // : le jeu n'est PAS complet, l'absence ne se prouve JAMAIS.
+        if (recepteur.membresSousRapportes) return Verdict.MUET
+
         // Une extension à récepteur NON résolu (alias, qualifié) pourrait
         // viser CE récepteur : l'univers est ouvert.
         if (modele.extensionsNonResolues) return Verdict.MUET

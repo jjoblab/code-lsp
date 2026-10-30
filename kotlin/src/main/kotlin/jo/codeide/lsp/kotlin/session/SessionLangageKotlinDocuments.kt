@@ -482,6 +482,42 @@ internal class SessionLangageKotlinDocuments(
     // ------------------------------------------------------------------
 
     /**
+     * Rend les CORRECTIFS DE TEXTE du document (fiche 016) : le moteur
+     * re-prouve le document courant — les familles « accès non sûr » et
+     * « conversion de littéral » dérivent leurs correctifs des MÊMES
+     * prédicats que la passe typée (alignement par construction).
+     */
+    override fun correctifsTexte(uri: String): List<jo.codeide.lsp.kotlin.api.CorrectifTexteKotlin> {
+        val document = verrou.read {
+            if (fermee) return@read null
+            documents[uri]
+        } ?: return emptyList()
+        val guichet = indexSiPret()
+        val univers = construireUnivers(document, uri, guichet?.vue, guichet?.vueJvm) ?: return emptyList()
+        return verrou.read {
+            if (fermee) return@read emptyList()
+            CorrectifsTexte.calculer(document, uri, univers)
+        }
+    }
+
+    /**
+     * Rend le correctif « IMPLÉMENTER LES MEMBRES MANQUANTS » de la
+     * déclaration sous le point (fiche 020, chantier P1-C ADR 0229).
+     */
+    override fun membresManquants(uri: String, deplacement: Int): List<jo.codeide.lsp.kotlin.api.CorrectifTexteKotlin> {
+        val document = verrou.read {
+            if (fermee) return@read null
+            documents[uri]
+        } ?: return emptyList()
+        val guichet = indexSiPret()
+        val univers = construireUnivers(document, uri, guichet?.vue, guichet?.vueJvm) ?: return emptyList()
+        return verrou.read {
+            if (fermee) return@read emptyList()
+            MembresManquants.calculer(document, univers, deplacement)
+        }
+    }
+
+    /**
      * Rend les emplacements de DÉFINITION du nom sous le point (fiche 031 :
      * go-to-definition de l'usage commonMain vers l'`expect` KMP) — la
      * chaîne conservatrice du survol : document courant (site désigné puis
@@ -493,7 +529,13 @@ internal class SessionLangageKotlinDocuments(
             if (fermee) return@read emptyList()
             val document = documents[uri] ?: return@read emptyList()
             val autres = documents.entries.filter { it.key != uri }.map { it.key to it.value }
-            NavigationDocuments.definition(document, uri, autres, scanPublie, deplacement)
+            // Les types EXTERNES du modèle (vague 2f — fiche 047 : le java
+            // du scan, le fichier de layout d'un binding synthétique) —
+            // l'URI portée par la contribution, jamais re-parsée.
+            val externes = contributionsAuConsult(uri).flatMap { contribution ->
+                contribution.types.map { it.nomSimple to (it.uri ?: contribution.uri) }
+            }
+            NavigationDocuments.definition(document, uri, autres, scanPublie, deplacement, externes)
         }
     }
 
@@ -582,7 +624,113 @@ internal class SessionLangageKotlinDocuments(
         }
         val scan = scanneur.snapshotAuConsult()?.contributionsHors(uriExclue).orEmpty()
         val urisOuvertes = ouvertes.map { it.uri }.toSet()
-        return ouvertes + scan.filter { it.uri !in urisOuvertes }
+        val reelles = ouvertes + scan.filter { it.uri !in urisOuvertes }
+
+        // La fusion des groupes SYNTHÉTIQUES AVEC COUPURE (vague 2f —
+        // fiche 047 : R, BuildConfig, ViewBinding/DataBinding) : chaque
+        // groupe entre au modèle de preuves TANT qu'aucune classe RÉELLE
+        // du même FQCN (document ouvert ou scan) ne l'EFFACE — une classe
+        // R réelle du scan efface le synthétique homonyme.
+        val fqcnsReels = reelles.flatMap { contribution -> contribution.types.map { it.fqcn } }.toSet()
+        val synthetiques = moteur?.groupesSynthetiques().orEmpty()
+            .filter { it.fqcn !in fqcnsReels }
+            .mapNotNull(::contributionSynthetique)
+        return reelles + synthetiques
+    }
+
+    /**
+     * La CONTRIBUTION au modèle d'un groupe synthétique (vague 2f) : la
+     * classe de tête (`R`, `ActivityMainBinding`, `BuildConfig`) avec ses
+     * membres, ses sous-objets (`R.layout`) en types IMBRIQUÉS pointés —
+     * l'URI synthétique `synthetique://` n'entre jamais en collision avec
+     * les documents ouverts (uri `""`) ni les fichiers scannés.
+     */
+    private fun contributionSynthetique(
+        groupe: jo.codeide.lsp.kotlin.synthetics.ClassesSynthetiques.GroupeSynthetique,
+    ): jo.codeide.lsp.kotlin.resolve.ContributionFichier? {
+        val tete = groupe.declarations.firstOrNull {
+            it.genre == jo.codeide.lsp.kotlin.synthetics.GenreDeclaration.CLASSE
+        } ?: return null
+        val paquet = groupe.fqcn.substringBeforeLast('.', "")
+        val membresTete = mutableListOf<jo.codeide.lsp.kotlin.resolve.MembreProjet>()
+        val imbriques = mutableListOf<jo.codeide.lsp.kotlin.resolve.TypeProjet>()
+        for (declaration in groupe.declarations) {
+            when (declaration.genre) {
+                jo.codeide.lsp.kotlin.synthetics.GenreDeclaration.OBJET -> {
+                    if (declaration.conteneur != groupe.fqcn) continue
+                    membresTete.add(
+                        jo.codeide.lsp.kotlin.resolve.MembreProjet(
+                            declaration.nom,
+                            jo.codeide.lsp.kotlin.resolve.GenreMembreProjet.TYPE_IMBRIQUE,
+                            null,
+                        ),
+                    )
+                    imbriques.add(
+                        jo.codeide.lsp.kotlin.resolve.TypeProjet(
+                            uri = declaration.uri.ifEmpty { null },
+                            fqcn = declaration.conteneur + "." + declaration.nom,
+                            nomSimple = declaration.nom,
+                            genre = jo.codeide.lsp.kotlin.resolve.GenreTypeProjet.OBJET,
+                            supertypesEcrits = emptyList(),
+                            membres = groupe.declarations
+                                .filter { it.conteneur == declaration.conteneur + "." + declaration.nom }
+                                .map { membre ->
+                                    jo.codeide.lsp.kotlin.resolve.MembreProjet(
+                                        membre.nom,
+                                        jo.codeide.lsp.kotlin.resolve.GenreMembreProjet.PROPRIETE,
+                                        membre.typeRetour,
+                                    )
+                                },
+                            estData = false,
+                            entreesEnum = emptyList(),
+                        ),
+                    )
+                }
+                jo.codeide.lsp.kotlin.synthetics.GenreDeclaration.PROPRIETE -> {
+                    if (declaration.conteneur != groupe.fqcn) continue
+                    membresTete.add(
+                        jo.codeide.lsp.kotlin.resolve.MembreProjet(
+                            declaration.nom,
+                            jo.codeide.lsp.kotlin.resolve.GenreMembreProjet.PROPRIETE,
+                            declaration.typeRetour,
+                        ),
+                    )
+                }
+                jo.codeide.lsp.kotlin.synthetics.GenreDeclaration.FONCTION -> {
+                    if (declaration.conteneur != groupe.fqcn) continue
+                    membresTete.add(
+                        jo.codeide.lsp.kotlin.resolve.MembreProjet(
+                            declaration.nom,
+                            jo.codeide.lsp.kotlin.resolve.GenreMembreProjet.FONCTION,
+                            declaration.typeRetour,
+                        ),
+                    )
+                }
+                else -> Unit
+            }
+        }
+        val typeTete = jo.codeide.lsp.kotlin.resolve.TypeProjet(
+            uri = tete.uri.ifEmpty { null },
+            fqcn = groupe.fqcn,
+            nomSimple = tete.nom,
+            genre = jo.codeide.lsp.kotlin.resolve.GenreTypeProjet.CLASSE,
+            supertypesEcrits = emptyList(),
+            membres = membresTete,
+            estData = false,
+            entreesEnum = emptyList(),
+            // BuildConfig : la classe SEULE est synthétisée — ses champs
+            // réels vivent dans la génération AGP, jamais lus (fiche 047 :
+            // membres sous-reportés, l'absence d'un sélecteur ne se prouve
+            // jamais, D3).
+            membresSousRapportes = tete.nom == "BuildConfig",
+        )
+        return jo.codeide.lsp.kotlin.resolve.ContributionFichier(
+            uri = "synthetique://" + groupe.fqcn,
+            paquet = paquet,
+            types = listOf(typeTete) + imbriques,
+            appelables = emptyList(),
+            extensions = emptyList(),
+        )
     }
 
     /**

@@ -156,5 +156,9 @@ public class MoteurLangageKotlinNoyau : ServiceMoteurLangageKotlin {
             if (courant.classpath.entrees != entrees) return null
             return if (index.couvre(entrees)) courant else null
         }
+
+        /** Les groupes synthétiques du moteur (fusion AVEC COUPURE, fiche 047). */
+        override fun groupesSynthetiques(): List<ClassesSynthetiques.GroupeSynthetique> =
+            this@MoteurLangageKotlinNoyau.groupesSynthetiques()
     }
 }

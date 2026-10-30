@@ -34,6 +34,15 @@ internal interface NourrissageMoteur {
     val nourrissageParMoteur: Boolean
 
     /**
+     * Les groupes de classes SYNTHÉTIQUES du moteur (vague 2f — fiche 047
+     * : R, BuildConfig, ViewBinding/DataBinding — la fusion AVEC COUPURE
+     * les ajoute au modèle des preuves tant qu'aucune classe RÉELLE du
+     * même FQCN ne les efface) ; liste vide sans moteur synthétique.
+     */
+    fun groupesSynthetiques(): List<jo.codeide.lsp.kotlin.synthetics.ClassesSynthetiques.GroupeSynthetique> =
+        emptyList()
+
+    /**
      * Rend le snapshot publié par la dernière passe du moteur S'IL couvre
      * [entrees] — la garde compare la liste ORDONNÉE des empreintes (l'ordre
      * du classpath fait la préséance des candidats, jamais un ensemble).

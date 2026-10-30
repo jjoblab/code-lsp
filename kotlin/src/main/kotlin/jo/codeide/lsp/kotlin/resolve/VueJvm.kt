@@ -566,6 +566,8 @@ internal class MembreJvm(
     internal val nom: String,
     internal val descripteur: String,
     internal val estChamp: Boolean,
+    /** Le membre est ABSTAIT au bytecode (ACC_ABSTRACT — vague 2f : les membres à implémenter d'un supertype classpath). */
+    internal val estAbstrait: Boolean = false,
 ) {
     /** Les types FQCN Kotlin des PARAMÈTRES (`null` si tableau/illisible). */
     internal fun parametres(): List<String>? = DescripteursJvm.parametres(descripteur)
@@ -745,6 +747,9 @@ private object LecteurMembresClasse {
     /** Accès BRIDGE (les ponts génériques ne sont pas appelables par nom). */
     private const val ACC_BRIDGE: Int = 0x0040
 
+    /** Accès ABSTRACT (vague 2f — les membres à implémenter d'un supertype). */
+    private const val ACC_ABSTRACT_METHODE: Int = 0x0400
+
     /**
      * Lit les membres déclarés d'un class-file.
      *
@@ -822,7 +827,7 @@ private object LecteurMembresClasse {
                 }
                 if (nom == "<init>" || nom == "<clinit>") return@repeat
                 if (acces and (ACC_SYNTHETIC or ACC_BRIDGE) != 0) return@repeat
-                membres.add(MembreJvm(nom, descripteur, estChamp))
+                membres.add(MembreJvm(nom, descripteur, estChamp, acces and ACC_ABSTRACT_METHODE != 0))
             }
         }
 

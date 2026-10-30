@@ -62,15 +62,6 @@ internal object CompletionMembres {
     ): List<PropositionKotlin> {
         val arbre = document.arbre
 
-        // Le récepteur : la PLUS PROFONDE expression qualifiée couvrant le
-        // point (le caret vit juste après le point du sélecteur).
-        val qualifiee = recepteurQualifie(arbre.noeud, deplacement) ?: return nomsAuPoint(
-            document, uri, deplacement, contributionsScan, index,
-        )
-        val recepteur = qualifiee.enfants.firstOrNull() ?: return nomsAuPoint(
-            document, uri, deplacement, contributionsScan, index,
-        )
-
         // L'univers, la liaison de la RÉGION contenant le point (les
         // paramètres et locales de la fonction porteuse — miroir de la
         // passe de diagnostics).
@@ -88,6 +79,15 @@ internal object CompletionMembres {
         )
         val region = regionContenant(arbre.noeud, deplacement)
         val liaison = MarcheTypee.Liaison(arbre = arbre, univers = univers, region = region)
+
+        // Le récepteur : la PLUS PROFONDE expression qualifiée couvrant le
+        // point (le caret vit juste après le point du sélecteur).
+        val qualifiee = recepteurQualifie(arbre.noeud, deplacement) ?: return nomsAuPoint(
+            document, uri, deplacement, index, univers, liaison,
+        )
+        val recepteur = qualifiee.enfants.firstOrNull() ?: return nomsAuPoint(
+            document, uri, deplacement, index, univers, liaison,
+        )
         // La PILE DES THIS au caret (vague 2c — fiches 028/040 : `this.` type
         // la couche profonde, les membres implicites hérités `layoutInflater`
         // type le récepteur, les lambdas d'application portent le leur).
@@ -100,27 +100,20 @@ internal object CompletionMembres {
     /**
      * La complétion de NOM au point (vague 2e — fiche 025 : « complétion
      * de nom dans un corps ») : le caret vit dans un identifiant SANS
-     * récepteur qualifié — les noms DÉCLARÉS du document (garde
-     * documentaire), puis les TYPES du catalogue KP8, puis les APPELABLES
-     * de premier niveau de l'index par PRÉFIXE (recherche binaire), tous
-     * filtrés par le préfixe déjà frappé. Le germe est CONSERVATEUR : le
-     * classement contextuel relève de l'étage 3 (ADR 0113).
-     *
-     * @param document le document ouvert ;
-     * @param uri l'identifiant du document ;
-     * @param deplacement l'offset du caret (dans ou juste après
-     * l'identifiant) ;
-     * @param contributionsScan les contributions du scan ;
-     * @param index la vue des appelables du classpath (`null` = guichet
-     * muet : seuls les noms déclarés et le catalogue se proposent) ;
-     * @return les propositions par ordre déclaré → catalogue → index.
+     * récepteur qualifié — les MEMBRES DU RÉCEPTEUR IMPLICITE d'abord
+     * (vague 2f — fiche 047 : `with` — la pile des this au caret), puis
+     * les noms DÉCLARÉS du document (garde documentaire), les TYPES du
+     * catalogue KP8, les APPELABLES de premier niveau de l'index par
+     * PRÉFIXE. Le germe est CONSERVATEUR : le classement contextuel
+     * relève de l'étage 3 (ADR 0113).
      */
     private fun nomsAuPoint(
         document: DocumentOuvert,
         uri: String,
         deplacement: Int,
-        contributionsScan: List<ContributionFichier>,
         index: VueAppelables?,
+        univers: UniversPreuves,
+        liaison: MarcheTypee.Liaison,
     ): List<PropositionKotlin> {
         val prefixe = prefixeAuPoint(document.arbre.noeud, deplacement)
 
@@ -130,31 +123,34 @@ internal object CompletionMembres {
         if (prefixe.isEmpty()) {
             return emptyList()
         }
+
+        // Les MEMBRES du récepteur IMPLICITE (vague 2f — fiche 047 : dans
+        // un `with(récepteur) { … }` les membres du récepteur se
+        // proposent SANS sélecteur — la pile des this au caret).
+        val pile = Couches.aPosition(document.arbre, univers, liaison, deplacement)
+        propositions.addAll(pile.membresDesCouches)
+
         for (nom in nomsDeclares(document.arbre)) {
-            if (nom.startsWith(prefixe) && nom != prefixe) propositions.add(nom)
+            if (nom.startsWith(prefixe)) propositions.add(nom)
         }
 
         // Les contributions du scan : les types du projet par nom simple.
-        val batisseur = ModeleProjet.Batisseur()
-        batisseur.ajouter(ModeleProjet.contributionKotlin(document.arbre, uri = ""))
-        contributionsScan.forEach(batisseur::ajouter)
-        val modele = batisseur.figer()
-        for (type in modele.typesParNomSimple()) {
-            if (type.startsWith(prefixe) && type != prefixe) propositions.add(type)
+        for (type in univers.modele.typesParNomSimple()) {
+            if (type.startsWith(prefixe)) propositions.add(type)
         }
 
         // Le catalogue KP8 (les types bien connus des paquets par défaut).
         for (nom in UniversPreuves.CATALOGUE_TYPES_DEFAUT) {
-            if (nom.startsWith(prefixe) && nom != prefixe) propositions.add(nom)
+            if (nom.startsWith(prefixe)) propositions.add(nom)
         }
 
         // Les appelables de premier niveau de l'index (par préfixe).
         if (index != null) {
             for (nom in index.nomsTopParPrefixe(prefixe, LIMITE_INDEX)) {
-                if (nom != prefixe) propositions.add(nom)
+                propositions.add(nom)
             }
         }
-        return propositions.map(::PropositionKotlin)
+        return propositions.filter { it.startsWith(prefixe) }.map(::PropositionKotlin)
     }
 
     /**

@@ -591,13 +591,25 @@ internal object DiagnosticsSemantiques {
             }
             KtNodeTypes.CALL_EXPRESSION -> {
                 // Un appel NU : la callee est un nom nu candidat, les
-                // arguments et lambdas marchent.
+                // arguments et lambdas marchent. Vague 2f (fiche 047) : la
+                // lambda traînante d'un `with(récepteur) { … }` porte le
+                // PREMIER ARGUMENT en this implicite (miroir de
+                // `apply`/`also`/`run` — le récepteur vit dans les
+                // ARGUMENTS, pas avant le point).
                 noeud.enfants
                     .firstOrNull { it.genre == KtNodeTypes.REFERENCE_EXPRESSION }
                     ?.let { verifierNomNu(it, contextes, diagnostics, liaison, pile, nomsZone, enteteBrisee) }
-                noeud.enfants
-                    .filter { it.genre != KtNodeTypes.REFERENCE_EXPRESSION }
-                    .forEach { marcher(it, contextes, diagnostics, liaison, pile, nomsZone, enteteBrisee) }
+                val pileWith = pileImpliciteWith(noeud, contextes, liaison, pile)
+                for (enfant in noeud.enfants) {
+                    // La callee ne re-marche PAS (verifierNomNu l'a déjà
+                    // couverte — l'émission y serait DOUBLÉE).
+                    if (enfant.genre == KtNodeTypes.REFERENCE_EXPRESSION) continue
+                    if (enfant.genre == KtNodeTypes.LAMBDA_ARGUMENT && pileWith != null) {
+                        marcher(enfant, contextes, diagnostics, liaison, pileWith, nomsZone, enteteBrisee)
+                    } else {
+                        marcher(enfant, contextes, diagnostics, liaison, pile, nomsZone, enteteBrisee)
+                    }
+                }
             }
             KtNodeTypes.REFERENCE_EXPRESSION -> {
                 verifierNomNu(noeud, contextes, diagnostics, liaison, pile, nomsZone, enteteBrisee)
@@ -835,6 +847,30 @@ internal object DiagnosticsSemantiques {
         return segments
     }
 
+
+    /**
+     * La pile du RÉCEPTEUR IMPLICITE d'un `with(récepteur) { … }` (vague
+     * 2f — fiche 047) : le PREMIER ARGUMENT typé devient le this implicite
+     * de la lambda traînante ; `null` pour tout autre appel.
+     */
+    private fun pileImpliciteWith(
+        appel: NoeudArbre,
+        contextes: Contextes,
+        liaison: MarcheTypee.Liaison,
+        pile: PileThis,
+    ): PileThis? {
+        val nom = appel.enfants
+            .firstOrNull { it.genre == KtNodeTypes.REFERENCE_EXPRESSION }
+            ?.texteCanonique
+        if (nom != "with") return null
+        val premierArgument = appel.enfants
+            .firstOrNull { it.genre == KtNodeTypes.VALUE_ARGUMENT_LIST }
+            ?.enfants?.firstOrNull { it.genre == KtNodeTypes.VALUE_ARGUMENT }
+            ?.enfants?.firstOrNull() ?: return null
+        val type = TypageBorne.typeDeLexpression(premierArgument, contextes.univers, liaison, pile)
+            ?: return null
+        return pile.empiler(Couches.deType(contextes.univers, type))
+    }
 
     /** Vérifie un NOM NU (référence d'expression ou callee d'appel nu). */
     private fun verifierNomNu(
