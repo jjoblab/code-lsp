@@ -1,43 +1,69 @@
 // CodeIDE — moteur de langage Kotlin noyau (module :kotlin, étage 1 vague
-// 1b — session documents). Code NEUF jjoblab (clean-room — contrat : fiches
-// 049/042 du cahier ; nourrissage moteur ADR 0211 : une passe par sync,
-// snapshot immuable publié, sessions branchées sans re-lecture).
+// 1b — session documents ; vague 1d — la passe nourrit réellement l'index
+// des appelables). Code NEUF jjoblab (contrat : fiches 049/042 puis
+// 008/009/034 du cahier ; nourrissage moteur ADR 0211 : une passe par sync
+// sur fil dédié, snapshot immuable publié, sessions branchées sans
+// re-lecture).
 package jo.codeide.lsp.kotlin.session
 
 import jo.codeide.lsp.kotlin.api.ClasspathKotlin
+import jo.codeide.lsp.kotlin.api.EntreeClasspathKotlin
 import jo.codeide.lsp.kotlin.api.ServiceMoteurLangageKotlin
 import jo.codeide.lsp.kotlin.api.SessionLangageKotlin
+import jo.codeide.lsp.kotlin.index.IndexAppelablesKotlin
+import jo.codeide.lsp.kotlin.index.PasseurIndexationKotlin
 
 /**
  * Le moteur de langage Kotlin du NOYAU — fournisseur du SPI
  * [ServiceMoteurLangageKotlin] (chargé par [ServiceMoteurLangageKotlin.unique]
  * via ServiceLoader ou repli).
  *
- * ## Nourrissage (ADR 0211 — fiche 042)
+ * ## Nourrissage (ADR 0211 — fiches 042/009)
  *
- * Le moteur est NOURRICIER : [definirClasspath] mène LA PASSE (à la vague 1b :
- * construction immédiate du snapshot immuable — la lecture des segments et
- * le décodage des jars arrivent à la vague 1d sur cette même passe, alors
- * sur fil dédié) puis publie le snapshot ; les sessions créées se branchent
- * dessus sans rien relire, et consultent l'état publié À CHAQUE requête
- * (sous-lecture honnête tant que rien n'est couvert, guérison à la requête
- * suivante dès publication).
+ * Le moteur est NOURRICIER : [definirClasspath] confie le classpath au
+ * PILOTE de passages ([PasseurIndexationKotlin]) — la passe part sur le fil
+ * démon dédié (segments des bibliothèques, puis scan des sources), PUBLIE
+ * le snapshot immuable à l'issue des segments et rend IMMÉDIATEMENT ; les
+ * sessions créées se branchent dessus sans rien relire, et consultent
+ * l'état publié À CHAQUE requête (sous-lecture honnête tant que rien n'est
+ * couvert, guérison à la requête suivante dès publication).
  *
  * ## Sessions
  *
  * Chaque [creerSession] rend une session NEUVE et étanche (états
  * indépendants — fiche 049) : documents, classpath et scan propres à la
- * session ; seul l'état NOURRI (snapshot d'index) est partagé entre les
- * sessions d'un même moteur.
+ * session ; seuls l'index des appelables et la passe du moteur sont
+ * PARTAGÉS entre les sessions d'un même moteur.
  */
 public class MoteurLangageKotlinNoyau : ServiceMoteurLangageKotlin {
 
-    /** Le verrou de la passe (publication du snapshot — pas sur le chemin des requêtes). */
+    /** Le verrou de la publication (pas sur le chemin des requêtes). */
     private val verrouMoteur = Any()
 
     /** Le dernier snapshot publié (volatil : lectures sans verrou des requêtes). */
     @Volatile
     private var publie: SnapshotClasspath? = null
+
+    /**
+     * L'index des appelables partagé par les passes du moteur (interne —
+     * inspection des fiches 009/034 : couverture, nom de segment).
+     */
+    internal val index = IndexAppelablesKotlin()
+
+    /** Le scanneur des racines mené par la passe du moteur. */
+    private val scanMoteur = ScanProjetParesseux()
+
+    /**
+     * Le pilote des passages : nourrit l'index, publie les événements et
+     * invoque la publication du snapshot à l'issue des SEGMENTS (les
+     * sessions voient les appelables sans attendre le scan des sources).
+     */
+    private val passeur =
+        PasseurIndexationKotlin(index, scanMoteur) { classpath ->
+            synchronized(verrouMoteur) {
+                publie = SnapshotClasspath(classpath, index)
+            }
+        }
 
     /**
      * Crée une session NEUVE, câblée sur le nourrissage de CE moteur.
@@ -50,27 +76,23 @@ public class MoteurLangageKotlinNoyau : ServiceMoteurLangageKotlin {
     }
 
     /**
-     * Mène la passe de nourrissage pour [classpath] : construit et PUBLIE le
-     * snapshot immuable de l'index partagé.
+     * Confie le classpath à la passe du moteur (UNE fois par
+     * synchronisation côté hôte, ADR 0211) : le travail part sur le fil
+     * dédié, le snapshot est publié à l'issue des segments.
      *
-     * À la vague 1b la passe est immédiate (le snapshot porte l'identité du
-     * classpath couvert) ; à la vague 1d elle portera la lecture réelle des
-     * segments d'appelables — le CONTRAT (retour `true`, publication,
-     * branchement des sessions) est ce que cette vague verrouille.
-     *
-     * @param classpath le classpath neutre (entrées ordonnées + racines) ;
-     * @return toujours `true` — le moteur est nourricier (une session branchée
-     * ne re-lect rien).
+     * @param classpath le classpath (entrées ordonnées + racines + dossier
+     * d'index) ;
+     * @return toujours `true` — le moteur est nourricier (une session
+     * branchée ne re-lect rien).
      */
     override fun definirClasspath(classpath: ClasspathKotlin): Boolean {
-        val frais = SnapshotClasspath(classpath)
-        synchronized(verrouMoteur) { publie = frais }
+        passeur.definirClasspath(classpath)
         return true
     }
 
     /**
-     * Le snapshot courant publié par la dernière passe (interne — inspection
-     * de la fiche 042 : « l'index reste tel quel »).
+     * Le snapshot courant publié par la dernière passe (interne —
+     * inspection de la fiche 042 : « l'index reste tel quel »).
      */
     internal val snapshotCourant: SnapshotClasspath?
         get() = publie
@@ -87,11 +109,14 @@ public class MoteurLangageKotlinNoyau : ServiceMoteurLangageKotlin {
 
         /**
          * Rend le snapshot publié s'il couvre exactement [entrees] (liste
-         * ORDONNÉE — la préséance du classpath fait la garde).
+         * ORDONNÉE d'empreintes — la préséance du classpath fait la garde,
+         * et la couverture de l'index fait foi : une passe PARTIELLE ou
+         * annulée ne couvre pas, le guichet se tait).
          */
-        override fun indexSiPret(entrees: List<String>): SnapshotClasspath? {
+        override fun indexSiPret(entrees: List<EntreeClasspathKotlin>): SnapshotClasspath? {
             val courant = publie ?: return null
-            return if (courant.classpath.entrees == entrees) courant else null
+            if (courant.classpath.entrees != entrees) return null
+            return if (index.couvre(entrees)) courant else null
         }
     }
 }

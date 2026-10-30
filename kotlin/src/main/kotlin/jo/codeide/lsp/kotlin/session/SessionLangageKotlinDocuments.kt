@@ -6,12 +6,14 @@
 // définitions, lectures parallèles = requêtes, JAMAIS de scan sous verrou).
 package jo.codeide.lsp.kotlin.session
 
+import java.io.File
 import java.util.concurrent.locks.ReentrantReadWriteLock
 import jo.codeide.lsp.kotlin.api.ClasspathKotlin
 import jo.codeide.lsp.kotlin.api.DiagnosticKotlin
 import jo.codeide.lsp.kotlin.api.PlagePliableKotlin
 import jo.codeide.lsp.kotlin.api.SessionLangageKotlin
 import jo.codeide.lsp.kotlin.api.SurvolKotlin
+import jo.codeide.lsp.kotlin.index.IndexAppelablesKotlin
 import jo.codeide.lsp.kotlin.parse.ParseurKotlin
 import jo.codeide.lsp.kotlin.parse.kt.KtFichier
 import kotlin.concurrent.read
@@ -60,14 +62,16 @@ internal class DocumentOuvert(
  * passe (HORS verrou) et publie le snapshot immuable — publication hors du
  * chemin des requêtes.
  *
- * ## Classpath (fiche 042 — ADR 0211)
+ * ## Classpath (fiche 042 — ADR 0211 ; vague 1d — nourrissage réel)
  *
  * Câblée à un moteur nourricier ([NourrissageMoteur] non nul), la session
  * BRANCHE : [definirClasspath] pose classpath et racines sans rien relire,
  * et chaque requête consulte l'état publié par le moteur via [indexSiPret]
  * — sous-lecture honnête tant que rien n'est couvert, guérison à la requête
  * suivante dès publication. Sans moteur (usage direct — tests, packs
- * anciens), la définition nourrit ICI, synchrone (vue locale immédiate).
+ * anciens), la définition nourrit ICI, SYNCHRONE : l'index LOCAL de la
+ * session décode les entrées et la vue n'est publiée que si la couverture
+ * tient (une entrée écartée = un guichet muet — jamais de faux négatif).
  *
  * @property moteur la couture de nourrissage du moteur créateur (`null` =
  * usage direct : contrat synchrone) — ne change jamais après construction.
@@ -90,6 +94,15 @@ internal class SessionLangageKotlinDocuments(
 
     /** Le classpath posé par la dernière définition (entrées + racines). */
     private var classpathPose: ClasspathKotlin? = null
+
+    /**
+     * L'index LOCAL de la session (usage direct — vague 1d) : nourri ICI,
+     * SYNCHRONE à chaque définition hors moteur nourricier (contrat
+     * historique ADR 0211). Interne : les fiches 034/008 l'inspectent
+     * (couverture, segments). Un moteur nourricier ne l'utilise jamais —
+     * la session branchée sert le snapshot PUBLIÉ.
+     */
+    internal val indexLocal = IndexAppelablesKotlin()
 
     /** La vue locale (usage direct uniquement — nourrie ICI, synchrone). */
     private var vueLocale: SnapshotClasspath? = null
@@ -193,23 +206,32 @@ internal class SessionLangageKotlinDocuments(
     /**
      * Pose le classpath : BRANCHEMENT si un moteur nourricier est câblé
      * (aucune re-lecture — les requêtes consultent l'état publié), nourrissage
-     * ICI synchrone sinon (usage direct). Les racines sont posées au scanneur
-     * paresseux — l'amorce WARM y part à la définition (fiche 041 : le coût
-     * du scan n'est pas à la première frappe) mais la session n'en SERT rien
-     * avant [rafraichirSources] : le scan précédent reste abandonné (moins
-     * riche mais jamais faux).
+     * ICI synchrone sinon (usage direct — le décodage des jars vit HORS
+     * verrou, ADR 0212 : jamais d'I/O sous le verrou de session). Les racines
+     * sont posées au scanneur paresseux — l'amorce WARM y part à la
+     * définition (fiche 041) mais la session n'en SERT rien avant
+     * [rafraichirSources] : le scan précédent reste abandonné (moins riche
+     * mais jamais faux).
      */
     override fun definirClasspath(classpath: ClasspathKotlin) {
-        verrou.write {
-            if (fermee) return@write
-            classpathPose = classpath
-            if (moteur == null || !moteur.nourrissageParMoteur) {
-                vueLocale = SnapshotClasspath(classpath)
-            } else {
+        val nourrirLocalement: Boolean? =
+            verrou.write {
+                if (fermee) return
+                classpathPose = classpath
                 vueLocale = null
+                scanPublie = null
+                scanneur.definirRacines(classpath.racinesSources)
+                if (moteur == null || !moteur.nourrissageParMoteur) true else null
             }
-            scanPublie = null
-            scanneur.definirRacines(classpath.racinesSources)
+        if (nourrirLocalement != true) return
+        // Nourrissage SYNCHRONE local (usage direct) — HORS verrou : le
+        // décodage des entrées peut durer des secondes, il ne tient jamais
+        // le verrou d'écriture (miroir de rafraichirSources / ADR 0212).
+        indexLocal.definir(classpath.entrees, classpath.dossierIndex?.let(::File))
+        verrou.write {
+            if (!fermee && classpathPose === classpath && indexLocal.couvre(classpath.entrees)) {
+                vueLocale = SnapshotClasspath(classpath, indexLocal)
+            }
         }
     }
 
@@ -265,18 +287,18 @@ internal class SessionLangageKotlinDocuments(
      * Le guichet d'index de la session (interne — fiche 042) : l'état de
      * couverture CONSULTÉ À CHAQUE REQUÊTE.
      *
-     * - usage direct : la vue locale (nourrie ICI à la définition) —
-     *   couverte immédiatement ;
+     * - usage direct : la vue locale (nourrie ICI à la définition, si la
+     *   couverture tient — une entrée écartée garde le guichet MUET) ;
      * - branchement : le snapshot PUBLIÉ par le moteur s'il couvre les
      *   entrées posées (garde de liste ordonnée) — `null` tant qu'aucune
      *   passe n'a abouti (sous-lecture honnête : les requêtes qui prouvent
      *   par l'absence restent muettes, aucun faux négatif) ;
      * - session fermée : `null`.
      *
-     * À la vague 1b ce guichet atteste l'état de branchement (fiche 042) ;
-     * les requêtes d'index proprement dites (appelables du classpath,
-     * diagnostics `kt.unresolved` de l'étage 2) s'y branchent à partir de
-     * la vague 1d — le même guichet, sans nouvelle couture.
+     * Depuis la vague 1d le snapshot porte la VUE des appelables
+     * (`vue.topParNom`, `extensionsSur`…) : les diagnostics `kt.unresolved`
+     * de l'étage 2 s'y brancheront — le même guichet, sans nouvelle
+     * couture.
      *
      * @return la vue d'index couvrant le classpath posé ; `null` si rien
      * n'est couvert.

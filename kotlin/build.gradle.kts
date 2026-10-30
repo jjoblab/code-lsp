@@ -198,8 +198,24 @@ dependencies {
     // la porte qu'en runtime — insuffisant pour compiler les sources).
     "vendorImplementation"("org.jetbrains:annotations:26.0.2")
 
+    // Décodage @Metadata (vague 1d — ADR 0108 : le décodeur vit côté :kotlin,
+    // kotlinx-metadata-jvm en artefact ; Q-K2 documente l'alternative maison).
+    // Épinglée à la chaîne d'outils (manifeste §4 — monte avec elle, ADR 0121).
+    // Empreinte mesurée avant adoption (30/10, bac à sable) : 492 classes /
+    // 1 141 méthodes / class-file 49:81+52:411 / AUCUNE référence sensible
+    // ART (ServiceLoader OK — descripteur MetadataExtensions vérifié) ; dex
+    // pile complète mesuré : 24 372 méthodes / 3 728 244 o (seuils tenus).
+    implementation("org.jetbrains.kotlin:kotlin-metadata-jvm:2.2.10")
+
     testImplementation(kotlin("test"))
     testImplementation("org.junit.jupiter:junit-jupiter:5.11.4")
+
+    // ── Corpus de test de la vague 1d (fiches 002–005/008/009/034) ──────
+    // Tous localisés au runtime par leurs ANCRES de classe, jamais résolus
+    // en code (miroir de l'ancien dépôt — jars RÉELS du classpath de test).
+    testImplementation("com.google.android:android:4.1.1.4")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-datetime-jvm:0.6.1")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-serialization-core-jvm:1.9.0")
 }
 
 // ---------------------------------------------------------------------------

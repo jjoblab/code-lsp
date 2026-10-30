@@ -379,6 +379,7 @@ internal class ScanProjetParesseux(
         //    relèvent de la résolution, étage 2).
         val carte = LinkedHashMap<String, DeclarationExterne>()
         var faits = 0
+        var reanalyses = 0
         for (fichier in marche.fichiers) {
             val cle = fichier.toString()
             val modification = mtimeDe(fichier)
@@ -389,6 +390,7 @@ internal class ScanProjetParesseux(
                 } else {
                     val analysees = declarationsDuFichier(fichier)
                     cacheFichiers[cle] = EntreeCache(modification, analysees)
+                    reanalyses++
                     analysees
                 }
             for (declaration in duFichier) {
@@ -404,7 +406,7 @@ internal class ScanProjetParesseux(
         }
         // 3. PURGE — le cache ne ment jamais (sur les vivants de la marche).
         cacheFichiers.keys.retainAll(marche.fichiers.map { it.toString() }.toSet())
-        statsPassage = StatsPassage(faits = faits, total = marche.vus)
+        statsPassage = StatsPassage(faits = faits, total = marche.vus, reanalyses = reanalyses)
         return ScanSources(carte)
     }
 
@@ -525,11 +527,14 @@ internal class ScanProjetParesseux(
      * @property faits les fichiers traités par la passe (publiés dans
      * l'acquis) ;
      * @property total les fichiers éligibles VUS par la marche (au-delà de la
-     * borne de collecte — `faits < total` signale annulation ou troncation).
+     * borne de collecte — `faits < total` signale annulation ou troncation) ;
+     * @property reanalyses les fichiers RÉ-ANALYSÉS par la passe (le cache
+     * mtime épargne les autres — alimente le bilan d'indexation, vague 1d).
      */
     internal class StatsPassage(
         internal val faits: Int,
         internal val total: Int,
+        internal val reanalyses: Int = 0,
     )
 
     /**

@@ -144,6 +144,21 @@
   mécanisme — sa toolchain est 21 avec jvmTarget 17, config exacte de
   l'incident ; le scan actuel ne trouve rien, le risque est celui des
   écritures FUTURES).
+- **E-K8 — Budget dex de la pile chaude consommé à 90 % par
+  kotlin-metadata-jvm (vague 1d, 30/10/2026)** : l'adoption de
+  `org.jetbrains.kotlin:kotlin-metadata-jvm:2.2.10` (décodeur `@Metadata`,
+  ADR 0108 — artefact épinglé à la chaîne d'outils) fait passer le dex d8
+  de la pile chaude (moteur + syntax-api + lang-syntax + annotations +
+  kotlin-stdlib + kotlin-metadata-jvm, min-api 26) de 16 306 méthodes /
+  2,69 Mo à **24 673 méthodes / 3 790 192 o (3,62 Mo)** [mesuré, bac à
+  sable, d8 build-tools 34 — mêmes commandes que la CI] : les seuils
+  étage 0 (≤ 32 768 méthodes, ≤ 4 Mo) restent tenus (marges 8 095
+  méthodes / 404 Kio) mais **90 % du budget taille est consommé**. Les
+  étages 2–6 n'ajoutent que du code MOTEUR (les piles sont fixes) : à
+  surveiller à chaque vague — si la marge fond, les leviers sont
+  l'arbitrage Q-K2 (décodeur @Metadata maison, sans la bibliothèque) ou
+  une demande d'interface au propriétaire sur le budget T1. Le seuil CI
+  mesure à chaque push (aucune action requise tant qu'il est vert).
 
 ## 5. Points restés « à vérifier » (non clos par l'étude)
 

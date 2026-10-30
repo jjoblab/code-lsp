@@ -1,11 +1,14 @@
 package jo.codeide.lsp.kotlin.session
 
+import java.io.File
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.Callable
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import jo.codeide.lsp.kotlin.api.ClasspathKotlin
+import jo.codeide.lsp.kotlin.api.EntreeClasspathKotlin
+import jo.codeide.lsp.kotlin.api.KindEntreeKotlin
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
@@ -33,12 +36,20 @@ import org.junit.jupiter.api.io.TempDir
  * - le verrou lecture-écriture (ADR 0212) sert les requêtes EN PARALLÈLE —
  *   écritures : mutations et définitions ; jamais d'interblocage.
  *
+ * Depuis la vague 1d la passe du moteur est RÉELLE (segments décodés sur
+ * le fil dédié du pilote — fiche 009) : les classpaths de branchement
+ * portent une COPIE du stdlib réel (jamais l'original) et l'aboutissement
+ * de la passe s'attend par SONDAGE BORNÉ du guichet — le contrat
+ * d'IDENTITÉ (le snapshot publié est servi TEL QUEL) est ce que ces tests
+ * verrouillent.
+ *
  * Chaque comportement porte le nom exact du test source (identifiant de
- * traçabilité du cahier). Les requêtes qui prouvent par l'absence à
- * DiagnosticKotlin proprement dit (`kt.unresolved`) naissent à l'étage 2 :
- * à la vague 1b, la sous-lecture s'atteste par l'état du guichet d'index
- * (`indexSiPret` — null tant que rien n'est publié) et la guérison par le
- * rendu du snapshot À LA REQUÊTE SUIVANTE, sans nouvel appel de définition.
+ * traçabilité du cahier docs/cahier-specifications-kotlin/). Les requêtes
+ * qui prouvent par l'absence à `DiagnosticKotlin` proprement dit
+ * (`kt.unresolved`) naissent à l'étage 2 : la sous-lecture s'atteste par
+ * l'état du guichet d'index (`indexSiPret` — null tant que rien n'est
+ * publié) et la guérison par le rendu du snapshot À LA REQUÊTE SUIVANTE,
+ * sans nouvel appel de définition.
  */
 class Fiche042SessionLangageKotlinA211Test {
 
@@ -55,6 +66,43 @@ class Fiche042SessionLangageKotlinA211Test {
             racine.resolve("Fabrique.kt"),
             "/** Fabrique des instances. */\nclass Fabrique {\n    fun creer(): Int = 1\n}\n",
         )
+    }
+
+    /** Le jar kotlin-stdlib du classpath de test. */
+    private fun jarStdlib(): File =
+        File(
+            kotlin.jvm.internal.Intrinsics::class.java.protectionDomain
+                .codeSource.location.toURI(),
+        )
+
+    /**
+     * Le classpath de branchement : une COPIE isolée du stdlib réel (le
+     * jar original n'est jamais touché) + les racines de preuve.
+     */
+    private fun classpathDeBranchement(): ClasspathKotlin {
+        val copie = Files.createTempFile(racine, "stdlib-a211", ".jar").toFile()
+        copie.writeBytes(jarStdlib().readBytes())
+        return ClasspathKotlin(
+            entrees = listOf(EntreeClasspathKotlin(KindEntreeKotlin.JAR, copie.path, "test:a211-stdlib")),
+            racinesSources = listOf(racine.toAbsolutePath().toString()),
+            dossierIndex = Files.createTempDirectory(racine, "idx-a211").toFile().path,
+        )
+    }
+
+    /**
+     * Attend (sondage borné) que le guichet de la session serve le
+     * snapshot publié par la passe du moteur.
+     */
+    private fun attendreCouvert(
+        session: SessionLangageKotlinDocuments,
+        secondes: Long = 90,
+    ) {
+        val limite = System.currentTimeMillis() + secondes * 1000
+        while (System.currentTimeMillis() < limite) {
+            if (session.indexSiPret() != null) return
+            Thread.sleep(10)
+        }
+        throw AssertionError("la passe du moteur n'a pas publié (guichet toujours muet)")
     }
 
     @Test
@@ -83,14 +131,14 @@ class Fiche042SessionLangageKotlinA211Test {
     fun `branchement---moteur-nourricier,-definirClasspath-ne-re-lect-rien`() {
         ecrireDeclarationExterne()
         val moteur = MoteurLangageKotlinNoyau()
-        val classpath = ClasspathKotlin(
-            entrees = listOf("bibliotheque.jar"),
-            racinesSources = listOf(racine.toAbsolutePath().toString()),
-        )
+        val classpath = classpathDeBranchement()
         assertTrue(moteur.definirClasspath(classpath), "le moteur noyau est nourricier : la passe rend true")
 
         val session = moteur.creerSession() as SessionLangageKotlinDocuments
         session.definirClasspath(classpath)
+        // La passe du moteur aboutit (segments décodés + snapshot publié)
+        // — le guichet de la session branchée le sert À LA REQUÊTE.
+        attendreCouvert(session)
         assertSame(
             moteur.snapshotCourant,
             session.indexSiPret(),
@@ -109,10 +157,7 @@ class Fiche042SessionLangageKotlinA211Test {
     fun `sous-lecture-guerit---le-snapshot-publie-rend-l-index-a-la-requete-suivante`() {
         ecrireDeclarationExterne()
         val moteur = MoteurLangageKotlinNoyau()
-        val classpath = ClasspathKotlin(
-            entrees = listOf("bibliotheque.jar"),
-            racinesSources = listOf(racine.toAbsolutePath().toString()),
-        )
+        val classpath = classpathDeBranchement()
         val session = moteur.creerSession() as SessionLangageKotlinDocuments
 
         // Branchement AVANT toute passe moteur : rien n'est couvert — la
@@ -122,6 +167,7 @@ class Fiche042SessionLangageKotlinA211Test {
 
         // La passe moteur PUBLIE — SANS retoucher la session.
         moteur.definirClasspath(classpath)
+        attendreCouvert(session)
         assertSame(
             moteur.snapshotCourant,
             session.indexSiPret(),

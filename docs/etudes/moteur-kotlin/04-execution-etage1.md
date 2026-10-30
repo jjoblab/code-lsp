@@ -27,6 +27,12 @@
 > au bac à sable, tolérance 101/0, aucune référence sensible ; premières
 > mesures appareil réelles consignées, la porte d'entrée de l'étage 1 est
 > franchie (§15).**
+> **Mise à jour (30/10, vague 1d) — CLASSPATH + INDEX APPELABLES LIVRÉS :
+> reprises R4/R5 copiées (décodeur @Metadata + lecteur de classes — voie C,
+> manifeste §3/§6), index dédié `.kidx` + pilote de passages en code neuf
+> cahier en main (fiches 002–005/008/009/034 — 31 comportements verts,
+> §16) ; dépendance kotlin-metadata-jvm 2.2.10 activée (budget dex 90 % —
+> alerte E-K8) ; la passe moteur nourrit réellement l'index (ADR 0211/0213).**
 
 ## 1. Périmètre exécuté (vague 1a — façade `Kt*`, fiche 013)
 
@@ -139,7 +145,7 @@ hors registre (code neuf libre ; aucune reprise voie C cette vague).
 |---|---|---|
 | Fiches parse vertes | **Atteint** | 010–013 : 27/27 comportements (domaine `parse` du cahier complet) |
 | Fiches session vertes | **Atteint** | Fiches 049 (26/26) + 042 (4/4) — vague 1b, §7 ; fiche 041 (15/15) — vague 1c, §10 |
-| Fiches index vertes | Ouvert | Fiches 008/009/034 — vague 1d |
+| Fiches index vertes | **Atteint** | Vague 1d (§16) : fiches 002/003/004/005 (13 comportements — décodeur, lecteur, différentiel réflexion, sonde typealias) + 008/009/034 (18 — index disque, pilote, segments persistants) = 31 ; 104 tests verts au total |
 | Fiches synthétiques vertes | **Bloqué propriétaire** | R1/R2 attendent l'audit P-K1 (recommandé avant l'étage 1 — toujours ouvert) |
 | Latences S0 tenues (reparse < 50 ms JVM à 3 000 l.) | **Atteint** | parse chaud p50 18,9 ms / p95 48,6 ms à 3 000 l. [mesuré] |
 | Gabarit appareil rempli (porte d'entrée) | **Atteint** | Passe 3 (30/10 02:14:51, kit v2 sur l'appareil) : banc + tolérance + tas + scan ART VERTS sous openjdk 17.0.19 — déterminisme 31 368 / 24 274 IDENTIQUE au bac à sable ; GABARIT-RESULTATS.md rempli des valeurs brutes (§15) |
@@ -169,18 +175,14 @@ mécanique.**
   connu, annulation coopérative, reprise, projet sans sources) — le scan
   synchrone de la vague 1b est REMPLACÉ sans changer le contrat de
   publication (snapshot immuable hors verrou).
-- **Vague 1d — classpath + index appelables** : reprises R4/R5 au câblage
-  (inscription PRÉALABLE déjà posée, re-contrôle R9.4 à la copie) +
-  fiches 002/003/004/005 (11 comportements) ; index appelables fiches
-  008/009/034 (18) sur l'hypothèse **index dédié** (ADR 0108 — Q-K1
-  ouvert, l'arbitrage propriétaire peut redresser).
+- **Vague 1d — classpath + index appelables** : LIVRÉE (§16) — reprises R4/R5 (décodeur `@Metadata` + lecteur de classes, voie C), index dédié `.kidx` en code neuf (segments par empreinte, cache mémoire, garde de couverture, auto-guérison), pilote de passages (séquence ADR 0213, annulation, reprise ciblée) ; fiches 002–005/008/009/034 (31 comportements).
 - **Synthétiques** : R1/R2 bloqués à l'audit P-K1 (§4).
 
 ## 6. Actions propriétaire ouvertes (mise à jour)
 
 | # | Action | Référence | Bloque |
 |---|---|---|---|
-| 1 | Passe appareil (Termux) : **passe 3 du 30/10 02:14:51 — VERTE, gabarit REMPLI (§15)** ; passes 1–2 du 30/10 (kit incomplet puis incident JDK 21 corrigé — §13/§14) ; passes répétées OPTIONNELLES pour le suivi longitudinal (thermique) | GABARIT-RESULTATS.md, §13–§15 | plus rien — le critère de sortie « gabarit appareil rempli » est ATTEINT |
+| 1 | Passe appareil (Termux) : **passe 3 du 30/10 02:14:51 — VERTE, gabarit REMPLI (§15)** ; passes 1–2 du 30/10 (kit incomplet puis incident JDK 21 corrigé — §13/§14) ; passes répétées OPTIONNELLES pour le suivi longitudinal (thermique) ; une future passe couvrant l'ÉTAGE 1 exigera un kit enrichi de la pile `kotlin-metadata-jvm` (§16 — recommandation consignée) | GABARIT-RESULTATS.md, §13–§16 | plus rien — le critère de sortie « gabarit appareil rempli » est ATTEINT |
 | 2 | Audit de similarité GPL (P-K1) | manifeste §5 | la copie de synthetics R1/R2 (vague 1d/2) |
 | 3 | Arbitrages Q-K1 (CIDX vs index dédié) / Q-K2 (décodage @Metadata) | DEMANDES-INTERFACE, ADR 0108 | le câblage classpath final (le développement suit l'hypothèse index dédié) |
 | 4 | Conditions binaires intellij-dependencies (P-K2) | ADR 0120, NOTICE | la PUBLICATION du pack langue (pas le développement) |
@@ -687,3 +689,97 @@ moteur modifiée par la consignation (documents et sortie brute seulement,
 l'état de code vérifié §14 est inchangé). **La passe appareil est CLOSE
 sur preuve mécanique — la porte d'entrée de l'étage 1 est franchie ; la
 vague 1d (classpath + index appelables, reprises R4/R5) est la suivante.**
+
+## 16. Vague 1d — classpath + index appelables (30/10, reprises R4/R5 + code neuf)
+
+**Périmètre exécuté** (fiches 002–005/008/009/034 du cahier, domaine
+« index-classpath » — 31 comportements) :
+
+| # | Item | État | Détail |
+|---|---|---|---|
+| 1 | Reprises R4/R5 (voie C) | **Fait** | `classpath/DecodeurMetadonnees.kt` (décodeur `@Metadata` : porte `.kotlin_module`, façades `*Kt` → appelables top-level + extensions + TYPEALIAS publics, jars/AAR en mémoire) et `classpath/LecteurClassBrut.kt` (lecteur octet par octet sans ASM : identité/super/interfaces + reconstruction `kotlin.Metadata`) copiés de codeide-lsp @ bc11253 vers `kotlin/src/main/kotlin/jo/codeide/lsp/kotlin/classpath/` — re-contrôle R9.4 à la copie : PASSÉ (en-têtes relus, aucune mention tierce, aucun écart) ; adaptations de câblage SEULEMENT (paquet, imports retéléphonés vers le SPI `api/` et le modèle neuf `index/`, en-tête d'origine, deux références KDoc d'entités anciennes retirées) — corps repris tel quel, manifeste §3/§6 mis à jour avec les destinations |
+| 2 | Modèle + vue (code neuf) | **Fait** | `index/AppelableKotlin.kt` : `AppelableKotlin` (genre/nom/paquet/récepteur/typeRetour/paramètres/conteneur), `GenreAppelable` (FONCTION/PROPRIETE/ALIAS), `ParametreAppelable`, `VueAppelables` (topParNom/nomsTopParPrefixe binaire/extensionsSur/aliasTopParNom/estTypeAliasConnu) — INTERNE (D6) |
+| 3 | Index dédié `.kidx` (code neuf) | **Fait** | `index/IndexAppelablesKotlin.kt` : segments `<dossierIndex>/kotlin-appelables/<sha256(empreinte)>.kidx` (magie 0x4B434944 + version + empreinte recoupée ; espace de clés préfixé propre au module), persistance sans le jar d'origine, auto-guérison (corrompu/périmé → re-décodage), cache mémoire par empreinte BORNÉ (échec jamais en cache), garde d'empreintes (no-op chaud liste ordonnée), garde de couverture, annulation coopérative (snapshot partiel = vérité), typealias en carte dédiée |
+| 4 | Pilote de passages (code neuf) | **Fait** | `index/PasseurIndexationKotlin.kt` : fil démon dédié, séquence ADR 0213 (BIBLIOTHEQUES → SOURCES → PRET/PARTIEL), liste de travail (EN_ATTENTE/ACTIF/REPRIS/TERMINE/ECARTE), breakdown deux indexeurs (`kidx-segments`/`scan-warm`), durées, bilan paritaire (artefacts repris+reconstruits=total, fichiers parcourus/ré-analysés — `StatsPassage.reanalyses` ajouté au scanneur), annulation depuis l'observateur, reprise ciblée `reesayerEchecs`, péremption de génération, publication du snapshot à l'issue des SEGMENTS |
+| 5 | SPI (code neuf) | **Fait** | `api/EntreeClasspathKotlin.kt` (KindEntreeKotlin JAR/AAR + entrée chemin/empreinte) ; `ClasspathKotlin` évolué en vue RICHE (entrées typées + `dossierIndex`) — l'évolution annoncée par la vague 1b sur cette même frontière ; `api/IndexationKotlin.kt` : modèle d'événements complet (Phase/PhaseDetaillee/EtatEntree/EntreeTravail/Breakdown/Durees/Bilan/Evenement/Observateur) |
+| 6 | Câblage moteur/session | **Fait** | `MoteurLangageKotlinNoyau.definirClasspath` mène la VRAIE passe (asynchrone, pilote) et publie le snapshot à l'issue des segments ; `NourrissageMoteur.indexSiPret` garde par liste ordonnée d'empreintes + couverture de l'index ; `SnapshotClasspath` porte la vue d'appelables ; `SessionLangageKotlinDocuments` : branchement inchangé côté moteur, nourrissage SYNCHRONE local hors verrou en usage direct (ADR 0212) ; fiche 042 recalée (fixtures jar réel + attente bornée — comportements inchangés) |
+| 7 | Dépendance @Metadata | **Fait** | `org.jetbrains.kotlin:kotlin-metadata-jvm:2.2.10` (Central, Apache-2.0, manifeste §4 — épinglée à la chaîne d'outils) ; empreinte mesurée AVANT adoption : 492 classes / 1 141 méthodes / class-file 49+52 / **AUCUNE référence sensible ART** (ServiceLoader OK — descripteur `kotlin.metadata.internal.extensions.MetadataExtensions` vérifié) |
+| 8 | Manifeste de reprise | **Fait** | R4/R5 marquées COPIÉES avec chemins destination (le contrôleur `verifier-provenance.sh` exige le chemin exact — rc=0) ; journal du manifeste §6 : entrée copies + re-contrôle R9.4 |
+
+**Discipline de provenance tenue** : zones noyau (`parse/`, `resolve/`,
+`diagnostics/`, `completion/`, `session/`, `api/` anciens) jamais lues —
+le SPI neuf et le câblage sont écrits du cahier (fiches 042/009/034) ;
+la zone `index/` de l'ancien dépôt n'est NI reprise (pas au manifeste R1–R9)
+NI noyau interdit — l'ADR 0108 laissait « reprise voie C ou réécriture
+cahier en main selon ADR 0100 », et l'ADR 0100 ne l'inscrit pas aux
+reprises : elle est livrée en **code neuf cahier en main** (contrats
+fiches 008/009/034 + format `.kidx` documenté par la fiche 034) ;
+les ANCIENS TESTS (fiches 002–005) ont été consultés (R9.1 :
+consultation autorisée, base du cahier) pour les mécaniques de fixtures
+(android.jar AOSP API 16 Maven Central, corpus kotlinx, classe
+synthétique) — **jamais copiés** ; `verifier-provenance.sh` rc=0.
+
+**Décision consignée (ADR 0108, consommation `:index`)** : la reprise R4/R5
+inscrite au manifeste PRIME sur la suggestion « consommer l'analyseur
+`.class` de `:index` » — le lecteur maison repris est autonome (aucune
+dépendance, preuve différentielle A.3) et `:kotlin` reste une entité
+indépendante (D6) ; la question du partage/fusion des formats reste
+l'arbitrage **Q-K1** (ouvert — l'hypothèse index dédié est celle suivie).
+
+**Suites vertes [mesuré]** : fiches 002 (3/3 : stdlib appelables+extensions,
+jar Java porte absente — témoin `opentest4j`, la bibliothèque d'assertions
+de JUnit 5 : `junit-jupiter-api` porte un `.kotlin_module` depuis JUnit
+5.11 et ne peut PAS servir le négatif), 003 (3/3 : différentiel structure
+contre réflexion JDK — android.jar 4.1.1.4 **≥ 500 classes, 0 illisible,
+0 écart super/interfaces**, stdlib idem ; métadonnées : volume ≥ 3 000,
+usuelles présentes, extensions réputées), 004 (5/5 : synthétique octet par
+octet, super null, octets invalides, StringsKt @Metadata reconstruite,
+Intrinsics Java négatif honnête), 005 (2/2 : kotlinx-datetime 3 alias
+publics isolés DayOfWeek/Month/ZoneOffset, kotlinx-serialization-core
+ZÉRO alias — verdict du corpus), 008 (9/9 : persistance sans jar,
+mémoire seule, entrée inexistante, carte alias dédiée non polluante,
+préfixe binaire borné, garde d'empreintes no-op chaud, cache mémoire
+survit au disque effacé, échec jamais en cache, annulation partielle),
+009 (6/6 : séquence PARTIEL avec écart, séquence complète paritaire,
+sync redondante tout REPRIS, annulation « annulé par l'utilisateur » +
+reprise guérie, écart isolé réparé par reesayerEchecs, hors-vol refus
+honnête), 034 (3/3 : segment corrompu auto-guéri, version périmée
+re-décodée à l'identique, jar absent = garde muette — le guichet que
+`kt.unresolved` (étage 2) consultera), 042 recalée (4/4). **Suite du
+module : 104 tests VERTS** (73 + 31). Baseline de parité re-signée :
+corpus 304 → **318 fichiers** (+7 main, +7 tests — procédure
+`-Dparite.majBase=true --rerun-tasks`).
+
+**Gardes mécaniques [mesuré, bac à sable — mêmes commandes que la CI]** :
+jar moteur **153 classes / 221 méthodes / class-file 61:153** (was
+122/205 — R4/R5 + index + SPI) ; `scan-jdk21.py` **PROPRE** (garde JDK 17
+— aucune référence SequencedCollection) ; `scan-art.py` pile complète
+(moteur + syntax-api + lang-syntax + annotations + kotlin-stdlib +
+kotlin-metadata-jvm) : **6 × AUCUNE référence sensible** (ServiceLoader
+OK descripteurs vérifiés — moteur et MetadataExtensions) ; dex d8
+build-tools 34 min-api 26 : **24 673 références de méthodes /
+3 790 192 o (3,62 Mo)** — seuils étage 0 tenus (≤ 32 768 / ≤ 4 Mo,
+marges 8 095 méthodes / 404 Kio) ; **alerte E-K8 posée** (budget taille
+consommé à 90 % par kotlin-metadata-jvm — leviers : Q-K2 ou demande
+d'interface). Banc `:kotlin:bench` sous JDK 17 : parse froid 190,9/25,2
+ms, p50 4,9/23,7 ms, p95 36,4/53,2 ms, déterminisme **31 368/24 274
+IDENTIQUE**, tolérance 101/0, tas 3 846 Kio (bruit entre passes —
+§12/§14) ; jar 390 002 o (+69 880 vs kit v2 — le code 1d).
+
+**CI étendue** : le job `kotlin-art` scanne et dex désormais la pile
+COMPLÈTE avec kotlin-metadata-jvm (gate 5 × AUCUNE — moteur, syntax-api,
+lang-syntax, annotations, KM ; stdlib pour mémoire) ; le nom du job
+parité suit les vagues (010-013 + 049/042/041 + 002-005/008/009/034,
+1a-1d). Dépendances de test ajoutées (corpus réels, localisés par ancres
+jamais résolues en code) : `com.google.android:android:4.1.1.4`,
+`kotlinx-datetime-jvm:0.6.1`, `kotlinx-serialization-core-jvm:1.9.0`.
+
+**Nota** (passe appareil) : le kit d'exécution v2 (§14) reste VALIDE pour
+le banc grammaire — le banc n'exécute pas le code classpath/index (chargement
+paresseux des classes, `kotlin-metadata-jvm` jamais chargé sur son fil) ;
+une future passe appareil couvrant l'étage 1 enrichira l'assembleur de la
+pile KM (§6, recommandation consignée).
+
+**La vague 1d est livrée sur preuve mécanique locale — la CI du commit
+atteste ; restent à l'étage 1 : les synthétiques (R1/R2 — audit P-K1
+propriétaire) puis la clôture de l'étage.**

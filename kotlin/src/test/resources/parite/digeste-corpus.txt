@@ -5,8 +5,10 @@
 03407c10b0c1965de2d6ae3674687b8e02b459d9905c7f89880b0f4803cef7ff  model/src/test/kotlin/jo/codeide/lsp/model/FixturesClasspath.kt
 03f38590118728fc261f862a3c64dba050bb35461df71c573a2db01b18d3fcb7  java/src/main/kotlin/jo/codeide/lsp/java/renommage/TypesRenommage.kt
 044f137e87b23ee4fcf32623e8207591c8fa958baebf224e47e93581a9fe5033  java/src/main/kotlin/jo/codeide/lsp/java/gabarits/AncreImport.kt
+057eb0acae637178ba66342bdc5e3580f2e78d792287b393fdedb9c26d4a03c8  kotlin/src/test/kotlin/jo/codeide/lsp/kotlin/classpath/Fiche004LecteurClassBrutTest.kt
 05e9d357a526eb7535bf8f11dc516e8439ea8afe2619cd0cfa8d372342ccecdc  model/src/main/kotlin/jo/codeide/lsp/model/protocole/ProtocoleClasspath.kt
 065ba89351eddecb3d84e5a3d4d6b7bdc1008ab62c86066f0802790c664d3229  kotlin/src/test/kotlin/jo/codeide/lsp/kotlin/session/Fiche049SessionLangageKotlinParseTest.kt
+066ecc8c9afdfe56f1b146173242710b8ddab4375a0432cb4b31e66be4183b23  kotlin/src/test/kotlin/jo/codeide/lsp/kotlin/index/Fiche009PasseurIndexationKotlinTest.kt
 06e1df203aa0c73ed69991f873ea7f017a9de6129d2b11dbd9635a23f870591d  java/src/main/kotlin/jo/codeide/lsp/java/diagnostics/ServiceDiagnostics.kt
 07358d31863dfee808100169d3bb149847793e2e2c0ca7f00c5ad79eed33a881  spike-kotlin/src/main/kotlin/spikekotlin/GenerateurCorpus.kt
 0755a55e8cbde1ac6c4a685b6e4ef2b08421f7bf0511ee44982097ed09921ac5  java/src/test/kotlin/jo/codeide/lsp/java/FumeeNoyauTest.kt
@@ -29,6 +31,7 @@
 1201b732c30e122891d1f0eb6f15d486d3e62d1de0ce92dfba403389da048408  java/src/test/kotlin/jo/codeide/lsp/java/formatage/Fiche016FormateurPlagesTest.kt
 12a0e9a46a1ec80f5b734316a14374efe5bf97fb940aa20d55301c00e6c9d920  java/src/test/kotlin/jo/codeide/lsp/java/Fiche010FqcnRacinesTest.kt
 12e033158c0041756a6facd04c889c9e4ff67bae3bf9dbc4f2aa8c66932313b5  java/src/test/kotlin/jo/codeide/lsp/java/actionscode/Fiche064CreationMethodeTest.kt
+13a5393b287b3bbea49230f7511410f497627fb0a419dd5e125255d4b67f89e7  kotlin/src/main/kotlin/jo/codeide/lsp/kotlin/session/SessionLangageKotlinDocuments.kt
 1404437bc805648d87ad8e916a5a3f6257cbb2758a0de4b465600583ae240150  kotlin/src/main/vendor/org/jetbrains/kotlin/kmp/parser/utils/TokenStreamPatterns.kt
 1404437bc805648d87ad8e916a5a3f6257cbb2758a0de4b465600583ae240150  spike-kotlin/src/main/vendor/org/jetbrains/kotlin/kmp/parser/utils/TokenStreamPatterns.kt
 141628b8ebe18ebf511fae40c21aa4709a34244394ee9210c79b5af0f7764187  spike/scripts/BancV1.kt
@@ -41,7 +44,6 @@
 17c2ab80421ced6a0fe4307554d8db3dc4b1b595afef589a94b628136a8bcfb1  java/src/test/kotlin/jo/codeide/lsp/java/navigation/Fiche049AuditNavigationTest.kt
 19b69ebb20a45738b600dd263e49d245a597ac96ca3ae9176ab150db5cedfea5  kotlin/src/test/kotlin/jo/codeide/lsp/kotlin/parite/Fiche010PariteCorpusDepotTest.kt
 1bd63873e1a39a1103effdeb278f4d1f06440d4b74d45e99c85d2afe9dd4aa24  model/src/main/kotlin/jo/codeide/lsp/model/ProjetLsp.kt
-1d35915740afdf1d49f5e8b0895257d0bdbd949701678bf64c3e14467c877af6  kotlin/src/main/kotlin/jo/codeide/lsp/kotlin/session/ScanProjetParesseux.kt
 1d5d997b80b720d71bddec059c2562cba7fb99754a48825d8a8db19ebe1c8cb7  java/src/bench/kotlin/jo/codeide/lsp/java/banc/BancUsages.kt
 1ec823978a572bf06b96195ea597bbc2e83828a3be0e995f0719c9f282111f92  java/src/main/kotlin/jo/codeide/lsp/java/protocole/SymbolesDocument.kt
 1ed221755a2d014708688edaee85b04d24325ee4f8214436983c230062e4910d  model/src/test/kotlin/jo/codeide/lsp/model/AssociationFichierTest.kt
@@ -53,7 +55,7 @@
 23fad216fa810b95880b5d90d224b7c394b2e582a0103a0ef8421cf6e675084c  index/src/main/kotlin/jo/codeide/lsp/index/OctetsIndex.kt
 2448d295edde7445ac856bcb5d7f38574da25f928ab80e087478decfba602247  kotlin/src/main/vendor/org/jetbrains/kotlin/kmp/parser/BinaryOperationPrecedence.kt
 2448d295edde7445ac856bcb5d7f38574da25f928ab80e087478decfba602247  spike-kotlin/src/main/vendor/org/jetbrains/kotlin/kmp/parser/BinaryOperationPrecedence.kt
-25ae4745d4524a048d133e599605fcc107c3c59ddf7d30262d05c0faad9ef521  kotlin/src/main/kotlin/jo/codeide/lsp/kotlin/session/MoteurLangageKotlinNoyau.kt
+259f4d5e573dbf9042e85500a148e1ebf146bbd513ac8c80abbc59626e96e1c0  kotlin/src/main/kotlin/jo/codeide/lsp/kotlin/api/IndexationKotlin.kt
 25c227c728af54c4aec593bfdb8e9f81e0f34f3844dc33661bba39e43202fed3  java/src/bancStubs/kotlin/jo/lspjava/ecj/StubsMoteur.kt
 2632a85ed9210425c43a312fb134dfd5f3545274145f401cbfbaeb98539a7b7d  index/src/test/kotlin/jo/codeide/lsp/index/FormatSegmentTest.kt
 264f20a6cf433c8682a2e195b412deff400663a2132dae87f2d0e1d19fb44073  java/src/test/kotlin/jo/codeide/lsp/java/banc/FormatEchangeTest.kt
@@ -68,6 +70,7 @@
 2d805ca09a987d92f8b21cf822ececee5efc523f8b81f2ff4e80a76d2769827f  java/src/test/kotlin/jo/codeide/lsp/java/actionscode/Fiche063ServiceActionsCodeTest.kt
 2e273d82ff30e09ae0f79cac12ce4c7533d74834bb37beedbaca3068b12fe1e2  java/src/test/kotlin/jo/codeide/lsp/java/protocole/Fiche054BoutEnBoutL4Test.kt
 2e94daaf94fcc917c1b5698ee54284c90d63d13b64bcdd5d2b3b293f6248636c  index/src/test/kotlin/jo/codeide/lsp/index/VueIndexTest.kt
+2edaf2b890c9dc9255ef26871fd90c7180ba5db5a5eba8c840c026130a715825  kotlin/src/main/kotlin/jo/codeide/lsp/kotlin/api/ClasspathKotlin.kt
 2fffd0e2fbab107b70bc1d057ab0f33f5887c67ac4c3a7ea51bd127df595f2ef  kotlin/src/main/vendor/org/jetbrains/kotlin/kmp/parser/utils/AbstractKotlinParsing.kt
 2fffd0e2fbab107b70bc1d057ab0f33f5887c67ac4c3a7ea51bd127df595f2ef  spike-kotlin/src/main/vendor/org/jetbrains/kotlin/kmp/parser/utils/AbstractKotlinParsing.kt
 30b3479c8baf8e8f2992597087e45c60e3c5d54dc50a57cab27786730b1e422a  java/src/test/kotlin/jo/codeide/lsp/java/navigation/UsagesQueryExecutorTest.kt
@@ -76,7 +79,7 @@
 3371d0c9f081dba39bb89f070ce7387e209e089c5ad1df653f4ca82083f812b0  java/src/main/kotlin/jo/codeide/lsp/java/outils/ScannerCorps.kt
 33c5904336428887f4232ae37d53c644f7bdbc5f401724faf4a16912f99b5e37  java/src/main/kotlin/jo/codeide/lsp/java/actionscode/ModCommandes.kt
 33e16483c154155533ebe19bc7edf3577cc18a469ffe3cef41fa89f31b4d88db  java/src/test/kotlin/jo/codeide/lsp/java/Fiche028RepliSyntaxeTest.kt
-340e03ce4b63b7f1c51813a2653c679194f4e18f5bd411d542ea4b565c3908d6  kotlin/src/main/kotlin/jo/codeide/lsp/kotlin/session/SessionLangageKotlinDocuments.kt
+357c584d76e292f1df67db395b33e75a660c272fb6522db39abd15f90a95149e  kotlin/src/test/kotlin/jo/codeide/lsp/kotlin/session/Fiche042SessionLangageKotlinA211Test.kt
 382dafb986511167937a37a894a3b8375e5de4a0a482b1eb2bb8fa442685f69c  java/src/bench/kotlin/jo/codeide/lsp/java/banc/BancNoyau.kt
 3854c0dd8b2096b41206d76c607a94ae3487b3c9cfd466d76cde3dbaa50118eb  model/src/main/kotlin/jo/codeide/lsp/model/PersistanceModeleLsp.kt
 38a1d15f0a7a23fc8c9f8bcac091251d0d66ee5490b5562af41bb4dc53e7ff88  java/src/main/kotlin/jo/codeide/lsp/java/completion/ContexteCompletion.kt
@@ -105,6 +108,7 @@
 479bdbe738c9f3bd78c3503037c986472412af5e6921a303922f22d425300b75  java/src/main/kotlin/jo/codeide/lsp/java/navigation/IndexMotsSources.kt
 48e8f8db0d187db890e75a98b1df1c102fe759d2185ed7489fc0eb728773895e  java/src/piloteOracle/kotlin/jo/codeide/lsp/java/banc/DriverOracle.kt
 493b56ec19732ec3e8de82da014e5ffc6eb9a82944506bb66c17add59d5b384e  kotlin/src/bench/kotlin/jo/codeide/lsp/kotlin/banc/BancGrammaire.kt
+494840b99cac4532fc71e314f867eaadf9e7b0aac1083f59c3cf24980efde1b0  kotlin/src/main/kotlin/jo/codeide/lsp/kotlin/index/AppelableKotlin.kt
 49976ba9caa6dedfb8233176930d50b96c8c817f66d19000f86238c934186106  model/src/test/kotlin/jo/codeide/lsp/model/PersistanceModeleLspTest.kt
 4a25b349d8ed1233234b4b85625f2d8a401eb59180b151ed06c367b15a2035b4  index/src/main/kotlin/jo/codeide/lsp/index/TypesIndex.kt
 4b87ae8c8eb8cd2fb84eae5791dde9fa963e843a95138908454947d4aa8f8c78  java/src/test/kotlin/jo/codeide/lsp/java/Fiche040FormesAstTest.kt
@@ -132,16 +136,16 @@
 5f28b74224ba97d0823acd7eefbe97223d532862df2a3cb1e321e5eca02f6f83  java/src/test/kotlin/jo/codeide/lsp/java/navigation/JdkDeTest.kt
 60d719a80ab4e031599c6b08c66a1224c8103cef02ecfc0fa6814c94c1933284  java/src/main/kotlin/jo/codeide/lsp/java/completion/ArrangementListe.kt
 60f21cc2be14dc749e52d70f6b29e3257945ec607493a8a06dce6eb753c7ebbe  java/src/test/kotlin/jo/codeide/lsp/java/completion/Fiche053ImportCompletionIntegrationTest.kt
-6319521b25bd742dffefd93cb60f4b5a419da70bcf6044d88e6be0c1c26eab3a  kotlin/src/main/kotlin/jo/codeide/lsp/kotlin/session/NourrissageIndex.kt
 631981f22187fc9136af69482e62d47d4f4a1ad94f499dd627e6468f3c0429ac  index/src/test/kotlin/jo/codeide/lsp/index/AnalyseurClassFileDifferentielTest.kt
 64624c3e74a6a2146c0a8ae0d5b0a0af1f024fa25782043a47ec57b46d2926ae  java/src/main/kotlin/jo/codeide/lsp/java/protocole/AuxiliairesProtocole.kt
+664d574456ab9f540291950b93f0bb853a7cf47a92acee492a1e3ebf61d636dc  kotlin/src/test/kotlin/jo/codeide/lsp/kotlin/classpath/Fiche002DecodeurMetadonneesTest.kt
 6883747b75e61cfdf42cd2859bd0e9f720a6296af21a7a00bfb08f931976b1a3  java/src/main/kotlin/jo/codeide/lsp/java/gabarits/GabaritsPostfixes.kt
 6968d90f101562e531027bc7d04a4e4bfd2eba1c066617b051add3bfc335aa13  spike-kotlin/src/test/kotlin/spikekotlin/BancS0Test.kt
 699025c0a4f6352e914769a60a800a9c6e472a3cfcf2d6b0c5874613e364c69c  java/src/main/kotlin/jo/codeide/lsp/java/inlay/ServiceInlay.kt
 69e7e983698211a7159fcc1e7d19bf8f950a8d433ce4009890bce53908c71d72  java/src/test/kotlin/jo/codeide/lsp/java/navigation/Fiche005RepliBinaireTest.kt
 6bda75aa90e2a3417a2f6696826adfc9ba913c967ec46fc9191dc614f5aff842  spike/scripts/ExplorateurV2.kt
+6cbf44afaad1833d8f054d1ac0893b3cd35d27dc07348790f78569e63fc5ba63  kotlin/src/test/kotlin/jo/codeide/lsp/kotlin/index/Fiche008IndexAppelablesKotlinTest.kt
 6cc7422d6de082c90c92d9f27cdf6a1379b2a10dc97b38ae8671e3866d34a692  java/src/main/kotlin/jo/codeide/lsp/java/survol/NettoyeurJavadocMarkdown.kt
-6e23c07dce4d24076c2b93c9b70d67e7a0d7a1035cac371813631c436e7a47fd  kotlin/src/main/kotlin/jo/codeide/lsp/kotlin/api/ClasspathKotlin.kt
 6ec045ef3f00dda8963b7f60863c2897b27d5484ea6752dfa02596a262438166  java/src/test/kotlin/jo/codeide/lsp/java/pliage/Fiche052PliageFaçadeTest.kt
 6f5cb0c1d57379c2ed5161d0efc0de2aa316ff1ee5e0c84e399dc34bcca7ef3a  java/src/test/kotlin/jo/codeide/lsp/java/signature/Fiche023InlayAndSignatureTest.kt
 7108f5a449fbf8778b15b34b7374ffad3a33860bb86b7151e9768b1f670bda06  java/src/test/kotlin/jo/codeide/lsp/java/navigation/Fiche009SourceDecompileeTest.kt
@@ -163,15 +167,18 @@
 7b7d2744149853c194496250a65c9763c5679b3cd171f9313af015ca8308f807  kotlin/src/main/vendor/org/jetbrains/kotlin/kmp/utils/SyntaxElementTypesWithIds.kt
 7b7d2744149853c194496250a65c9763c5679b3cd171f9313af015ca8308f807  spike-kotlin/src/main/vendor/org/jetbrains/kotlin/kmp/utils/SyntaxElementTypesWithIds.kt
 7d5fe5714d0b329b021a95b8e9cf78c6572898ee07a8865edd1fe15c2efafd40  kotlin/src/main/kotlin/jo/codeide/lsp/kotlin/parse/kt/KtAnnotations.kt
+7ff27c56d90e66ac59a76163ff9319885a2598fb9a108650e67a94c3c79f1660  kotlin/src/main/kotlin/jo/codeide/lsp/kotlin/session/NourrissageIndex.kt
 8095e924e1e1a182b60db1375fabb86cda4710f8f0d16437be439b024160b93f  java/src/main/kotlin/jo/codeide/lsp/java/navigation/SymboleAuCaret.kt
 80c3ab7a9fcaf2b74aabbdf81466ba352b7aad8ae0696b2f8c80b6714b2c4ded  index/src/main/kotlin/jo/codeide/lsp/index/LecteurZipBrut.kt
 81f2f9735842e5a0b25598322fd40cf98be6ccf1dd3d79e0a8d5acf7f3df2319  java/src/test/kotlin/jo/codeide/lsp/java/completion/Fiche043SubpackageDiagnosticTest.kt
+823cb4c9f51794409f6a19641eb321922d510a19e909971410deb12d5dde8959  kotlin/src/test/kotlin/jo/codeide/lsp/kotlin/classpath/Fiche003LecteurClassBrutDifferentielTest.kt
 82e289fd4638a6ba461daa98ae99beaaf88ecde3c5501bcd1d3a1a3e9279308b  kotlin/src/main/kotlin/jo/codeide/lsp/kotlin/session/PlagesPliablesDocuments.kt
 85a95da7d04bb6a72be2430c68c93af79615f3de93b6825d4ed49e99f6ecb1cc  java/src/test/kotlin/jo/codeide/lsp/java/Fiche015FeaturesRapidesTest.kt
 85cb50b7507d8bcf3369686b99d8e4b83e382382bb5f75f3b65c321b9d193283  model/src/main/kotlin/jo/codeide/lsp/model/DepotModeleLsp.kt
 85f0a29c8a7e100f64448968db86e868810c7ef2339a1ff9b0799799ff3d1927  java/src/main/kotlin/jo/codeide/lsp/java/EnvironnementCompilation.kt
 86b772d3e772fe95ce2101e29b6f0db8fdef730a26fa11efa3f04f812ceadf46  java/src/test/kotlin/jo/codeide/lsp/java/Fiche038LecteurZipBrutTest.kt
 86be3a97971802a088257a2f5bcc45f06b2f26dfcb1ddbf4bc951173afcef1ee  java/src/main/kotlin/jo/codeide/lsp/java/actionscode/AnalyseTexte.kt
+86dba6352f05a164738150015bf60378f99bfeba5d9ab5782c35f4b8957f5fab  kotlin/src/main/kotlin/jo/codeide/lsp/kotlin/index/PasseurIndexationKotlin.kt
 88ecdfd2c9e2c3d70203559682327abb4cb0ca996ffa33d2f9900458dfd74b75  java/src/main/kotlin/jo/codeide/lsp/java/outils/LexeurJava.kt
 8bca64a1fd0d671497b2bc4298777f2b2e8f48f79e7f2253c0f1a2df1ccb74ba  java/src/main/kotlin/jo/codeide/lsp/java/protocole/ServeurLangageJava.kt
 8d835fcad392ce0ade94a4846c990cf281d5a012b13bdf088d96d05b606c0657  java/src/test/kotlin/jo/codeide/lsp/java/navigation/Fiche060FacadeNavigationTest.kt
@@ -184,6 +191,7 @@
 92eec630ae8fd44864dfa30e9942c56c3927b12db8ffd260502641c15a820a44  java/src/test/kotlin/jo/codeide/lsp/java/Fiche012ConcurrenceMoteurTest.kt
 953ea7a227b3249fd92b531ec308a217e7200b341aba6480241726476e21b9e8  java/src/main/kotlin/jo/codeide/lsp/java/formatage/FormateurSource.kt
 95624b5f681bc698a8c3d3ea2aa199bd8c2a2bea7e22c9ed68afc63ce626f421  java/src/main/kotlin/jo/codeide/lsp/java/interne/PontEcj.kt
+96d56f8fd7688a5b05b13736cf4a5b9482b4f18d4a981979106dfca0010dbf01  kotlin/src/test/kotlin/jo/codeide/lsp/kotlin/classpath/Fiche005SondeTypealiasKotlinxTest.kt
 971f1a393bacb388a0e6d42e9d1302526355645b2e5054068f84de88bfe2b3b5  java/src/test/kotlin/jo/codeide/lsp/java/Fiche006CachePresenceSourceTest.kt
 9984c84af5a86a556e448b485ad2cbc42c9af30382cedd776e1d74bc26335df9  index/src/test/kotlin/jo/codeide/lsp/index/TypesEtatIndexEtendusTest.kt
 9a93a8e3dec91d57d1d3c376a5338e4a983066dd36f4ec5b3f0c12ecd935b0ed  index/src/main/kotlin/jo/codeide/lsp/index/EtatIndex.kt
@@ -211,6 +219,7 @@ a8352713644a8ca3f1f8ece6b9bfa6e1894e1c6cdf865fe1c526ff2a4ae1891f  spike-kotlin/s
 ad3d0c41522f73b06524f775df50bfd92d664a73e84dd73363cbb8e4225ff0cd  java/src/test/kotlin/jo/codeide/lsp/java/inlay/Fiche003InlayHintTest.kt
 adbe157bdd4959cffa6f951e6f999bd87541bebc4b619e8f301ba5f7375a9524  java/src/test/kotlin/jo/codeide/lsp/java/Fiche024CacheLocalisationTest.kt
 adcdaa80744f9be6123d7ab6cdeaf63c7530ca5775dc442f95c3730de46c6a15  ecj-art/src/main/kotlin/jo/codeide/lsp/ecjart/ScanneurArt.kt
+ae062f82c7546a822693cd45b14e167922e2c4f1e8ef92c66e05cde8085ec785  kotlin/src/main/kotlin/jo/codeide/lsp/kotlin/session/ScanProjetParesseux.kt
 af369c445a1eab0620bf4a0e3a3f9b6014f75a9b18fba421e912f19f9b2a4e24  java/src/main/kotlin/jo/codeide/lsp/java/renommage/MoteurRenommage.kt
 afe1a8f5a1f5fd908489d23dc6d4c1ce6ea939c703157b5ddd154a91fa48e90d  java/src/main/kotlin/jo/codeide/lsp/java/concurrence/OrdonnanceurMoteur.kt
 b054c4e817b74f3d8fc408ec4c38865e631352de909f495daae2c6e09f5dc623  index/src/main/kotlin/jo/codeide/lsp/index/CacheSegments.kt
@@ -228,6 +237,7 @@ b877eb0e01e1e9ff05264cb0fb7bc352bde42bd7111bd23bbc0c0512af39b150  java/src/main/
 b89df11d500620e481c1478fad9beef448d8d5874d8faf71e5543163d6b52612  model/src/main/kotlin/jo/codeide/lsp/model/AssociationFichier.kt
 b90154bbd3a553345ae7580e4bc0c3b9b348523db1aec2ca0dac465ba2b411fc  kotlin/src/main/kotlin/jo/codeide/lsp/kotlin/api/ServiceMoteurLangageKotlin.kt
 b943e11175da48d7b437903ee3d0d7fdc0409a019e95235726cdeafb41551aa8  index/src/bench/kotlin/jo/codeide/lsp/index/banc/BancIndex.kt
+b9542aa4f43cf798aaf09195a25abfaa60566046ce2eb84406d4b89e3d5917c2  kotlin/src/test/kotlin/jo/codeide/lsp/kotlin/session/Fiche034ReproductionSegmentsPersistantsTest.kt
 bbe55d42cf7d5c0539c235bd9014b7cd19af5942f22cd5f3e15cb8a914e526d1  index/src/main/kotlin/jo/codeide/lsp/index/DonneesSegment.kt
 bf4cc5daa43f0f45a9f17b4b10d438c39f721b94c15998222b24212347b6cfa8  spike-kotlin/src/test/kotlin/spikekotlin/VueVide.kt
 c06112da0b0f09f6ffbe186698848e3cb0679614cf67512d234cc004e2693536  java/src/main/kotlin/jo/codeide/lsp/java/actionscode/ServiceActionsCode.kt
@@ -253,9 +263,11 @@ cd8aa334ee2fe96fce33ffda9eaf9f3ec48a744e2caf07f979095233326917e6  kotlin/src/mai
 cd8aa334ee2fe96fce33ffda9eaf9f3ec48a744e2caf07f979095233326917e6  spike-kotlin/src/main/vendor/gen/KotlinFlexLexer.kt
 cdd4962ddb2456cf441e0dc9821fc20fbf41931fb1177be8ae4787f66a66b160  kotlin/src/main/kotlin/jo/codeide/lsp/kotlin/parse/kt/KtDirectives.kt
 cddcf48908dfacfec3b6a19c1ce465735bc03d2e07aaae91f173803b3a5d964d  kotlin/src/main/kotlin/jo/codeide/lsp/kotlin/parse/kt/KtNoeud.kt
+ce1e3df7eb352b4b3ed71eca5fb0561f596777357d3cf8b1d34b44b5bf0592d2  kotlin/src/main/kotlin/jo/codeide/lsp/kotlin/classpath/DecodeurMetadonnees.kt
 ce8b7e4a54864f85a41882a9b6e17077db1b2f64b1d171db00c53ce9fbde93fd  java/src/test/kotlin/jo/codeide/lsp/java/Fiche032FuiteImbriqueesTest.kt
 cf17ea47b80e4305d88b4042eba946c3e018d26764c2cc85bf8017dca4d3c72e  java/src/test/kotlin/jo/codeide/lsp/java/completion/EchelleVariantesTest.kt
 cf84f413202694f343adbf721b22442c06cac256b172622b8fd3ae7fe5c4e223  java/src/test/kotlin/jo/codeide/lsp/java/navigation/Fiche027ChainesSelectionTest.kt
+cfef8b629edbb75421d876189a99b61cf641fbae742479a6a86d0da9e7e1d253  kotlin/src/main/kotlin/jo/codeide/lsp/kotlin/index/IndexAppelablesKotlin.kt
 d0121b04086477690305d309b421b8643d32f6ea15d2de33925773ad5485fc9e  ecj-art/src/test/kotlin/jo/codeide/lsp/ecjart/compat/VersionJavaTest.kt
 d0eafc8c14465591b4232997aaa9e6ce41fb7c69881ddf301fec00e74281df2d  java/src/main/kotlin/jo/codeide/lsp/java/classpath/LecteurZipBrut.kt
 d1096901833a32fd71966e3778613d1145de8031f4c2c78c79147f534d604f21  java/src/test/kotlin/jo/codeide/lsp/java/renommage/Fiche061RenommageHonneteTest.kt
@@ -265,6 +277,7 @@ d2c7d3672647e9901658c992fd9f1c57377b7ac5aa9ea023503f567564b9f925  java/src/forma
 d2ca9c46ded86f36438cc9f48147f7ddfaffac44079260b4f1c09903935e3d27  java/src/bench/kotlin/jo/codeide/lsp/java/banc/BancBasculeAppareil.kt
 d5b074a5d4b434355092c7f545839e742ab9893f89585838c106d5ca08220e68  index/src/main/kotlin/jo/codeide/lsp/index/EntrepotSegments.kt
 d660f534347804adaca7825f0299c29541a5acadc09c8202d295dc331e1745b0  java/src/main/kotlin/jo/codeide/lsp/java/classpath/FabriqueClasseBinaire.kt
+d67caab0ccdc1e23e043c613ff07283699730b4a22ff5b59e77467a3a8472126  kotlin/src/main/kotlin/jo/codeide/lsp/kotlin/api/EntreeClasspathKotlin.kt
 d74a5cf560b1e22f30c0528a12fd43c96b95f650ef32f83724179c1d889222c2  java/src/test/kotlin/jo/codeide/lsp/java/Fiche013MoteurDiagnosticsTest.kt
 d87586e342dbdb791858e1c8d69b7b82fb6e9110d56279033f0e2c17e60a3cbf  java/src/test/kotlin/jo/codeide/lsp/java/actionscode/Fiche051DeclassementDatabindingTest.kt
 d8aec3ca30aba88817fc37a2b7c761a663524fc830062b4b169e104a4cce179a  java/src/main/kotlin/jo/codeide/lsp/java/interne/LectureAst.kt
@@ -281,10 +294,12 @@ e47de454f0649cd34fdfb1b3ba9ea3e88a4b562de811bcee61146e7bd544e3ec  spike-kotlin/s
 e78607eb1d70c63e22b6eface6052bc7b492eab8deb8b76af4ab0358319d7a73  java/src/main/kotlin/jo/codeide/lsp/java/interne/DiagnoseRapide.kt
 e7bd1aa38eb98d24e533447834795a3ae84082a1241a04a4b5ce509e0cc22dc3  index/src/test/kotlin/jo/codeide/lsp/index/FixturesIndex.kt
 e8feeaa796a78331d33395874a1eb1ea6e33f5575e7d27343f83e494db9c28c8  java/src/test/kotlin/jo/codeide/lsp/java/survol/Fiche020HoverDefinitionTest.kt
+e914abb8fc7f2a8f02dfe84b06a2baa436a26aeb2ecc313a38a1522adc4de14a  kotlin/src/main/kotlin/jo/codeide/lsp/kotlin/classpath/LecteurClassBrut.kt
 eaea7151eadfa5df7a6f47a0a185465b91f63406f785b7289143401f6bad8370  java/src/test/kotlin/jo/codeide/lsp/java/actionscode/Fiche065FamillesProblemeTest.kt
 eba0da0ba4a017ea320ad8a285621440fdb180b284ed9a1663076a473522424c  index/src/test/kotlin/jo/codeide/lsp/index/CacheSegmentsTest.kt
 ebe4763870fe904b033c5f1e156e45461096bd2c5474b52b785e9eaf94b4a6e0  java/src/test/kotlin/jo/codeide/lsp/java/completion/Fiche020BindingCompletionTest.kt
 ef152fd23c4a9f041611ebdfa1db7cb76fa25aa08004d7ea3fbee858edff9564  index/src/test/kotlin/jo/codeide/lsp/index/ServiceIndexDisqueTest.kt
+ef26fec403e291a9525104561eb5e3eb437a4346dfecb3b3c86eb5add50979f7  kotlin/src/main/kotlin/jo/codeide/lsp/kotlin/session/MoteurLangageKotlinNoyau.kt
 f0bedd8655d2834191b12713d668151375cb8bdca3b2d72df3ef6f90260e17c1  java/src/main/kotlin/jo/codeide/lsp/java/navigation/ServiceSelection.kt
 f12e9ea5f2793479b1c094a3da27db6a9af97c7c4e0228bc090173e04ecc5cec  java/src/main/kotlin/jo/codeide/lsp/java/completion/AnalyseurContexte.kt
 f153d092bcf96f7d22b2ffb1047523f1013a05704c11f84830e125423f8b4189  kotlin/src/main/vendor/org/jetbrains/kotlin/kmp/parser/KDocLinkParser.kt
@@ -301,4 +316,3 @@ f7e7d546f6ce75a5e735e5c339d08f6ef732b07cdc155e84a5bf83087a67483d  java/src/main/
 f9549f4f7e15f5a7560a90b78ebd8789a8a016f8f3713ba72074b63a10f45caf  java/src/test/kotlin/jo/codeide/lsp/java/OutilsFixture.kt
 fb583410c0b52698644df3997e56dbf7a3a6f70b7e5a182074c193dee1e634c4  java/src/test/kotlin/jo/codeide/lsp/java/Fiche034MoteurParModuleTest.kt
 fc8bc7620a66067b6a43479159644a11aedd2168157b77684feaea888fcccc25  kotlin/src/main/kotlin/jo/codeide/lsp/kotlin/api/DiagnosticsKotlin.kt
-ffd660afb092b5bcda8f0f8aff7472e0c950693f144bf5dbf4ccd9fa7cd81799  kotlin/src/test/kotlin/jo/codeide/lsp/kotlin/session/Fiche042SessionLangageKotlinA211Test.kt
