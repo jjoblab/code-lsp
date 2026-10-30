@@ -10,6 +10,7 @@ import com.intellij.platform.syntax.parser.SyntaxTreeBuilderFactory
 import com.intellij.platform.syntax.parser.prepareProduction
 import com.intellij.platform.syntax.util.lexer.LexerBase
 import java.security.MessageDigest
+import jo.codeide.lsp.kotlin.parse.kt.KtFichier
 import org.jetbrains.kotlin.kmp.lexer.KotlinLexer
 import org.jetbrains.kotlin.kmp.parser.AbstractParser
 import org.jetbrains.kotlin.kmp.parser.KotlinParser
@@ -35,11 +36,11 @@ import org.jetbrains.kotlin.kmp.parser.KotlinParser
  * rend toujours un arbre racine complet ; les fautes se lisent comme des
  * marqueurs d'erreur DANS l'arbre, jamais comme des échecs.
  *
- * Ce harnais est volontairement MINIMAL (étage 0) : il expose le vocabulaire
- * strict nécessaire à la suite de parité « grammaire » (fiches 010–012).
- * La façade `Kt*` conservative (fiche 013 — package, imports, déclarations,
- * genres) est le périmètre de l'étage 1 (noyau parse/session) : elle naîtra
- * du cahier, au-dessus de ce harnais.
+ * Ce harnais est volontairement MINIMAL côté instantané (étage 0) : il
+ * expose le vocabulaire strict nécessaire à la suite de parité « grammaire »
+ * (fiches 010–012). La façade `Kt*` conservatrice (fiche 013 — package,
+ * imports, déclarations, genres) est l'étage 1 (noyau parse/session) : elle
+ * vit au-dessus de ce harnais, par [arbre].
  */
 public class ParseurKotlin {
 
@@ -57,17 +58,7 @@ public class ParseurKotlin {
      * se compare (fiches 010/012) sans porter la mémoire de l'arbre.
      */
     public fun analyse(texte: CharSequence, script: Boolean = false): ResultatAnalyse {
-        val parseur: AbstractParser = KotlinParser(isScript = script, isLazy = false)
-        val lexeur: LexerBase = KotlinLexer()
-        val constructeur: SyntaxTreeBuilder = SyntaxTreeBuilderFactory.builder(
-            texte,
-            performLexing(texte, lexeur, cancellationProvider = null, logger = null),
-            whitespaces = parseur.whitespaces,
-            comments = parseur.comments,
-        ).withStartOffset(0)
-            .withWhitespaceOrCommentBindingPolicy(parseur.whitespaceOrCommentBindingPolicy)
-            .build()
-        parseur.parse(constructeur)
+        val (constructeur, parseur) = assembler(texte, script)
 
         val productions = prepareProduction(constructeur).productionMarkers
         val jetons = constructeur.tokens
@@ -133,6 +124,56 @@ public class ParseurKotlin {
             jetonsNonBlancs = jetonsNonBlancs,
             digesteStructurel = digeste,
         )
+    }
+
+    /**
+     * Analyse [texte] et rend la FAÇADE `Kt*` du document (étage 1, fiche 013
+     * du cahier) : la racine typée [KtFichier] enveloppant l'arbre reconstruit.
+     *
+     * Le contrat de tolérance est le même que [analyse] : la grammaire ne
+     * lève jamais, l'arbre reconstruit est toujours complet, et TOUT accesseur
+     * de la façade est conservateur (introuvable = `null`/vide, jamais
+     * d'exception) — l'éditeur peut interroger un texte tronqué entre deux
+     * frappes.
+     *
+     * @param texte le source Kotlin (jamais nul ; peut être vide, tronqué ou
+     * hostile — voir le contrat de tolérance de la classe) ;
+     * @param script `true` pour le mode script (`.kts`) — la racine est alors
+     * `SCRIPT` ([KtFichier.estScript] le distingue) ;
+     * @return la racine de la façade — jamais nulle.
+     */
+    public fun arbre(texte: CharSequence, script: Boolean = false): KtFichier {
+        val (constructeur, parseur) = assembler(texte, script)
+        val racine = ArbreSyntaxique.construire(constructeur, parseur)
+        return KtFichier(racine, texte)
+    }
+
+    /**
+     * Assemble la chaîne d'analyse (lexeur + constructeur d'arbre + parseur
+     * amont) et conduit l'analyse — le patron d'assemblage commun à
+     * [analyse] et [arbre].
+     *
+     * @param texte le source Kotlin à analyser ;
+     * @param script `true` pour le mode script ;
+     * @return le constructeur d'arbre PARCOURU (les marqueurs et jetons s'y
+     * lisent) et le parseur amont (ensembles de blancs/commentaires).
+     */
+    private fun assembler(
+        texte: CharSequence,
+        script: Boolean,
+    ): Pair<SyntaxTreeBuilder, AbstractParser> {
+        val parseur: AbstractParser = KotlinParser(isScript = script, isLazy = false)
+        val lexeur: LexerBase = KotlinLexer()
+        val constructeur: SyntaxTreeBuilder = SyntaxTreeBuilderFactory.builder(
+            texte,
+            performLexing(texte, lexeur, cancellationProvider = null, logger = null),
+            whitespaces = parseur.whitespaces,
+            comments = parseur.comments,
+        ).withStartOffset(0)
+            .withWhitespaceOrCommentBindingPolicy(parseur.whitespaceOrCommentBindingPolicy)
+            .build()
+        parseur.parse(constructeur)
+        return Pair(constructeur, parseur)
     }
 }
 
