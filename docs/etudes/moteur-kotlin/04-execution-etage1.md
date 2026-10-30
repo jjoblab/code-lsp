@@ -397,8 +397,7 @@ scanneur).
 **Jar moteur : 320 138 o (312,6 Kio)** [mesuré] — 302,1 Kio à la vague
 1b ; **+10,5 Kio** pour le scanneur paresseux (122 classes dont **56 code
 neuf** [mesuré par scan du jar] — 51 à la vague 1b ; 66 grammaire vendorée
-inchangée). Le dexage d8 et les seuils sont vérifiés par la CI
-(`kotlin-art`) — attestation au commit de clôture ci-dessous.
+inchangée). Le dexage d8 et les seuils sont attestés par la CI ci-dessous.
 
 **Code livré [mesuré]** : 1 fichier main neuf (583 l.) + 1 fichier de
 test (303 l.) ; 3 fichiers adaptés (`ScanSources.kt` : le scan synchrone
@@ -413,3 +412,26 @@ lecture-écriture (ADR 0117).
 **Provenance : `verifier-provenance.sh` rc=0** [mesuré] — aucun fichier
 hors registre (code neuf libre ; aucune reprise voie C cette vague ;
 l’écart de LECTURE R9.1 est consigné E-K5, §11.1).
+
+**CI VERTE 9/9 sur le commit de livraison `6df996c`** (run `41004282232`,
+**tentative 2**, consulté le 30/10 à 05:00 UTC) — build et tests JDK 21,
+bancs noyau/qualité/parité T, gates Android, provenance étendue kotlin/,
+et les trois jobs Kotlin : suite du module (**72 tests verts** — fiches
+010–013, 049, 042, **041**), scan ART **5 × « AUCUNE »** avec la trace
+`ServiceLoader : OK — 1 référence(s), descripteur(s) vérifié(s)` (le SPI
+de la vague 1b, inchangé), dexage d8 **16 307 références de méthodes /
+2 821 056 o (2,69 Mo)** [mesurés par la CI — +51 méthodes / +14 100 o vs
+vague 1b : le scanneur paresseux], seuils étage 0 tenus (≤ 32 768 /
+≤ 4 Mo, marge ×2 sur les méthodes), banc empreinte/latence. **La vague 1c
+est CLOSE sur preuve mécanique.**
+
+Incident de la tentative 1 (documenté, alerte E-K6) : le job « Build et
+tests (JDK 21) » était ROUGE sur le seul test
+`testing/…/IntegrationMoteurIndexTest.reouvertureChaudeSansReconstruction`
+— une assertion de TEMPO du chantier **Java** (`chaud ≤ froid`, sans
+tolérance) : reproduit flottant LOCALEMENT sur le code inchangé (1 échec
+sur 4 passes `--rerun-tasks`, fichier intact depuis l’étage N1 Java) et
+sans aucun lien avec le périmètre kotlin (le diff de la vague ne touche
+que `kotlin/` et `docs/`). La relance du job échoué a rendu la tentative 2
+VERTE ; le correctif (marge de tolérance) relève du chantier Java —
+recommandation portée au propriétaire dans `ALERTES.md` (E-K6).

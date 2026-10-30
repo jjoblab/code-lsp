@@ -86,25 +86,40 @@
   documentée dans `02-spike-mesures.md` (variabilité p95 ±×1,5 entre
   passes constatée par l'étude Java — AL6 Java).
 - **E-K5 — Écart de procédure R9.1 pendant la vague 1c (30/10/2026)** :
-  en cadrant la vague 1c (scan projet paresseux), l'implémenteur a lu par
+  en cadrant la vague 1c (scan projet paresseux), l’implémenteur a lu par
   erreur `codeide-lsp:lsp/kotlin/src/main/kotlin/jo/lspkotlin/session/
   ScanProjet.kt` (implémentation source) — zone NOYAU en **lecture
-  interdite** (R9.1 maintenu par l'ADR 0100 : le noyau se réécrit du
+  interdite** (R9.1 maintenu par l’ADR 0100 : le noyau se réécrit du
   cahier, en boîte noire). Le test source `ScanProjetTest.kt` était, lui,
   en consultation LÉGITIME (base du cahier, R9.5). Faits : (a) la lecture a
-  porté sur l'implémentation complète (~550 l.) avant que l'interdit ne
-  soit relevé ; (b) aucune ligne n'est copiée — le code livré
+  porté sur l’implémentation complète (~550 l.) avant que l’interdit ne
+  soit relevé ; (b) aucune ligne n’est copiée — le code livré
   (`kotlin/src/main/kotlin/jo/codeide/lsp/kotlin/session/
   ScanProjetParesseux.kt`) est écrit neuf, dans les conventions du module,
-  et l'écart est tracé dans son en-tête ; (c) la CONVERGENCE inévitable de
+  et l’écart est tracé dans son en-tête ; (c) la CONVERGENCE inévitable de
   certains mécanismes (vol unique, cache mtime, marche avant parse) tient
   au CONTRAT de la fiche 041 et de son test (les nommer dans les deux
-  implémentations n'est pas une preuve de copie). La condition de
+  implémentations n’est pas une preuve de copie). La condition de
   clean-room STRICT étant rompue pour cette vague, un **audit de
-  similarité d'expression mené par un rôle distinct des implémenteurs**
+  similarité d’expression mené par un rôle distinct des implémenteurs**
   (même principe que P-K1) est RECOMMANDÉ au propriétaire avant toute
   reprise du motif pour les vagues suivantes. Aucune autre zone du main
-  ancien n'a été lue depuis la découverte de l'écart.
+  ancien n’a été lue depuis la découverte de l’écart.
+- **E-K6 — Test flottant du chantier Java découvert par la CI de la vague
+  1c (30/10/2026)** : `testing/…/IntegrationMoteurIndexTest.
+  reouvertureChaudeSansReconstruction` (ligne 230) échoue de façon NON
+  DÉTERMINISTE sur une assertion de TEMPO sans tolérance
+  (`chaudMs <= froidMs` — réouverture chaude pas plus lente que la
+  construction à froid). Constats : échec sur la tentative 1 du run CI
+  `41004282232` (commit `6df996c`, dont le diff ne touche QUE `kotlin/` et
+  `docs/`) ; reproduit localement sur code inchangé (1 échec sur 4 passes
+  `:testing:test --rerun-tasks`) ; le fichier est intact depuis l'étage N1
+  Java (commit `ce291dc`). La relance du job a rendu la tentative 2 VERTE
+  (9/9) mais le flottement demeure : chaque future livraison du dépôt
+  prend le risque d'une CI rouge sans lien avec son propre périmètre.
+  RECOMMANDATION au propriétaire (périmètre Java) : assouplir l'assertion
+  avec une marge de tolérance (p. ex. `chaud <= froid × 1,5` ou une borne
+  absolue), ou comparer des durées MÉDIANÉES sur plusieurs passes.
 
 ## 5. Points restés « à vérifier » (non clos par l'étude)
 
