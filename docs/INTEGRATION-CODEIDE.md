@@ -903,9 +903,25 @@ le sujet des retours).
 ### 13.5 Chaîne exécutée et reste
 
 - code-lsp : cinq correctifs + banc + script (§13.2–13.3), suite verte
-  (§13.4). Reste au propriétaire : publication v1.1.5 (tag) + pin hôte
-  codeide-lsp + version CodeIDE — même geste que §12.5 ;
-- la passe appareil attendue sur moto g06 : le banc garantit désormais le
-  comportement MOTEUR sur classpath réel — les écarts restants appareil se
-  lisent donc côté HÔTE (nourrissage du cache à l'ouverture, délai de la
-  première sync) : le banc S01/S02 en est la sonde de parité exacte.
+  (§13.4). **Publication v1.1.5 EFFECTUÉE le 31/10** (décision
+  propriétaire « Oui fait la publication ») : tag annoté `v1.1.5`
+  (cible `462bb43`, CI 6/6 verte au préalable) → workflow Publication
+  run `41107739288` **VERTE** → artefacts re-téléchargés et vérifiés sur
+  `maven.pkg.github.com/jjoblab/code-lsp` : POM moteur sans ecj
+  (kotlin-stdlib 2.2.10 compile + lsp4j 0.21.2 runtime seules
+  dépendances), `version.properties=1.1.5` embarqué, bytecode 17,
+  compagnon 942 entrées dont 929 `org/eclipse/jdt` + shims
+  `ecjart/compat` + `about.html` + registre
+  `META-INF/ECJ-ART-MODIFICATIONS.txt` (EPL-2.0) ;
+- codeide-lsp **1.23.5** (`13da018`, tag `v1.23.5`) : pin moteur 1.1.5
+  seul — AUCUN changement d'hôte requis ; CI `41108581612` +
+  Publication `41108581509` **VERTES** ; POM `host:1.23.5` vérifié
+  portant `jo-codeide-lsp-java:1.1.5` (compile) + `ecj-art:1.1.5`
+  (runtime) ;
+- CodeIDE **0.204.5** (`6d60ad8`, catalogue miroir 1.23.5/1.1.5,
+  CHANGELOG 0.204.5) : poussé sur main, CI **VERTE** (4/4 checks) ;
+- la passe appareil attendue sur moto g06 (0.204.5) : le banc garantit
+  désormais le comportement MOTEUR sur classpath réel — les écarts
+  restants appareil se lisent donc côté HÔTE (nourrissage du cache à
+  l'ouverture, délai de la première sync) : le banc S01/S02 en est la
+  sonde de parité exacte.
