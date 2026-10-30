@@ -50,7 +50,10 @@ import jo.codeide.lsp.kotlin.synthetics.ClassesSynthetiques
  * générée RÉELLE dans le scan efface le groupe synthétique homonyme — la
  * sortie du build est la source de vérité, jamais contredite).
  */
-public class MoteurLangageKotlinNoyau : ServiceMoteurLangageKotlin {
+public class MoteurLangageKotlinNoyau(
+    private val chaineCompletion: jo.codeide.lsp.kotlin.api.ChaineClassementKotlin =
+        jo.codeide.lsp.kotlin.api.ChaineClassementKotlin(),
+) : ServiceMoteurLangageKotlin {
 
     /** Le verrou de la publication (pas sur le chemin des requêtes). */
     private val verrouMoteur = Any()
@@ -94,7 +97,7 @@ public class MoteurLangageKotlinNoyau : ServiceMoteurLangageKotlin {
      * jamais nulle.
      */
     override fun creerSession(): SessionLangageKotlin {
-        return SessionLangageKotlinDocuments(NourrissageImp())
+        return SessionLangageKotlinDocuments(NourrissageImp(), chaineCompletion = chaineCompletion)
     }
 
     /**

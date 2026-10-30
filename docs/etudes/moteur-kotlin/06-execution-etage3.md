@@ -70,6 +70,23 @@
 > dans la liste d'arguments d'un appel membre (`m.copier(|`) est une
 > position d'ARGUMENT, pas de sélecteur.**
 
+> **Mise à jour (31/10, vague 3c) — LA CHAÎNE DE CLASSEMENT EST EN
+> NAISSANCE (ADR 0113 option 1, miroir de l'ADR 0012 Java) :
+> `api/ClassementKotlin.kt` livre la correspondance GRADUÉE (six grades,
+> bonus « plus petit = plus prioritaire » — le piège R1 documenté), les
+> PESEURS comparés dimension par dimension PARESSEUSEMENT (PoidsPese
+> mémoïsé, le miroir du `WeighingComparable`), la chaîne standard
+> (correspondance → nature DÉPENDANTE du contexte → liftShorter →
+> alphabétique → statistiques OPT-IN sur compteur d'usage local persistant
+> purgé à la désactivation) et l'ARRANGEMENT (GEL des 8 têtes par clé de
+> contexte document+genre+ancre STABLE pendant la frappe — contrat « zéro
+> saut de liste » ; TRIM honnête : plafond 120 sur les espaces non bornés,
+> 512 sur l'espace membre BORNÉ par la chaîne du récepteur — la frontière
+> RPC du client y travaille sur l'espace complet, la fiche 045
+> `requestLayout` en dépend) ; la chaîne est INJECTABLE au moteur (le banc
+> comparera la livrée à la naïve alphabétique) ; 12 tests d'ingénierie
+> verrouillent le mécanisme (§7).**
+
 ## 1. Périmètre de l'étage (plan §4 — cahier en main)
 
 | # | Item | Source du contrat |
@@ -87,7 +104,7 @@
 |---|---|---|
 | 44 fiches vertes (fiches 038 + 039 + 043 + 045 du domaine complétion) | **35/44** (fiche 045 — §5 ; fiche 043 — §6) | `Fiche045SessionLangageKotlinK3Test` : 21 ; `Fiche043SessionLangageKotlinCompletionContextuelleTest` : 14 |
 | Banc : recall ≥ baseline | À atteindre (banc livré en 3e) | — |
-| Banc : top-1/MRR +5 pts vs naïf | À atteindre (classement 3c, banc 3e) | — |
+| Banc : top-1/MRR +5 pts vs naïf | Chaîne LIVRÉE (3c, §7) — la MESURE attend le banc (3e) | `ClassementCompletionTest` : 12 tests du mécanisme |
 | Banc : p95 ≤ baseline (JVM = limite basse ; cible appareil < 100 ms) | À atteindre (banc livré en 3e) | — |
 | Zéro saut de liste (contrat gel) | À atteindre (gel 3c, banc 3e) | — |
 
@@ -237,6 +254,54 @@ section du présent journal + commit/push.
   de méthodes (78 % du plafond) / 4 064 332 o = 3,88 Mo (65 % du budget
   6 Mo)**.
 - **Banc JDK 17** : froid 246,1/25,5 ms, p50 6,7/26,9 ms, p95 35,1/57,1 ms,
+  productions 5 448/31 368 et jetons 4 210/24 274 — déterminisme
+  IDENTIQUE, marqueurs d'erreur 0, tas 3 845 Kio.
+- **Provenance** : `verifier-provenance.sh` rc=0 (aucune reprise).
+
+## 7. Vague 3c — la chaîne de classement en naissance (31/10, ADR 0113 option 1)
+
+### 7.1 Périmètre exécuté
+
+| # | Item | État | Détail |
+|---|---|---|---|
+| 1 | Correspondance graduée | **Fait** | `api/ClassementKotlin.kt` : `GradeCorrespondanceKotlin` (EXACT / PREFIXE / PREFIXE_INSENSIBLE / HUMP / SUBSTRING / HORS) et `CorrespondanceGradueeKotlin` (grade + bonus, la convention « plus petit = plus prioritaire » — le piège R1 de l'ADR 0012 documenté dans le KDoc) ; HUMP : chaque caractère du préfixe se pose sur une OUVERTURE de bossage (début, majuscule, après tiret bas) ; HORS ferme la marche — le régime membre ne FILTRE pas par préfixe (le re-filtrage local par frappe est la frontière RPC de l'hôte, ADR 0118) : les hors-préfixe se classent en fin, jamais écartés |
+| 2 | Peseurs dimension par dimension | **Fait** | `PeseurKotlin` (interface publique) + `PoidsPeseKotlin` (le miroir du `WeighingComparable` : chaque dimension se calcule UNE fois, à la demande, mémoïsée) + `ChaineClassementKotlin` (comparateur dimension par dimension PARESSEUX — la dimension k ne se calcule qu'à égalité des précédentes) |
+| 3 | La chaîne standard | **Fait** | Correspondance (dominante) → Nature (DÉPENDANTE du contexte : import = paquets dominants, membre = propriétés avant fonctions, nom = locales avant tout, mots-clés derniers) → Longueur (liftShorter) → Alphabetique (départage déterministe) → Statistiques (OPT-IN) |
+| 4 | Compteur d'usage local | **Fait** | `CompteurUsageKotlin` : fichier de propriétés `nom=fréquence`, local au poste, OPT-IN, purgé à la désactivation (test de cycle de vie : incrément, relecture par une NOUVELLE instance, purge supprime le fichier) |
+| 5 | Arrangement | **Fait** | `ArrangementListeKotlin` : classement + GEL des têtes (les [GEL_MAX] = 8 premiers libellés par clé de contexte ; les survivants reprennent LEUR rang exact — un nouveau venu ne déplace JAMAIS une tête affichée, contrat « zéro saut de liste ») + TRIM honnête (plafond + total réel + drapeau `tronquee`) |
+| 6 | Clé de contexte du gel | **Fait** | Document + genre effectif + ANCRE : le DÉBUT (stable pendant la frappe) de la plus profonde production ANCRANTE couvrant le caret (sélecteur, appel, `when`, annotation, déclaration porteuse, directive d'import) — deux frappes successives de la MÊME expression partagent la clé |
+| 7 | Plafond par régime | **Fait** | `LIMITE_AFFICHAGE` = 120 pour les espaces NON BORNÉS (noms, imports — le classpath est profond) ; `LIMITE_MEMBRE` = 512 pour l'espace membre BORNÉ par construction (les membres de la chaîne du récepteur, profondeur 7 — ADR 0219) : le re-filtrage local du client (frontière RPC) travaille sur l'espace complet — c'est ce qui tient la fiche 045 (`requestLayout` hérité profond) SANS sacrifier l'honnêteté du trim |
+| 8 | Chaîne injectable | **Fait** | `MoteurLangageKotlinNoyau(chaineCompletion = …)` → chaque session porte SON arrangement (gels à session, états étanches) ; le banc de qualité comparera la chaîne livrée à la naïve alphabétique (`ChaineClassementKotlin(listOf(PeseurAlphabetiqueKotlin()))`) |
+| 9 | Tests d'ingénierie | **Fait** | `ClassementCompletionTest` (12 tests — PAS une fiche du cahier : le MÉCANISME 3c, les fiches 043/045 tenant la parité) : les six grades, la dominance (EXACT → nature → liftShorter), la nature par contexte (membre, import), le départage alphabétique, le gel (affinement sans descente, nouveau venu immobile, clés indépendantes), le trim (plafond + total + drapeau ; membre servi entier ≤ 512), le compteur (cycle de vie), la chaîne naïve |
+
+### 7.2 Décisions d'exécution consignées
+
+1. **Le grade HORS** : le régime membre ne filtre pas par préfixe côté
+   serveur (le split RPC envoie l'espace complet et son classement — le
+   client re-filtre à chaque frappe) ; les propositions hors préfixe se
+   classent donc en FIN (HORS) plutôt que d'être écartées — la chaîne
+   reste utile aux DEUX mondes (serveur filtrant, client filtrant).
+2. **Deux plafonds, un seul contrat** : le plafond n'a de sens que sur un
+   espace non borné ; l'espace membre est borné par la chaîne du
+   récepteur (profondeur 7) — le servir entier (≤ 512) préserve la
+   frontière RPC SANS mentir sur le total (le drapeau `tronquee` existe
+   et sert dès que l'espace déborde).
+3. **L'ordre des dimensions reprend l'ADR 0012** (weighers paresseux,
+   gel, liftShorter, trim honnête) — la transposition est STRUCTURELLE
+   (les designs IntelliJ étudiés par l'étude Java), jamais textuelle :
+   aucun code IntelliJ n'a été lu ni copié pour ce module (R6/R9).
+
+### 7.3 Preuves du bac à sable (avant poussée)
+
+- **Suite** : **384 tests VERTS** sur la toolchain 17 (372 + 12 du
+  classement) ; baseline de parité RE-SIGNÉE **378 → 380 fichiers** (les
+  2 neufs : `api/ClassementKotlin.kt` + `ClassementCompletionTest.kt`).
+- **Jar moteur** : 748 226 o (+28 369 vs 3b).
+- **Scan ART pile complète** : 6 × « AUCUNE », rc=0.
+- **Dexage d8** (build-tools 34 local, min-api 26) : **25 621 références
+  de méthodes (78 % du plafond) / 4 083 016 o = 3,89 Mo (65 % du budget
+  6 Mo)**.
+- **Banc JDK 17** : froid 192,9/51,4 ms, p50 7,1/24,6 ms, p95 30,3/51,8 ms,
   productions 5 448/31 368 et jetons 4 210/24 274 — déterminisme
   IDENTIQUE, marqueurs d'erreur 0, tas 3 845 Kio.
 - **Provenance** : `verifier-provenance.sh` rc=0 (aucune reprise).

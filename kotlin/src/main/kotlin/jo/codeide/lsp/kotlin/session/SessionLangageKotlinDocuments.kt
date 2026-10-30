@@ -85,6 +85,8 @@ internal class DocumentOuvert(
 internal class SessionLangageKotlinDocuments(
     private val moteur: NourrissageMoteur?,
     bornFichiersScan: Int = ScanProjetParesseux.BORN_FICHIERS,
+    chaineCompletion: jo.codeide.lsp.kotlin.api.ChaineClassementKotlin =
+        jo.codeide.lsp.kotlin.api.ChaineClassementKotlin(),
 ) : SessionLangageKotlin {
 
     /** Le verrou de la session (écritures mutent, lectures parallèles). */
@@ -92,6 +94,15 @@ internal class SessionLangageKotlinDocuments(
 
     /** Le parseur de la session (sans état — sert chaque mutation). */
     private val parseur = ParseurKotlin()
+
+    /**
+     * L'ARRANGEMENT de complétion de la session (étage 3 vague 3c — ADR
+     * 0113 : chaîne de classement + GELS par clé de contexte — les gels
+     * sont À SESSION, états étanches) ; la chaîne est INJECTABLE (le banc
+     * de qualité compare la chaîne livrée à la naïve alphabétique).
+     */
+    private val arrangementCompletion =
+        jo.codeide.lsp.kotlin.api.ArrangementListeKotlin(chaineCompletion)
 
     /** Le drapeau de fermeture : après close(), tout est no-op honnête. */
     private var fermee: Boolean = false
@@ -250,6 +261,7 @@ internal class SessionLangageKotlinDocuments(
             etatScan = etatScanAuConsult(),
             index = guichet?.vue,
             vueJvm = guichet?.vueJvm,
+            arrangement = arrangementCompletion,
         )
     }
 
