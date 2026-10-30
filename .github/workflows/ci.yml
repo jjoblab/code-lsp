@@ -144,3 +144,109 @@ jobs:
         uses: actions/checkout@v4
       - name: Vérification du registre
         run: bash scripts/verifier-provenance.sh
+
+  # ---------------------------------------------------------------------
+  # DOMAINE KOTLIN — étage 0 (vague 0, ADR 0100 acceptée le 2026-10-30).
+  # Trois gates mécaniques des critères de sortie de l'étage :
+  #   kotlin-parite : « parité grammaire verte » (fiches 010–012 du cahier —
+  #                   corpus du dépôt sans marqueur d'erreur + digeste
+  #                   baseline + tolérance aux fautes) ;
+  #   kotlin-art    : « 0 motif ART » (scan du moteur ET de sa pile amont)
+  #                   + dexage d8 réel (E-K2 : le bac à sable n'a pas d8 —
+  #                   la CI le fait) + seuils (méthodes/taille vs budget T1) ;
+  #   kotlin-banc   : empreinte/latence — NOMBRES seuls (miroir banc-noyau ;
+  #                   les seuils arrivent avec les bancs ADR 0119).
+  # ---------------------------------------------------------------------
+  kotlin-parite:
+    name: Moteur Kotlin - suite de parité grammaire (fiches 010-012)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Gradle
+        uses: gradle/actions/setup-gradle@v4
+      - name: Suite de parité (:kotlin:test)
+        run: ./gradlew :kotlin:test --no-daemon --stacktrace
+
+  kotlin-art:
+    name: Moteur Kotlin - scan ART + dexage d8 (seuils étage 0)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Gradle
+        uses: gradle/actions/setup-gradle@v4
+      - name: Construction du jar moteur (:kotlin:jar)
+        run: ./gradlew :kotlin:jar --no-daemon --stacktrace
+      - name: "Scan ART - moteur + pile amont (gate : 0 motif)"
+        run: |
+          JAR_MOTEUR=$(ls kotlin/build/libs/kotlin-*.jar)
+          SA=$(find "$HOME/.gradle/caches/modules-2" -name 'syntax-api-jvm-0.3.340.jar' | head -1)
+          LS=$(find "$HOME/.gradle/caches/modules-2" -name 'lang-syntax-jvm-0.3.340.jar' | head -1)
+          AN=$(find "$HOME/.gradle/caches/modules-2" -name 'annotations-26.0.2.jar' | head -1)
+          STDLIB=$(find "$HOME/.gradle/caches/modules-2" -name 'kotlin-stdlib-2.2.10.jar' | head -1)
+          test -n "$SA" && test -n "$LS" && test -n "$AN" && test -n "$STDLIB"
+          SORTIE=$(python3 spike-kotlin/scripts/scan-art.py "$JAR_MOTEUR" "$SA" "$LS" "$AN" "$STDLIB")
+          echo "$SORTIE"
+          # Gate étage 0 : la pile SPÉCIFIQUE Kotlin (moteur + syntax-api +
+          # lang-syntax + annotations) doit être SANS AUCUN motif sensible.
+          # kotlin-stdlib (fondation PARTAGÉE avec :java, déjà portée par
+          # l'hôte) est scannée pour mémoire : 2 références readAllBytes
+          # (API 33+, désugarables) y sont tolérées et documentées.
+          AUCUNES=$(echo "$SORTIE" | grep -c 'références sensibles ART : AUCUNE' || true)
+          if [ "$AUCUNES" -lt 4 ]; then
+            echo "ÉCHEC : au moins un jar de la pile spécifique Kotlin porte des références sensibles ART (attendu : 4 × AUCUNE, constaté : $AUCUNES)."
+            exit 1
+          fi
+      - name: Dexage d8 (build-tools 34) + seuils étage 0
+        run: |
+          curl -sSfL --retry 3 -o bt34.zip "https://dl.google.com/android/repository/build-tools_r34-linux.zip"
+          unzip -o -q bt34.zip 'android-14/d8' 'android-14/lib/*' -d bt
+          JAR_MOTEUR=$(ls kotlin/build/libs/kotlin-*.jar)
+          SA=$(find "$HOME/.gradle/caches/modules-2" -name 'syntax-api-jvm-0.3.340.jar' | head -1)
+          LS=$(find "$HOME/.gradle/caches/modules-2" -name 'lang-syntax-jvm-0.3.340.jar' | head -1)
+          AN=$(find "$HOME/.gradle/caches/modules-2" -name 'annotations-26.0.2.jar' | head -1)
+          STDLIB=$(find "$HOME/.gradle/caches/modules-2" -name 'kotlin-stdlib-2.2.10.jar' | head -1)
+          mkdir -p dex-sortie
+          bt/android-14/d8 --release --min-api 26 --output dex-sortie \
+            "$JAR_MOTEUR" "$SA" "$LS" "$AN" "$STDLIB"
+          ls -la dex-sortie
+          python3 - <<'PY'
+          import os, struct
+          with open("dex-sortie/classes.dex", "rb") as f:
+              entete = f.read(112)
+          methodes = struct.unpack("<I", entete[88:92])[0]
+          taille = os.path.getsize("dex-sortie/classes.dex")
+          print(f"dex pile chaude (moteur + syntax-api + lang-syntax + annotations + kotlin-stdlib) :")
+          print(f"  références de méthodes (method_ids) : {methodes}")
+          print(f"  taille classes.dex                  : {taille} octets ({taille/1024/1024:.2f} Mo)")
+          assert methodes <= 32768, f"ÉCHEC seuil : {methodes} références de méthodes > 32768 (moitié du mur 64K)"
+          assert taille <= 4*1024*1024, f"ÉCHEC seuil : {taille} octets > 4 Mo (budget T1 APK, cibles §4)"
+          print("OK : seuils étage 0 tenus (≤ 32 768 méthodes, ≤ 4 Mo).")
+          PY
+
+  kotlin-banc:
+    name: Moteur Kotlin - banc empreinte/latence (nombres)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Gradle
+        uses: gradle/actions/setup-gradle@v4
+      - name: Banc de la grammaire (:kotlin:bench)
+        run: ./gradlew :kotlin:bench --no-daemon --stacktrace
