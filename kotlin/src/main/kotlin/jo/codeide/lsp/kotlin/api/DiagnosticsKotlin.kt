@@ -26,7 +26,8 @@ public enum class SeveriteKotlin {
 /**
  * Le code d'un diagnostic Kotlin — le vocabulaire `kt.*` conservateur du
  * catalogue (fiche 049 : `kt.syntax`, `kt.unusedImport`,
- * `kt.conflictingImport`).
+ * `kt.conflictingImport` ; étage 2 : `kt.unresolved`, `kt.missingReturn` —
+ * fiches 017/022/006).
  *
  * @property code la forme LSP du code (voyage tel quel vers l'hôte).
  */
@@ -39,6 +40,30 @@ public enum class CodeDiagnosticKotlin(public val code: String) {
 
     /** Imports conflictuels : même nom effectif, chemins qualifiés distincts. */
     IMPORT_CONFLICTUEL("kt.conflictingImport"),
+
+    /**
+     * Référence non résolue (étage 2, fiches 017/022/006/046) : preuve
+     * d'ABSENCE — un nom introuvable de TOUTES les portées (noms nus) ou un
+     * sélecteur absent du jeu de membres COMPLET d'un récepteur typé du
+     * projet (ADR 0223 : la sélection par types complets). Émise seulement
+     * quand l'univers des preuves est établi (classpath posé et couvert,
+     * scan non partiel — le régime dégradé ne prouve rien).
+     */
+    REFERENCE_NON_RESOLUE("kt.unresolved"),
+
+    /**
+     * Retour manquant (étage 2, fiches 017/046) : un corps de BLOC sans
+     * `return` ni `throw` pour un type de retour écrit autre que `Unit`.
+     */
+    RETOUR_MANQUANT("kt.missingReturn"),
+
+    /**
+     * Nombre d'arguments (étage 2, fiches 017/046 — famille VAGUE 2b : le
+     * code est RÉSERVÉ au vocabulaire, aucune émission à la vague 2a ; les
+     * témoins d'arité y seront les seules déclarations PROPRES — une
+     * surcharge en cours de frappe est écartée, fiche 017).
+     */
+    NOMBRE_ARGUMENTS("kt.argumentCount"),
 }
 
 /**

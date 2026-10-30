@@ -118,6 +118,24 @@ public interface SessionLangageKotlin : AutoCloseable {
     public fun survol(uri: String, deplacement: Int): SurvolKotlin?
 
     /**
+     * Rend les propositions de COMPLÉTION au point demandé (étage 2 vague
+     * 2a : le GERME MEMBRE — les membres d'un récepteur typé du PROJET
+     * après le point, fiche 022 : « copy proposé après `p.` » ; le pipeline
+     * complet du catalogue est l'étage 3).
+     *
+     * Le germe est conservateur : un point sans récepteur typé du projet
+     * rend une liste VIDE honnête (les récepteurs classpath, les positions
+     * de noms et les contextes requêteurs relèvent de l'étage 3).
+     *
+     * @param uri l'identifiant du document ;
+     * @param deplacement l'offset du caret dans le texte du document ;
+     * @return les propositions, en ordre de déclaration du récepteur ;
+     * liste VIDE pour un document inconnu, fermé, ou une position sans
+     * récepteur typé du projet — jamais `null`, jamais d'exception.
+     */
+    public fun completion(uri: String, deplacement: Int): List<PropositionKotlin>
+
+    /**
      * Re-scanne les racines sources du classpath (L1) : les déclarations
      * externes deviennent résolvables pour le survol à partir de la requête
      * suivante.

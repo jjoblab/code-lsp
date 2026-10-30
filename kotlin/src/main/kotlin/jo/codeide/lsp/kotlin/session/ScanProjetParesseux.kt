@@ -19,6 +19,9 @@ import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.FutureTask
 import jo.codeide.lsp.kotlin.parse.ParseurKotlin
+import jo.codeide.lsp.kotlin.resolve.ContributionFichier
+import jo.codeide.lsp.kotlin.resolve.LecteurDeclarationsJava
+import jo.codeide.lsp.kotlin.resolve.ModeleProjet
 import jo.codeide.lsp.kotlin.session.ScanSources.DeclarationExterne
 
 /**
@@ -211,6 +214,22 @@ internal class ScanProjetParesseux(
     }
 
     /**
+     * Le SNAPSHOT au consult (étage 2 — l'univers des preuves, fiches
+     * 022/006) : REJOINT la passe en vol (jamais de scan sur le fil
+     * appelant — miroir de [declarations]) et rend l'état publié pour les
+     * racines courantes, contributions du modèle de symboles et ÉTAT de la
+     * passe compris.
+     *
+     * @return le snapshot immuable (contributions + complétude) ; `null`
+     * si aucune passe n'a abouti pour les racines courantes (l'univers
+     * projet est alors ABSENT — projet sans racines, connaissance vide).
+     */
+    internal fun snapshotAuConsult(): ScanSources? {
+        assurerSnapshot()
+        return snapshotCourant()
+    }
+
+    /**
      * Garantit qu'un état existe SANS JAMAIS scanner sur le fil appelant :
      * rejoint le vol en cours, sinon si un passage a ABOUTI pour les racines
      * courantes rend tel quel, sinon amorce (la passe publie pour les
@@ -378,6 +397,7 @@ internal class ScanProjetParesseux(
         // 2. PARSE — incrémental mtime, premier nom gagne (les surcharges
         //    relèvent de la résolution, étage 2).
         val carte = LinkedHashMap<String, DeclarationExterne>()
+        val contributions = mutableListOf<ContributionFichier>()
         var faits = 0
         var reanalyses = 0
         for (fichier in marche.fichiers) {
@@ -386,16 +406,17 @@ internal class ScanProjetParesseux(
             val enCache = cacheFichiers[cle]
             val duFichier =
                 if (enCache != null && enCache.modification == modification) {
-                    enCache.declarations
+                    enCache
                 } else {
-                    val analysees = declarationsDuFichier(fichier)
-                    cacheFichiers[cle] = EntreeCache(modification, analysees)
+                    val analysee = analyseDuFichier(fichier)
+                    cacheFichiers[cle] = analysee
                     reanalyses++
-                    analysees
+                    analysee
                 }
-            for (declaration in duFichier) {
+            for (declaration in duFichier.declarations) {
                 if (declaration.nom !in carte) carte[declaration.nom] = declaration
             }
+            duFichier.contribution?.let { contributions.add(it) }
             faits++
             val obs = observateur
             if (obs != null && !obs.surFichier(faits, marche.vus, fichier.fileName.toString())) {
@@ -407,14 +428,20 @@ internal class ScanProjetParesseux(
         // 3. PURGE — le cache ne ment jamais (sur les vivants de la marche).
         cacheFichiers.keys.retainAll(marche.fichiers.map { it.toString() }.toSet())
         statsPassage = StatsPassage(faits = faits, total = marche.vus, reanalyses = reanalyses)
-        return ScanSources(carte)
+        // La COMPLÉTUDE de la passe (étage 2 — l'univers des preuves) : une
+        // passe annulée ou tronquée rend un snapshot PARTIEL (les preuves
+        // d'absence s'y taisent — fiches 022/036).
+        val complet = faits >= marche.vus
+        return ScanSources(carte, contributions, complet)
     }
 
     /**
-     * Marche UNE racine : dossiers et fichiers `.kt`/`.kts` en ordre de tri
-     * (déterminisme : la même cible sort toujours au même rang), fichiers
-     * éligibles COMPTÉS au-delà de la borne de collecte (statistiques
-     * honnêtes). Racine illisible ou inexistante : ignorée (D3).
+     * Marche UNE racine : dossiers et fichiers `.kt`/`.kts`/`.java` en ordre
+     * de tri (déterminisme : la même cible sort toujours au même rang —
+     * étage 2 : les sources JAVA nourrissent le modèle de symboles, fiche
+     * 022), fichiers éligibles COMPTÉS au-delà de la borne de collecte
+     * (statistiques honnêtes). Racine illisible ou inexistante : ignorée
+     * (D3).
      *
      * @param racine le chemin de la racine ;
      * @param marche la marche cumulée de la passe.
@@ -433,7 +460,8 @@ internal class ScanProjetParesseux(
                     flux.filter { fichier ->
                         Files.isRegularFile(fichier) && (
                             fichier.fileName.toString().endsWith(".kt") ||
-                                fichier.fileName.toString().endsWith(".kts")
+                                fichier.fileName.toString().endsWith(".kts") ||
+                                fichier.fileName.toString().endsWith(".java")
                             )
                     }.sorted().toList()
                 }
@@ -446,23 +474,28 @@ internal class ScanProjetParesseux(
     }
 
     /**
-     * Les déclarations nommées d'UN fichier (tolérant : un fichier illisible
-     * est ABSENT du scan, partiel honnête D3) : parse complet puis collecte
-     * des déclarations récursives avec signature écrite conservatrice et KDoc
-     * précédente — la matière du survol externe.
+     * Analyse UN fichier du scan (tolérant : un fichier illisible est
+     * ABSENT du scan, partiel honnête D3) : les déclarations nommées du
+     * SURVOL (fichiers Kotlin seulement) et la CONTRIBUTION au modèle de
+     * symboles du projet (Kotlin ET Java — fiche 022).
      *
-     * @param fichier le fichier Kotlin à analyser ;
-     * @return ses déclarations externes (liste vide si illisible ou sans
-     * déclaration nommée) — jamais d'exception.
+     * @param fichier le fichier à analyser ;
+     * @return l'entrée de cache du fichier (déclarations + contribution,
+     * listes vides si illisible ou sans déclaration) — jamais d'exception.
      */
-    private fun declarationsDuFichier(fichier: Path): List<DeclarationExterne> {
+    private fun analyseDuFichier(fichier: Path): EntreeCache {
         val texte =
             try {
                 String(Files.readAllBytes(fichier), Charsets.UTF_8)
             } catch (_: Exception) {
-                return emptyList()
+                return EntreeCache(0L, emptyList(), null)
             }
         val uri = fichier.toUri().toString()
+        if (fichier.fileName.toString().endsWith(".java")) {
+            // Source JAVA : contribution au modèle de symboles SEULEMENT
+            // (la matière du survol reste Kotlin — frontière documentée).
+            return EntreeCache(mtimeDe(fichier), emptyList(), LecteurDeclarationsJava.lire(texte, uri))
+        }
         val script = fichier.fileName.toString().endsWith(".kts")
         val arbre = parseur.arbre(texte, script)
         val commentaires = arbre.noeud.commentaires
@@ -479,7 +512,7 @@ internal class ScanProjetParesseux(
                 ),
             )
         }
-        return resultat
+        return EntreeCache(mtimeDe(fichier), resultat, ModeleProjet.contributionKotlin(arbre, uri))
     }
 
     /**
@@ -538,15 +571,19 @@ internal class ScanProjetParesseux(
     )
 
     /**
-     * L'entrée du cache par fichier : les déclarations d'un fichier et le
-     * mtime qui les légitime (un fichier inchangé n'est jamais re-parsé).
+     * L'entrée du cache par fichier : les déclarations d'un fichier, sa
+     * contribution au modèle de symboles (étage 2) et le mtime qui les
+     * légitime (un fichier inchangé n'est jamais re-parsé).
      *
      * @property modification le mtime du fichier à l'analyse ;
-     * @property declarations les déclarations extraites alors.
+     * @property declarations les déclarations extraites alors ;
+     * @property contribution la contribution au modèle de symboles (les
+     * sources Java n'ont QUE celle-là).
      */
     private class EntreeCache(
         internal val modification: Long,
         internal val declarations: List<DeclarationExterne>,
+        internal val contribution: ContributionFichier?,
     )
 
     /**

@@ -11,11 +11,13 @@ import java.util.concurrent.locks.ReentrantReadWriteLock
 import jo.codeide.lsp.kotlin.api.ClasspathKotlin
 import jo.codeide.lsp.kotlin.api.DiagnosticKotlin
 import jo.codeide.lsp.kotlin.api.PlagePliableKotlin
+import jo.codeide.lsp.kotlin.api.PropositionKotlin
 import jo.codeide.lsp.kotlin.api.SessionLangageKotlin
 import jo.codeide.lsp.kotlin.api.SurvolKotlin
 import jo.codeide.lsp.kotlin.index.IndexAppelablesKotlin
 import jo.codeide.lsp.kotlin.parse.ParseurKotlin
 import jo.codeide.lsp.kotlin.parse.kt.KtFichier
+import jo.codeide.lsp.kotlin.resolve.EtatScan
 import kotlin.concurrent.read
 import kotlin.concurrent.write
 
@@ -160,16 +162,69 @@ internal class SessionLangageKotlinDocuments(
     // ------------------------------------------------------------------
 
     /**
-     * Rend les diagnostics courants du document : syntaxe, imports
-     * inutilisés, imports conflictuels (fiche 049). Document inconnu ou
-     * fermé : liste vide, jamais d'exception.
+     * Rend les diagnostics courants du document : erreurs de syntaxe
+     * (`kt.syntax` — plage et message du parseur), imports inutilisés
+     * (`kt.unusedImport` — joker et directives en édition JAMAIS signalés),
+     * imports conflictuels (`kt.conflictingImport` — signalés sur le plus
+     * tardif, information liée sur la première directive, KP15) et — depuis
+     * l'étage 2 — la passe SÉMANTIQUE (`kt.unresolved` par preuve d'absence
+     * avec la garde par déclaration, `kt.missingReturn` — fiches 017/022).
+     *
+     * La passe sémantique consulte l'UNIVERS des preuves HORS verrou
+     * d'écriture : elle REJOINT la passe de scan en vol (jamais de scan sur
+     * le fil appelant — fiche 041) et consulte le guichet d'index À CHAQUE
+     * requête (fiche 042) ; le régime dégradé (classpath non posé ou passe
+     * non publiée) ne prouve RIEN (sous-lecture honnête).
+     *
+     * @param uri l'identifiant du document ;
+     * @return les diagnostics, en ordre du document ; liste VIDE pour un
+     * document inconnu, fermé ou sain — jamais `null`, jamais d'exception.
      */
     override fun diagnostics(uri: String): List<DiagnosticKotlin> {
-        return verrou.read {
-            if (fermee) return@read emptyList()
-            val document = documents[uri] ?: return@read emptyList()
-            DiagnosticsImports.calculer(document)
-        }
+        val document =
+            verrou.read {
+                if (fermee) return@read null
+                documents[uri]
+            } ?: return emptyList()
+        // L'univers des preuves se consulte HORS verrou de lecture : la
+        // jointure de la passe de scan peut ATTENDRE (fiche 041) et le
+        // guichet d'index lit l'état publié du moteur — aucune de ces
+        // lectures ne mutile le document, le verrou n'a rien à garder.
+        val syntaxeEtImports = verrou.read { DiagnosticsImports.calculer(document) }
+        val semantiques = DiagnosticsSemantiques.calculer(
+            document = document,
+            uri = uri,
+            contributionsScan = contributionsAuConsult(uri),
+            etatScan = etatScanAuConsult(),
+            index = indexSiPret()?.vue,
+        )
+        return syntaxeEtImports + semantiques
+    }
+
+    /**
+     * Rend les propositions de complétion au point demandé (étage 2 vague
+     * 2a : le GERME MEMBRE — fiche 022 ; le pipeline complet est l'étage 3).
+     *
+     * @param uri l'identifiant du document ;
+     * @param deplacement l'offset du caret dans le texte du document ;
+     * @return les propositions du récepteur typé du projet ; liste VIDE
+     * pour un document inconnu/fermé ou une position sans récepteur —
+     * jamais `null`, jamais d'exception.
+     */
+    override fun completion(uri: String, deplacement: Int): List<PropositionKotlin> {
+        val document =
+            verrou.read {
+                if (fermee) return@read null
+                documents[uri]
+            } ?: return emptyList()
+        return CompletionMembres.proposer(
+            document = document,
+            uri = uri,
+            deplacement = deplacement,
+            contributionsScan = contributionsAuConsult(uri),
+            etatScan = etatScanAuConsult(),
+            index = indexSiPret()?.vue,
+        )
     }
 
     /**
@@ -282,6 +337,31 @@ internal class SessionLangageKotlinDocuments(
     // ------------------------------------------------------------------
     // Guichet d'index (fiche 042 — interne).
     // ------------------------------------------------------------------
+
+    /**
+     * Les contributions du modèle de symboles au CONSULT (étage 2) : la
+     * passe de scan est REJOINTE si elle est en vol (fiche 041 — jamais de
+     * scan sur le fil appelant), le document COURANT est exclu de la
+     * matière (son arbre frais prime sur son doublon du scan).
+     *
+     * @param uriExclue l'URI du document consulté ;
+     * @return les contributions du scan hors document ; liste vide sans
+     * racines posées (projet vide — connaissance complète).
+     */
+    internal fun contributionsAuConsult(uriExclue: String): List<jo.codeide.lsp.kotlin.resolve.ContributionFichier> {
+        return scanneur.snapshotAuConsult()?.contributionsHors(uriExclue).orEmpty()
+    }
+
+    /**
+     * L'état du scan au CONSULT (étage 2 — l'univers des preuves, fiche
+     * 006) : ABSENT sans racines posées, COMPLET si la dernière passe a
+     * couvert tous les fichiers éligibles vus, PARTIEL sinon (annulée ou
+     * tronquée — les preuves d'absence s'y taisent, fiche 036 à venir).
+     */
+    internal fun etatScanAuConsult(): EtatScan {
+        val snapshot = scanneur.snapshotAuConsult() ?: return EtatScan.ABSENT
+        return if (snapshot.complet) EtatScan.COMPLET else EtatScan.PARTIEL
+    }
 
     /**
      * Le guichet d'index de la session (interne — fiche 042) : l'état de
