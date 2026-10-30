@@ -282,8 +282,10 @@ session ne vit pas dans le banc, banc grammaire).
 **51 code neuf** [mesuré par scan du jar] — 24 à la vague 1a ; 66 grammaire
 vendorée inchangée). Le descripteur `META-INF/services` du SPI et les
 notices `META-INF/vendor-kotlin` sont embarqués [mesuré]. Le dexage d8 et
-les seuils restent vérifiés par la CI (`kotlin-art` : ≤ 32 768 méthodes /
-≤ 4 Mo — marge ×2 environ sur les méthodes attendue).
+les seuils sont vérifiés par la CI (`kotlin-art`) : **16 256 références de
+méthodes / 2 806 956 o (2,68 Mo)** [mesurés par la CI — +175 méthodes /
++38 908 o vs vague 1a : la session et le SPI], seuils étage 0 tenus
+(≤ 32 768 / ≤ 4 Mo, marge ×2 sur les méthodes).
 
 **Code livré [mesuré]** : 12 fichiers main (1 598 l.) + 2 fichiers de test
 (579 l.) — KDoc français détaillé partout, explicitApi Strict. Comptage
@@ -294,3 +296,14 @@ session vit sur le verrou lecture-écriture documenté (ADR 0117 : seuil CI
 
 **Provenance : `verifier-provenance.sh` rc=0** [mesuré] — aucun fichier
 hors registre (code neuf libre ; aucune reprise voie C cette vague).
+
+**CI VERTE 9/9 sur le commit de guérison `4575a4f`** (run `41000084597`,
+consulté le 30/10 à 03:58 UTC) — build et tests JDK 21, bancs
+noyau/qualité/parité T, gates Android, provenance étendue kotlin/, et les
+trois jobs Kotlin : suite du module (57 tests verts — fiches 010–013,
+049, 042), scan ART **5 × « AUCUNE »** avec la trace `ServiceLoader : OK —
+1 référence(s), descripteur(s) vérifié(s)` (§8.8 — le premier run
+`40999088759` sur `b1832cd` avait signalé la référence avant le
+raffinement du scanner), dexage d8 **16 256 méthodes / 2,68 Mo** (seuils
+tenus), banc empreinte/latence. **La vague 1b est CLOSE sur preuve
+mécanique.**
