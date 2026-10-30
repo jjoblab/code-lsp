@@ -1,8 +1,10 @@
 // CodeIDE — diagnostics SÉMANTIQUES d'un document (module :kotlin, étage 2
-// vague 2a — fiches 017/022/006 du cahier). Code NEUF jjoblab (clean-room —
-// l'ancien `diagnostics/` est en lecture interdite R9.1 ; cette passe est
+// vague 2a — fiches 017/022/006 ; vague 2b — fiche 046 : sélecteurs sur
+// récepteurs CLASSPATH typés par la vue JVM). Code NEUF jjoblab (clean-room
+// — l'ancien `diagnostics/` est en lecture interdite R9.1 ; cette passe est
 // écrite cahier en main : garde par déclaration P1-A, preuve d'absence sur
-// les types du projet, journal explain).
+// les types du projet ET de la bibliothèque, journal explain, familles K4
+// de la passe typée [DiagnosticsTypage]).
 package jo.codeide.lsp.kotlin.session
 
 import com.intellij.platform.syntax.SyntaxElementType
@@ -20,8 +22,11 @@ import jo.codeide.lsp.kotlin.resolve.FormeReference
 import jo.codeide.lsp.kotlin.resolve.IssueSelection
 import jo.codeide.lsp.kotlin.resolve.MarcheTypee
 import jo.codeide.lsp.kotlin.resolve.ModeleProjet
+import jo.codeide.lsp.kotlin.resolve.TypeValeur
+import jo.codeide.lsp.kotlin.resolve.TypageBorne
 import jo.codeide.lsp.kotlin.resolve.TypeProjet
 import jo.codeide.lsp.kotlin.resolve.UniversPreuves
+import jo.codeide.lsp.kotlin.resolve.VueJvmMembres
 import org.jetbrains.kotlin.kmp.lexer.KtTokens
 import org.jetbrains.kotlin.kmp.parser.KtNodeTypes
 
@@ -57,19 +62,6 @@ import org.jetbrains.kotlin.kmp.parser.KtNodeTypes
  */
 internal object DiagnosticsSemantiques {
 
-    /** Les genres de nœuds qui déclarent un NOM (la garde documentaire). */
-    private val GENRES_DECLARATION: Set<SyntaxElementType> = setOf(
-        KtNodeTypes.FUN,
-        KtNodeTypes.CLASS,
-        KtNodeTypes.OBJECT_DECLARATION,
-        KtNodeTypes.PROPERTY,
-        KtNodeTypes.TYPEALIAS,
-        KtNodeTypes.ENUM_ENTRY,
-        KtNodeTypes.VALUE_PARAMETER,
-        KtNodeTypes.TYPE_PARAMETER,
-        KtNodeTypes.DESTRUCTURING_DECLARATION_ENTRY,
-    )
-
     /**
      * Calcule les diagnostics sémantiques du document.
      *
@@ -80,7 +72,10 @@ internal object DiagnosticsSemantiques {
      * document COURANT exclu — la session filtre son doublon périmé) ;
      * @param etatScan l'état du scan des racines ;
      * @param index la vue des appelables du classpath (guichet de la fiche
-     * 042) ; `null` = régime dégradé, TOUTE la passe se tait.
+     * 042) ; `null` = régime dégradé, TOUTE la passe se tait ;
+     * @param vueJvm la vue JVM des membres du classpath (vague 2b — ADR
+     * 0223) ; `null` = les sélecteurs sur récepteurs de bibliothèque
+     * restent muets.
      * @return les diagnostics sémantiques en ordre du document ; liste vide
      * en régime dégradé (jamais d'exception).
      */
@@ -90,6 +85,7 @@ internal object DiagnosticsSemantiques {
         contributionsScan: List<ContributionFichier>,
         etatScan: EtatScan,
         index: VueAppelables?,
+        vueJvm: VueJvmMembres? = null,
     ): List<DiagnosticKotlin> {
         // Régime dégradé : le guichet est muet — AUCUNE preuve (fiche 046,
         // comportement « kt-unresolved---sans-classpath,-jamais-signale »).
@@ -112,6 +108,7 @@ internal object DiagnosticsSemantiques {
             index = index,
             etatScan = etatScan,
             script = script,
+            vueJvm = vueJvm,
         )
 
         val contextes = Contextes(
@@ -210,6 +207,9 @@ internal object DiagnosticsSemantiques {
         }
         val liaison = contextes.liaisonLocale(noeud)
         marcher(noeud, contextes, diagnostics, liaison, heritageOuvert, enteteBrisee)
+        // La passe TYPÉE de la famille K4 (fiche 046 — vague 2b) : les cinq
+        // familles sémantiques sur la région propre.
+        DiagnosticsTypage.verifier(noeud, contextes.univers, liaison, diagnostics)
     }
 
     // ------------------------------------------------------------------
@@ -306,7 +306,7 @@ internal object DiagnosticsSemantiques {
     private fun collecterNomsDeclares(arbre: KtFichier): Set<String> {
         val noms = mutableSetOf<String>()
         fun collecter(noeud: NoeudArbre) {
-            if (noeud.genre in GENRES_DECLARATION) {
+            if (noeud.genre in UniversPreuves.GENRES_DECLARATION) {
                 noeud.jetonsPropres
                     .firstOrNull { it.genre == KtTokens.IDENTIFIER }?.texte
                     ?.let { noms.add(it) }
@@ -370,13 +370,18 @@ internal object DiagnosticsSemantiques {
             KtNodeTypes.USER_TYPE -> {
                 // Un type QUALIFIÉ (`a.b.C`) : les segments restent muets
                 // (un seul segment faillible — fiche 044, vague 2c). Le type
-                // SIMPLE porte la vérification ; ses ARGUMENTS marchent.
+                // SIMPLE porte la vérification ; ses ARGUMENTS marchent —
+                // la RÉFÉRENCE du nom ne re-marche PAS en nom nu (elle est
+                // une position de TYPE, jamais un usage : l'émission y
+                // serait DOUBLÉE).
                 if (noeud.enfants.none { it.genre == KtNodeTypes.USER_TYPE }) {
                     noeud.enfants
                         .firstOrNull { it.genre == KtNodeTypes.REFERENCE_EXPRESSION }
                         ?.let { verifierNomType(it, contextes, diagnostics, enteteBrisee) }
                 }
-                noeud.enfants.forEach { marcher(it, contextes, diagnostics, liaison, heritageOuvert, enteteBrisee) }
+                noeud.enfants
+                    .filter { it.genre != KtNodeTypes.REFERENCE_EXPRESSION }
+                    .forEach { marcher(it, contextes, diagnostics, liaison, heritageOuvert, enteteBrisee) }
             }
             KtNodeTypes.DOT_QUALIFIED_EXPRESSION, KtNodeTypes.SAFE_ACCESS_EXPRESSION -> {
                 val recepteur = noeud.enfants.firstOrNull()
@@ -489,10 +494,11 @@ internal object DiagnosticsSemantiques {
         val nom = noeudNom.texteCanonique
         if (nom.isEmpty()) return
 
-        // Le type du PROJET du récepteur (ADR 0223 : la sélection par types
-        // complets — un récepteur hors projet n'est pas prouvable à cet
-        // étage, le sélecteur reste muet).
-        val typeRecepteur = MarcheTypee.typeProjetDeLexpression(recepteur, contextes.univers, liaison) ?: return
+        // Le type du récepteur (ADR 0223 : la sélection par types complets
+        // — un récepteur PROJET ou de BIBLIOTHÈQUE lisible dans la vue JVM
+        // (vague 2b), sinon le sélecteur reste muet).
+        val typeRecepteur = TypageBorne.typeDeLexpression(recepteur, contextes.univers, liaison)
+            ?: return
         val verdict = contextes.univers.verifierSelecteur(typeRecepteur, nom)
         if (verdict != UniversPreuves.Verdict.SIGNALABLE) return
         emettreNonResolu(
@@ -500,10 +506,16 @@ internal object DiagnosticsSemantiques {
             nom = nom,
             forme = FormeReference.SELECTEUR_QUALIFIE_ABSENCE_PROUVEE,
             issue = IssueSelection.ABSENCE_PROUVEE,
-            recepteur = typeRecepteur.fqcn,
+            recepteur = recepteurFqcn(typeRecepteur),
             contextes = contextes,
             diagnostics = diagnostics,
         )
+    }
+
+    /** Le FQCN d'affichage d'un type de récepteur (journal explain). */
+    private fun recepteurFqcn(type: TypeValeur): String = when (type) {
+        is TypeValeur.Projet -> type.type.fqcn
+        is TypeValeur.Jvm -> type.fqcn
     }
 
     /** Émet un `kt.unresolved` et consigne le journal explain (fiche 006). */

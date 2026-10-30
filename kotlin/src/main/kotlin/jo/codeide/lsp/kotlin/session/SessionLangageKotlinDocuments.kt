@@ -1,6 +1,7 @@
 // CodeIDE — session de langage Kotlin « documents » (module :kotlin, étage 1
-// vague 1b — session documents ; vague 1c — scan paresseux fiche 041). Code
-// NEUF jjoblab (clean-room — contrat : fiches 049/042/041 du
+// vague 1b — session documents ; vague 1c — scan paresseux fiche 041 ;
+// vague 2b — quick-fix d'import `importsCandidats`, fiche 046). Code NEUF
+// jjoblab (clean-room — contrat : fiches 049/042/041/046 du
 // cahier docs/cahier-specifications-kotlin/ ; concurrence ADR 0117/ADR 0212
 // ancien : verrou lecture-écriture, écritures = mutations de documents et
 // définitions, lectures parallèles = requêtes, JAMAIS de scan sous verrou).
@@ -16,6 +17,7 @@ import jo.codeide.lsp.kotlin.api.SessionLangageKotlin
 import jo.codeide.lsp.kotlin.api.SurvolKotlin
 import jo.codeide.lsp.kotlin.index.IndexAppelablesKotlin
 import jo.codeide.lsp.kotlin.parse.ParseurKotlin
+import jo.codeide.lsp.kotlin.parse.kt.KtDirectiveImport
 import jo.codeide.lsp.kotlin.parse.kt.KtFichier
 import jo.codeide.lsp.kotlin.resolve.EtatScan
 import kotlin.concurrent.read
@@ -191,12 +193,14 @@ internal class SessionLangageKotlinDocuments(
         // guichet d'index lit l'état publié du moteur — aucune de ces
         // lectures ne mutile le document, le verrou n'a rien à garder.
         val syntaxeEtImports = verrou.read { DiagnosticsImports.calculer(document) }
+        val guichet = indexSiPret()
         val semantiques = DiagnosticsSemantiques.calculer(
             document = document,
             uri = uri,
             contributionsScan = contributionsAuConsult(uri),
             etatScan = etatScanAuConsult(),
-            index = indexSiPret()?.vue,
+            index = guichet?.vue,
+            vueJvm = guichet?.vueJvm,
         )
         return syntaxeEtImports + semantiques
     }
@@ -217,14 +221,74 @@ internal class SessionLangageKotlinDocuments(
                 if (fermee) return@read null
                 documents[uri]
             } ?: return emptyList()
+        val guichet = indexSiPret()
         return CompletionMembres.proposer(
             document = document,
             uri = uri,
             deplacement = deplacement,
             contributionsScan = contributionsAuConsult(uri),
             etatScan = etatScanAuConsult(),
-            index = indexSiPret()?.vue,
+            index = guichet?.vue,
+            vueJvm = guichet?.vueJvm,
         )
+    }
+
+    /**
+     * Rend les FQCN candidats à l'IMPORT pour le nom sous le point (fiche
+     * 046 — vague 2b) : les classes des ENTRÉES du classpath portant
+     * EXACTEMENT ce nom simple, MOINS celles déjà résolues (import exact de
+     * même nom effectif, ou joker couvrant le package). Document inconnu,
+     * position sans identifiant, guichet muet : liste vide honnête.
+     */
+    override fun importsCandidats(uri: String, deplacement: Int): List<String> {
+        val document =
+            verrou.read {
+                if (fermee) return@read null
+                documents[uri]
+            } ?: return emptyList()
+        val guichet = indexSiPret() ?: return emptyList()
+
+        // L'IDENTIFIANT sous le point : la plus profonde référence couvrant
+        // la position (nom de type ou d'expression).
+        val identifiant = referenceCouvrante(document.arbre.noeud, deplacement) ?: return emptyList()
+        val nom = identifiant.texteCanonique
+        if (nom.isEmpty() || nom.contains('.')) return emptyList()
+
+        // Déjà résolu par un import EXACT (même nom effectif) : rien à
+        // proposer ; les candidats couverts par un JOKER sont écartés.
+        val imports = document.arbre.imports()
+        if (imports.any { nomEffectifImport(it) == nom }) return emptyList()
+        val jokers = imports.filter { it.estJoker() }.mapNotNull { it.nomQualifie() }.toSet()
+
+        return guichet.vueJvm.fqcnParNomSimple(nom)
+            .filterNot { fqcn ->
+                val paquet = fqcn.substringBeforeLast('.', "")
+                paquet in jokers
+            }
+    }
+
+    /** La plus profonde REFERENCE_EXPRESSION couvrant la position (ou `null`). */
+    private fun referenceCouvrante(
+        racine: jo.codeide.lsp.kotlin.parse.NoeudArbre,
+        deplacement: Int,
+    ): jo.codeide.lsp.kotlin.parse.NoeudArbre? {
+        var trouve: jo.codeide.lsp.kotlin.parse.NoeudArbre? = null
+        fun marcher(noeud: jo.codeide.lsp.kotlin.parse.NoeudArbre) {
+            if (deplacement < noeud.debut || deplacement > noeud.fin) return
+            if (noeud.genre == org.jetbrains.kotlin.kmp.parser.KtNodeTypes.REFERENCE_EXPRESSION) {
+                trouve = noeud
+            }
+            noeud.enfants.forEach(::marcher)
+        }
+        marcher(racine)
+        return trouve
+    }
+
+    /** Le nom EFFECTIF d'un import (alias, sinon dernier segment). */
+    private fun nomEffectifImport(directive: KtDirectiveImport): String? {
+        directive.alias()?.let { return it }
+        val chemin = directive.nomQualifie() ?: return null
+        return chemin.substringAfterLast('.').ifEmpty { null }
     }
 
     /**

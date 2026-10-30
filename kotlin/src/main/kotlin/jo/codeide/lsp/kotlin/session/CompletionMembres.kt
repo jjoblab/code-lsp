@@ -1,8 +1,7 @@
 // CodeIDE — complétion MEMBRE (module :kotlin, étage 2 vague 2a — le GERME
-// requis par la fiche 022 du cahier : « data class : copy résolu et proposé
-// (le modificateur data enfin lu du MODIFIER_LIST) » ; le pipeline complet —
-// contextuelle, classement, multi-langue — est l'étage 3, ADR 0113). Code
-// NEUF jjoblab (clean-room).
+// requis par la fiche 022 du cahier ; vague 2b — fiche 046 : les récepteurs
+// de BIBLIOTHÈQUE (vue JVM), les SMART CASTS positionnels et les ATTENTES
+// de lambda type le récepteur). Code NEUF jjoblab (clean-room).
 package jo.codeide.lsp.kotlin.session
 
 import jo.codeide.lsp.kotlin.api.PropositionKotlin
@@ -13,22 +12,27 @@ import jo.codeide.lsp.kotlin.resolve.ContributionFichier
 import jo.codeide.lsp.kotlin.resolve.EtatScan
 import jo.codeide.lsp.kotlin.resolve.MarcheTypee
 import jo.codeide.lsp.kotlin.resolve.ModeleProjet
+import jo.codeide.lsp.kotlin.resolve.TypeValeur
+import jo.codeide.lsp.kotlin.resolve.TypageBorne
 import jo.codeide.lsp.kotlin.resolve.UniversPreuves
+import jo.codeide.lsp.kotlin.resolve.VueJvmMembres
 import org.jetbrains.kotlin.kmp.parser.KtNodeTypes
 
 /**
- * Le germe de complétion MEMBRE : les membres d'un récepteur typé du PROJET
- * après le point (fiche 022 — `copy` proposé après `p.`).
+ * Le germe de complétion MEMBRE : les membres d'un récepteur TYPAÉ après
+ * le point (fiche 022 — `copy` proposé après `p.` ; fiche 046 — récepteur
+ * de bibliothèque par la vue JVM, smart cast positionnel, attente de
+ * lambda : `s.` dans `repeter(2) { s -> … }` type `s`).
  *
- * Le germe est CONSERVATEUR : un point dont le récepteur n'est pas un type
- * du PROJET (classpath, littéral, non typable) rend une liste VIDE honnête
- * — les récepteurs classpath et le classement relèvent de l'étage 3 (le
- * germe ne devine jamais, D3).
+ * Le germe est CONSERVATEUR : un point dont le récepteur n'est pas typable
+ * (classpath illisible, littéral hors famille, non typable) rend une liste
+ * VIDE honnête — le classement relève de l'étage 3 (le germe ne devine
+ * jamais, D3).
  */
 internal object CompletionMembres {
 
     /**
-     * Propose les membres du récepteur typé du projet au point demandé.
+     * Propose les membres du récepteur typé au point demandé.
      *
      * @param document le document ouvert (texte + arbre) ;
      * @param uri l'identifiant du document ;
@@ -37,9 +41,11 @@ internal object CompletionMembres {
      * @param etatScan l'état du scan ;
      * @param index la vue des appelables du classpath (`null` = guichet
      * muet : les extensions classpath manquent, jamais de propositions
-     * fausses).
-     * @return les propositions en ordre de déclaration du récepteur ; liste
-     * vide sans récepteur typé du projet — jamais d'exception.
+     * fausses) ;
+     * @param vueJvm la vue JVM des membres du classpath (`null` = les
+     * récepteurs de bibliothèque ne proposent rien — D3).
+     * @return les propositions en ordre de rencontre du récepteur ; liste
+     * vide sans récepteur typé — jamais d'exception.
      */
     internal fun proposer(
         document: DocumentOuvert,
@@ -48,6 +54,7 @@ internal object CompletionMembres {
         contributionsScan: List<ContributionFichier>,
         etatScan: EtatScan,
         index: VueAppelables?,
+        vueJvm: VueJvmMembres? = null,
     ): List<PropositionKotlin> {
         val arbre = document.arbre
 
@@ -69,10 +76,11 @@ internal object CompletionMembres {
             index = index,
             etatScan = etatScan,
             script = uri.endsWith(".kts"),
+            vueJvm = vueJvm,
         )
         val region = regionContenant(arbre.noeud, deplacement)
         val liaison = MarcheTypee.Liaison(arbre = arbre, univers = univers, region = region)
-        val typeRecepteur = MarcheTypee.typeProjetDeLexpression(recepteur, univers, liaison)
+        val typeRecepteur = TypageBorne.typeDeLexpression(recepteur, univers, liaison)
             ?: return emptyList()
         return univers.propositionsMembres(typeRecepteur).map(::PropositionKotlin)
     }

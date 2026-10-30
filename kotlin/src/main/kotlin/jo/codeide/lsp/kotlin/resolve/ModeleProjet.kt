@@ -55,7 +55,10 @@ internal enum class GenreTypeProjet {
  * déclare le membre `contenu`) ;
  * @property estData la classe porte le modificateur `data` (membres
  * synthétisés `copy`/`componentN` — fiche 022) ;
- * @property entreesEnum les entrées d'enum déclarées (`ROUGE`, `VERT`).
+ * @property entreesEnum les entrées d'enum déclarées (`ROUGE`, `VERT`) ;
+ * @property parametresPrimaire les paramètres du constructeur PRIMAIRE
+ * (val/var ou non — le témoin d'arité d'un appel de constructeur les
+ * compte TOUS, fiche 046) ; liste vide sans constructeur primaire.
  */
 internal class TypeProjet(
     internal val uri: String?,
@@ -66,6 +69,7 @@ internal class TypeProjet(
     internal val membres: List<MembreProjet>,
     internal val estData: Boolean,
     internal val entreesEnum: List<String>,
+    internal val parametresPrimaire: List<ParametreProjet> = emptyList(),
 ) {
 
     /**
@@ -113,11 +117,55 @@ internal enum class GenreMembreProjet {
  * @property typeRetourNomme le nom ÉCRIT du type de retour ou de la
  * propriété (`Int`, `String`, `Boite`), `null` si absent/illisible — le
  * typage des initialiseurs s'en sert (fiche 022 : `val q = p.copy(x = 1)`).
+ * @property parametres les paramètres DÉCLARÉS d'une méthode (attente
+ * SAM : une interface à méthode unique type la lambda en position,
+ * fiche 046) ; liste vide pour les propriétés.
  */
 internal class MembreProjet(
     internal val nom: String,
     internal val genre: GenreMembreProjet,
     internal val typeRetourNomme: String?,
+    internal val parametres: List<ParametreProjet> = emptyList(),
+)
+
+/**
+ * Un paramètre DÉCLARÉ d'un appelable du projet (fonction, méthode,
+ * constructeur primaire) — la matière des témoins d'ARITÉ (fiche 046 :
+ * `kt.argumentCount`) et de l'ATTENTE des lambdas (paramètre explicite, `it`
+ * — fiche 046 : la fonction projet type sa lambda par son paramètre).
+ *
+ * @property nom le nom du paramètre (`null` dans un type fonctionnel
+ * écrit — `(String) -> Unit` ne nomme pas) ;
+ * @property typeEcrit le nom ÉCRIT simple du type (`Int`, `String`),
+ * `null` si absent/illisible ;
+ * @property typeFonction le type FONCTIONNEL ÉCRIT du paramètre
+ * (`(String) -> Unit` — paramètres + retour) quand il en porte un, `null`
+ * sinon : c'est lui qui type la lambda ATTENDUE en position ;
+ * @property aDefaut le paramètre porte une VALEUR PAR DÉFAUT (`b: Int = 2`)
+ * — un défaut ÉTEINT le témoin d'arité (fiche 046) ;
+ * @property estVararg le paramètre est un `vararg` — toute arité ≥ la
+ * place libre est légale (le témoin se tait).
+ */
+internal class ParametreProjet(
+    internal val nom: String?,
+    internal val typeEcrit: String?,
+    internal val typeFonction: TypeFonctionEcrit?,
+    internal val aDefaut: Boolean,
+    internal val estVararg: Boolean,
+)
+
+/**
+ * Un type FONCTIONNEL ÉCRIT (`(String, Int) -> Unit`) — lu de la production
+ * `FUNCTION_TYPE` d'une référence de type, il porte les types des PARAMÈTRES
+ * et le RETOUR : l'ATTENTE qui type la lambda en position (fiche 046).
+ *
+ * @property parametres les noms ÉCRITS simples des types de paramètres
+ * (`String`, `Int`) ; liste vide pour `() -> R` ;
+ * @property retour le nom ÉCRIT simple du type de retour (`Unit`).
+ */
+internal class TypeFonctionEcrit(
+    internal val parametres: List<String>,
+    internal val retour: String,
 )
 
 /**
@@ -131,13 +179,19 @@ internal class MembreProjet(
  * (`Boite`), `null` pour un appelable simple ;
  * @property typeRetourNomme le nom ÉCRIT du type de retour, `null` sinon ;
  * @property paquetSource le package du fichier déclarant (la résolution du
- * récepteur écrit y préfère les types du même package).
+ * récepteur écrit y préfère les types du même package) ;
+ * @property uri l'identifiant du fichier déclarant (`""` = document
+ * COURANT — le témoin d'arité s'y vérifie PROPRE, fiche 017) ;
+ * @property parametres les paramètres DÉCLARÉS (témoins d'arité, attente
+ * des lambdas) ; liste vide pour les propriétés.
  */
 internal class AppelableProjet(
     internal val nom: String,
     internal val recepteurNomme: String?,
     internal val typeRetourNomme: String?,
     internal val paquetSource: String,
+    internal val uri: String,
+    internal val parametres: List<ParametreProjet>,
 )
 
 /**
@@ -369,13 +423,16 @@ internal class ModeleProjet private constructor(
                 KtNodeTypes.FUN -> {
                     val nom = nomDeDeclaration(noeud) ?: return
                     val recepteur = recepteurEcrit(noeud)
-                    val appelable = AppelableProjet(nom, recepteur, typeRetourEcrit(noeud), paquet)
+                    val appelable = AppelableProjet(
+                        nom, recepteur, typeRetourEcrit(noeud), paquet, uri,
+                        parametresDeclares(noeud),
+                    )
                     if (recepteur == null) appelables.add(appelable) else extensions.add(appelable)
                 }
                 KtNodeTypes.PROPERTY -> {
                     val nom = nomDeDeclaration(noeud) ?: return
                     val recepteur = recepteurEcrit(noeud)
-                    val appelable = AppelableProjet(nom, recepteur, typeEcritPropriete(noeud), paquet)
+                    val appelable = AppelableProjet(nom, recepteur, typeEcritPropriete(noeud), paquet, uri, emptyList())
                     if (recepteur == null) appelables.add(appelable) else extensions.add(appelable)
                 }
                 else -> Unit
@@ -397,12 +454,14 @@ internal class ModeleProjet private constructor(
             val primaire = noeud.enfantsDe(KtNodeTypes.PRIMARY_CONSTRUCTOR).firstOrNull()
             val listeParams = primaire?.enfantsDe(KtNodeTypes.VALUE_PARAMETER_LIST)?.firstOrNull()
                 ?: noeud.enfantsDe(KtNodeTypes.VALUE_PARAMETER_LIST).firstOrNull()
+            val parametresPrimaire = mutableListOf<ParametreProjet>()
             if (listeParams != null) {
                 for (parametre in listeParams.enfantsDe(KtNodeTypes.VALUE_PARAMETER)) {
                     val nomParam = nomDeDeclaration(parametre) ?: continue
                     val estMembre = parametre.jetonsPropres.any {
                         it.genre == KtTokens.VAL_KEYWORD || it.genre == KtTokens.VAR_KEYWORD
                     }
+                    parametresPrimaire.add(parametreProjet(parametre, nomParam))
                     if (estMembre) {
                         membres.add(MembreProjet(nomParam, GenreMembreProjet.PROPRIETE, typeEcritParametre(parametre)))
                         nbProprietesCtor++
@@ -416,7 +475,12 @@ internal class ModeleProjet private constructor(
                     when (membre.genre) {
                         KtNodeTypes.FUN -> {
                             val n = nomDeDeclaration(membre) ?: continue
-                            membres.add(MembreProjet(n, GenreMembreProjet.FONCTION, typeRetourEcrit(membre)))
+                            membres.add(
+                                MembreProjet(
+                                    n, GenreMembreProjet.FONCTION, typeRetourEcrit(membre),
+                                    parametresDeclares(membre),
+                                ),
+                            )
                         }
                         KtNodeTypes.PROPERTY -> {
                             val n = nomDeDeclaration(membre) ?: continue
@@ -446,6 +510,7 @@ internal class ModeleProjet private constructor(
                 membres = membres,
                 estData = estData,
                 entreesEnum = entrees,
+                parametresPrimaire = parametresPrimaire,
             )
             if (estData && nbProprietesCtor > 0) {
                 type = type.avecSynthesesData(nbProprietesCtor)
@@ -530,9 +595,68 @@ internal class ModeleProjet private constructor(
             return null
         }
 
-        /** Le nom simple du type d'une référence de type (sans arguments). */
+        /**
+         * Les paramètres DÉCLARÉS d'une fonction (témoins d'arité et attente
+         * des lambdas — fiche 046) : la liste de paramètres de valeur du
+         * nœud `FUN`, chacun avec son type écrit, son type fonctionnel le
+         * cas échéant, son défaut et son `vararg`.
+         */
+        private fun parametresDeclares(noeud: NoeudArbre): List<ParametreProjet> {
+            val liste = noeud.enfantsDe(KtNodeTypes.VALUE_PARAMETER_LIST).firstOrNull()
+                ?: return emptyList()
+            return liste.enfantsDe(KtNodeTypes.VALUE_PARAMETER)
+                .mapNotNull { parametre ->
+                    val nom = nomDeDeclaration(parametre) ?: return@mapNotNull null
+                    parametreProjet(parametre, nom)
+                }
+        }
+
+        /**
+ * Construit le [ParametreProjet] d'un nœud `VALUE_PARAMETER` : type
+ * écrit simple, type FONCTIONNEL le cas échéant, défaut (`=` écrit) et
+ * `vararg` (modificateur doux).
+ */
+        private fun parametreProjet(parametre: NoeudArbre, nom: String): ParametreProjet {
+            var typeEcrit: String? = null
+            var typeFonction: TypeFonctionEcrit? = null
+            for (enfant in parametre.enfants) {
+                if (enfant.genre != KtNodeTypes.TYPE_REFERENCE) continue
+                typeFonction = typeFonctionEcritDe(enfant)
+                typeEcrit = typeEcritDeReference(enfant)
+                break
+            }
+            val aDefaut = parametre.enfants.any {
+                it.genre != KtNodeTypes.TYPE_REFERENCE && it.genre != KtNodeTypes.MODIFIER_LIST
+            }
+            val estVararg = parametre.enfants
+                .filter { it.genre == KtNodeTypes.MODIFIER_LIST }
+                .any { liste -> liste.enfants.any { it.genre == KtTokens.VARARG_MODIFIER } }
+            return ParametreProjet(nom, typeEcrit, typeFonction, aDefaut, estVararg)
+        }
+
+        /**
+         * Le type FONCTIONNEL écrit d'une référence de type est lu par la
+         * fonction de HAUT NIVEAU [typeFonctionEcritDe] (partagée avec
+         * l'attente des lambdas, vague 2b).
+         */
+
+        /**
+ * Le nom simple du type d'une référence de type (sans arguments) — la
+ * référence NULLABLE (`String?`) est DÉBALLÉE vers son type utilisateur
+ * (la nullabilité relève du typage, vague 2b : le nom écrit reste
+ * `String`) ; un type FONCTIONNEL ne rend PAS de nom simple (`null`).
+ */
         private fun typeEcritDeReference(reference: NoeudArbre): String? {
-            val utilisateur = reference.enfantsDe(KtNodeTypes.USER_TYPE).firstOrNull() ?: return null
+            // Le porteur de l'utilisateur : la référence elle-même, ou son
+            // déballage NULLABLE_TYPE (`String?` → USER_TYPE `String`).
+            var porteur: NoeudArbre =
+                reference.enfantsDe(KtNodeTypes.NULLABLE_TYPE).firstOrNull() ?: reference
+            if (porteur.genre == KtNodeTypes.NULLABLE_TYPE) {
+                porteur = porteur.enfantsDe(KtNodeTypes.USER_TYPE).firstOrNull() ?: return null
+            }
+            val utilisateur = porteur.enfantsDe(KtNodeTypes.USER_TYPE).firstOrNull()
+                ?: porteur.takeIf { it.genre == KtNodeTypes.USER_TYPE }
+                ?: return null
             val nom = utilisateur.texteCanonique.substringBefore('<')
             return nom.ifEmpty { null }
         }
@@ -542,6 +666,48 @@ internal class ModeleProjet private constructor(
             return noeud.jetonsPropres.firstOrNull { it.genre == KtTokens.IDENTIFIER }?.texte
         }
     }
+}
+
+/**
+ * Le type FONCTIONNEL écrit d'une référence de type (`(String) -> Unit`)
+ * — paramètres + retour, lus des productions `FUNCTION_TYPE` ; `null`
+ * si la référence n'en porte pas (partagé : modèle des paramètres et
+ * attente des lambdas, vague 2b).
+ */
+internal fun typeFonctionEcritDe(reference: NoeudArbre): TypeFonctionEcrit? {
+    val fonctionnelle = reference.enfants
+        .filter { it.genre == KtNodeTypes.FUNCTION_TYPE }
+        .firstOrNull() ?: return null
+    val parametres = mutableListOf<String>()
+    val liste = fonctionnelle.enfants
+        .filter { it.genre == KtNodeTypes.VALUE_PARAMETER_LIST }
+        .firstOrNull()
+    if (liste != null) {
+        for (parametre in liste.enfants.filter { it.genre == KtNodeTypes.VALUE_PARAMETER }) {
+            val type = parametre.enfants
+                .firstOrNull { it.genre == KtNodeTypes.TYPE_REFERENCE }
+                ?.let { referenceTypeEcritSimple(it) }
+            if (type != null) parametres.add(type)
+        }
+    }
+    val retour = fonctionnelle.enfants
+        .lastOrNull { it.genre == KtNodeTypes.TYPE_REFERENCE }
+        ?.let { referenceTypeEcritSimple(it) }
+        ?: return null
+    return TypeFonctionEcrit(parametres, retour)
+}
+
+/** Le nom simple ÉCRIT d'une référence de type (nullable déballée — aide). */
+private fun referenceTypeEcritSimple(reference: NoeudArbre): String? {
+    var porteur: NoeudArbre =
+        reference.enfants.filter { it.genre == KtNodeTypes.NULLABLE_TYPE }.firstOrNull() ?: reference
+    if (porteur.genre == KtNodeTypes.NULLABLE_TYPE) {
+        porteur = porteur.enfants.filter { it.genre == KtNodeTypes.USER_TYPE }.firstOrNull() ?: return null
+    }
+    val utilisateur = porteur.enfants.filter { it.genre == KtNodeTypes.USER_TYPE }.firstOrNull()
+        ?: porteur.takeIf { it.genre == KtNodeTypes.USER_TYPE }
+        ?: return null
+    return utilisateur.texteCanonique.substringBefore('<').ifEmpty { null }
 }
 
 /** Ajoute les membres synthétisés d'une data class (copy, componentN — fiche 022). */
@@ -560,5 +726,6 @@ private fun TypeProjet.avecSynthesesData(nbProprietes: Int): TypeProjet {
         membres = membres + synthetises,
         estData = estData,
         entreesEnum = entreesEnum,
+        parametresPrimaire = parametresPrimaire,
     )
 }

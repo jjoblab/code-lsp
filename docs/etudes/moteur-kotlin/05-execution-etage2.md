@@ -34,8 +34,19 @@
 > E-K6 du chantier Java a fait échouer la tentative 1, sans lien avec le
 > diff) ; 152 tests verts toolchain 17, scan ART 6 × AUCUNE, dex 24 996
 > méthodes / 3 882 064 o (identiques au bac à sable, seuils tenus — E-K8 à
-> 93 %) ; la vague 2b (familles sémantiques K4, fiche 046) est la
-> suivante (§5.4).**
+> 93 %).**
+>
+> **Mise à jour (30/10, vague 2b) — LES FAMILLES SÉMANTIQUES K4 SONT
+> LIVRÉES (fiche 046, 39 comportements) : la VUE JVM DES MEMBRES du
+> classpath (lecteur MAISON — décision Q-K1 tranchée à minima, pilotée par
+> les ENTRÉES, chaîne de supertypes + propriétés dérivées + implicites),
+> les smart casts POSITIONNELS (THEN, garde `!is` à sortie précoce,
+> opérande droit de `&&`, entrée de `when` sans sujet ; ombrage coupé,
+> `||` annule), les lambdas par ATTENTE (paramètre explicite, `it`, SAM
+> projet, type de fonction écrit), la liaison POSITIONNELLE (l'ombre
+> interne gagne), `kt.typeMismatch`/`kt.argumentCount`/`kt.unsafeNullable`/
+> `kt.unreachable`/`kt.valReassign` et le quick-fix `importsCandidats` ;
+> 59/204 comportements diagnostics verts (fiches 017+022+006+046).**
 
 ## 1. Périmètre de l'étage (plan §4 — cahier en main)
 
@@ -54,7 +65,7 @@
 
 | Critère | État | Preuve |
 |---|---|---|
-| 204 comportements diagnostics verts (23 fiches du domaine) | EN COURS — 20/204 | Vague 2a (§5) : fiches 017 (8/8) + 022 (8/8) + 006 (4/4) |
+| 204 comportements diagnostics verts (23 fiches du domaine) | EN COURS — 59/204 | Vague 2a (§5) : fiches 017 (8/8) + 022 (8/8) + 006 (4/4) ; vague 2b (§6) : fiche 046 (39/39) |
 | Zéro faux positif corpus quatre mondes | OUVERT | — |
 | Banc fidélité baseline signée | OUVERT | — |
 
@@ -215,3 +226,118 @@ sémantiques K4 — fiche 046, 39 comportements : typage borné, smart casts,
 lambdas par attente, `kt.typeMismatch`/`kt.argumentCount`/`kt.unsafeNullable`
 /`kt.unreachable`/`kt.valReassign`, gardes KP8/ADR 0203, `importsCandidats`,
 et la question de la vue JVM des membres du classpath) est la suivante.
+
+## 6. Vague 2b — les familles sémantiques K4 (30/10, fiche 046)
+
+### 6.1 Périmètre exécuté
+
+| # | Item | État | Détail |
+|---|---|---|---|
+| 1 | Vue JVM des membres du classpath | **Fait** | `resolve/VueJvm.kt` : lecteur MAISON des class-files (pool de constantes avec indirection des constantes Class, champs et méthodes déclarés — synthétiques et ponts écartés, `java.lang.Object` terminal connu) + `VueJvmMembres` (jeu COMPLET par marche bornée de la chaîne de supertypes — profondeur 24, cycles coupés ; propriétés DÉRIVÉES des accesseurs `get`/`is` ADR 0219 ; `fqcnParNomSimple` pour les quick-fixes d'import) — PILOTÉE PAR LES ENTRÉES (miroir de la discipline de l'index 1d : jamais la ressource du runtime, jamais la vue de l'hôte), paresseuse et tolérante (D3), lecture synchronisée (requêtes parallèles ADR 0117), portée par le snapshot publié (`SnapshotClasspath.vueJvm` — même garde de couverture que l'index) |
+| 2 | Typage borné étendu | **Fait** | `resolve/TypageBorne.kt` : `TypeValeur` (Projet \| Jvm), `typeDeLexpression` (littéraux par famille, types écrits via la résolution projet → import → catalogue KP8 `NOMS_FQCN_DEFAUT`, chaînes qualifiées par le retour écrit des membres), `raffinementAuPoint` (smart casts POSITIONNELS : branche THEN, garde `!is` à sortie PRÉCOCE — `estTerminal` déballant THEN/BLOCK, opérande droit d'un `&&`, corps d'entrée de `when` sans sujet ; l'OMBRE par une locale postérieure coupe — recherche dans le THEN ; `||` ANNULE tout), `attenteLambdaAuPoint` (fonction projet par INDEX d'argument, méthode unique d'une interface projet — SAM, type de fonction ÉCRIT d'une propriété), `familleLitteral` |
+| 3 | Liaison POSITIONNELLE | **Fait** | `MarcheTypee.Liaison` refondue : les candidats d'un nom (paramètres, locales, propriétés du document) sont collectés en ordre de SOURCE et la consultation À POSITION rend le DERNIER déclaré avant l'usage — la locale ombreuse gagne (P13, fiche 046) ; la nullabilité écrite est CONSERVÉE (`String?` — c'est elle qui prouve `kt.unsafeNullable`) |
+| 4 | Modèle étendu | **Fait** | `ModeleProjet` : `ParametreProjet` (nom, type écrit, type FONCTIONNEL écrit, défaut, `vararg`) sur les appelables et les méthodes, `parametresPrimaire` sur les types (témoins d'arité des constructeurs), `uri` sur les appelables (propreté des témoins du document courant), `typeFonctionEcritDe` partagé (modèle + attentes) |
+| 5 | `kt.typeMismatch` | **Fait** | `DiagnosticsTypage.verifierTypeMismatch` : famille du LITTÉRAL vs famille du type ÉCRIT (chaîne/numérique/booléen/caractère) ; conversions numériques legitimes et nullabilité muettes ; plage sur le littéral |
+| 6 | `kt.argumentCount` | **Fait** | `verifierArite` : appels NUS aux fonctions de premier niveau et constructeurs primaires du PROJET ; les témoins du document courant vérifient leur PROPRETÉ (fiche 017 — surcharge en frappe écartée) ; défauts, `vararg`, arguments NOMMÉS et sélecteurs qualifiés muets ; lambda en position comptée |
+| 7 | `kt.unsafeNullable` | **Fait** | `verifierAccesNonSur` : point (jamais `?.`) sur récepteur NOMINAL au type écrit NULLABLE sans raffinement de non-nullité en position (gardes `!= null`, gardes précoces `== null`) |
+| 8 | `kt.unreachable` | **Fait** | `verifierInatteignable` : la PREMIÈRE déclaration suivant un `return`/`throw` FRÈRE (un `return` imbriqué n'est pas un terminal — sous-rapport), AVERTISSEMENT |
+| 9 | `kt.valReassign` | **Fait** | `verifierValReaffectation` : affectation `=` à cible NOMINALE liée à un `val` (locale, paramètre, propriété — `var` quelconque l'emporte, conservateur) ; cibles qualifiées et introuvables muettes |
+| 10 | Sélecteurs sur récepteurs CLASSPATH | **Fait** | `UniversPreuves.verifierSelecteur` étendu à `TypeValeur` : le jeu JVM complet décide (résolu/absence prouvée) ; les types MAPPÉS numériques/booléens restent MUETS (`MAPPES_NON_FIABLES` — leurs membres Kotlin ne vivent pas dans le bytecode des classes encadrantes : jamais un faux positif) ; les gardes d'extensions (génériques, `Any`, récepteurs non résolus) et le régime dégradé tiennent |
+| 11 | Complétion membre classpath | **Fait** | `propositionsMembres` étendu : jeu JVM + implicites + EXTENSIONS de l'index sur le FQCN Kotlin (une chaîne illisible rend la complétion VIDE d'entrées — les extensions se proposent encore, D3) ; `CompletionMembres` câblé sur le typage étendu (smart casts, attentes, littéraux) |
+| 12 | `importsCandidats` | **Fait** | SPI `SessionLangageKotlin.importsCandidats(uri, deplacement)` : FQCN des ENTRÉES portant EXACTEMENT le nom simple (internes `$` et fichiers spéciaux écartés, tri déterministe) ; déjà importé (exact) ou couvert (joker) → vide ; document inconnu / guichet muet → vide honnête |
+| 13 | Correctif de la vague 2a | **Fait** | ÉCART DÉCOUVERT et corrigé par les fixtures 046 : la marche des références re-marchait la RÉFÉRENCE d'un `USER_TYPE` en NOM NU après `verifierNomType` — émission DOUBLÉE d'un `kt.unresolved` sur un type introuvable (jamais exposé par les fiches 017/022/006, latente depuis 2a) ; la référence ne re-marche plus (position de TYPE, jamais un usage) |
+
+### 6.2 Décisions d'exécution consignées (pas dans le plan initial)
+
+1. **La vue JVM des membres est un LECTEUR MAISON** (Q-K1 tranchée À
+   MINIMA) : un fichier (`resolve/VueJvm.kt`), aucune dépendance neuve,
+   aucun lien inter-modules (`:kotlin` reste autonome pour le pack langue
+   Android, ADR 0101), le budget dex E-K8 est épargné (+17 méthodes
+   déclarées seulement) ; l'ARBITRAGE COMPLET du propriétaire (CIDX vs
+   index dédié, action §4.2) DEMEURE OUVERT — la vue 2b ne le préjuge
+   pas, elle couvre le besoin minimal des preuves ADR 0223.
+2. **La vue est PILOTÉE PAR LES ENTRÉES** : un type absent des entrées
+   (le `java.lang.String` d'un android.jar de STUB Maven — le jar de test
+   4.1.1.4 n'embarque pas `java.*` ; le `kotlin.String` mappé d'un stdlib
+   seul) rend un jeu `null` — le récepteur reste TYPABLE (complétion par
+   les EXTENSIONS de l'index, sélecteur muet). La ressource du RUNTIME
+   n'est jamais lue (déterminisme bac à sable = CI = appareil — la
+   production pose un android.jar de SDK COMPLET qui porte `java.lang.*`,
+   le stub de test honnêtement non).
+3. **Les types MAPPÉS numériques/booléens ne sont pas absence-fiables** :
+   `1.inv()`, `flag.not()` — ces membres Kotlin de `kotlin.Int`/`Boolean`
+   ne vivent dans AUCUN class-file lisible (la boîte `java.lang.Integer`
+   ne les porte pas) ; les muet (sous-rapport documenté, banc 2g) au
+   lieu d'exposer un faux positif. `kotlin.String` et `kotlin.Any`
+   restent absence-fiables (le `get` de String vit dans les méthodes
+   lues ; Object est terminal connu).
+4. **Les smart casts sont POSITIONNELS, jamais structurels** : la marche
+   des ANCÊTRES couvrant la position applique THEN/garde précoce/`&&`/
+   `when` SANS SUJET ; l'ombre par une locale postérieure coupe (recherche
+   dans le THEN, la garde `P13` de la fiche 046) ; `||` annule (bornologie
+   de l'ADR 0107 conservée TELLE QUELLE — parité avant extension) ; les
+   ELSE, boucles et sujets de `when` restent au mode profond K2.
+5. **Les témoins d'arité sont PROPRETÉ-VÉRIFIÉS pour le document
+   courant** : la surcharge en cours de frappe (fiche 017) est écartée en
+   cherchant la déclaration du nom dans l'arbre FRAIS ; les témoins du
+   SCAN sont acceptés tels quels (un fichier non édité n'est pas en
+   frappe). La propreté est vérifiée PAR NOM (une surcharge propre
+   homonyme légitime le témoin — conservateur dans la direction sûre).
+6. **`importsCandidats` exclut les classes INTERNES (`$`)** : l'import
+   pointé d'une classe interne (`a.b.C.D`) est une raffinement possible
+   mais pas un faux candidat — l'exclusion sous-rapporte (quick-fix moins
+   riche, jamais faux).
+7. **La double passe (références puis K4) par région propre** : la marche
+   des familles K4 (`DiagnosticsTypage`) court APRÈS la marche des
+   références sur la MÊME région propre (garde par déclaration fiche 017
+   — « arbre en édition : tout le sémantique écarté » tient PAR
+   CONSTRUCTION sur la déclaration brisée) ; le coût est un second passage
+   par région, hors chemin de frappe du parseur (banc inchangé en
+   latences).
+
+### 6.3 Mesures de la vague 2b (bac à sable — JVM de bureau conteneurisée, toolchain 17)
+
+- **Suite du module : 191 tests VERTS** (152 + 39) sous la toolchain 17 —
+  fiche 046 (39/39), l'intégralité des vagues précédentes inchangée
+  (010-013, 049/042/041, 002-005/008/009/034, synthétiques, garde JDK 17,
+  017/022/006).
+- **Baseline de parité re-signée** : corpus 335 → **340 fichiers**
+  (+3 main : `VueJvm.kt`, `TypageBorne.kt`, `DiagnosticsTypage.kt` ;
+  +1 test : fiche 046 ; +1 document de spécification recompté) —
+  procédure documentée `-Dparite.majBase=true --rerun-tasks`.
+- **Jar moteur : 565 228 o** (+65 498 vs vague 2a) — la vue JVM, le typage
+  borné et les cinq familles.
+- **Scan ART pile complète** (mêmes commandes que la CI) : **6 × AUCUNE
+  référence sensible** — moteur **208 classes / 267 méthodes déclarées**
+  (+19 classes / +17 méthodes vs vague 2a), class-file 61:208 intégral,
+  ServiceLoader OK — descripteur vérifié (1 fournisseur).
+- **Dexage d8** (build-tools 34, min-api 26, pile chaude complète) :
+  **25 152 références de méthodes / 3 936 216 o (3,75 Mo)** — seuils étage
+  0 tenus (marges 7 616 méthodes / 252 Kio) ; **alerte E-K8 actualisée :
+  budget taille consommé à 94 %** (la vague ajoute 156 méthodes / 54 152 o).
+- **Banc JDK 17** (toolchain du module) : parse froid 227,7/24,5 ms, p50
+  4,4/25,8 ms, p95 40,2/50,4 ms — reparse p50 25,8 ms à 3 000 l. (< 50 ms,
+  latences S0 tenues), déterminisme **31 368 / 24 274 IDENTIQUE** (étage 0,
+  1c–2b), marqueurs d'erreur 0, tas au repos 3 700 Kio (−145 Kio vs §5.3 —
+  le bruit entre passes déjà consigné §12/§14/§16/§17/§5.3).
+- **Provenance** : `verifier-provenance.sh` rc=0 (aucune reprise nouvelle —
+  la vague est du code NEUF intégral, `resolve/VueJvm.kt` est un lecteur
+  maison écrit cahier en main).
+
+### 6.4 Clôture de la vague 2b
+
+**CI attendue sur le commit de livraison** (les 9 tâches : build/tests
+JDK 21, bancs noyau/qualité/parité T, gates Android, provenance, et les
+trois jobs Kotlin — suite du module toolchain 17 attendue à 191 tests,
+scan ART 6 × AUCUNE, dexage d8 25 152 / 3 936 216 o, banc JDK 17). La
+consultation du run et la clôture formelle suivent le push.
+
+**LA VAGUE 2B EST LIVRÉE sur preuves bac à sable** : les familles
+sémantiques K4 de la fiche 046 sont vertes (39/39 — typage borné, smart
+casts positionnels, lambdas par attente, les cinq codes `kt.*`,
+gardes KP8/ADR 0203, `importsCandidats`), la vue JVM des membres du
+classpath est posée (lecteur maison piloté par les entrées) et le tableau
+règles × spec est rempli (P13, A12-A17, G5 verrouillé, frontières 2b).
+59/204 comportements diagnostics verts. La vague 2c (membres hérités :
+clôture des supertypes, chaîne profondeur 7 du monde Views — fiches
+044/028/032/040/029, 44 comportements) est la suivante.

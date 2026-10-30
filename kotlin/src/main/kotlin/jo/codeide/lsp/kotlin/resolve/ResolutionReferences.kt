@@ -39,7 +39,10 @@ import jo.codeide.lsp.kotlin.parse.kt.KtFichier
  * le classpath posé ; `null` sinon (régime dégradé — silence) ;
  * @property etatScan l'état du scan des racines ;
  * @property script le document est-il un script `.kts` (les récepteurs
- * implicites du DSL y sont inconnus : noms nus muets, ADR 0106).
+ * implicites du DSL y sont inconnus : noms nus muets, ADR 0106) ;
+ * @property vueJvm la vue JVM des MEMBRES du classpath (vague 2b — ADR
+ * 0223) si le guichet couvre le classpath posé ; `null` sinon (les
+ * sélecteurs sur récepteurs de bibliothèque restent muets).
  */
 internal class UniversPreuves(
     internal val arbre: KtFichier,
@@ -48,6 +51,7 @@ internal class UniversPreuves(
     internal val index: VueAppelables?,
     internal val etatScan: EtatScan,
     internal val script: Boolean,
+    internal val vueJvm: VueJvmMembres? = null,
 ) {
 
     /** Les imports du document (calculés une fois). */
@@ -153,6 +157,77 @@ internal class UniversPreuves(
     }
 
     /**
+     * Résout un TYPE ÉCRIT du document en type VALEUR (vague 2b — fiche
+     * 046) : le modèle du projet D'ABORD (un type du projet prime), puis
+     * les imports EXACTS (le FQCN importé — un doublon du projet y prime
+     * aussi), puis le catalogue KP8 (les types bien connus des paquets par
+     * défaut, avec leur FQCN Kotlin).
+     *
+     * @param nomEcrit le nom ÉCRIT (`String`, `String?`, `Boite`,
+     * `List<Int>` — nullabilité et arguments sont DÉPOUILLÉS) ;
+     * @return le type ; `null` si le nom ne désigne ni un type du projet,
+     * ni un import, ni un type par défaut connu (récepteur non typable,
+     * sélecteur muet — D3).
+     */
+    internal fun resoudreTypeEcrit(nomEcrit: String?): TypeValeur? {
+        if (nomEcrit == null) return null
+        val nom = nomEcrit.trim()
+            .removeSuffix("?")
+            .substringBefore('<')
+            .trim()
+        if (nom.isEmpty()) return null
+
+        // Un nom QUALIFIÉ (round-trip de la liaison typée — `kotlin.String`
+        // rendu par l'initialisateur d'une propriété) : FQCN direct.
+        if ('.' in nom) {
+            modele.type(nom)?.let { return TypeValeur.Projet(it) }
+            return TypeValeur.Jvm(nom)
+        }
+
+        // Le PROJET d'abord (même nom simple, même package ou unique).
+        modele.typeParNomSimple(nom, paquet)?.let { return TypeValeur.Projet(it) }
+
+        // Les imports EXACTS : le FQCN écrit — un type DU PROJET sous ce
+        // FQCN y prime (l'import d'un type projet est légal).
+        for (directive in imports) {
+            if (directive.estJoker()) continue
+            val chemin = directive.nomQualifie() ?: continue
+            if (chemin.substringAfterLast('.') != nom && directive.alias() != nom) continue
+            modele.type(chemin)?.let { return TypeValeur.Projet(it) }
+            return TypeValeur.Jvm(chemin)
+        }
+
+        // Le catalogue KP8 : les types bien connus des paquets par défaut.
+        NOMS_FQCN_DEFAUT[nom]?.let { return TypeValeur.Jvm(it) }
+        return null
+    }
+
+    /**
+     * Le document déclare-t-il ce nom n'importe où (garde documentaire —
+     * la forme paresseuse de la fiche 017, consultée par le typage de
+     * l'implicite `it`) ?
+     */
+    internal fun possedeNomDeclare(nom: String): Boolean {
+        val declares = nomsDeclaresDuDocument
+        return nom in declares
+    }
+
+    /** Les noms DÉCLARÉS du document (paresseux — garde de l'implicit `it`). */
+    private val nomsDeclaresDuDocument: Set<String> by lazy {
+        val noms = mutableSetOf<String>()
+        fun collecter(noeud: jo.codeide.lsp.kotlin.parse.NoeudArbre) {
+            if (noeud.genre in GENRES_DECLARATION) {
+                noeud.jetonsPropres
+                    .firstOrNull { it.genre == org.jetbrains.kotlin.kmp.lexer.KtTokens.IDENTIFIER }
+                    ?.texte?.let { noms.add(it) }
+            }
+            noeud.enfants.forEach(::collecter)
+        }
+        collecter(arbre.noeud)
+        noms
+    }
+
+    /**
      * Résout un nom de TYPE (position `USER_TYPE` ou appel de constructeur) :
      * le verdict dit si l'absence est prouvable.
      *
@@ -182,24 +257,82 @@ internal class UniversPreuves(
     }
 
     /**
-     * Vérifie un SÉLECTEUR sur un récepteur typé du PROJET (ADR 0223 : la
-     * sélection par types complets — le jeu de membres complet décide).
+     * Vérifie un SÉLECTEUR sur un récepteur TYPAÉ (ADR 0223 : la sélection
+     * par types complets — le jeu de membres complet décide) — du PROJET
+     * (vague 2a) ou de BIBLIOTHÈQUE (vague 2b : la vue JVM des membres du
+     * classpath, chaîne de supertypes comprise).
      *
-     * Le jeu complet d'un type sans héritage écrit : les membres DÉCLARÉS
-     * (paramètres `val`/`var` du constructeur compris), les SYNTHÉTISÉS des
-     * data classes (`copy`, `componentN`), les IMPLICITES de Any/Object et
-     * les EXTENSIONS connues (projet par récepteur écrit, classpath par
-     * FQCN — plus les extensions génériques `<T> T.…` et celles de `Any`,
-     * qui atteignent tout récepteur : leur présence dans l'index MUET la
-     * preuve, fiche 026).
+     * Le jeu complet d'un type du PROJET sans héritage écrit : les membres
+     * DÉCLARÉS (paramètres `val`/`var` du constructeur compris), les
+     * SYNTHÉTISÉS des data classes (`copy`, `componentN`), les IMPLICITES
+     * de Any/Object et les EXTENSIONS connues (projet par récepteur écrit,
+     * classpath par FQCN — plus les extensions génériques `<T> T.…` et
+     * celles de `Any`, qui atteignent tout récepteur : leur présence dans
+     * l'index MUET la preuve, fiche 026).
+     *
+     * Le jeu complet d'un type de BIBLIOTHÈQUE : les membres DECLARÉS de
+     * toute la chaîne de supertypes lue des ENTRÉES (vue JVM — un maillon
+     * manquant rend la preuve muette), les PROPRIÉTÉS DÉRIVÉES des
+     * accesseurs (ADR 0219) et les implicites ; les types MAPPÉS à membres
+     * numériques (kotlin.Int…) restent MUETS (leurs membres attendus ne
+     * vivent pas dans le bytecode de la classe encadrante — sous-rapport
+     * assumé, jamais un faux positif).
+     *
+     * @param recepteur le type du récepteur (projet ou classpath) ;
+     * @param nom le nom du sélecteur ;
+     * @return RESOLU (membre/extension connu), MUET (univers ouvert —
+     * héritage écrit, enum, extensions non résolues, chaîne illisible) ou
+     * SIGNALABLE (ABSENCE PROUVÉE — émission).
+     */
+    internal fun verifierSelecteur(recepteur: TypeValeur, nom: String): Verdict {
+        if (recepteur is TypeValeur.Projet) {
+            return verifierSelecteurProjet(recepteur.type, nom)
+        }
+        val fqcn = (recepteur as TypeValeur.Jvm).fqcn
+
+        // Les types mappés NUMÉRIQUES : leurs membres Kotlin (plus, inv…)
+        // ne vivent pas dans le bytecode des classes encadrantes — muets.
+        if (fqcn in MAPPES_NON_FIABLES) return Verdict.MUET
+
+        // Scan partiel ou extensions non résolues : univers ouvert (D3).
+        if (etatScan == EtatScan.PARTIEL) return Verdict.MUET
+        if (modele.extensionsNonResolues) return Verdict.MUET
+
+        // La vue JVM : le jeu complet de la chaîne (déclarés + dérivés +
+        // implicites) — guichet muet ou maillon manquant = silence.
+        val jeu = vueJvm?.jeuComplet(MAPPES_JVM[fqcn] ?: fqcn) ?: return Verdict.MUET
+        if (jeu.contient(nom)) return Verdict.RESOLU
+
+        // Les implicites de Any/Object (le socle commun de tout récepteur).
+        if (nom in MEMBRES_IMPLICITS) return Verdict.RESOLU
+
+        return verdictExtensions(fqcn, nom)
+    }
+
+    /** La suite des EXTENSIONS du verdict classpath (récepteur FQCN Kotlin). */
+    private fun verdictExtensions(fqcn: String, nom: String): Verdict {
+        if (index == null) return Verdict.MUET
+        if (index.extensionsSur(fqcn).any { it.nom == nom }) return Verdict.RESOLU
+        // Les extensions GÉNÉRIQUES (`<T> T.…`) atteignent TOUT récepteur —
+        // leur présence MUET la preuve (fiche 026 : let/also/apply/run…).
+        if (index.topParNom(nom).any { it.recepteur == null && it.genre == jo.codeide.lsp.kotlin.index.GenreAppelable.FONCTION }) {
+            return Verdict.MUET
+        }
+        // Les extensions de `kotlin.Any` atteignent tout récepteur.
+        if (index.extensionsSur("kotlin.Any").any { it.nom == nom }) return Verdict.MUET
+        return Verdict.SIGNALABLE
+    }
+
+    /**
+     * Vérifie un SÉLECTEUR sur un récepteur typé du PROJET (vague 2a —
+     * ADR 0223 : le jeu de membres complet décide).
      *
      * @param recepteur le type du projet du récepteur ;
      * @param nom le nom du sélecteur ;
-     * @return RESOLU (membre/extension connu), MUET (univers ouvert —
-     * héritage écrit, enum, extensions non résolues) ou SIGNALABLE
-     * (ABSENCE PROUVÉE — émission).
+     * @return RESOLU (membre/extension connu), MUET (univers ouvert) ou
+     * SIGNALABLE (ABSENCE PROUVÉE — émission).
      */
-    internal fun verifierSelecteur(recepteur: TypeProjet, nom: String): Verdict {
+    internal fun verifierSelecteurProjet(recepteur: TypeProjet, nom: String): Verdict {
         // Héritage écrit ou enum : l'univers des membres est ouvert (D3).
         if (!recepteur.absenceFiable) return Verdict.MUET
 
@@ -256,28 +389,44 @@ internal class UniversPreuves(
     }
 
     /**
-     * Les propositions de COMPLÉTION MEMBRE d'un récepteur typé du projet
-     * (germe de l'étage 2 requis par la fiche 022 : `copy` proposé après
-     * `p.`) : membres déclarés et synthétisés + implicites + extensions du
-     * projet sur le récepteur, en ordre de déclaration.
+     * Les propositions de COMPLÉTION MEMBRE d'un récepteur TYPÉ (fiche
+     * 022 — `copy` proposé après `p.` ; fiche 046 — récepteurs de
+     * bibliothèque, smart casts et attentes de lambda en 2b) : membres
+     * déclarés et synthétisés (ou jeu JVM complet — chaîne de supertypes,
+     * propriétés dérivées) + implicites + extensions connues, en ordre de
+     * rencontre.
      *
-     * @param recepteur le type du projet du récepteur ;
+     * @param recepteur le type du récepteur (projet ou classpath) ;
      * @return les libellés proposés (noms nus) ; liste vide si rien.
      */
-    internal fun propositionsMembres(recepteur: TypeProjet): List<String> {
+    internal fun propositionsMembres(recepteur: TypeValeur): List<String> {
         val propositions = LinkedHashSet<String>()
-        for (membre in recepteur.membres) {
-            propositions.add(membre.nom)
+        if (recepteur is TypeValeur.Projet) {
+            for (membre in recepteur.type.membres) {
+                propositions.add(membre.nom)
+            }
+            if (recepteur.type.genre == GenreTypeProjet.ENUM) {
+                propositions.addAll(recepteur.type.entreesEnum)
+            }
+            propositions.addAll(MEMBRES_IMPLICITS)
+            for (extension in modele.extensionsSur(recepteur.type.fqcn)) {
+                propositions.add(extension.nom)
+            }
+            if (index != null) {
+                for (extension in index.extensionsSur(recepteur.type.fqcn)) {
+                    propositions.add(extension.nom)
+                }
+            }
+            return propositions.toList()
         }
-        if (recepteur.genre == GenreTypeProjet.ENUM) {
-            propositions.addAll(recepteur.entreesEnum)
-        }
+        val fqcn = (recepteur as TypeValeur.Jvm).fqcn
+        // Le jeu JVM complet de la chaîne (déclarés + dérivés + implicites)
+        // — une chaîne illisible rend la complétion VIDE d'entrées (les
+        // EXTENSIONS de l'index se proposent encore, D3).
+        vueJvm?.jeuComplet(MAPPES_JVM[fqcn] ?: fqcn)?.let { propositions.addAll(it.noms) }
         propositions.addAll(MEMBRES_IMPLICITS)
-        for (extension in modele.extensionsSur(recepteur.fqcn)) {
-            propositions.add(extension.nom)
-        }
         if (index != null) {
-            for (extension in index.extensionsSur(recepteur.fqcn)) {
+            for (extension in index.extensionsSur(fqcn)) {
                 propositions.add(extension.nom)
             }
         }
@@ -347,6 +496,95 @@ internal class UniversPreuves(
         internal val MEMBRES_IMPLICITS: Set<String> = setOf(
             "equals", "hashCode", "toString", "getClass", "wait", "notify", "notifyAll",
             "clone", "finalize",
+        )
+
+        /**
+         * Les genres de nœuds qui DÉCLARENT un nom (la garde documentaire
+         * de la fiche 017 — partagée avec la passe sémantique).
+         */
+        internal val GENRES_DECLARATION: Set<com.intellij.platform.syntax.SyntaxElementType> = setOf(
+            org.jetbrains.kotlin.kmp.parser.KtNodeTypes.FUN,
+            org.jetbrains.kotlin.kmp.parser.KtNodeTypes.CLASS,
+            org.jetbrains.kotlin.kmp.parser.KtNodeTypes.OBJECT_DECLARATION,
+            org.jetbrains.kotlin.kmp.parser.KtNodeTypes.PROPERTY,
+            org.jetbrains.kotlin.kmp.parser.KtNodeTypes.TYPEALIAS,
+            org.jetbrains.kotlin.kmp.parser.KtNodeTypes.ENUM_ENTRY,
+            org.jetbrains.kotlin.kmp.parser.KtNodeTypes.VALUE_PARAMETER,
+            org.jetbrains.kotlin.kmp.parser.KtNodeTypes.TYPE_PARAMETER,
+            org.jetbrains.kotlin.kmp.parser.KtNodeTypes.DESTRUCTURING_DECLARATION_ENTRY,
+        )
+
+        /**
+         * Les FQCN des types bien connus des paquets par défaut (le miroir
+         * TYPÉ du catalogue KP8 — vague 2b : la résolution d'un type ÉCRIT
+         * en type de valeur ; `kotlin.String` est le nom KOTLIN, les
+         * membres se lisent du MAPPÉ JVM [MAPPES_JVM]).
+         */
+        internal val NOMS_FQCN_DEFAUT: Map<String, String> = mapOf(
+            "Any" to "kotlin.Any", "Nothing" to "kotlin.Nothing", "Unit" to "kotlin.Unit",
+            "Int" to "kotlin.Int", "Long" to "kotlin.Long", "Short" to "kotlin.Short",
+            "Byte" to "kotlin.Byte", "Double" to "kotlin.Double", "Float" to "kotlin.Float",
+            "Char" to "kotlin.Char", "Boolean" to "kotlin.Boolean", "String" to "kotlin.String",
+            "Array" to "kotlin.Array", "Number" to "kotlin.Number",
+            "CharSequence" to "kotlin.CharSequence", "Enum" to "kotlin.Enum",
+            "Comparable" to "kotlin.Comparable", "Iterable" to "kotlin.Iterable",
+            "Throwable" to "kotlin.Throwable", "Exception" to "kotlin.Exception",
+            "Error" to "kotlin.Error", "RuntimeException" to "kotlin.RuntimeException",
+            "IllegalArgumentException" to "kotlin.IllegalArgumentException",
+            "IllegalStateException" to "kotlin.IllegalStateException",
+            "UnsupportedOperationException" to "kotlin.UnsupportedOperationException",
+            "IndexOutOfBoundsException" to "kotlin.IndexOutOfBoundsException",
+            "NullPointerException" to "kotlin.NullPointerException",
+            "ClassCastException" to "kotlin.ClassCastException",
+            "ArithmeticException" to "kotlin.ArithmeticException",
+            "NoSuchElementException" to "kotlin.NoSuchElementException",
+            "ConcurrentModificationException" to "kotlin.ConcurrentModificationException",
+            "AssertionError" to "kotlin.AssertionError",
+            "NumberFormatException" to "kotlin.NumberFormatException",
+            "Collection" to "kotlin.collections.Collection", "List" to "kotlin.collections.List",
+            "MutableList" to "kotlin.collections.MutableList", "Set" to "kotlin.collections.Set",
+            "MutableSet" to "kotlin.collections.MutableSet", "Map" to "kotlin.collections.Map",
+            "MutableMap" to "kotlin.collections.MutableMap",
+            "ArrayList" to "kotlin.collections.ArrayList",
+            "HashMap" to "kotlin.collections.HashMap", "HashSet" to "kotlin.collections.HashSet",
+            "LinkedHashMap" to "kotlin.collections.LinkedHashMap",
+            "LinkedHashSet" to "kotlin.collections.LinkedHashSet",
+            "MutableCollection" to "kotlin.collections.MutableCollection",
+            "MutableIterable" to "kotlin.collections.MutableIterable",
+            "StringBuilder" to "kotlin.text.StringBuilder", "Regex" to "kotlin.text.Regex",
+            "Sequence" to "kotlin.sequences.Sequence",
+            "Object" to "java.lang.Object", "Thread" to "java.lang.Thread",
+            "Runnable" to "java.lang.Runnable", "Class" to "java.lang.Class",
+            "System" to "java.lang.System", "Math" to "java.lang.Math", "Void" to "java.lang.Void",
+        )
+
+        /**
+         * Les types KOTLIN MAPPÉS du bytecode JVM (les classes encadrantes
+         * — kotlin.String se lit en java.lang.String, etc.) : la vue JVM
+         * y consulte les membres DÉCLARÉS.
+         */
+        internal val MAPPES_JVM: Map<String, String> = mapOf(
+            "kotlin.String" to "java.lang.String",
+            "kotlin.Char" to "java.lang.Character",
+            "kotlin.Any" to "java.lang.Object",
+            "kotlin.Int" to "java.lang.Integer",
+            "kotlin.Long" to "java.lang.Long",
+            "kotlin.Short" to "java.lang.Short",
+            "kotlin.Byte" to "java.lang.Byte",
+            "kotlin.Double" to "java.lang.Double",
+            "kotlin.Float" to "java.lang.Float",
+            "kotlin.Boolean" to "java.lang.Boolean",
+        )
+
+        /**
+         * Les types mappés NUMÉRIQUES et booléens : leurs membres KOTLIN
+         * (plus, inv, not…) ne vivent PAS dans le bytecode des classes
+         * encadrantes — l'absence n'y est JAMAIS prouvable (sous-rapport
+         * assumé, vague 2b — jamais un faux positif).
+         */
+        internal val MAPPES_NON_FIABLES: Set<String> = setOf(
+            "kotlin.Int", "kotlin.Long", "kotlin.Short", "kotlin.Byte",
+            "kotlin.Double", "kotlin.Float", "kotlin.Char", "kotlin.Boolean",
         )
     }
 }

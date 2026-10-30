@@ -1,5 +1,6 @@
 // CodeIDE — SPI du moteur Kotlin LSP : diagnostics neutres (module :kotlin,
-// étage 1 vague 1b). Code NEUF jjoblab (clean-room — contrat : fiches 049 du
+// étage 1 vague 1b ; étage 2 vague 2b — les familles K4 de la fiche 046).
+// Code NEUF jjoblab (clean-room — contrat : fiches 049/017/022/006/046 du
 // cahier + cadrage LSP_KOTLIN.md §5 K2 « diagnostics NEUTRES, le moteur ne
 // voit pas LSP4J » ; les tags et informations liées reprennent la demande
 // KP15 du plan de stabilisation ancien — l'hôte les traduit en
@@ -27,7 +28,9 @@ public enum class SeveriteKotlin {
  * Le code d'un diagnostic Kotlin — le vocabulaire `kt.*` conservateur du
  * catalogue (fiche 049 : `kt.syntax`, `kt.unusedImport`,
  * `kt.conflictingImport` ; étage 2 : `kt.unresolved`, `kt.missingReturn` —
- * fiches 017/022/006).
+ * fiches 017/022/006 ; vague 2b : les familles sémantiques K4 de la fiche
+ * 046 — `kt.typeMismatch`, `kt.argumentCount`, `kt.unsafeNullable`,
+ * `kt.unreachable`, `kt.valReassign`).
  *
  * @property code la forme LSP du code (voyage tel quel vers l'hôte).
  */
@@ -58,12 +61,42 @@ public enum class CodeDiagnosticKotlin(public val code: String) {
     RETOUR_MANQUANT("kt.missingReturn"),
 
     /**
-     * Nombre d'arguments (étage 2, fiches 017/046 — famille VAGUE 2b : le
-     * code est RÉSERVÉ au vocabulaire, aucune émission à la vague 2a ; les
-     * témoins d'arité y seront les seules déclarations PROPRES — une
-     * surcharge en cours de frappe est écartée, fiche 017).
+     * Type incompatible (étage 2 vague 2b, fiche 046) : un LITTÉRAL de
+     * famille connue affecté à un type ÉCRIT d'une autre famille (chaîne
+     * vers `Int`…) — décidable sur l'arbre seul, jamais émis pour une
+     * initialisation non littérale ou un type inconnu (preuve ou silence).
+     */
+    TYPE_INCOMPATIBLE("kt.typeMismatch"),
+
+    /**
+     * Nombre d'arguments (étage 2 vague 2b, fiches 017/046) : un appel dont
+     * l'arité ne cadre avec AUCUN témoin PROPRE du projet (fonction de
+     * premier niveau ou constructeur primaire) — les défauts, `vararg`, les
+     * arguments nommés et les cibles non témoins restent muets (D3).
      */
     NOMBRE_ARGUMENTS("kt.argumentCount"),
+
+    /**
+     * Accès non sûr (étage 2 vague 2b, fiche 046) : un POINT sur un
+     * récepteur de type écrit NULLABLE sans raffinement de non-nullité en
+     * position (l'accès sûr `?.` et les gardes `!= null` éteignent).
+     */
+    ACCES_NON_SUR("kt.unsafeNullable"),
+
+    /**
+     * Code inatteignable (étage 2 vague 2b, fiche 046) : la DÉCLARATION qui
+     * suit directement un `return` ou un `throw` FRÈRE dans le même bloc
+     * (un `return` imbriqué n'est pas un terminal — sous-rapport assumé).
+     */
+    CODE_INATTEIGNABLE("kt.unreachable"),
+
+    /**
+     * Réaffectation d'un `val` (étage 2 vague 2b, fiche 046) : une
+     * affectation (`=`) dont la cible est un nom lié à un `val` PROPRE
+     * (locale, paramètre, propriété) ; `var` et cibles introuvables
+     * restent muets (D3).
+     */
+    REAFFECTATION_VAL("kt.valReassign"),
 }
 
 /**

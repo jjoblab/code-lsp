@@ -1,8 +1,9 @@
 // CodeIDE — SPI du moteur Kotlin LSP : contrat de session (module :kotlin,
-// étage 1 vague 1b — session documents). Code NEUF jjoblab (clean-room —
-// contrat : fiche 049 du cahier + cadrage LSP_KOTLIN.md §5 K2 « session LSP
-// minimale » : ouvrir/modifier/fermer + diagnostics neutres, le moteur ne
-// voit pas LSP4J — D6 : le pack futur se branche ICI, et uniquement ici).
+// étage 1 vague 1b — session documents ; étage 2 vague 2b — quick-fix
+// d'import `importsCandidats`, fiche 046). Code NEUF jjoblab (clean-room —
+// contrat : fiches 049/046 du cahier + cadrage LSP_KOTLIN.md §5 K2 « session
+// LSP minimale » : ouvrir/modifier/fermer + diagnostics neutres, le moteur
+// ne voit pas LSP4J — D6 : le pack futur se branche ICI, et uniquement ici).
 package jo.codeide.lsp.kotlin.api
 
 /**
@@ -134,6 +135,26 @@ public interface SessionLangageKotlin : AutoCloseable {
      * récepteur typé du projet — jamais `null`, jamais d'exception.
      */
     public fun completion(uri: String, deplacement: Int): List<PropositionKotlin>
+
+    /**
+     * Rend les FQCN candidats à l'IMPORT pour le nom sous le point demandé
+     * (étage 2 vague 2b, fiche 046 — le carburant du quick-fix « Importer »
+     * : les classes du CLASSPATH portant EXACTEMENT ce nom simple).
+     *
+     * Le contrat est conservateur (D3) : un nom déjà résolu par un import
+     * EXACT (même nom effectif) ou couvert par un import JOKER rend une
+     * liste VIDE (rien à proposer — jamais de quick-fix inutile) ; le régime
+     * dégradé (classpath non posé, passe non publiée) rend une liste vide
+     * honnête ; l'ordre des candidats est DÉTERMINISTE (alphabétique).
+     *
+     * @param uri l'identifiant du document ;
+     * @param deplacement l'offset du caret DANS l'identifiant non résolu ;
+     * @return les FQCN candidats (`android.widget.TextView`), triés ; liste
+     * VIDE pour un document inconnu/fermé, une position sans identifiant,
+     * un nom déjà importé ou couvert, ou sans classpath — jamais `null`,
+     * jamais d'exception.
+     */
+    public fun importsCandidats(uri: String, deplacement: Int): List<String>
 
     /**
      * Re-scanne les racines sources du classpath (L1) : les déclarations

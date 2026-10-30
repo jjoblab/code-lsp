@@ -55,13 +55,19 @@ internal interface NourrissageMoteur {
  *
  * La [vue] délègue à l'état COURANT de l'index du moteur (vivante) : la
  * garde de couverture du guichet la légitime à chaque requête — une vue
- * n'est servie que tant que l'index couvre le classpath posé.
+ * n'est servie que tant que l'index couvre le classpath posé. Depuis la
+ * vague 2b, le snapshot porte AUSSI la [vueJvm] des MEMBRES du classpath
+ * (fiche 046 / ADR 0223) : paresseuse (rien n'est lu à la construction),
+ * pilotée par les MÊMES entrées — les preuves sur récepteurs de
+ * bibliothèque vivent sous la même garde de couverture.
  *
  * @property classpath le classpath couvert par la passe (entrées ordonnées
  * + racines sources) ;
- * @property vue la vue des appelables du snapshot publié.
+ * @property vue la vue des appelables du snapshot publié ;
+ * @property vueJvm la vue JVM des membres du classpath couvert.
  */
 internal class SnapshotClasspath internal constructor(
     internal val classpath: ClasspathKotlin,
     internal val vue: VueAppelables,
+    internal val vueJvm: jo.codeide.lsp.kotlin.resolve.VueJvmMembres = jo.codeide.lsp.kotlin.resolve.VueJvmMembres(classpath.entrees),
 )

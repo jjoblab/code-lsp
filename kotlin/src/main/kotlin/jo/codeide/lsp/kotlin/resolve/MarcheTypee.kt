@@ -32,6 +32,16 @@ internal object MarcheTypee {
      * mémoïsée : le typage d'un initialiseur requiert la marche typée, qui
      * requiert la liaison — la récursion est gardée contre les cycles).
      *
+     * ## La sélection POSITIONNELLE (vague 2b — fiche 046)
+     *
+     * Les candidats d'un nom (paramètres, locales, propriétés du document)
+     * sont collectés en ordre de SOURCE ; la consultation À POSITION rend
+     * le DERNIER déclaré AVANT la position — la locale ombreuse gagne
+     * (fiche 046 : « le cast ne fuit pas »), le membre déclaré avant la
+     * méthode reste atteignable. Sans position (ou sans candidat antérieur)
+     * : le PREMIER candidat — la garde documentaire P1 de la fiche 017
+     * (sur-résolution assumée, jamais faux).
+     *
      * @param arbre le document porteur ;
      * @param univers l'univers des preuves (modèle du projet) ;
      * @param region la région consultée (fonction ou propriété propre) ;
@@ -42,73 +52,99 @@ internal object MarcheTypee {
         private val univers: UniversPreuves,
         private val region: NoeudArbre?,
     ) {
-        private val cache = HashMap<String, String?>()
+        /** Un candidat de liaison (la fin de sa déclaration, son type écrit). */
+        private class Candidat(internal val fin: Int, internal val type: String?)
+
+        private val cache = HashMap<String, List<Candidat>>()
         private val enCours = HashSet<String>()
 
-        /** Le type écrit du nom lié (`null` si aucune liaison ne le porte). */
-        operator fun invoke(nom: String): String? {
-            if (cache.containsKey(nom)) return cache[nom]
-            if (!enCours.add(nom)) return null
-            val type = resoudre(nom)
-            enCours.remove(nom)
-            cache[nom] = type
-            return type
+        /**
+         * Le type écrit du nom lié (`null` si aucune liaison ne le porte).
+         *
+         * @param nom le nom consulté ;
+         * @param position la position de l'USAGE (offset du récepteur) —
+         * `-1` pour la consultation sans position (garde documentaire).
+         */
+        operator fun invoke(nom: String, position: Int = -1): String? {
+            val candidats = candidatsDe(nom) ?: return null
+            if (candidats.isEmpty()) return null
+            if (position >= 0) {
+                candidats.lastOrNull { it.fin <= position }?.let { return it.type }
+            }
+            return candidats.first().type
         }
 
-        /** Résout le nom : portée locale de la région, puis document. */
-        private fun resoudre(nom: String): String? {
+        /** Les candidats du nom (collectés une fois, mémoïsés ; `null` en cycle). */
+        private fun candidatsDe(nom: String): List<Candidat>? {
+            if (cache.containsKey(nom)) return cache[nom]
+            if (!enCours.add(nom)) return null
+            val collectes = mutableListOf<Candidat>()
             if (region != null) {
-                chercher(region, nom, locaux = true)?.let { return it }
+                chercher(region, nom, locaux = true, collectes = collectes)
             }
-            return chercher(arbre.noeud, nom, locaux = false, hors = region)
+            chercher(arbre.noeud, nom, locaux = false, collectes = collectes, hors = region)
+            enCours.remove(nom)
+            // Ordre de SOURCE : le dernier candidat avant la position est le
+            // plus récent — l'ombre interne gagne (fiche 046).
+            val tries = collectes.sortedBy { it.fin }
+            cache[nom] = tries
+            return tries
         }
 
         /**
-         * Cherche la liaison du nom dans un sous-arbre : paramètre de valeur
-         * ou propriété (type écrit, sinon initialiseur typé par la marche).
-         * Quand [locaux] est faux, les sous-arbres de FONCTION ne sont pas
-         * descendus (les locales d'une fonction n'existent que dans sa
-         * région).
+         * Cherche les liaisons du nom dans un sous-arbre : paramètre de
+         * valeur ou propriété (type écrit, sinon initialiseur typé par la
+         * marche). Quand [locaux] est faux, les sous-arbres de FONCTION ne
+         * sont pas descendus (les locales d'une fonction n'existent que dans
+         * sa région).
          */
         private fun chercher(
             noeud: NoeudArbre,
             nom: String,
             locaux: Boolean,
+            collectes: MutableList<Candidat>,
             hors: NoeudArbre? = null,
-        ): String? {
-            if (noeud === hors) return null
+        ) {
+            if (noeud === hors) return
             when (noeud.genre) {
                 KtNodeTypes.VALUE_PARAMETER -> {
                     val n = noeud.jetonsPropres.firstOrNull { it.genre == KtTokens.IDENTIFIER }?.texte
                     if (n == nom) {
                         noeud.enfants.firstOrNull { it.genre == KtNodeTypes.TYPE_REFERENCE }
-                            ?.texteCanonique?.substringBefore('<')?.ifEmpty { null }
-                            ?.let { return it }
+                            ?.let { reference ->
+                                nomTypeEcritDeReference(reference)?.let { collectes.add(Candidat(noeud.fin, it)) }
+                            }
                     }
                 }
                 KtNodeTypes.PROPERTY -> {
                     val n = noeud.jetonsPropres.firstOrNull { it.genre == KtTokens.IDENTIFIER }?.texte
                     if (n == nom) {
+                        var typeNomme: String? = null
                         noeud.enfants.firstOrNull { it.genre == KtNodeTypes.TYPE_REFERENCE }
-                            ?.texteCanonique?.substringBefore('<')?.ifEmpty { null }
-                            ?.let { return it }
-                        // Pas de type écrit : l'INITIALISEUR type la propriété
-                        // (marche typée — `val q = p.copy(…)`).
-                        val initialiseur = initialiseurDe(propriete = noeud)
-                        if (initialiseur != null) {
-                            typeProjetDeLexpression(initialiseur, univers, this)
-                                ?.let { return it.nomSimple }
+                            ?.let { reference -> nomTypeEcritDeReference(reference)?.let { typeNomme = it } }
+                        if (typeNomme == null) {
+                            // Pas de type écrit : l'INITIALISEUR type la propriété
+                            // (marche typée — `val q = p.copy(…)` en 2a, `val x =
+                            // "une chaîne"` par LITTÉRAL en 2b — fiche 046).
+                            val initialiseur = initialiseurDe(propriete = noeud)
+                            if (initialiseur != null) {
+                                when (val type = TypageBorne.typeDeLexpression(initialiseur, univers, this)) {
+                                    is TypeValeur.Projet -> typeNomme = type.type.nomSimple
+                                    is TypeValeur.Jvm -> typeNomme = type.fqcn
+                                    null -> Unit
+                                }
+                            }
                         }
+                        typeNomme?.let { collectes.add(Candidat(noeud.fin, it)) }
                     }
                 }
                 else -> Unit
             }
             if (noeud.genre != KtNodeTypes.FUN || locaux) {
                 for (enfant in noeud.enfants) {
-                    chercher(enfant, nom, locaux, hors)?.let { return it }
+                    chercher(enfant, nom, locaux, collectes, hors)
                 }
             }
-            return null
         }
 
         /** L'initialisateur d'une propriété (le dernier enfant expression). */
@@ -120,52 +156,28 @@ internal object MarcheTypee {
                     it.genre != KtNodeTypes.PROPERTY_ACCESSOR
             }
         }
-    }
 
-    /**
-     * Le type du PROJET d'une expression (le typage borné de la vague) ;
-     * `null` quand l'expression n'est pas typable à cet étage.
-     *
-     * @param noeud l'expression à typer ;
-     * @param univers l'univers des preuves ;
-     * @param liaison la liaison des portées de la région consultée.
-     */
-    internal fun typeProjetDeLexpression(
-        noeud: NoeudArbre,
-        univers: UniversPreuves,
-        liaison: Liaison,
-    ): TypeProjet? {
-        return when (noeud.genre) {
-            KtNodeTypes.REFERENCE_EXPRESSION -> {
-                val nom = noeud.texteCanonique
-                if (nom.isEmpty()) return null
-                univers.typeProjetDuNomEcrit(liaison(nom)) ?: univers.typeProjetEcrit(nom)
+        /**
+         * Le nom ÉCRIT du type d'une référence — la NULLABILITÉ EST
+         * CONSERVÉE (`String?` rend `String?` : c'est elle qui prouve
+         * `kt.unsafeNullable`, fiche 046) et les génériques sont DÉPOUILLÉS
+         * (`List<Int>?` rend `List?`) — les consommateurs tranchent
+         * ([UniversPreuves.resoudreTypeEcrit] dépouille, la passe typée
+         * regarde le `?`).
+         */
+        private fun nomTypeEcritDeReference(reference: NoeudArbre): String? {
+            val nullable = reference.enfants.any { it.genre == KtNodeTypes.NULLABLE_TYPE }
+            var porteur: NoeudArbre =
+                reference.enfants.firstOrNull { it.genre == KtNodeTypes.NULLABLE_TYPE } ?: reference
+            if (porteur.genre == KtNodeTypes.NULLABLE_TYPE) {
+                porteur = porteur.enfants.firstOrNull { it.genre == KtNodeTypes.USER_TYPE } ?: return null
             }
-            KtNodeTypes.CALL_EXPRESSION -> {
-                val nom = noeud.enfants
-                    .firstOrNull { it.genre == KtNodeTypes.REFERENCE_EXPRESSION }
-                    ?.texteCanonique.orEmpty()
-                if (nom.isEmpty()) return null
-                univers.typeProjetEcrit(nom)
-                    ?: univers.modele.appelables(nom, univers.paquet)
-                        .firstNotNullOfOrNull { it.typeRetourNomme }
-                        ?.let { univers.typeProjetDuNomEcrit(it) }
-            }
-            KtNodeTypes.DOT_QUALIFIED_EXPRESSION, KtNodeTypes.SAFE_ACCESS_EXPRESSION -> {
-                val recepteur = noeud.enfants.firstOrNull() ?: return null
-                val selecteur = noeud.enfants.lastOrNull() ?: return null
-                val typeRecepteur = typeProjetDeLexpression(recepteur, univers, liaison) ?: return null
-                val nomMembre = when (selecteur.genre) {
-                    KtNodeTypes.REFERENCE_EXPRESSION -> selecteur.texteCanonique
-                    KtNodeTypes.CALL_EXPRESSION ->
-                        selecteur.enfants.firstOrNull { it.genre == KtNodeTypes.REFERENCE_EXPRESSION }
-                            ?.texteCanonique.orEmpty()
-                    else -> ""
-                }
-                if (nomMembre.isEmpty()) return null
-                univers.typeProjetDuNomEcrit(typeRecepteur.membre(nomMembre)?.typeRetourNomme)
-            }
-            else -> null
+            val utilisateur = porteur.enfants.firstOrNull { it.genre == KtNodeTypes.USER_TYPE }
+                ?: porteur.takeIf { it.genre == KtNodeTypes.USER_TYPE }
+                ?: return null
+            val nom = utilisateur.texteCanonique.substringBefore('<')
+            if (nom.isEmpty()) return null
+            return if (nullable) "$nom?" else nom
         }
     }
 }
