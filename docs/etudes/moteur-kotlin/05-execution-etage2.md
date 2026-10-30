@@ -118,13 +118,41 @@
 > passe sémantique ne les voyait JAMAIS : le Kotlin standard du script
 > résout désormais, la garde D3 s'y exerce) ; 160/204 comportements
 > diagnostics verts.**
-> **Clôture (31/10) — VAGUE 2E CLOSE : CI VERTE 9/9 sur le commit de
-> livraison `53da2ef` (run `41105114444`, première tentative) ; 292 tests
-> verts toolchain 17, scan ART 6 × AUCUNE (moteur 230 classes / 281
-> méthodes), dex 25 343 méthodes / 4 000 812 o (identiques au bac à
-> sable, seuils tenus — E-K8 à 64 %) ; la vague 2f (correctifs texte,
-> membres manquants, synthétiques + fusion, multi-langue, `with`) est la
-> suivante (§9.4).**
+> **Mise à jour (31/10, vague 2f) — CORRECTIFS DE TEXTE, MEMBRES MANQUANTS,
+> SYNTHÉTIQUES + FUSION, MULTI-LANGUE ET `with` SONT LIVRÉS (44
+> comportements — fiches 016/020/047, **LE CRITÈRE §2 DES 23 FICHES
+> DIAGNOSTICS EST ATTEINT : 204/204**) : les correctifs texte (accès non
+> sûr — `?.` sur le point, `!!` après le récepteur, entourage
+> multi-ligne/en ligne/jamais au premier niveau sans bloc ; conversions
+> FERMÉES par famille, alignés sur les diagnostics PAR CONSTRUCTION — le
+> moteur re-prouve), les membres manquants P1-C (abstraits projet ET
+> classpath ACC_ABSTRACT, paramètres substitués, getters/setters
+> appariés), la fusion des synthétiques AVEC COUPURE (une classe réelle
+> du même FQCN EFFACE le groupe, BuildConfig sous-reporté), le
+> multi-langue Java↔Kotlin (classe et membres résolus, définition qui
+> OUVRE le `.java`), les récepteurs implicites `with` et le SAM
+> classpath.**
+> **Clôture (31/10) — VAGUE 2F CLOSE : CI VERTE 9/9 sur le commit de
+> livraison `31f4e1b` (run `41107801655`, PREMIÈRE TENTATIVE — un seul
+> run pour le head_sha) ; suite du module verte toolchain 17, scan ART
+> 6 × AUCUNE, dex 25 420 méthodes / 4 030 652 o IDENTIQUES au bac à
+> sable, banc JDK 17 déterminisme IDENTIQUE marqueurs 0 tas 2 008 Kio ;
+> journal §10.4 + en-tête + critère §2 204/204 attesté (écart de
+> rédaction du message de livraison consigné §10.4).**
+>
+> **Mise à jour (31/10, vague 2g) — LA CLÔTURE EST LIVRÉE : LE BANC DE
+> FIDÉLITÉ K2 (ADR 0119 option 1) — l'oracle est le compilateur K2
+> VÉRITABLE en sous-processus (`kotlin-compiler-embeddable` 2.2.10 en
+> dépendance de TEST seule, aucun impact dex) sur le corpus fixe des
+> QUATRE MONDES + un TÉMOIN POSITIF, comparés en paires (ligne, nom) ;
+> le banc a TROUVÉ et corrigé un vrai faux positif livré (`@Suppress`
+> signalé sur les mondes sains — les annotations standard des paquets
+> par défaut entraient au catalogue KP8, règle A31) ; l'INVARIANT EST
+> TENU : FAUX POSITIFS = 0 sur le corpus entier, les quatre mondes
+> sains muets des DEUX côtés ; les faux négatifs sont BASELINÉS SIGNÉS
+> (compte + empreinte SHA-256 du détail — 1 FN mesuré : preuve
+> d'absence des sélecteurs sur récepteurs builtin non couverte à cet
+> étage, D3 muet — la couverture se mesure, elle ne se déclare pas).**
 
 ## 1. Périmètre de l'étage (plan §4 — cahier en main)
 
@@ -143,7 +171,7 @@
 
 | Critère | État | Preuve |
 |---|---|---|
-| 204 comportements diagnostics verts (23 fiches du domaine) | EN COURS — 204/204 attendus à la clôture 2f | Vague 2a (§5) : fiches 017 (8/8) + 022 (8/8) + 006 (4/4) ; vague 2b (§6) : fiche 046 (39/39) ; vague 2c (§7) : fiches 044 (13/13) + 028 (12/12) + 032 (3/3) + 040 (11/11) + 029 (5/5) ; vague 2d (§8) : fiches 023 (2/2) + 024 (7/7) + 026 (2/2) + 033 (9/9) + 037 (5/5) ; vague 2e (§9) : fiches 030 (5/5) + 031 (5/5) + 035 (2/2) + 036 (3/3) + 025 (12/12) + 027 (5/5) |
+| 204 comportements diagnostics verts (23 fiches du domaine) | **ATTESTÉ** (clôture 2f — §10.4 : CI verte 9/9 sur `31f4e1b`, run `41107801655`) | Vague 2a (§5) : fiches 017 (8/8) + 022 (8/8) + 006 (4/4) ; vague 2b (§6) : fiche 046 (39/39) ; vague 2c (§7) : fiches 044 (13/13) + 028 (12/12) + 032 (3/3) + 040 (11/11) + 029 (5/5) ; vague 2d (§8) : fiches 023 (2/2) + 024 (7/7) + 026 (2/2) + 033 (9/9) + 037 (5/5) ; vague 2e (§9) : fiches 030 (5/5) + 031 (5/5) + 035 (2/2) + 036 (3/3) + 025 (12/12) + 027 (5/5) ; vague 2f (§10) : fiches 016 (13/13) + 020 (10/10) + 047 (21/21) — **204/204** |
 | Zéro faux positif corpus quatre mondes | OUVERT | — |
 | Banc fidélité baseline signée | OUVERT | — |
 
@@ -156,8 +184,8 @@
 | **2c** | Membres hérités : clôture des supertypes (clauses écrites + port de fichiers, projet et classpath mixtes), chaîne profondeur 7 du monde Views, frère projet ouvert vivant, récepteur implicite hérité, objets anonymes (pile des this) — **LIVRÉE (§7)** | 044 + 028 + 032 + 040 + 029 | 44 |
 | **2d** | Classpath côté Kotlin : compagnons (anonymes/nommés), objets du classpath (`INSTANCE`), typealias de bibliothèque, extensions à récepteur paramètre de type (`let`/`also`…), appelables builtin (`arrayOf`…) | 023 + 024 + 026 + 033 + 037 | 25 |
 | **2e** | KMP (expect/actual, deux racines), sources générées (`build/generated`), troncation du scan réfléchie dans l'univers, motifs Compose (stdlib réel), scripts `.gradle.kts` (muets sans modèle Gradle) | 030 + 031 + 035 + 036 + 025 + 027 | 32 |
-| **2f** | Correctifs texte (accès non sûr, conversions), membres manquants (quick-fix P1-C), consommation des synthétiques + fusion AVEC COUPURE, multi-langue Java↔Kotlin, récepteurs implicites `with` | 016 + 020 + 047 | 44 |
-| **2g** | Clôture : banc fidélité K2 oracle (baseline signée), passe zéro faux positif corpus quatre mondes, recalage de l'effort, journal | — | — |
+| **2f** | Correctifs texte (accès non sûr, conversions), membres manquants (quick-fix P1-C), consommation des synthétiques + fusion AVEC COUPURE, multi-langue Java↔Kotlin, récepteurs implicites `with` — **LIVRÉE (§10)** | 016 + 020 + 047 | 44 |
+| **2g** | Clôture : banc fidélité K2 oracle (baseline signée), passe zéro faux positif corpus quatre mondes, recalage de l'effort, journal — **LIVRÉE (§11)** | — | — |
 
 **Total fiches diagnostics : 204 comportements** (agrégat du cahier —
 INVENTAIRE.md). Chaque vague : code + tests NEUFS au nom exact du cahier +
@@ -830,5 +858,115 @@ fiches 030/031/035/036/025/027, 32 comportements) est la suivante.
   p50 6,2/26,8 ms, p95 30,6/55,4 ms, productions 5 448/31 368 et jetons
   4 210/24 274 — déterminisme IDENTIQUE, marqueurs d'erreur 0,
   tas 3 699 Kio.
+- **Provenance** : `verifier-provenance.sh` rc=0 (aucune reprise nouvelle
+  — code NEUF intégral).
+
+### 10.4 Clôture de la vague 2f
+
+**CI VERTE 9/9 sur le commit de livraison `31f4e1b`** (run `41107801655`,
+PREMIÈRE TENTATIVE — un seul run pour le head_sha, consulté le 31/10 via
+l'API GitHub Actions) : build et tests JDK 21, bancs noyau/qualité/parité
+T, gates Android, provenance, et les trois jobs Kotlin — suite du module
+**BUILD SUCCESSFUL sur la toolchain 17** (336 tests, §10.3), scan ART
+**6 × « AUCUNE »** sur la pile complète, dexage d8 **25 420 références de
+méthodes / 4 030 652 o (3,84 Mo)** — IDENTIQUES au bac à sable, seuils
+tenus (78 % du plafond méthodes, 64 % du budget 6 Mo — E-K8), banc JDK 17
+déterminisme **IDENTIQUE** (productions 5 448/31 368, jetons 4 210/24 274,
+marqueurs d'erreur 0, tas 2 008 Kio).
+
+Deux écarts de rédaction de la livraison sont consignés et corrigés par la
+présente clôture (discipline R5 — les chiffres du journal font foi) :
+
+1. **Le message du commit `31f4e1b` annonçait « journal §10 + en-tête +
+   critère §2 204/204 »** — seul §10 était rédigé : les blocs d'en-tête de
+   la vague 2f, l'attestation §2 et la marque §3 sont posés par le présent
+   commit de clôture (aucune perte de substance : les preuves §10.3 étaient
+   consignées, seuls les blocs récapitulatifs manquaient).
+2. **§10.3 consignait « baseline de parité re-signée 357 → 360 »** — le
+   compte réel est **359 → 365** : l'énoncé avait compté les 3 fichiers de
+   TEST neufs en oubliant les 3 fichiers MAIN nouveaux
+   (`api/CorrectifsKotlin.kt`, `session/CorrectifsTexte.kt`,
+   `session/MembresManquants.kt`), qui font partie du corpus de parité
+   (re-mesuré : `git show 53da2ef:…digeste-corpus.txt` = 359 lignes,
+   `git show 31f4e1b:…` = 365).
+
+**LA VAGUE 2F EST CLOSE** — et avec elle le critère §2 n° 1 : **204/204
+comportements diagnostics verts** (23 fiches du domaine, vagues 2a→2f).
+Restent ouverts les deux critères de clôture de l'étage : zéro faux
+positif corpus quatre mondes, banc de fidélité baseline signée — la vague
+2g (§11) les porte.
+
+## 11. Vague 2g — la clôture : banc de fidélité K2, zéro faux positif, recalage (31/10)
+
+### 11.1 Périmètre exécuté
+
+| # | Item | État | Détail |
+|---|---|---|---|
+| 1 | **Banc de fidélité K2 oracle** (ADR 0119 option 1 — critère §4) | **Fait** | `session/BancFideliteK2Test.kt` : l'oracle est le compilateur K2 VÉRITABLE (`org.jetbrains.kotlin.cli.jvm.K2JVMCompiler`, artefact `kotlin-compiler-embeddable` 2.2.10 — **dépendance de TEST seule, AUCUN impact dex**) lancé en SOUS-PROCESSUS sur le CORPUS FIXE VERSIONNÉ (`src/test/resources/fidelite/`) : les QUATRE MONDES (Views sur android-4.1.1.4 réel, Compose sur fixture statique, Coroutines sur kotlinx-coroutines 1.9.0 réel, stdlib sur kotlin-stdlib 2.2.10 réel) + un TÉMOIN POSITIF (références vraiment inconnues) ; oracle et moteur comparés en PAIRES (ligne, nom) — FP = moteur − oracle, FN = oracle − moteur |
+| 2 | **Correctif moteur découvert PAR le banc** | **Fait** | Première passe : **6 faux positifs**, dont 5 × `@Suppress` signalé sur les mondes sains (l'oracle résout, le moteur signale) — les ANNOTATIONS STANDARD des paquets par défaut (`kotlin.Suppress`/`DslMarker`/`Throws`, `kotlin.jvm.JvmStatic`/`JvmField`/`JvmOverloads`/`JvmName`/`Volatile`/`Transient`) entrent au CATALOGUE KP8 (règle **A31** de `SPECIFICATION-RESOLUTION.md`) : une classe d'annotation n'est NI un appelable de l'index NI un type du projet, la voie catalogue seule la couvre — corrigé, la passe repasse à FP = 0 (le banc a prouvé son utilité au premier tour) |
+| 3 | **Baseline signée** (compte + empreinte) | **Fait** | `fidelite/baseline-fidelite.txt` : le compte de faux négatifs ET l'EMPREINTE SHA-256 du détail complet (par monde : oracle/moteur/fp/fn + listes FP/FN triées) sont comparés — TOUTE variation, en hausse comme en baisse, est une divergence à EXPLIQUER avant re-signature (miroir de la suite de parité fiche 010 ; re-signature : `-Dfidelite.majBase=true --rerun-tasks`, propriété câblée dans `tasks.test`, écrit dans l'ARBRE SOURCE) |
+| 4 | **Passe zéro faux positif corpus quatre mondes** | **Fait** | Les quatre mondes sains : moteur **0** et oracle **0** (muets des deux côtés) — FP = 0 ; le témoin : oracle 3 (lignes 8/9/10), moteur 2 (8/9) — l'accord s'exerce, le harnais ne valide pas un « tout muet » |
+| 5 | **Faux négatifs basés** | **Fait** | **1 FN mesuré et signé** : `zzMembreInconnu` sur récepteur `Int` (témoin, ligne 10) — la preuve d'absence des sélecteurs n'est PAS couverte sur les récepteurs typés BUILTIN (l'univers `kotlin_builtins` n'est pas indexé, D3 muet) : dette MESURÉE, documentée par la baseline, pas masquée |
+| 6 | **Recalage de l'effort** | **Fait** | §11.4 (premier recalage Kotlin — celui promis « fin étage 1 » par la synthèse §4 n'avait pas été tenu à sa porte : l'écart est consigné) |
+
+### 11.2 Décisions d'exécution consignées (pas dans le plan initial)
+
+1. **L'oracle reçoit `-no-stdlib` et le jar kotlin-stdlib TOUJOURS au
+   classpath cible** : le compilateur embarqué CHERCHE un kotlin-home et
+   n'en trouve pas hors installation (sans le drapeau il émet des
+   « cannot access built-in declaration » en cascade qui faussent la
+   comparaison) ; aucun projet Kotlin ne compile sans stdlib — l'oracle
+   doit voir le MÊME univers que le moteur (voie 6). La forme de sortie
+   K2 2.2 est `<chemin>:<ligne>:<colonne>: error: unresolved reference
+   '<nom>'.` — minuscules, apostrophes, point final : VÉRIFIÉE sur le bac
+   à sable avant d'écrire le regex (la forme « Unresolved reference: »
+   du K1 ne sort plus).
+2. **Le monde Compose passe par des STATIQUES Java** (champs et méthode
+   statiques dans la fixture) : un membre STATIQUE d'une classe Java se
+   lit par le NOM DE CLASSE (interop légale), une Java-class sans
+   `@Metadata` n'est JAMAIS un objet Kotlin — les membres d'instance via
+   le nom de classe seraient des non-résolus POUR L'ORACLE. La porte
+   INSTANCE du moteur (2d, fiche 033) reste couverte par les fiches du
+   cahier : le banc mesure la COUVERTURE (ce que le moteur prouve là où
+   K2 prouve), pas les divergences délibérées du modèle CodeIDE.
+3. **Le monde Coroutines importe `kotlinx.coroutines.flow.collect` et la
+   démo est `suspend`** : l'extension terminal `collect` exige l'import
+   écrit (K2) et l'appel un contexte suspend — sinon le corpus n'est pas
+   K2-compilable. Corpus intégral K2-compilable : la propriété
+   synthétique getter/setter (`titre.text = …`, monde Views) y reste
+   LÉGALE — c'est une règle d'interop du COMPILATEUR, pas une divergence
+   IDE (vérifié : K2 accepte, RC=0).
+4. **La re-signature écrit dans l'ARBRE SOURCE** : le chargeur de classes
+   sert la COPIE de build (`build/resources/test/`) — écrire via
+   `getResource()` perdait la signature (constaté et corrigé : la
+   première signature s'était perdue dans la copie) ; on remonte depuis
+   `user.dir` jusqu'aux ressources sources, miroir de la fiche 010.
+5. **Le FN du témoin est laissé EN L'ÉTAT** : couvrir la preuve d'absence
+   des sélecteurs sur récepteurs builtin exigerait d'indexer l'univers
+   `kotlin_builtins` (un chantier à part entière) — la baseline le
+   documente comme dette mesurée ; le corriger par un adoucissement du
+   harnais aurait été l'inverse de la mission.
+
+### 11.3 Preuves du bac à sable (avant poussée)
+
+- **Suite** : **337 tests VERTS** sur la toolchain 17 (336 + 1 — le banc
+  de fidélité), baseline de parité RE-SIGNÉE **365 → 371 fichiers** (les
+  6 neufs : 5 corpus `fidelite/` + le test ; + 1 digeste mis à jour —
+  `ResolutionReferences.kt` édité par le correctif A31).
+- **Jar moteur** : 676 072 o (+166 vs 2f — les neuf chaînes du catalogue
+  KP8, aucune méthode nouvelle).
+- **Scan ART pile complète** : 6 × « AUCUNE » (moteur 236 classes / 287
+  méthodes déclarées — IDENTIQUE à 2f, le correctif n'ajoute que des
+  constantes ; ServiceLoader OK), rc=0.
+- **Dexage d8** (build-tools 34 local, min-api 26) : **25 420 références
+  de méthodes / 4 030 800 o (3,84 Mo)** — +148 o vs 2f ; seuils tenus :
+  78 % du plafond 32 768, **64 % du budget 6 Mo** (E-K8 inchangée).
+- **Banc JDK 17** (bac à sable, 2 cœurs) : froid 237,8/25,4 ms,
+  p50 6,0/22,0 ms, p95 38,3/45,9 ms, productions 5 448/31 368 et jetons
+  4 210/24 274 — déterminisme IDENTIQUE, marqueurs d'erreur 0,
+  tas 3 072 Kio.
+- **Sortie du banc de fidélité** [mesuré] : FP = 0 (invariant §4) ;
+  FN = 1 basé signé — empreinte
+  `62b21b7f0009b90dad304a5cb20ea57bae731031cf223d5c26b5008075b7459c`.
 - **Provenance** : `verifier-provenance.sh` rc=0 (aucune reprise nouvelle
   — code NEUF intégral).

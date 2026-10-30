@@ -780,6 +780,13 @@ internal class UniversPreuves(
             "StringBuilder", "Regex", "MatchResult", "MatchGroup",
             // kotlin.sequences / kotlin.annotation / kotlin.jvm.
             "Sequence", "Annotation", "Deprecated",
+            // kotlin / kotlin.jvm — les ANNOTATIONS STANDARD (vague 2g :
+            // le banc de fidélité a prouvé le trou — `@Suppress` sur un
+            // monde sain était SIGNALÉ alors que K2 le résout ; une classe
+            // d'annotation n'est NI un appelable de l'index NI un type du
+            // projet, seule la voie catalogue la couvre).
+            "Suppress", "DslMarker", "Throws",
+            "JvmStatic", "JvmField", "JvmOverloads", "JvmName", "Volatile", "Transient",
             // java.lang (interop).
             "Object", "Thread", "Runnable", "Class", "System", "Math", "Void",
             "CloneNotSupportedException", "InterruptedException", "Cloneable",

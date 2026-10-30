@@ -131,9 +131,12 @@ tasks.test {
     // de test : -D est lu par la JVM de BUILD, il faut le transporter.
     //   -Dparite.majBase=true       → re-signature de la baseline digeste
     //     (avec --rerun-tasks OBLIGATOIRE — cf. KDoc de PariteCorpusDepotTest) ;
-    //   -Dparite.racineCorpus=chemin → corpus externe (sweep d'un checkout).
+    //   -Dparite.racineCorpus=chemin → corpus externe (sweep d'un checkout) ;
+    //   -Dfidelite.majBase=true     → re-signature de la baseline du banc de
+    //     fidélité K2 (vague 2g — même discipline : --rerun-tasks).
     systemProperty("parite.majBase", providers.systemProperty("parite.majBase").getOrElse("false"))
     systemProperty("parite.racineCorpus", providers.systemProperty("parite.racineCorpus").getOrElse(""))
+    systemProperty("fidelite.majBase", providers.systemProperty("fidelite.majBase").getOrElse("false"))
     testLogging {
         events("failed")
     }
@@ -222,6 +225,14 @@ dependencies {
     // classpath de test, ancré par classe (kotlinx.coroutines.flow.Flow) —
     // AUCUN impact dex (test seul, jamais la pile chaude du moteur).
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:1.9.0")
+
+    // ── Oracle K2 du banc de fidélité (vague 2g, ADR 0119) ──────────────
+    // Le compilateur véritable en SOUS-PROCESSUS (le banc lance
+    // org.jetbrains.kotlin.cli.jvm.K2JVMCompiler sur le classpath de test)
+    // — AUCUN impact dex (test seul) ; les faux positifs du moteur face à
+    // l'oracle doivent rester À ZÉRO (invariant §4), les faux négatifs
+    // sont BASELINÉS signés.
+    testImplementation("org.jetbrains.kotlin:kotlin-compiler-embeddable:2.2.10")
 }
 
 // ---------------------------------------------------------------------------
