@@ -68,6 +68,12 @@
 > membres hérités avec propriétaire déclarant (`val layoutInflater:
 > LayoutInflater` sur `android.app.Activity`) et la complétion membre
 > étendue à la clôture ; 103/204 comportements diagnostics verts.**
+> **Clôture (30/10) — VAGUE 2C CLOSE : CI VERTE 9/9 sur le commit de
+> livraison `c0062d6` (run `41095116471`, première tentative) ; 235 tests
+> verts toolchain 17, scan ART 6 × AUCUNE, dex 25 273 méthodes /
+> 3 980 148 o (identiques au bac à sable, seuils tenus — E-K8 à 95 %,
+> l'arbitrage Q-K1 devient pressant) ; la vague 2d (classpath côté
+> Kotlin) est la suivante (§7.4).**
 
 ## 1. Périmètre de l'étage (plan §4 — cahier en main)
 
@@ -523,10 +529,31 @@ posés comme ENTRÉES du classpath, AUCUNE vue factice) :
 
 ### 7.4 Clôture de la vague 2c
 
-La preuve CI du commit de livraison est attendue (les neuf tâches —
-build/tests JDK 21, bancs noyau/qualité/parité T, gates Android,
-provenance et les trois jobs Kotlin) ; le présent paragraphe se CLORE sur
-le numéro de run à la consultation. **LES MEMBRES HÉRITÉS SONT
+**CI VERTE 9/9 sur le commit de livraison `c0062d6`** (run `41095116471`,
+consulté le 30/10 — PREMIÈRE TENTATIVE, aucun écart d'exécution) : build
+et tests JDK 21, bancs noyau/qualité/parité T, gates Android, provenance,
+et les trois jobs Kotlin — suite du module **235 tests VERTS sur la
+toolchain 17** (fiches 010-013 + 049/042/041 + 002-005/008/009/034 +
+synthétiques R1/R2 + 017/022/006 + 046 + **044/028/032/040/029**), scan
+ART **6 × « AUCUNE »** sur la pile complète (moteur 224 classes / 273
+méthodes déclarées — ServiceLoader OK descripteur vérifié), dexage d8
+**25 273 références de méthodes / 3 980 148 o (3,80 Mo)** — IDENTIQUES au
+bac à sable, seuils étage 0 tenus [marges 7 495 méthodes / 209 Kio,
+ALERTE E-K8 actualisée : 95 % du budget taille], banc empreinte/latence
+sous JDK 17 (froid 381,8/37,4 ms, p50 9,8/19,9 ms, p95 28,0/30,3 ms,
+productions 5 448/31 368 et jetons 4 210/24 274 — déterminisme
+IDENTIQUE, marqueurs d'erreur 0, tas 2 010 Kio sur le runner).
+
+**LA VAGUE 2C EST CLOSE sur preuve mécanique** : les membres hérités sont
+livrés — la clôture mixte des supertypes (voie 2-ter ADR 0216), la pile
+des this (objets anonymes et `apply`), la chaîne profondeur 7+ du monde
+Views, les imbriquées projet et classpath, les chemins FQN, les zones de
+construction, la dérivation ADR 0219 consciente des descripteurs, le
+survol et la complétion des membres hérités ; 44/44 comportements des
+fiches 044/028/032/040/029 verts, **103/204** au critère §2. La vague 2d
+(classpath côté Kotlin : compagnons, objets `INSTANCE`, typealias de
+bibliothèque, extensions à récepteur paramètre de type, appelables
+builtin — fiches 023/024/026/033/037, 25 comportements) est la suivante.
 LIVRÉS** : la clôture mixte des supertypes, la pile des this (objets
 anonymes et `apply`), la chaîne profondeur 7+ du monde Views, les
 imbriquées projet et classpath, les chemins FQN, les zones de construction,
