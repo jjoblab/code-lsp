@@ -45,6 +45,51 @@ class Fiche014DiagnoseRapideTest {
     /** Témoin neuf par tour : moteur vierge, diagnose complet. */
     private fun temoin(source: String): List<Diagnostic> = MoteurJava().diagnose("/app/Main.java", source)
 
+    /**
+     * La part STABLE du témoin pour l'équivalence stricte (retours appareil
+     * du 30/10/2026 : familles analytiques élargies).
+     *
+     * Les signaux ANALYTIQUES de niveau UNITÉ (import inutilisé, champ/méthode/
+     * type privé inutilisé — familles ecj UNUSED_IMPORT et UnusedPrivate*)
+     * suivent une politique de STICKY-PORTAGE pendant la frappe : ils sont
+     * portés du dernier diagnose COMPLET ([DiagnoseRapide.portablesHorsCorps])
+     * parce que leur analyse d'usages traverse tout le fichier — le masquage
+     * des corps non hôtes la fausserait (fiche 014, piège « import utilisé
+     * seulement par un corps masqué »). Deux conséquences honnêtes, assumées
+     * et documentées (elles n'existaient pas quand la table analytique ne
+     * portait que l'import inutilisé, jamais atteint par cette fixture) :
+     *
+     *  - un fichier syntaxiquement cassé (le marqueur ⌂ de la fixture l'est)
+     *    ne produit PAS ces signaux (ecj les saute sur unité non parsable) —
+     *    ils apparaissent au prochain diagnose COMPLET, pas à la frappe ;
+     *  - l'inverse est stable par conception : un signal déjà publié RESTE
+     *    affiché pendant une cassure transitoire (meilleur UX qu'un cligno-
+     *    tement, même choix qu'Android Studio).
+     *
+     * L'équivalence stricte de la fiche 014 porte donc sur TOUT LE RESTE :
+     * erreurs, avertissements de corps (locale inutilisée, null pointer…) —
+     * recalculés frais sur le corps hôte et portés exactement pour les corps
+     * masqués. Cette projection retire des DEUX côtés les signaux unitaires
+     * analytiques ; leur contrat propre (persistance pendant la frappe) est
+     * verrouillé par [Repro20261030AppareilTest].
+     */
+    private fun List<Diagnostic>.partieStable(): List<Diagnostic> =
+        filterNot { diagnostic ->
+            when (jo.codeide.lsp.java.actionscode.FamilleProbleme.fromCode(diagnostic.code)) {
+                jo.codeide.lsp.java.actionscode.FamilleProbleme.UNUSED_IMPORT -> true
+                jo.codeide.lsp.java.actionscode.FamilleProbleme.UNUSED_DECLARATION ->
+                    // La LOCALE inutilisée est de niveau CORPS (équivalence
+                    // exacte) ; les membres privés (champ/méthode/type) sont
+                    // de niveau unité (portage sticky).
+                    diagnostic.code in FAMILLE_MEMBRES_PRIVES
+                else -> false
+            }
+        }
+
+    /** Les IDs ecj des membres privés inutilisés (champ/méthode/type). */
+    private val FAMILLE_MEMBRES_PRIVES =
+        setOf("570425421", "603979894", "553648135") // UnusedPrivateField/Method/Type
+
     @Test
     fun frappesDansUnCorpsEquivalenceEtFastPath() {
         val moteur = MoteurJava()
@@ -57,8 +102,8 @@ class Fiche014DiagnoseRapideTest {
         var attenduFast = 0
         for (tour in tours) {
             val source = frappe(tour)
-            val reference = temoin(source)
-            val resultats = moteur.diagnose("/app/Main.java", source)
+            val reference = temoin(source).partieStable()
+            val resultats = moteur.diagnose("/app/Main.java", source).partieStable()
             assertEquals(reference.size, resultats.size, "taille identique au témoin (tour « $tour »)")
             assertEquals(
                 reference.map { listOf(it.plage.debutOffset, it.plage.finOffset, it.severite, it.message, it.code) },
@@ -84,17 +129,17 @@ class Fiche014DiagnoseRapideTest {
         // Frappe dans edite().
         val s1 = frappe(" int a = 1;")
         val r1 = moteur.diagnose("/app/Main.java", s1)
-        assertEquals(r1, temoin(s1), "équivalence tour 1")
+        assertEquals(r1.partieStable(), temoin(s1).partieStable(), "équivalence tour 1")
         assertEquals(1, moteur.fastDiagnoseHits)
         // Saut dans jamaisAppelee() : localeMorte 42→43 (corps masqué au tour précédent).
         val s2 = s1.replace("int localeMorte = 42;", "int localeMorte = 43;")
         val r2 = moteur.diagnose("/app/Main.java", s2)
-        assertEquals(r2, temoin(s2), "équivalence tour 2 (corps d'arrivée recalculé frais)")
+        assertEquals(r2.partieStable(), temoin(s2).partieStable(), "équivalence tour 2 (corps d'arrivée recalculé frais)")
         assertEquals(2, moteur.fastDiagnoseHits)
         // Retour dans signatureCasse() : renommage du corps (mauvaisNom2→mauvaisNom3).
         val s3 = s2.replace("int essai = mauvaisNom2;", "int essai = mauvaisNom3;")
         val r3 = moteur.diagnose("/app/Main.java", s3)
-        assertEquals(r3, temoin(s3), "équivalence tour 3 (problèmes du corps quitté PORTÉS)")
+        assertEquals(r3.partieStable(), temoin(s3).partieStable(), "équivalence tour 3 (problèmes du corps quitté PORTÉS)")
         assertEquals(3, moteur.fastDiagnoseHits, "fastDiagnoseHits = 3 après le retour")
     }
 
@@ -148,10 +193,15 @@ class Fiche014DiagnoseRapideTest {
 
     @Test
     fun corpsMasquesPasDeUnusedFallacieux() {
-        // Précondition : la base ne signale pas List/champPrive comme « never used ».
+        // Précondition : la base ne signale pas List/champPrive comme « never used »
+        // (la LOCALE x de court() est un VRAI signal désormais — table analytique
+        // élargie le 30/10/2026 — hors périmètre de cette précondition).
         val baseDiagnostics = temoin(base)
         assertTrue(
-            baseDiagnostics.none { it.message.contains("never used") || it.message.contains("is not used") },
+            baseDiagnostics.none {
+                (it.message.contains("never used") || it.message.contains("is not used")) &&
+                    (it.message.contains("List") || it.message.contains("champPrive"))
+            },
             "précondition : la base ne signale pas List/champ comme jamais utilisés",
         )
         val moteur = MoteurJava()
@@ -166,7 +216,7 @@ class Fiche014DiagnoseRapideTest {
             },
             "AUCUN diagnostic « unused » fallacieux sur List/champPrive",
         )
-        assertEquals(temoin(frappee), resultats, "équivalence stricte avec la référence")
+        assertEquals(temoin(frappee).partieStable(), resultats.partieStable(), "équivalence stricte avec la référence")
     }
 
     @Test
@@ -192,10 +242,10 @@ class Fiche014DiagnoseRapideTest {
         )
         // Équivalence stricte : l'erreur de « methodeInexistante » (corps masqué)
         // est PORTÉE avec les mêmes offsets — aucun problème frais inventé.
-        val reference = temoin(frappee)
+        val reference = temoin(frappee).partieStable()
         assertEquals(
             reference.map { listOf(it.plage.debutOffset, it.plage.finOffset, it.severite, it.message, it.code) },
-            resultats.map { listOf(it.plage.debutOffset, it.plage.finOffset, it.severite, it.message, it.code) },
+            resultats.partieStable().map { listOf(it.plage.debutOffset, it.plage.finOffset, it.severite, it.message, it.code) },
             "équivalence stricte (portage à offsets identiques)",
         )
     }

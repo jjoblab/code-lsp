@@ -300,15 +300,25 @@ public class MoteurJava(
         return diagnostics
     }
 
-    /** Diagnose rapide : source masquée + portage des corps masqués (fiche 014). */
+    /**
+     * Diagnose rapide : source masquée + portage des corps masqués (fiche 014)
+     * + portage des signaux ANALYTIQUES hors corps (retours appareil du
+     * 30/10/2026 : l'import inutilisé et le membre privé inutilisé restent
+     * affichés PENDANT la frappe — la passe rapide ne peut pas les recalculer
+     * honnêtement, le signal du dernier diagnose complet est PORTÉ).
+     */
     private fun diagnostiquerRapide(chemin: String, source: String, etat: DiagnoseRapide.Etat, hote: PlageCorps): List<Diagnostic> {
         val corps = ScannerCorps.corpsDeMethodes(source) ?: emptyList()
         val masquee = DiagnoseRapide.sourceMasquee(source, corps, hote)
-        val reponse = pontEcj().resoudre(unite(chemin, masquee), genererCode = true)
+        // Table RAPIDE (locale inutilisée allumée — corps hôte intact) :
+        // les usages d'une locale vivent dans SA méthode, aucun fallacieux.
+        val reponse = pontEcj().resoudre(unite(chemin, masquee), genererCode = true, rapide = true)
         var frais = reponse.problemes().map { RegimeInstantane.convertir(it) }
             .sortedWith(compareBy({ it.plage.debutOffset }, { it.plage.finOffset }))
         frais = enrichirHierarchie(frais, reponse.arbre)
-        val portables = DiagnoseRapide.portables(etat.diagnostics, etat.corps, corps, corps.indexOf(hote))
+        val indexHote = corps.indexOf(hote)
+        val portables = DiagnoseRapide.portables(etat.diagnostics, etat.corps, corps, indexHote) +
+            DiagnoseRapide.portablesHorsCorps(etat.diagnostics, etat.corps, corps, indexHote)
         val resultat = (frais + portables)
             .sortedWith(compareBy({ it.plage.debutOffset }, { it.plage.finOffset }))
         // L'arbre focalisé sert les features DANS le corps hôte (fiche 015) ;

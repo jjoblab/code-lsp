@@ -1,5 +1,6 @@
 package jo.codeide.lsp.java.interne
 
+import jo.codeide.lsp.java.actionscode.FamilleProbleme
 import jo.codeide.lsp.java.outils.PlageCorps
 import jo.codeide.lsp.java.outils.ScannerCorps
 
@@ -195,6 +196,84 @@ public object DiagnoseRapide {
                     ),
                 ),
             )
+        }
+        return resultats
+    }
+
+    /**
+     * Les diagnostics ANALYTIQUES hors corps, PORTÉS du dernier diagnostic
+     * complet (retours appareil du 30/10/2026 : « le fichier des imports
+     * non utilisés, variables non utilisées et autres, il ne les affiche
+     * pas » — ces signaux DISPARAISSAIENT à la première frappe dans un
+     * corps, la passe rapide ne pouvant pas les recalculer).
+     *
+     * **Pourquoi porter et non recalculer** : l'analyse d'usage d'un
+     * import ou d'un membre privé traverse TOUT le fichier — le masquage
+     * des corps non hôtes casserait cette analyse (fiche 014, piège
+     * « import utilisé seulement par un corps masqué » : un recalcul
+     * fabriquerait des faux « unused »). Le signal du dernier diagnose
+     * COMPLET (corps entiers visibles) reste donc la seule source honnête
+     * pendant la frappe.
+     *
+     * **Translation des positions** : la preuve de confinement garantit
+     * que le texte HORS corps est identique, segment par segment — seule
+     * la LONGUEUR du corps hôte varie. Un diagnostic entièrement AVANT le
+     * corps hôte garde ses offsets ; un diagnostic entièrement APRÈS est
+     * translaté du delta de fin du corps hôte ; un diagnostic à cheval sur
+     * la frontière du corps hôte est ABANDONNÉ (sans position fiable).
+     *
+     * **Fraîcheur bornée (écart assumé, même doctrine que [portables])** :
+     * une frappe DANS le corps hôte qui ajoute le PREMIER usage d'un
+     * import/membre jusque-là inutilisé ne révoque pas immédiatement le
+     * signal porté — le prochain diagnose complet (caret hors de tout
+     * corps, sauvegarde, ou changement de corps édité) le révoque. C'est
+     * le même compromis que le portage des corps masqués : jamais de
+     * fabrication, une révocation différée bornée par la frappe suivante.
+     *
+     * @param diagnostics le résultat précédent (offsets = ancienne source).
+     * @param corpsAnciens les plages de corps de l'ancienne source.
+     * @param corpsNouveaux les plages de corps de la nouvelle source (même
+     *   cardinalité, index alignés).
+     * @param indexHote l'index du corps hôte.
+     * @return les diagnostics analytiques hors corps, translatés.
+     */
+    public fun portablesHorsCorps(
+        diagnostics: List<jo.codeide.lsp.java.diagnostics.Diagnostic>,
+        corpsAnciens: List<PlageCorps>,
+        corpsNouveaux: List<PlageCorps>,
+        indexHote: Int,
+    ): List<jo.codeide.lsp.java.diagnostics.Diagnostic> {
+        if (indexHote < 0 || indexHote >= corpsAnciens.size) return emptyList()
+        val hoteAncien = corpsAnciens[indexHote]
+        val hoteNouveau = corpsNouveaux[indexHote]
+        val decalageApresHote = hoteNouveau.finInterieur - hoteAncien.finInterieur
+        val resultats = mutableListOf<jo.codeide.lsp.java.diagnostics.Diagnostic>()
+        for (diagnostic in diagnostics) {
+            // Familles ANALYTIQUES seules : celles que la table rapide ne
+            // produit PAS (import inutilisé, membre privé inutilisé) —
+            // les recaler ici ne peut JAMAIS dupliquer un diagnostic frais.
+            val famille = FamilleProbleme.fromCode(diagnostic.code)
+            if (famille != FamilleProbleme.UNUSED_IMPORT && famille != FamilleProbleme.UNUSED_DECLARATION) continue
+            // HORS corps uniquement : un diagnostic DANS un corps est déjà
+            // servi (frais sur l'hôte, porté par [portables] sur les masqués).
+            val dansUnCorps = corpsAnciens.any { plage ->
+                plage.debutInterieur <= diagnostic.plage.debutOffset &&
+                    diagnostic.plage.finOffset <= plage.finInterieur
+            }
+            if (dansUnCorps) continue
+            // Position relative au corps hôte : avant → tel quel ; après →
+            // translaté du delta de fin ; à cheval → abandonné.
+            val plage = when {
+                diagnostic.plage.finOffset <= hoteAncien.debutInterieur ->
+                    diagnostic.plage
+                diagnostic.plage.debutOffset >= hoteAncien.finInterieur ->
+                    jo.codeide.lsp.java.diagnostics.Plage(
+                        diagnostic.plage.debutOffset + decalageApresHote,
+                        diagnostic.plage.finOffset + decalageApresHote,
+                    )
+                else -> continue
+            }
+            resultats.add(diagnostic.copy(plage = plage))
         }
         return resultats
     }

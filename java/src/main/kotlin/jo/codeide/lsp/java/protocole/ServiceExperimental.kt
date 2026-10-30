@@ -32,6 +32,20 @@ import org.eclipse.lsp4j.services.LanguageServer
  * locale) et par le harnais de test (proxy distant via
  * `ServiceEndpoints.toServiceObject` — lsp4j découvre les méthodes
  * `@JsonRequest` sur TOUTE interface du service local).
+ *
+ * **NOMS SUR LE FIL (incident appareil du 30/10/2026)** : le client
+ * cel-lsp (`CodeIdeLanguageServer`) appelle ces extensions par leur nom
+ * COMPLET `textDocument/superDefinition` /
+ * `textDocument/decompiledSource` — le préfixe `textDocument/` hérite du
+ * `@JsonSegment("textDocument")` de `TextDocumentService` chez le
+ * VENDORED (méthode déclarée dans `NavTextDocumentService`, sous-interface
+ * du service de documents). Déclarer `@JsonRequest` NU sur une interface
+ * HORS hiérarchie `TextDocumentService` (le cas de cette interface)
+ * enregistrait la méthode sous son nom NU (`superDefinition`) : le serveur
+ * rejetait la requête réelle du client par
+ * « Unsupported request method: textDocument/superDefinition » (journal
+ * appareil 025629, 09:34). Les noms EXPLICITES ci-dessous alignent le fil
+ * sur le contrat du client SANS toucher à la hiérarchie des interfaces.
  */
 public interface ServiceExperimental {
 
@@ -43,7 +57,7 @@ public interface ServiceExperimental {
      * @return les cibles (liste VIDE honnête si le caret ne porte pas de
      *   redéfinition — convention I9).
      */
-    @JsonRequest
+    @JsonRequest("textDocument/superDefinition")
     public fun superDefinition(params: TextDocumentPositionParams): CompletableFuture<List<CibleSuperRpc>>
 
     /**
@@ -53,7 +67,7 @@ public interface ServiceExperimental {
      *   définition a répondu `jdt://decompiled/<fqcn>`).
      * @return la réponse (champ `source` null si le FQCN est introuvable).
      */
-    @JsonRequest
+    @JsonRequest("textDocument/decompiledSource")
     public fun decompiledSource(params: ParamsFqcnRpc): CompletableFuture<SourceDecompileeRpc>
 }
 

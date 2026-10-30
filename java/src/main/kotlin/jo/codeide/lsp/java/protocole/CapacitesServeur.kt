@@ -186,8 +186,14 @@ public object CapacitesServeur {
         capacites.setPositionEncoding(PositionEncodingKind.UTF16)
 
         // Complétion (étage N2 — fiches 007/008/036/043/044/050/053).
+        // Déclencheurs « . » ET « @ » — miroir EXACT du vendored
+        // (`ServerCapabilitiesProvider` de :lspjava, `List.of(".", "@")`) :
+        // « @ » arme la complétion d'ANNOTATION à la frappe. Le préfixe
+        // VIDE après un déclencheur est le seul chemin d'ouverture
+        // automatique côté client cel-lsp (politique « préfixe vide =
+        // légitime uniquement après un char déclencheur »).
         capacites.setCompletionProvider(
-            CompletionOptions(false, listOf(".")),
+            CompletionOptions(false, listOf(".", "@")),
         )
 
         // Survol (étage N3 — fiches 020/021), aide de signature (fiche 023).

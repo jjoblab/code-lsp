@@ -31,10 +31,18 @@ import java.util.Locale
  * Les options verrouillées : conformité/source/cible paramétrables, politique
  * `proceedWithAllProblems`, `Locale.ROOT` pour des messages reproductibles
  * (les assertions du cahier portent des sous-chaînes ANGLAISES — fiche 013),
- * et la famille des avertissements « unused » désactivée : le diagnostic de
- * frappe n'est pas une analytique IDE (conséquence structurelle : le
- * diagnose rapide peut remplacer les corps masqués par des synthétiques sans
- * fabriquer de faux « never used » — fiche 014, comportement corpusMasques).
+ * et la famille des avertissements « unused » pilotée par TROIS tables
+ * (retours appareil du 30/10/2026 : « imports non utilisés, variables non
+ * utilisées et autres, il ne les affiche pas » — les familles analytiques
+ * sont désormais des VRAIS signaux) :
+ *  - **stricte** (passes à corps masqués, fiche 014) : tout éteint ;
+ *  - **rapide** (diagnose rapide, corps hôte intact) : locale inutilisée
+ *    seule allumée — SÛRE par construction : les usages d'une locale ne
+ *    vivent QUE dans sa propre méthode, soit le corps hôte (analysé), soit
+ *    un corps masqué (porté) — jamais de fabrication ;
+ *  - **analytique** (diagnose complet) : import inutilisé + locale
+ *    inutilisée + membre privé inutilisé — les corps ENTIERS sont visibles,
+ *    aucun fallacieux (fiche 056 étendue).
  *
  * @param environnement le routage des noms (sources → jars → jrt → stubs).
  * @param compliance niveau Java (« 8 », « 17 », « 21 »…).
@@ -47,17 +55,25 @@ public class PontEcj(
     /**
      * Options du compilateur (construites une fois, réutilisées par passe).
      *
-     * Deux tables :
+     * Trois tables :
      *  - [options] — la table STRICTE (familles « unused » éteintes) :
      *    le domaine des passes à corps MASQUÉS (diagnose rapide, fiche
      *    014 : un import utilisé par un corps masqué ne doit JAMAIS
      *    devenir fallacieusement « unused ») ;
+     *  - [optionsRapides] — la table du diagnose RAPIDE : la locale
+     *    inutilisée EST analysée sur le corps hôte (intact — aucun
+     *    fallacieux possible, les usages d'une locale vivent dans SA
+     *    méthode) ; l'import et le membre privé restent éteints (le
+     *    masquage des autres corps casserait leur analyse d'usages) ;
      *  - [optionsAnalytiques] — la table du diagnose COMPLET (étage N8,
      *    cahier fiche 056 : l'import inutilisé est un VRAI signal —
      *    avertissement + tag Unnecessary côté protocole ; les corps
      *    entiers sont analysés, aucun fallacieux).
      */
     private val options: CompilerOptions = CompilerOptions(optionsEcj(compliance, analytique = false))
+
+    /** Options du diagnose rapide (locale inutilisée seule — corps hôte intact). */
+    private val optionsRapides: CompilerOptions = CompilerOptions(optionsEcj(compliance, analytique = false, rapide = true))
 
     /** Options analytiques du diagnose complet (fiche 056 — import inutilisé). */
     private val optionsAnalytiques: CompilerOptions = CompilerOptions(optionsEcj(compliance, analytique = true))
@@ -77,14 +93,27 @@ public class PontEcj(
      * @param analytique vrai pour la table ANALYTIQUE (diagnose complet —
      *   l'import inutilisé est publié, fiche 056) ; faux (défaut) pour la
      *   table stricte des passes à corps masqués (fiche 014).
+     * @param rapide vrai pour la table RAPIDE (diagnose rapide — locale
+     *   inutilisée analysée sur le corps hôte intact ; mutuellement
+     *   exclusif avec `analytique`).
      * @return la réponse (arbre vivant + problèmes + résultat).
      */
-    public fun resoudre(unite: ICompilationUnit, genererCode: Boolean, analytique: Boolean = false): ReponseEcj {
+    public fun resoudre(
+        unite: ICompilationUnit,
+        genererCode: Boolean,
+        analytique: Boolean = false,
+        rapide: Boolean = false,
+    ): ReponseEcj {
         val reponse = ReponseEcj()
+        val table = when {
+            analytique -> optionsAnalytiques
+            rapide -> optionsRapides
+            else -> options
+        }
         val compilateur = org.eclipse.jdt.internal.compiler.Compiler(
             environnement,
             DefaultErrorHandlingPolicies.proceedWithAllProblems(),
-            if (analytique) optionsAnalytiques else options,
+            table,
             reponse,
             usineProblemes,
         )
@@ -174,24 +203,39 @@ public class PontEcj(
      *
      * @param compliance le niveau de conformité.
      * @param analytique vrai = familles « unused » ALLUMÉES pour le signal
-     *   réel (fiche 056 : import inutilisé) ; faux = éteintes (fiche 014 :
-     *   les corps masqués du diagnose rapide ne fabriquent pas de faux
-     *   « unused »).
+     *   réel (fiche 056 : import inutilisé ; retours appareil du 30/10 :
+     *   locale ET membre privé inutilisés aussi) ; faux = éteintes (fiche
+     *   014 : les corps masqués du diagnose rapide ne fabriquent pas de
+     *   faux « unused »).
+     * @param rapide vrai = table du diagnose RAPIDE : SEULE la locale
+     *   inutilisée est allumée (corps hôte intact — les usages d'une
+     *   locale vivent dans SA méthode, jamais de fabrication) ; l'import
+     *   et le membre privé restent éteints (le masquage des autres corps
+     *   casserait leur analyse d'usages — fiche 014).
      */
-    private fun optionsEcj(compliance: String, analytique: Boolean): Map<String, String> = mapOf(
+    private fun optionsEcj(compliance: String, analytique: Boolean, rapide: Boolean = false): Map<String, String> = mapOf(
         "org.eclipse.jdt.core.compiler.compliance" to compliance,
         "org.eclipse.jdt.core.compiler.source" to compliance,
         "org.eclipse.jdt.core.compiler.codegen.targetPlatform" to compliance,
-        // Familles « unused » : ÉTEINTES sur les passes à corps masqués
-        // (fiche 014, corpsMasques — la valeur du moteur est l'erreur de
-        // compilation fidèle, pas l'analytique IDE) ; l'import inutilisé
-        // est ALLUMÉ sur le diagnose COMPLET (étage N8, fiche 056 : vrai
-        // signal, tag Unnecessary côté protocole — les corps entiers sont
-        // analysés, aucun fallacieux). Les autres familles restent
-        // éteintes : le cahier ne verrouille qu'un seul signal unused.
+        // Familles « unused » (retours appareil du 30/10/2026 : « imports
+        // non utilisés, variables non utilisées et autres, il ne les
+        // affiche pas » — la demande explicite de l'utilisateur) :
+        //  - table ANALYTIQUE (diagnose complet — corps entiers visibles) :
+        //    import, locale et membre privé inutilisés = AVERTISSEMENTS
+        //    (l'import porte le tag Unnecessary côté protocole, fiche 056) ;
+        //  - table RAPIDE (corps hôte intact, autres corps masqués) : la
+        //    LOCALE seule est sûre (ses usages vivent dans SA méthode —
+        //    soit l'hôte analysé, soit un corps masqué PORTÉ) ; l'import et
+        //    le membre privé restent « ignore » (le masquage casserait
+        //    leur analyse d'usages — fiche 014, piège « import utilisé
+        //    seulement par un corps masqué ») — leurs signaux sont PORTÉS
+        //    du dernier diagnose complet par [DiagnoseRapide.portablesHorsCorps] ;
+        //  - table STRICTE (passes génériques à corps masqués) : tout éteint.
+        // Le paramètre inutilisé n'est JAMAIS allumé (bruit des callback
+        // Android — mêmes réglages qu'Android Studio).
         "org.eclipse.jdt.core.compiler.problem.unusedImport" to if (analytique) "warning" else "ignore",
-        "org.eclipse.jdt.core.compiler.problem.unusedLocal" to "ignore",
-        "org.eclipse.jdt.core.compiler.problem.unusedPrivateMember" to "ignore",
+        "org.eclipse.jdt.core.compiler.problem.unusedLocal" to if (analytique || rapide) "warning" else "ignore",
+        "org.eclipse.jdt.core.compiler.problem.unusedPrivateMember" to if (analytique) "warning" else "ignore",
         "org.eclipse.jdt.core.compiler.problem.undocumentedEmptyBlock" to "ignore",
         "org.eclipse.jdt.core.compiler.problem.rawTypeReference" to "ignore",
         "org.eclipse.jdt.core.compiler.problem.uncheckedTypeOperation" to "ignore",

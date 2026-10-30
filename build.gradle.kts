@@ -34,6 +34,21 @@ plugins {
 // Désormais repli silencieux vers le régime instantané documenté (null),
 // la plateforme restant couverte par les entrées réelles du classpath
 // (android.jar du modèle). §10 d'INTEGRATION-CODEIDE.
+// 1.1.3 : retours appareil du 30/10 au soir (logs codeide-logs-2026-10-30-
+// 025629.zip, CodeIDE 0.204.2) — la chaîne est FRANCHIE mais trois familles
+// restaient muettes : (1) les extensions maison voyagent sous leur nom
+// COMPLET « textDocument/superDefinition » / « textDocument/decompiled-
+// Source » (le @JsonRequest nu sur ServiceExperimental enregistrait le nom
+// nu — le client cel-lsp appelle le nom complet, la requête était rejetée
+// « Unsupported request method ») ; (2) familles analytiques ÉLARGIES —
+// locale inutilisée allumée sur la table RAPIDE (corps hôte intact : les
+// usages d'une locale vivent dans SA méthode, aucun fallacieux) et champ/
+// méthode/type privé inutilisé sur la table ANALYTIQUE, avec PORTAGE HORS
+// CORPS pendant la frappe (DiagnoseRapide.portablesHorsCorps : l'import et
+// le membre privé inutilisés RESTENT affichés — la passe rapide ne peut pas
+// les recalculer honnêtement, le masquage casserait leur analyse d'usages) ;
+// (3) déclencheurs de complétion « . » ET « @ » (miroir EXACT du vendord —
+// la complétion d'annotation s'arme à la frappe).
 allprojects {
-    version = "1.1.2"
+    version = "1.1.3"
 }
