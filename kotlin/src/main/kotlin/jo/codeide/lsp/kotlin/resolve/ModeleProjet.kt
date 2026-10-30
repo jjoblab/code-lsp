@@ -295,6 +295,14 @@ internal class ModeleProjet private constructor(
     }
 
     /**
+     * Les noms SIMPLES des types du modèle (vague 2e — la complétion de
+     * nom propose les types du projet par préfixe).
+     *
+     * @return les noms simples distincts, TRIÉS (déterminisme).
+     */
+    internal fun typesParNomSimple(): List<String> = parNomSimple.keys.sorted()
+
+    /**
      * Rend les appelables de premier niveau portant EXACTEMENT ce nom dans
      * ce package.
      *

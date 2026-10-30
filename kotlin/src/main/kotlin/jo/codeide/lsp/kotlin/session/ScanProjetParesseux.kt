@@ -440,7 +440,11 @@ internal class ScanProjetParesseux(
      * de tri (déterminisme : la même cible sort toujours au même rang —
      * étage 2 : les sources JAVA nourrissent le modèle de symboles, fiche
      * 022), fichiers éligibles COMPTÉS au-delà de la borne de collecte
-     * (statistiques honnêtes). Racine illisible ou inexistante : ignorée
+     * (statistiques honnêtes). Les dossiers de SORTIE sont EXCLUS de la
+     * marche (vague 2e — fiche 035, exclusions ADR 0212 : le scan est le
+     * SOURCE, `build` est la sortie — les sources GÉNÉRÉES qui y vivent
+     * sont invisibles par conception, leurs conventions de nom sont muettes
+     * côté résolution). Racine illisible ou inexistante : ignorée
      * (D3).
      *
      * @param racine le chemin de la racine ;
@@ -458,11 +462,7 @@ internal class ScanProjetParesseux(
             try {
                 Files.walk(dossier).use { flux ->
                     flux.filter { fichier ->
-                        Files.isRegularFile(fichier) && (
-                            fichier.fileName.toString().endsWith(".kt") ||
-                                fichier.fileName.toString().endsWith(".kts") ||
-                                fichier.fileName.toString().endsWith(".java")
-                            )
+                        estEligible(fichier)
                     }.sorted().toList()
                 }
             } catch (_: Exception) {
@@ -471,6 +471,27 @@ internal class ScanProjetParesseux(
         for (fichier in fichiers) {
             marche.compter(fichier)
         }
+    }
+
+    /**
+     * Un chemin est-il ÉLIGIBLE au scan : fichier RÉGULIER `.kt`/`.kts`/
+     * `.java` hors d'un dossier de sortie (vague 2e — fiche 035 : `build`
+     * et ses sous-arbres sont les SORTIES du projet, pas ses sources).
+     */
+    private fun estEligible(fichier: Path): Boolean {
+        if (!Files.isRegularFile(fichier)) return false
+        if (fichier.fileName.toString().let { nom ->
+                !nom.endsWith(".kt") && !nom.endsWith(".kts") && !nom.endsWith(".java")
+            }
+        ) {
+            return false
+        }
+        var courant: Path? = fichier.parent
+        while (courant != null) {
+            if (courant.fileName?.toString() == DOSSIER_EXCLU) return false
+            courant = courant.parent
+        }
+        return true
     }
 
     /**
@@ -509,6 +530,7 @@ internal class ScanProjetParesseux(
                     uri = uri,
                     signature = signature,
                     documentation = SurvolDocuments.kdocPrecedente(declaration, commentaires),
+                    plageNom = SurvolDocuments.plageNomDe(declaration),
                 ),
             )
         }
@@ -619,7 +641,15 @@ internal class ScanProjetParesseux(
          * La borne de COLLECTE de la marche (2 000 fichiers : la mémoire
          * appareil est finie — la troncation observable et sa preuve
          * d'absence sont le sujet des fiches 036/022, étapes ultérieures).
+         * INTERNE : la couture de constructeur sert la fiche 036 (test de
+         * la troncation sans écrire 2 001 fichiers).
          */
-        private const val BORN_FICHIERS: Int = 2_000
+        internal const val BORN_FICHIERS: Int = 2_000
+
+        /**
+         * Le dossier de SORTIE exclu de la marche (vague 2e — fiche 035,
+         * ADR 0212 : sorties et caches ; les sources générées y vivent).
+         */
+        private const val DOSSIER_EXCLU: String = "build"
     }
 }

@@ -102,6 +102,22 @@
 > 3 985 408 o (identiques au bac à sable, seuils tenus sous le NOUVEAU
 > budget 6 Mo — E-K8 à 63 %) ; la vague 2e (KMP, sources générées,
 > troncation, Compose, `.gradle.kts`) est la suivante (§8.4).**
+>
+> **Mise à jour (31/10, vague 2e) — KMP, SOURCES GÉNÉRÉES, TRONCATION,
+> COMPOSE ET SCRIPTS SONT LIVRÉS (32 comportements — fiches
+> 030/031/035/036/025/027) : le scan MULTI-RACINES du module `shared`
+> (expect/actual, le paquet vit deux fois), le GO-TO-DEFINITION vers
+> l'`expect` (+ `symboles` et `occurrences` — trois contrats SPI de
+> navigation neufs, la plage du nom portée par le scan), l'exclusion
+> `build` de la marche et les CONVENTIONS de sources générées (`Hilt_`,
+> `_Impl`, `BindingImpl` — jamais prouvées absentes), la TRONCATION
+> réfléchie (borne couture de test, fichier au-delà COMPTÉ, passe
+> PARTIELLE), le CHEMIN DE PACKAGE (`kotlin.io.println(…)` — racine et
+> milieu paquets muets, feuille seule faillible) et le CORRECTIF SCRIPT
+> (les instructions d'un `.gradle.kts` vivent sous SCRIPT → BLOCK — la
+> passe sémantique ne les voyait JAMAIS : le Kotlin standard du script
+> résout désormais, la garde D3 s'y exerce) ; 160/204 comportements
+> diagnostics verts.**
 
 ## 1. Périmètre de l'étage (plan §4 — cahier en main)
 
@@ -120,7 +136,7 @@
 
 | Critère | État | Preuve |
 |---|---|---|
-| 204 comportements diagnostics verts (23 fiches du domaine) | EN COURS — 128/204 | Vague 2a (§5) : fiches 017 (8/8) + 022 (8/8) + 006 (4/4) ; vague 2b (§6) : fiche 046 (39/39) ; vague 2c (§7) : fiches 044 (13/13) + 028 (12/12) + 032 (3/3) + 040 (11/11) + 029 (5/5) ; vague 2d (§8) : fiches 023 (2/2) + 024 (7/7) + 026 (2/2) + 033 (9/9) + 037 (5/5) |
+| 204 comportements diagnostics verts (23 fiches du domaine) | EN COURS — 160/204 | Vague 2a (§5) : fiches 017 (8/8) + 022 (8/8) + 006 (4/4) ; vague 2b (§6) : fiche 046 (39/39) ; vague 2c (§7) : fiches 044 (13/13) + 028 (12/12) + 032 (3/3) + 040 (11/11) + 029 (5/5) ; vague 2d (§8) : fiches 023 (2/2) + 024 (7/7) + 026 (2/2) + 033 (9/9) + 037 (5/5) ; vague 2e (§9) : fiches 030 (5/5) + 031 (5/5) + 035 (2/2) + 036 (3/3) + 025 (12/12) + 027 (5/5) |
 | Zéro faux positif corpus quatre mondes | OUVERT | — |
 | Banc fidélité baseline signée | OUVERT | — |
 
@@ -690,3 +706,65 @@ critère §2. La vague 2e (KMP expect/actual deux racines, sources générées
 `build/generated`, troncation du scan réfléchie dans l'univers, motifs
 Compose stdlib réel, scripts `.gradle.kts` muets sans modèle Gradle —
 fiches 030/031/035/036/025/027, 32 comportements) est la suivante.
+
+## 9. Vague 2e — KMP, sources générées, troncation, Compose, scripts (31/10, fiches 030/031/035/036/025/027)
+
+### 9.1 Périmètre exécuté
+
+| # | Item | État | Détail |
+|---|---|---|---|
+| 1 | KMP deux racines (fiches 031/030) | **Fait** | Le scan multi-racines nourrit le MÊME modèle des DEUX côtés (commonMain `expect` / androidMain `actual`, le paquet y vit deux fois) : les usages de chaque côté ne voient AUCUN faux positif — expect val/object/typealias, membres d'expect object (survol, complétion `Fabrique.`), génériques sur un type expect, typage du retour `Boite.ouvrir()` par la chaîne du modèle |
+| 2 | Go-to-definition vers l'expect (fiche 031) | **Fait** | NOUVEAU CONTRAT SPI `definition(uri, deplacement): List<EmplacementKotlin>` + `NavigationDocuments` : la chaîne conservatrice du survol (document courant — site désigné puis même nom —, autres documents ouverts, SCAN des racines avec URI de fichier + PLAGE du nom portée par `DeclarationExterne.plageNom`) ; `symboles(uri)` (le plan du fichier, genres neutres CLASSE/INTERFACE/ENUM/OBJET/FONCTION/PROPRIETE/TYPEALIAS, liste plate en ordre du document) et `occurrences(uri, deplacement)` (le site de déclaration puis chaque référence du même nom, périmètre document) partagent la matière |
+| 3 | Sources générées (fiche 035) | **Fait** | La MARCHE du scan EXCLUT le dossier `build` (exclusions ADR 0212 — `estEligible` remonte les parents) ; les CONVENTIONS de noms générés (`Hilt_` préfixé, `_Impl`/`BindingImpl` suffixés — liste CLOSE et documentée) ne sont JAMAIS prouvées absentes (voie 6-ter de `resoudreNomNu` ET `resoudreNomType`) : leurs sources vivent dans `build/generated`, invisibles PAR CONCEPTION ; le contrôle (classe d'une racine scannée) reste muet par PREUVE de présence |
+| 4 | Troncation du scan (fiche 036) | **Fait** | La borne de collecte `BORN_FICHIERS` (2 000) devient la COUTURE de test `bornFichiersScan` du constructeur de session (production inchangée) : au-delà de la borne le fichier est COMPTÉ (`StatsPassage.total` réel — `statsDernierPassageScan()` interne), la passe rend un snapshot PARTIEL (`etatScanAuConsult()` — miroir `estUniversConna` ancien) et la référence au type du fichier non scanné est MUETTE (absence non prouvable) ; sans troncation le frère scanné RÉSOUT (le harnais ne valide pas un « tout muet ») |
+| 5 | Motifs Compose (fiche 025) | **Fait** | Lambda finale/imbriquée à paramètres nommés (attente 2b), annotation qualifiée (chemin de classe), `by lazy` (facade `LazyKt` du stdlib — voie 6), import alias/joker/fonction : AUCUN faux positif sur le stdlib réel ; CORRECTIF : le CHEMIN DE PACKAGE (`kotlin.io.println(…)`) — quand le préfixe est un package CONNU de l'index (`VueAppelables.paquetConnu`, construit à la définition), la racine et le milieu (paquets) ne sont JAMAIS signalés, la feuille seule est faillible comme appelable du package (voie A24) — la racine `kotlin` n'est plus un faux positif |
+| 6 | Sondages Compose (fiche 025) | **Fait** | SURVOL d'un appelable top-level du classpath (`println` — signature dépouillée de l'index + package déclarant, chaîne 3-bis du survol) ; SYMBOLES de document (`symboles` SPI) ; RÉFÉRENCES d'une fonction projet (`occurrences` SPI — 1 déclaration + 2 usages en ordre) ; COMPLÉTION DE NOM dans un corps (germe 2e : noms déclarés → types du projet → catalogue KP8 → index par préfixe, filtrés par le préfixe frappé — `nomsAuPoint`) |
+| 7 | Scripts `.gradle.kts` (fiche 027) | **Fait** | CORRECTIF DÉCOUVERT PAR LES FIXTURES : en mode script l'arbre porte les instructions sous `SCRIPT → BLOCK` — la passe sémantique ne les voyait JAMAIS (tout script était trivialement muet, la frontière « instructions ≠ déclarations » de la facade étage 1 avait fui dans la passe) ; `declarationsHautNiveau` (passe) et `declarationsRecursives` (survol/symboles/définition/scan) desservent désormais le bloc du script : le Kotlin STANDARD d'un `.gradle.kts` résout (locales par la garde, stdlib par la voie 6, survol rendu), la garde D3 s'y EXERCE (le segment QUALIFIÉ inconnu en type reste SIGNALÉ), les récepteurs implicites du DSL restent muets (miroir IntelliJ sans modèle Gradle) — les templates build.gradle.kts et settings.gradle.kts du « Empty Views Activity » sans AUCUN faux positif |
+| 8 | Tests neufs | **Fait** | 32 comportements aux noms exacts du cahier : fiche 030 (5) + 031 (5) + 035 (2) + 036 (3) + 025 (12) + 027 (5) — racines KMP réelles posées au disque, couture de borne pour la troncation, stdlib réel pour les motifs Compose |
+
+### 9.2 Décisions d'exécution consignées (pas dans le plan initial)
+
+1. **La frontière « instructions ≠ déclarations » de la facade étage 1
+   reste, la passe sémantique la TRAVERSE** : `KtFichier.declarations()`
+   documente (fiche 013) que les instructions d'un script ne sont pas des
+   déclarations DOCUMENTAIRES — la vague 2e ajoute
+   `declarationsHautNiveau` (SCRIPT → BLOCK) POUR LA PASSE SÉMANTIQUE
+   et `declarationsRecursives` traverse pareillement : le bug latent
+   (scripts jamais marchés sémantiquement depuis la vague 2a) est
+   découvert par la fixture `garde-D3` de la fiche 027 — l'émission
+   attendue n'arrivait pas.
+2. **Le go-to-definition externe exige la PLAGE du nom dans le scan** :
+   `DeclarationExterne` porte `plageNom` (nullable — un fichier tronqué
+   sans nom rend `null`, la définition ne se propose pas, D3). Les
+   SEGMENTS du disque ne sont jamais re-parsés : la plage est portée par
+   la passe du scan qui a déjà lu l'arbre (aucun coût nouveau).
+3. **`paquetConnu` est une CARDINALITÉ minimale** : l'index expose les
+   packages qui portent AU MOINS un appelable/alias public (construit à
+   la définition, pas une nouvelle lecture) — un package SANS appelable
+   public n'est pas « connu » : la racine d'un chemin qui le préfixe
+   reste faillible (conservateur, jamais un faux muet).
+4. **La complétion de nom est un GERME ordonné, pas un classement** :
+   déclarés du document → types du projet (scan + document) → catalogue
+   KP8 → index par préfixe (limite 24, déterministe). Le contexte
+   (position membre vs nom, imports auto-éditables) relève de l'étage 3
+   (ADR 0113) — le germe ne devine jamais.
+
+### 9.3 Preuves du bac à sable (avant poussée)
+
+- **Suite** : 292 tests VERTS sur la toolchain 17 (260 + 32 — fiches
+  030/031/035/036/025/027 vertes 32/32), baseline de parité RE-SIGNÉE
+  351 → 357 fichiers (les 6 fichiers de test neufs).
+- **Jar moteur** : 642 701 o (+17 570 vs 2d — les trois contrats SPI de
+  navigation et la passe script).
+- **Scan ART pile complète** : 6 × « AUCUNE » (moteur 230 classes / 281
+  méthodes déclarées — +5/+5, ServiceLoader OK), rc=0.
+- **Dexage d8** (build-tools 34 local, min-api 26) : **25 343 références
+  de méthodes / 4 000 812 o (3,82 Mo)** — +56 méthodes / +15 404 o vs 2d ;
+  seuils tenus : méthodes 77 % du plafond 32 768, taille **64 % du budget
+  6 Mo** (E-K8 surveillance).
+- **Banc JDK 17** (bac à sable, 2 cœurs) : froid 204,2/22,7 ms,
+  p50 6,2/23,1 ms, p95 31,0/48,6 ms, productions 5 448/31 368 et jetons
+  4 210/24 274 — déterminisme IDENTIQUE, marqueurs d'erreur 0,
+  tas 3 701 Kio.
+- **Provenance** : `verifier-provenance.sh` rc=0 (aucune reprise nouvelle
+  — code NEUF intégral).

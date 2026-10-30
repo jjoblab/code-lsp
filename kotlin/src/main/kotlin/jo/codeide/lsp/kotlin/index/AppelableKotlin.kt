@@ -102,6 +102,16 @@ internal interface VueAppelables {
     fun aliasTopParNom(nom: String): List<AppelableKotlin>
 
     /**
+     * Le package est-il CONNU de l'index (vague 2e — fiche 025 : un appel
+     * complet qualifié `kotlin.io.println(…)` a pour PREMIER segment un
+     * PAQUET — la racine et le milieu d'un chemin de package connu ne sont
+     * JAMAIS signalés, seule la feuille est faillible comme appelable du
+     * package) ? Un package est connu quand l'index y porte AU MOINS un
+     * appelable ou alias public.
+     */
+    fun paquetConnu(paquet: String): Boolean
+
+    /**
      * Le FQCN complet désigne-t-il un TYPEALIAS public du classpath ?
      * (un type qualifié COMPLET d'un alias est un accès LÉGAL sans
      * import — garde honnête, jamais un faux positif).

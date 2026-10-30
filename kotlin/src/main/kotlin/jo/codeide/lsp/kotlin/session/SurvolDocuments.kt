@@ -89,6 +89,31 @@ internal object SurvolDocuments {
             return SurvolKotlin(signature = externe.signature, documentation = externe.documentation)
         }
 
+        // 3-bis. Les APPELABLES de premier niveau du CLASSPATH (vague 2e —
+        // fiche 025 : « survol d'un appelable top-level du classpath
+        // (println) ») : l'index porte nom, paramètres et retour — la
+        // signature dépouillée + le package déclarant entre parenthèses
+        // (miroir du rendu des membres JVM, propriétaire déclarant).
+        univers?.index?.let { index ->
+            val visible = index.topParNom(nom)
+                .firstOrNull { it.paquet == univers.paquet || it.paquet in UniversPreuves.PAQUETS_DEFAUT }
+            if (visible != null) {
+                val parametres = visible.parametres.joinToString(", ") { parametre ->
+                    if (parametre.type == null) {
+                        parametre.nom.orEmpty()
+                    } else {
+                        "${parametre.nom.orEmpty()}: ${parametre.type}"
+                    }
+                }
+                val genre = if (visible.genre == jo.codeide.lsp.kotlin.index.GenreAppelable.PROPRIETE) "val" else "fun"
+                val retour = visible.typeRetour?.let { ": $it" }.orEmpty()
+                return SurvolKotlin(
+                    signature = "$genre ${visible.nom}($parametres)$retour (${visible.paquet})",
+                    documentation = null,
+                )
+            }
+        }
+
         // 4. Résolution des membres HÉRITÉS de bibliothèque (vague 2c —
         // fiche 040 : le survol IMPLICITE `layoutInflater` rend `val
         // layoutInflater: LayoutInflater` avec son propriétaire déclarant,
@@ -416,8 +441,25 @@ internal object SurvolDocuments {
     }
 
     /**
+     * La PLAGE du nom d'une déclaration (vague 2e — fiche 031 : le
+     * go-to-definition externe rend l'URI de fichier ET la plage du nom).
+     *
+     * @param declaration la déclaration ;
+     * @return la plage du nom ; `null` si tronquée sans identifiant.
+     */
+    internal fun plageNomDe(declaration: KtDeclaration): jo.codeide.lsp.kotlin.parse.kt.PlageTexte? {
+        val jeton = jetonNom(declaration) ?: return null
+        return jo.codeide.lsp.kotlin.parse.kt.PlageTexte(jeton.debut, jeton.fin)
+    }
+
+    /**
      * Rend TOUTES les déclarations nommées d'un document, en ordre du
      * document, récursivement (premier niveau + membres des corps de types).
+     *
+     * Vague 2e (fiche 027) : les instructions d'un SCRIPT (`.kts`) sont
+     * des déclarations pour la navigation — le premier niveau d'un script
+     * vit dans le BLOC de son nœud SCRIPT (le survol, les symboles et la
+     * définition du Kotlin standard d'un `.kts` les desservent).
      *
      * @param fichier la racine de la façade du document ;
      * @return les déclarations (typées) en ordre du document.
@@ -432,7 +474,12 @@ internal object SurvolDocuments {
                 if (corps != null) collecter(corps.enfants)
             }
         }
-        collecter(fichier.noeud.enfants)
+        val enfants = fichier.noeud.enfants
+        val blocScript = enfants
+            .firstOrNull { it.genre == KtNodeTypes.SCRIPT }
+            ?.enfants?.firstOrNull { it.genre == KtNodeTypes.BLOCK }
+        val porteurs = blocScript?.enfants ?: enfants
+        collecter(porteurs)
         return resultat
     }
 }

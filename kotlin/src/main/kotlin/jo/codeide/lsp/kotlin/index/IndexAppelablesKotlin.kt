@@ -154,6 +154,7 @@ internal class IndexAppelablesKotlin : VueAppelables {
         val parNom = HashMap<String, MutableList<AppelableKotlin>>()
         val extensions = HashMap<String, MutableList<AppelableKotlin>>()
         val aliasParNom = HashMap<String, MutableList<AppelableKotlin>>()
+        val paquets = HashSet<String>()
         val chargees = mutableListOf<String>()
         for (entree in entrees) {
             if (annule) break // l'entrée reste PENDANTE (non traitée)
@@ -173,6 +174,7 @@ internal class IndexAppelablesKotlin : VueAppelables {
                 // Les TYPEALIAS vivent dans une carte DÉDIÉE : parNom et
                 // extensions (complétion, survol, signatures) restent des
                 // APPELABLES purs.
+                paquets.add(appelable.paquet)
                 if (appelable.genre == GenreAppelable.ALIAS) {
                     aliasParNom.getOrPut(appelable.nom) { mutableListOf() }.add(appelable)
                     continue
@@ -190,6 +192,7 @@ internal class IndexAppelablesKotlin : VueAppelables {
                 nomsTries = parNom.keys.sorted(),
                 extensions = extensions,
                 aliasParNom = aliasParNom,
+                paquets = paquets,
             )
         empreintesSnapshot = chargees
         return if (annule) ResultatDefin.PARTIEL_ANNULE else ResultatDefin.RECONSTRUIT
@@ -237,6 +240,9 @@ internal class IndexAppelablesKotlin : VueAppelables {
     /** TYPEALIAS publics de premier niveau portant EXACTEMENT ce nom. */
     override fun aliasTopParNom(nom: String): List<AppelableKotlin> =
         snapshot.aliasParNom[nom] ?: emptyList()
+
+    /** Le package est-il CONNU de l'index (au moins un appelable/alias public) ? */
+    override fun paquetConnu(paquet: String): Boolean = paquet in snapshot.paquets
 
     /** Le FQCN complet désigne-t-il un TYPEALIAS public du classpath ? */
     override fun estTypeAliasConnu(fqcn: String): Boolean {
@@ -455,9 +461,10 @@ internal class IndexAppelablesKotlin : VueAppelables {
         val nomsTries: List<String>,
         val extensions: Map<String, List<AppelableKotlin>>,
         val aliasParNom: Map<String, List<AppelableKotlin>>,
+        val paquets: Set<String> = emptySet(),
     ) {
         companion object {
-            val VIDE = Snapshot(emptyMap(), emptyList(), emptyMap(), emptyMap())
+            val VIDE = Snapshot(emptyMap(), emptyList(), emptyMap(), emptyMap(), emptySet())
         }
     }
 

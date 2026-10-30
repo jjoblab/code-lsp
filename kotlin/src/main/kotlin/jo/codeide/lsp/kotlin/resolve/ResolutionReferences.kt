@@ -212,6 +212,14 @@ internal class UniversPreuves(
         //    des appelables, miroir du catalogue KP8 pour les types.
         if (nom in BUILTINS_REPUTES_MUETS) return Verdict.RESOLU
 
+        // 6-ter. Les CONVENTIONS DE SOURCES GÉNÉRÉES (vague 2e — fiche
+        //    035 : la marche du scan EXCLUT `build` — ADR 0212 —, les
+        //    classes KSP/Hilt (`Hilt_` préfixé), Room (`_Impl` suffixé)
+        //    et DataBinding (`BindingImpl` suffixé) y vivent : leurs
+        //    sources sont invisibles PAR CONCEPTION, leur absence n'est
+        //    JAMAIS prouvable).
+        if (estNomGenere(nom)) return Verdict.MUET
+
         // 7. Le catalogue KP8 : les types des paquets par défaut (positions
         //    de types ET d'expressions — un accès statique y est légal).
         if (nom in CATALOGUE_TYPES_DEFAUT) return Verdict.RESOLU
@@ -346,6 +354,11 @@ internal class UniversPreuves(
                 return Verdict.RESOLU
             }
         }
+
+        // Les CONVENTIONS DE SOURCES GÉNÉRÉES (vague 2e — fiche 035) : un
+        // type de `build/generated` est invisible du scan par conception —
+        // son absence n'est jamais prouvable.
+        if (estNomGenere(nom)) return Verdict.MUET
 
         return if (nomsNusProuvables) Verdict.SIGNALABLE else Verdict.MUET
     }
@@ -872,6 +885,23 @@ internal class UniversPreuves(
             "booleanArrayOf", "byteArrayOf", "charArrayOf", "doubleArrayOf",
             "floatArrayOf", "intArrayOf", "longArrayOf", "shortArrayOf",
         )
+
+        /**
+         * Les CONVENTIONS DE SOURCES GÉNÉRÉES (vague 2e — fiche 035) : les
+         * préfixes/suffixes des classes générées de KSP/Hilt (`Hilt_`),
+         * Room (`_Impl`) et DataBinding (`BindingImpl`) — leurs sources
+         * vivent dans `build/generated`, EXCLU de la marche du scan
+         * (ADR 0212) : leur absence n'est jamais prouvable. La liste est
+         * CLOSE et documentée (tout autre nom reste soumis à la preuve).
+         */
+        private val PREFIXES_GENERES: List<String> = listOf("Hilt_")
+
+        /** Les suffixes des classes générées (Room `_Impl`, DataBinding `BindingImpl`). */
+        private val SUFFIXES_GENERES: List<String> = listOf("_Impl", "BindingImpl")
+
+        /** Le nom porte-t-il une CONVENTION DE SOURCE GÉNÉRÉE (fiche 035) ? */
+        internal fun estNomGenere(nom: String): Boolean =
+            PREFIXES_GENERES.any { nom.startsWith(it) } || SUFFIXES_GENERES.any { nom.endsWith(it) }
 
         /**
          * Le MIROIR INVERSE des types mappés (vague 2d — `java.lang.String`

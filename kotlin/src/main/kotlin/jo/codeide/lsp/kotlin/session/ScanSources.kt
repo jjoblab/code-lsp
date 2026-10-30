@@ -47,13 +47,17 @@ internal class ScanSources internal constructor(
      * @property uri l'identifiant (chemin) du fichier la portant ;
      * @property signature la signature écrite conservatrice ;
      * @property documentation la documentation KDoc qui la précède (`null`
-     * si aucune).
+     * si aucune) ;
+     * @property plageNom l'emplacement du NOM dans le fichier (vague 2e —
+     * fiche 031 : le go-to-definition de l'usage vers l'`expect` KMP rend
+     * l'URI de fichier ET la plage).
      */
     internal class DeclarationExterne(
         internal val nom: String,
         internal val uri: String,
         internal val signature: String,
         internal val documentation: String?,
+        internal val plageNom: jo.codeide.lsp.kotlin.parse.kt.PlageTexte? = null,
     )
 
     /**

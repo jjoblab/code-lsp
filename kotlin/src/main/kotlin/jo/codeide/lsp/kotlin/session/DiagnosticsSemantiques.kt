@@ -128,9 +128,9 @@ internal object DiagnosticsSemantiques {
         )
 
         val diagnostics = mutableListOf<DiagnosticKotlin>()
-        for (declaration in arbre.declarations()) {
+        for (declaration in declarationsHautNiveau(arbre)) {
             visiterDeclaration(
-                declaration.noeud, contextes, diagnostics,
+                declaration, contextes, diagnostics,
                 pile = PileThis.VIDE,
                 chemin = emptyList(),
                 nomsZone = emptySet(),
@@ -138,6 +138,24 @@ internal object DiagnosticsSemantiques {
             )
         }
         return diagnostics
+    }
+
+    /**
+     * Les déclarations de PREMIER NIVEAU du document (vague 2e — fiche
+     * 027) : les enfants DIRECTS de la racine pour un fichier, les enfants
+     * du BLOC du SCRIPT pour un `.kts` — les instructions d'un script sont
+     * des déclarations POUR LA PASSE SÉMANTIQUE (le Kotlin standard du
+     * script résout, la garde D3 s'y exerce) ; la facade
+     * `KtFichier.declarations()` reste sur sa frontière étage 1 (les
+     * instructions ne sont pas des déclarations DOCUMENTAIRES).
+     */
+    private fun declarationsHautNiveau(arbre: KtFichier): List<NoeudArbre> {
+        val enfants = arbre.noeud.enfants
+        val blocScript = enfants
+            .firstOrNull { it.genre == KtNodeTypes.SCRIPT }
+            ?.enfants?.firstOrNull { it.genre == KtNodeTypes.BLOCK }
+        val porteurs = blocScript?.enfants ?: enfants
+        return porteurs.filter { it.genre in jo.codeide.lsp.kotlin.parse.kt.FabriqueKt.genresDeclaration }
     }
 
     // ------------------------------------------------------------------
@@ -648,6 +666,39 @@ internal object DiagnosticsSemantiques {
         if (contextes.univers.cheminClasse(segments) != null) {
             arguments.forEach { marcher(it, contextes, diagnostics, liaison, pile, nomsZone, enteteBrisee) }
             return true
+        }
+
+        // Le chemin de PACKAGE (vague 2e — fiche 025 : « appel complet
+        // qualifié, premier segment (paquet) ») : le PRÉFIXE du chemin est
+        // un package CONNU de l'index (`kotlin.io.println(…)` — la racine
+        // et le milieu sont des PAQUETS, jamais signalés) ; la FEUILLE
+        // seule est faillible, comme APPELABLE de ce package (voie 6).
+        if (segments.size >= 2) {
+            val prefixe = segments.dropLast(1).joinToString(".")
+            val index = contextes.univers.index
+            if (index != null && index.paquetConnu(prefixe)) {
+                val feuilleNom = segments.last()
+                val appelee = selecteur.genre == KtNodeTypes.CALL_EXPRESSION
+                if (appelee && contextes.univers.nomsNusProuvables && !contextes.univers.script) {
+                    if (index.topParNom(feuilleNom).none { it.paquet == prefixe }) {
+                        selecteur.enfants
+                            .firstOrNull { it.genre == KtNodeTypes.REFERENCE_EXPRESSION }
+                            ?.let { feuille ->
+                                emettreNonResolu(
+                                    reference = feuille,
+                                    nom = feuilleNom,
+                                    forme = FormeReference.NOM_NU,
+                                    issue = IssueSelection.INCONNU,
+                                    recepteur = null,
+                                    contextes = contextes,
+                                    diagnostics = diagnostics,
+                                )
+                            }
+                    }
+                }
+                arguments.forEach { marcher(it, contextes, diagnostics, liaison, pile, nomsZone, enteteBrisee) }
+                return true
+            }
         }
 
         // Le chemin ne résout pas : la RACINE (récepteur inconnu — miroir

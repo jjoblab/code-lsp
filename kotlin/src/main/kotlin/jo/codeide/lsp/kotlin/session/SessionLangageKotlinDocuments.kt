@@ -82,6 +82,7 @@ internal class DocumentOuvert(
  */
 internal class SessionLangageKotlinDocuments(
     private val moteur: NourrissageMoteur?,
+    bornFichiersScan: Int = ScanProjetParesseux.BORN_FICHIERS,
 ) : SessionLangageKotlin {
 
     /** Le verrou de la session (écritures mutent, lectures parallèles). */
@@ -120,7 +121,7 @@ internal class SessionLangageKotlinDocuments(
      * résultats ne sont SERVIS par la session qu'à la publication de
      * [rafraichirSources] (contrat vague 1b inchangé).
      */
-    private val scanneur = ScanProjetParesseux()
+    private val scanneur = ScanProjetParesseux(bornFichiersScan)
 
     // ------------------------------------------------------------------
     // Cycle de vie des documents (écritures).
@@ -475,6 +476,61 @@ internal class SessionLangageKotlinDocuments(
             }
         }
     }
+
+    // ------------------------------------------------------------------
+    // Navigation (étage 2 vague 2e — fiches 031/025).
+    // ------------------------------------------------------------------
+
+    /**
+     * Rend les emplacements de DÉFINITION du nom sous le point (fiche 031 :
+     * go-to-definition de l'usage commonMain vers l'`expect` KMP) — la
+     * chaîne conservatrice du survol : document courant (site désigné puis
+     * même nom), autres documents ouverts, scan des racines (URI de fichier
+     * + plage du nom).
+     */
+    override fun definition(uri: String, deplacement: Int): List<jo.codeide.lsp.kotlin.api.EmplacementKotlin> {
+        return verrou.read {
+            if (fermee) return@read emptyList()
+            val document = documents[uri] ?: return@read emptyList()
+            val autres = documents.entries.filter { it.key != uri }.map { it.key to it.value }
+            NavigationDocuments.definition(document, uri, autres, scanPublie, deplacement)
+        }
+    }
+
+    /**
+     * Rend les SYMBOLES du document (fiche 025 : le plan d'un fichier
+     * Compose-like) : chaque déclaration nommée avec son genre neutre et
+     * ses plages, PLATE en ordre du document.
+     */
+    override fun symboles(uri: String): List<jo.codeide.lsp.kotlin.api.SymboleDocumentKotlin> {
+        return verrou.read {
+            if (fermee) return@read emptyList()
+            val document = documents[uri] ?: return@read emptyList()
+            NavigationDocuments.symboles(document)
+        }
+    }
+
+    /**
+     * Rend les RÉFÉRENCES du nom sous le point (fiche 025 : références
+     * d'une fonction projet) : le site de déclaration puis chaque référence
+     * du même nom dans le document, en ordre du document.
+     */
+    override fun occurrences(uri: String, deplacement: Int): List<jo.codeide.lsp.kotlin.api.EmplacementKotlin> {
+        return verrou.read {
+            if (fermee) return@read emptyList()
+            val document = documents[uri] ?: return@read emptyList()
+            NavigationDocuments.occurrences(document, uri, deplacement)
+        }
+    }
+
+    /**
+     * Les statistiques du DERNIER passage du scanneur (vague 2e — fiche
+     * 036 : le fichier au-delà de la borne est COMPTÉ — total réel des
+     * fichiers éligibles vus par la marche, `faits < total` signale la
+     * troncation). INTERNE : le bilan d'inspection, pas un contrat d'hôte.
+     */
+    internal fun statsDernierPassageScan(): ScanProjetParesseux.StatsPassage =
+        scanneur.statsDernierPassage()
 
     // ------------------------------------------------------------------
     // Fermeture (fiche 049 : tout abandonné, no-ops postérieurs).

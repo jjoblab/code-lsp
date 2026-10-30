@@ -171,6 +171,62 @@ public interface SessionLangageKotlin : AutoCloseable {
     public fun rafraichirSources()
 
     /**
+     * Rend les emplacements de DÉFINITION du nom sous le point (étage 2
+     * vague 2e — fiche 031 : go-to-definition de l'usage commonMain vers
+     * l'`expect` KMP).
+     *
+     * La chaîne conservatrice (miroir du survol) : déclarations du document
+     * courant (site de déclaration ou même nom), puis déclarations des
+     * AUTRES documents ouverts, puis déclarations externes du scan des
+     * racines (leur URI de fichier + la plage du nom).
+     *
+     * @param uri l'identifiant du document ;
+     * @param deplacement l'offset du caret DANS l'identifiant usage ;
+     * @return les emplacements de déclaration (le premier est le meilleur
+     * candidat) ; liste VIDE pour un document inconnu/fermé, une position
+     * sans identifiant ou un nom sans déclaration trouvable — jamais
+     * `null`, jamais d'exception.
+     */
+    public fun definition(uri: String, deplacement: Int): List<EmplacementKotlin>
+
+    /**
+     * Rend les SYMBOLES du document (le plan du fichier — étage 2 vague
+     * 2e, fiche 025 : « symboles de document d'un fichier Compose-like »)
+     * : chaque déclaration nommée avec son genre neutre et ses plages.
+     *
+     * La liste est PLATE en ordre du document (la hiérarchie et le
+     * classement relèvent de l'étage 3) ; les déclarations sans nom
+     * (compagnon anonyme) sont ÉCARTÉES (conservateur).
+     *
+     * @param uri l'identifiant du document ;
+     * @return les symboles en ordre du document ; liste VIDE pour un
+     * document inconnu, fermé ou sans déclaration — jamais `null`, jamais
+     * d'exception.
+     */
+    public fun symboles(uri: String): List<SymboleDocumentKotlin>
+
+    /**
+     * Rend les RÉFÉRENCES du nom sous le point (étage 2 vague 2e — fiche
+     * 025 : « références d'une fonction projet ») : le site de déclaration
+     * (s'il vit dans le document) puis chaque RÉFÉRENCE du même nom dans le
+     * document, en ordre du document.
+     *
+     * Le périmètre est le DOCUMENT courant (honnête : les usages des
+     * sources externes relèvent de l'indexation de l'étage 3) ; les
+     * homonymes non liés (une locale de même nom dans une autre portée)
+     * peuvent entrer dans la liste — la résolution fine relève de
+     * l'étage 3, jamais de faux retraits ici.
+     *
+     * @param uri l'identifiant du document ;
+     * @param deplacement l'offset du caret DANS le nom (usage ou
+     * déclaration) ;
+     * @return les emplacements (déclaration puis usages) ; liste VIDE pour
+     * un document inconnu/fermé, une position sans identifiant ou un nom
+     * sans occurrence — jamais `null`, jamais d'exception.
+     */
+    public fun occurrences(uri: String, deplacement: Int): List<EmplacementKotlin>
+
+    /**
      * Pose le classpath de la session : entrées des bibliothèques et racines
      * des sources (fiche 042 — ADR 0211).
      *

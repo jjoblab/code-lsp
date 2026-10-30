@@ -32,6 +32,9 @@ import org.jetbrains.kotlin.kmp.parser.KtNodeTypes
  */
 internal object CompletionMembres {
 
+    /** La limite des propositions de l'index par préfixe (germe 2e). */
+    private const val LIMITE_INDEX: Int = 24
+
     /**
      * Propose les membres du récepteur typé au point demandé.
      *
@@ -61,8 +64,12 @@ internal object CompletionMembres {
 
         // Le récepteur : la PLUS PROFONDE expression qualifiée couvrant le
         // point (le caret vit juste après le point du sélecteur).
-        val qualifiee = recepteurQualifie(arbre.noeud, deplacement) ?: return emptyList()
-        val recepteur = qualifiee.enfants.firstOrNull() ?: return emptyList()
+        val qualifiee = recepteurQualifie(arbre.noeud, deplacement) ?: return nomsAuPoint(
+            document, uri, deplacement, contributionsScan, index,
+        )
+        val recepteur = qualifiee.enfants.firstOrNull() ?: return nomsAuPoint(
+            document, uri, deplacement, contributionsScan, index,
+        )
 
         // L'univers, la liaison de la RÉGION contenant le point (les
         // paramètres et locales de la fonction porteuse — miroir de la
@@ -88,6 +95,104 @@ internal object CompletionMembres {
         val typeRecepteur = TypageBorne.typeDeLexpression(recepteur, univers, liaison, pile)
             ?: return emptyList()
         return univers.propositionsMembres(typeRecepteur).map(::PropositionKotlin)
+    }
+
+    /**
+     * La complétion de NOM au point (vague 2e — fiche 025 : « complétion
+     * de nom dans un corps ») : le caret vit dans un identifiant SANS
+     * récepteur qualifié — les noms DÉCLARÉS du document (garde
+     * documentaire), puis les TYPES du catalogue KP8, puis les APPELABLES
+     * de premier niveau de l'index par PRÉFIXE (recherche binaire), tous
+     * filtrés par le préfixe déjà frappé. Le germe est CONSERVATEUR : le
+     * classement contextuel relève de l'étage 3 (ADR 0113).
+     *
+     * @param document le document ouvert ;
+     * @param uri l'identifiant du document ;
+     * @param deplacement l'offset du caret (dans ou juste après
+     * l'identifiant) ;
+     * @param contributionsScan les contributions du scan ;
+     * @param index la vue des appelables du classpath (`null` = guichet
+     * muet : seuls les noms déclarés et le catalogue se proposent) ;
+     * @return les propositions par ordre déclaré → catalogue → index.
+     */
+    private fun nomsAuPoint(
+        document: DocumentOuvert,
+        uri: String,
+        deplacement: Int,
+        contributionsScan: List<ContributionFichier>,
+        index: VueAppelables?,
+    ): List<PropositionKotlin> {
+        val prefixe = prefixeAuPoint(document.arbre.noeud, deplacement)
+
+        // Les noms DÉCLARÉS du document (garde documentaire — portées
+        // locales comprises).
+        val propositions = LinkedHashSet<String>()
+        if (prefixe.isEmpty()) {
+            return emptyList()
+        }
+        for (nom in nomsDeclares(document.arbre)) {
+            if (nom.startsWith(prefixe) && nom != prefixe) propositions.add(nom)
+        }
+
+        // Les contributions du scan : les types du projet par nom simple.
+        val batisseur = ModeleProjet.Batisseur()
+        batisseur.ajouter(ModeleProjet.contributionKotlin(document.arbre, uri = ""))
+        contributionsScan.forEach(batisseur::ajouter)
+        val modele = batisseur.figer()
+        for (type in modele.typesParNomSimple()) {
+            if (type.startsWith(prefixe) && type != prefixe) propositions.add(type)
+        }
+
+        // Le catalogue KP8 (les types bien connus des paquets par défaut).
+        for (nom in UniversPreuves.CATALOGUE_TYPES_DEFAUT) {
+            if (nom.startsWith(prefixe) && nom != prefixe) propositions.add(nom)
+        }
+
+        // Les appelables de premier niveau de l'index (par préfixe).
+        if (index != null) {
+            for (nom in index.nomsTopParPrefixe(prefixe, LIMITE_INDEX)) {
+                if (nom != prefixe) propositions.add(nom)
+            }
+        }
+        return propositions.map(::PropositionKotlin)
+    }
+
+    /**
+     * Le PRÉFIXE frappé au point : l'identifiant sous le caret (fin
+     * comprise — le caret vit juste après les caractères frappés), tronqué
+     * à la position du caret ; vide si le caret ne désigne pas un
+     * identifiant en cours de frappe.
+     */
+    private fun prefixeAuPoint(racine: NoeudArbre, deplacement: Int): String {
+        var trouve: String? = null
+        fun marcher(noeud: NoeudArbre) {
+            for (jeton in noeud.jetonsPropres) {
+                if (jeton.genre == org.jetbrains.kotlin.kmp.lexer.KtTokens.IDENTIFIER &&
+                    jeton.debut <= deplacement && deplacement <= jeton.fin
+                ) {
+                    val coupe = (deplacement - jeton.debut).coerceIn(0, jeton.texte.length)
+                    trouve = jeton.texte.substring(0, coupe)
+                }
+            }
+            noeud.enfants.forEach(::marcher)
+        }
+        marcher(racine)
+        return trouve.orEmpty()
+    }
+
+    /** Les noms DÉCLARÉS du document (la garde documentaire, fiche 017). */
+    private fun nomsDeclares(arbre: KtFichier): Set<String> {
+        val noms = mutableSetOf<String>()
+        fun collecter(noeud: NoeudArbre) {
+            if (noeud.genre in UniversPreuves.GENRES_DECLARATION) {
+                noeud.jetonsPropres
+                    .firstOrNull { it.genre == org.jetbrains.kotlin.kmp.lexer.KtTokens.IDENTIFIER }?.texte
+                    ?.let { noms.add(it) }
+            }
+            noeud.enfants.forEach(::collecter)
+        }
+        collecter(arbre.noeud)
+        return noms
     }
 
     /**
