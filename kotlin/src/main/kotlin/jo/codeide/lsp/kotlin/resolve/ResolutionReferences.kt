@@ -178,8 +178,9 @@ internal class UniversPreuves(
         if (nom in nomsDeclares) return Verdict.RESOLU
 
         // 2. Les portées locales typées (paramètres, locales, membres) : la
-        //    liaison rend le type écrit — sa simple existence résout.
-        if (liaison(nom) != null) return Verdict.RESOLU
+        //    liaison rend le type écrit — sa simple existence résout (les
+        //    composants DÉSTRUCTURÉS lient sans type — étage 3d, fiche 038).
+        if (liaison.estLie(nom)) return Verdict.RESOLU
 
         // 2-ter. Les MEMBRES HÉRITÉS des couches englobantes (vague 2c —
         //    ADR 0216 : `setContentView(…)` nu dans une classe qui étend
@@ -392,9 +393,9 @@ internal class UniversPreuves(
      * héritage écrit, enum, extensions non résolues, chaîne illisible) ou
      * SIGNALABLE (ABSENCE PROUVÉE — émission).
      */
-    internal fun verifierSelecteur(recepteur: TypeValeur, nom: String): Verdict {
+    internal fun verifierSelecteur(recepteur: TypeValeur, nom: String, pile: PileThis = PileThis.VIDE): Verdict {
         if (recepteur is TypeValeur.Projet) {
-            return verifierSelecteurProjet(recepteur.type, nom)
+            return verifierSelecteurProjet(recepteur.type, nom, pile)
         }
         val fqcn = (recepteur as TypeValeur.Jvm).fqcn
 
@@ -412,6 +413,14 @@ internal class UniversPreuves(
         // 028 : `Peinture.Capitaine.ROND` traverse `Peinture$Capitaine`).
         val jeu = vueJvm?.jeuComplet(MAPPES_JVM[fqcn] ?: fqcn) ?: return Verdict.MUET
         if (jeu.contient(nom)) return Verdict.RESOLU
+        // Les PROPRIÉTÉS BUILTINS des collections (étage 3 vague 3d —
+        // fiche 038 : `entries`/`keys`/`values` de kotlin.collections.Map
+        // vivent dans les accesseurs entrySet()/keySet()/values() du
+        // maillon binaire — la convention des builtins Kotlin, pas une
+        // dérivation générique).
+        BUILTINS_PROPRIETES[MAPPES_JVM[fqcn] ?: fqcn]?.forEach { (nomJvm, nomKotlin) ->
+            if (nomKotlin == nom && jeu.contient(nomJvm)) return Verdict.RESOLU
+        }
         if (vueJvm.possedeImbrique(MAPPES_JVM[fqcn] ?: fqcn, nom)) return Verdict.RESOLU
 
         // Les implicites de Any/Object (le socle commun de tout récepteur).
@@ -483,7 +492,7 @@ internal class UniversPreuves(
      * @return RESOLU (membre/extension connu), MUET (univers ouvert) ou
      * SIGNALABLE (ABSENCE PROUVÉE — émission).
      */
-    internal fun verifierSelecteurProjet(recepteur: TypeProjet, nom: String): Verdict {
+    internal fun verifierSelecteurProjet(recepteur: TypeProjet, nom: String, pile: PileThis = PileThis.VIDE): Verdict {
         // Scan partiel : le modèle du projet n'est pas complet.
         if (etatScan == EtatScan.PARTIEL) return Verdict.MUET
 
@@ -536,6 +545,24 @@ internal class UniversPreuves(
 
             // Les extensions de `kotlin.Any` atteignent tout récepteur.
             if (index.extensionsSur("kotlin.Any").any { it.nom == nom }) return Verdict.MUET
+        }
+
+        // Les MEMBER-EXTENSIONS des couches de la pile (étage 3 vague 3d
+        // — fiche 038 : `fun Maison.orner()` déclarée DANS PorteeMaison —
+        // le sélecteur `Maison().orner()` résout dans la portée du scope
+        // prêté par la lambda `PorteeMaison.() -> Unit`) : un membre
+        // DÉCLARÉ d'une couche PROJET dont le RÉCEPTEUR ÉCRIT résout au
+        // type du sélecteur.
+        for (couche in pile.typesDesCouches) {
+            val typeCouche = couche as? TypeValeur.Projet ?: continue
+            for (membre in typeCouche.type.membres) {
+                if (membre.nom != nom) continue
+                val recepteurEcrit = membre.recepteurNomme ?: continue
+                val typeEcrit = resoudreTypeEcrit(recepteurEcrit)
+                if (typeEcrit is TypeValeur.Projet && typeEcrit.type.fqcn == recepteur.fqcn) {
+                    return Verdict.RESOLU
+                }
+            }
         }
 
         // L'index ne porte pas (guichet muet) : les extensions classpath
@@ -701,6 +728,14 @@ internal class UniversPreuves(
                     GenreMembreHerite.PROPRIETE ->
                         poser(membre.nom, NaturePropositionKotlin.PROPRIETE, membre.typeDetail)
                     GenreMembreHerite.TYPE_IMBRIQUE -> poser(membre.nom, NaturePropositionKotlin.CLASSE)
+                }
+            }
+            // Les PROPRIÉTÉS BUILTINS des collections (étage 3d — fiche 038 :
+            // `entries`/`keys`/`values` de Map) : proposées sous leur nom
+            // KOTLIN quand l'accesseur JVM vit dans le jeu.
+            BUILTINS_PROPRIETES[mappes]?.forEach { (nomJvm, nomKotlin) ->
+                if (detailles.any { it.nom == nomJvm }) {
+                    poser(nomKotlin, NaturePropositionKotlin.PROPRIETE)
                 }
             }
         } else {
@@ -884,6 +919,10 @@ internal class UniversPreuves(
             "Collection", "List", "MutableList", "Set", "MutableSet", "Map", "MutableMap",
             "ArrayList", "HashMap", "HashSet", "LinkedHashMap", "LinkedHashSet",
             "MutableCollection", "MutableIterable", "Map.Entry",
+            // kotlin — les PAIRES (étage 3 vague 3d — fiche 038 : le type
+            // ÉCRIT `Pair<A, B>` des destructurations
+            // `sortedByDescending { (_, total) -> … }`).
+            "Pair", "Triple",
             // kotlin.ranges.
             "IntRange", "LongRange", "CharRange", "IntProgression", "LongProgression",
             "CharProgression",
@@ -960,6 +999,7 @@ internal class UniversPreuves(
             "MutableList" to "kotlin.collections.MutableList", "Set" to "kotlin.collections.Set",
             "MutableSet" to "kotlin.collections.MutableSet", "Map" to "kotlin.collections.Map",
             "MutableMap" to "kotlin.collections.MutableMap",
+            "Pair" to "kotlin.Pair", "Triple" to "kotlin.Triple",
             "ArrayList" to "kotlin.collections.ArrayList",
             "HashMap" to "kotlin.collections.HashMap", "HashSet" to "kotlin.collections.HashSet",
             "LinkedHashMap" to "kotlin.collections.LinkedHashMap",
@@ -989,6 +1029,32 @@ internal class UniversPreuves(
             "kotlin.Double" to "java.lang.Double",
             "kotlin.Float" to "java.lang.Float",
             "kotlin.Boolean" to "java.lang.Boolean",
+            // Les COLLECTIONS (étage 3 vague 3d — fiche 038 : les
+            // PROPRIÉTÉS BUILTINS `entries`/`keys`/`values` de
+            // kotlin.collections.Map vivent dans les accesseurs de la
+            // classe encadrante java.util.Map — entrySet/keySet/values,
+            // la vérité d'interop du compilateur ; de même MutableList
+            // → java.util.List pour le récepteur prêté par buildList).
+            "kotlin.collections.Iterable" to "java.lang.Iterable",
+            "kotlin.collections.Collection" to "java.util.Collection",
+            "kotlin.collections.List" to "java.util.List",
+            "kotlin.collections.MutableList" to "java.util.List",
+            "kotlin.collections.Set" to "java.util.Set",
+            "kotlin.collections.MutableSet" to "java.util.Set",
+            "kotlin.collections.Map" to "java.util.Map",
+            "kotlin.collections.MutableMap" to "java.util.Map",
+        )
+
+        /**
+         * Les PROPRIÉTÉS BUILTINS des collections Kotlin (étage 3 vague 3d
+         * — fiche 038) : par maillon BINAIRE (la clé de [MAPPES_JVM]), les
+         * accesseurs JVM → les propriétés KOTLIN attendues
+         * (`entrySet()` → `entries` — la convention des builtins, pas une
+         * dérivation générique : `keySet()` ne donne pas `keySet` mais
+         * `keys`).
+         */
+        internal val BUILTINS_PROPRIETES: Map<String, Map<String, String>> = mapOf(
+            "java.util.Map" to mapOf("entrySet" to "entries", "keySet" to "keys", "values" to "values"),
         )
 
         /**

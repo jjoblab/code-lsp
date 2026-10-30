@@ -145,6 +145,15 @@ internal class PileThis private constructor(private val couches: List<CoucheThis
         get() = couches.flatMap { it.cloture?.membres?.values.orEmpty() }
 
     /**
+     * Les TYPES des couches, de la profonde vers l'externe (étage 3 vague
+     * 3d — fiche 038 : la règle des MEMBER-EXTENSIONS du scope consulte
+     * les couches PROJET — un membre déclaré dans une couche dont le
+     * RÉCEPTEUR ÉCRIT est le type du sélecteur résout dans la portée).
+     */
+    internal val typesDesCouches: List<TypeValeur>
+        get() = couches.mapNotNull { it.typeInterne }
+
+    /**
      * Le TYPE d'un membre de la pile (vague 2c — le typage des récepteurs
      * implicites : `layoutInflater` type `LayoutInflater`, `compte` type
      * `Int`, l'imbriquée `Resultats` type `Base$Resultats`).
@@ -535,6 +544,19 @@ internal object Couches {
                         }
                         marcher(enfant, chemin)
                     }
+                }
+                KtNodeTypes.LAMBDA_EXPRESSION -> {
+                    // Étage 3 vague 3d (fiche 038) : une lambda EN POSITION
+                    // dont l'ATTENTE porte un RÉCEPTEUR prête ce récepteur
+                    // comme this implicite du corps — `Etage { compter() }`
+                    // (PorteeMaison.() -> Unit, projet), `Ecran { bricoler()
+                    // }` (classpath), `buildList { add(…) }` (la forme RENDUE
+                    // Function1<MutableList<E>, Unit> de l'index). La branche
+                    // couvre la lambda traînante ET la parenthésée (miroir
+                    // de l'attente vague 2b).
+                    TypageBorne.recepteurAttenduDeLambda(arbre, noeud.debut, univers)
+                        ?.let { recepteur -> pile = pile.empiler(deType(univers, recepteur)) }
+                    noeud.enfants.forEach { marcher(it, chemin) }
                 }
                 else -> noeud.enfants.forEach { marcher(it, chemin) }
             }

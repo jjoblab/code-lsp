@@ -87,6 +87,30 @@
 > comparera la livrée à la naïve alphabétique) ; 12 tests d'ingénierie
 > verrouillent le mécanisme (§7).**
 
+> **Mise à jour (31/10, vague 3d) — LES RÉCEPTEURS DE PORTÉE SONT LIVRÉS
+> avec les fiches 038/039 ENTIÈRES (9 comportements — le dernier lot du
+> domaine complétion, 44/44 au §2) : le paramètre `content:
+> RowScope.() -> Unit` d'un appel prête RowScope comme this IMPLICITE du
+> corps de la lambda — `TypageBorne.recepteurAttenduDeLambda` lit le
+> candidat PROJET (le récepteur ÉCRIT du type fonctionnel du paramètre du
+> même INDEX) puis le candidat CLASSPATH (la forme RENDUE `Function1<R,
+> U>` du descripteur amont — `buildList { add(…) }` prête MutableList) ;
+> la PILE des scopes emboîtés (Couches.aPosition et la passe sémantique
+> empilent la couche PRÊTÉE par-dessus les couches englobantes — membres
+> NUS, complétion et survol d'un SEUL mécanisme) ; les MEMBER-EXTENSIONS
+> du scope (`fun Maison.orner()` déclarée DANS PorteeMaison — le
+> sélecteur `Maison().orner()` résout par la pile) ; la DESTRUCTURATION
+> (`(_, total) -> total` — chaque composant NOMMÉ lie, sans type écrit
+> démontrable : la LIAISON seule résout) ; les PROPRIÉTÉS BUILTINS de Map
+> (`entries`/`keys`/`values` → les accesseurs du maillon binaire, par
+> CONVENTION close et documentée). La fiche 039 atteste le ViewBinding
+> K5 SANS nouveau code moteur : le groupe synthétique livré en vague 1e
+> offre root/textView/inflate/bind à la complétion membre de la propriété
+> typée. Chaque famille porte son VRAI POSITIF — un membre inconnu DANS
+> le scope reste signalé, le membre du scope HORS du lambda est signalé,
+> un nom inconnu dans le corps d'une destructuration reste signalé : le
+> silence n'est jamais de la complaisance (§8).**
+
 ## 1. Périmètre de l'étage (plan §4 — cahier en main)
 
 | # | Item | Source du contrat |
@@ -102,7 +126,7 @@
 
 | Critère | État | Preuve |
 |---|---|---|
-| 44 fiches vertes (fiches 038 + 039 + 043 + 045 du domaine complétion) | **35/44** (fiche 045 — §5 ; fiche 043 — §6) | `Fiche045SessionLangageKotlinK3Test` : 21 ; `Fiche043SessionLangageKotlinCompletionContextuelleTest` : 14 |
+| 44 fiches vertes (fiches 038 + 039 + 043 + 045 du domaine complétion) | **44/44** (fiche 045 — §5 ; fiche 043 — §6 ; fiches 038/039 — §8) | `Fiche045SessionLangageKotlinK3Test` : 21 ; `Fiche043SessionLangageKotlinCompletionContextuelleTest` : 14 ; `Fiche038ReproductionVague5Test` : 8 ; `Fiche039ReproductionViewBindingTest` : 1 |
 | Banc : recall ≥ baseline | À atteindre (banc livré en 3e) | — |
 | Banc : top-1/MRR +5 pts vs naïf | Chaîne LIVRÉE (3c, §7) — la MESURE attend le banc (3e) | `ClassementCompletionTest` : 12 tests du mécanisme |
 | Banc : p95 ≤ baseline (JVM = limite basse ; cible appareil < 100 ms) | À atteindre (banc livré en 3e) | — |
@@ -305,3 +329,79 @@ section du présent journal + commit/push.
   productions 5 448/31 368 et jetons 4 210/24 274 — déterminisme
   IDENTIQUE, marqueurs d'erreur 0, tas 3 845 Kio.
 - **Provenance** : `verifier-provenance.sh` rc=0 (aucune reprise).
+
+## 8. Vague 3d — les récepteurs de portée (31/10, fiches 038 + 039 — 9 comportements)
+
+### 8.1 Périmètre exécuté
+
+| # | Item | État | Détail |
+|---|---|---|---|
+| 1 | Récepteur attendu d'une lambda | **Fait** | `TypageBorne.recepteurAttenduDeLambda` : le FUNCTION_LITERAL englobant, sa LAMBDA_EXPRESSION, puis le parent LAMBDA_ARGUMENT (traînant) ou VALUE_ARGUMENT (parenthésé, indice compté) mène à l'APPEL ; `recepteurDeLappel` lit le candidat PROJET (`univers.modele.appelables` du même nom — le récepteur ÉCRIT du type fonctionnel du paramètre du même index) puis le candidat CLASSPATH visible (`univers.index.topParNom` — la forme RENDUE `Function1<R, U>` du paramètre, `premierArgumentFunction1` dépouille les génériques imbriqués : `MutableList<E>` → `MutableList`) ; `null` sans attente démontrable (lambda orpheline, appel inconnu, type sans récepteur — D3) |
+| 2 | Résolution du récepteur ÉCRIT hors document | **Fait** | `resoudreRecepteurEcrit` : le document courant d'abord (types du projet, imports, défauts), PUIS le nom simple UNIQUE des ENTRÉES du classpath (`VueJvmMembres.fqcnParNomSimple`) — le récepteur d'un scope classpath (`Ecran(bloc: PorteeEtrangere.() -> Unit)`) déclaré dans un AUTRE fichier, sans import au point d'usage, s'y désigne sans équivoque ; un homonyme multiple rend `null` (jamais deviner) |
+| 3 | Pile des scopes emboîtés | **Fait** | `Couches.aPosition` (branche LAMBDA_EXPRESSION : empile `deType(univers, recepteurAttendu)` avant de marcher le corps) et `DiagnosticsSemantiques.marcher` (miroir — la passe sémantique porte SA pile) : le corps voit la couche PRÊTÉE par-dessus les couches englobantes — `Exterieur { dansA(); Interieur { dansB(); dansA() } }` résout par les DEUX couches, la plus profonde d'abord ; membres NUS (`compter()`), complétion du régime NOM (`membresDetaillesDesCouches`) et member-extensions d'un SEUL mécanisme |
+| 4 | Member-extensions du scope | **Fait** | `MembreProjet.recepteurNomme` (posé par `recepteurEcritMembre` : la référence de type portée AVANT la liste des paramètres du membre — `fun Maison.orner()` déclarée dans le corps de PorteeMaison) ; `verifierSelecteurProjet(…, pile)` : un membre DÉCLARÉ d'une couche PROJET de la pile dont le récepteur ÉCRIT résout au type du sélecteur → RESOLU ; la signature `verifierSelecteur` porte la pile (défaut VIDE — non-régression des appelants existants) |
+| 5 | Destructuration de paramètre | **Fait** | `MarcheTypee` : les entrées `DESTRUCTURING_DECLARATION_ENTRY` du paramètre lient comme CANDIDATS (position de fin, type `null`) — `estLie(nom)` rend la LIAISON seule suffisante au verdict (`{ (_, total) -> total }`, `{ (cle, montant) -> … }`) ; le typage par `componentN` relève du modèle complet (bornologie ADR 0107 inchangée) ; le VRAI POSITIF tenu : `totalInconnu` dans le corps reste SIGNALÉ (le destructuring ne crée pas de nom) |
+| 6 | Propriétés builtins de Map | **Fait** | `BUILTINS_PROPRIETES` (par maillon BINAIRE : `java.util.Map` → `entrySet`→`entries`, `keySet`→`keys`, `values`→`values`) consulté au VERDICT de sélecteur ET à la complétion membre DÉTAILLÉE (proposées sous le nom KOTLIN quand l'accesseur JVM vit dans le jeu) ; `MAPPES_JVM` étendu aux collections (`kotlin.collections.Iterable/Collection/List/MutableList/Set/MutableSet/Map/MutableMap` → les `java.*` encadrants — la vérité d'interop du compilateur) |
+| 7 | ViewBinding K5 (fiche 039) | **Fait** | SANS nouveau code moteur : le groupe synthétique livré en vague 1e (reprise R1/R2 — `ClassesSynthetiques`) offre `root`/`textView`/`inflate`/`bind` à la complétion membre de la propriété typée (`binding: ActivityMainBinding`, sous-paquet `databinding` — convention AGP) ; la fiche de reproduction en est le PREMIER TÉMOIN cahier (aucun consommateur spéculatif n'avait été livré en 1e — la capacité attendait sa preuve) |
+| 8 | Tests neufs | **Fait** | 9 comportements aux noms exacts du cahier : `Fiche038ReproductionVague5Test` (8 — scopes PROJET et CLASSPATH, pile, buildList, destructuration, builtins Map) et `Fiche039ReproductionViewBindingTest` (1 — projet Android factice sur disque : manifeste + res/layout `@+id/textView`) ; la vérité JVM des mondes classpath vit dans un JAR DE FIXTURE (`exo.cp.PorteeEtrangere`, `java.util.List`/`Collection`/`Iterable`, `java.util.Map` — discipline pilotée par les entrées) |
+
+### 8.2 Décisions d'exécution consignées
+
+1. **Le maillon `java.lang.Iterable` du jar de fixture** : la première
+   rédaction déclarait `java.util.Collection` superclasse `Object` — les
+   extensions `sortedByDescending`/`map` de l'index vivent sur
+   `kotlin.collections.Iterable` (le maillon DISTANCIÉ du récepteur,
+   miroir fiche 033) et restaient INATTEIGNABLES : le comportement
+   « composants nommés en portée » les exigeait résolus. Le fixture
+   modélise maintenant la chaîne JVM RÉELLE (`java.util.Collection`
+   étend `java.lang.Iterable`, maillon posé sans membre) — la VÉRITÉ
+   JVM que le stdlib seul ne porte pas, discipline pilotée par les
+   entrées tenue de bout en bout.
+2. **La liaison seule résout le composant destructuré** : `(_, total)`
+   n'a pas de type écrit DÉMONTRABLE (le typage exige `componentN` du
+   modèle complet) — la preuve de résolution tient par la seule
+   EXISTENCE de la liaison (miroir du régime des paramètres non typés).
+   Le vrai positif reste émis : un nom INCONNU dans le corps du lambda
+   n'est pas couvert par la liaison — le destructuring ne crée pas de
+   nom (comportement « nom inconnu dans le corps reste signalé »).
+3. **Les builtins par CONVENTION, jamais par dérivation** :
+   `entrySet()` → `entries` mais `keySet()` → `keys` (et non `keySet`)
+   — la table est CLOSE et documentée dans le KDoc de
+   `BUILTINS_PROPRIETES` : c'est la convention d'interop du compilateur
+   Kotlin, pas une règle dérivable des accesseurs. Une dérivation
+   générique (`get*`/`*Set` → propriété) inventerait des membres que le
+   compilateur n'expose pas.
+4. **Coquille 3a corrigée (§5.4)** : le « moteur 271 classes /
+   6 798 méthodes déclarées » de la vague 3a était une erreur de
+   transcription — 6 798 est l'ordre de grandeur du compte du STDLIB
+   (6 612 méthodes, §8.3), pas du moteur. Les valeurs MESURÉES ce jour :
+   moteur **268 classes / 296 méthodes déclarées** (borne basse dex),
+   cohérentes avec la série de l'étage 2 (189/250 → 208/267 → 225/276).
+   Aucun code n'est affecté — le chiffre erroné ne nourrissait aucun
+   seuil (la gate CI compte les « AUCUNE », pas les classes).
+5. **La fiche 039 sans nouveau code moteur** : le groupe synthétique
+   était livré depuis la vague 1e mais AUCUNE fiche du cahier ne
+   l'éprouvait (les fiches 040/045/047 touchaient Views/Compose/K5
+   d'autres familles) — la reproduction ViewBinding EST cette preuve,
+   et elle passe SANS adaptation : la capacité attendait son témoin,
+   le témoin n'a exigé aucune retouche (la meilleure des non-régressions).
+
+### 8.3 Preuves du bac à sable (avant poussée)
+
+- **Suite** : **393 tests VERTS** sur la toolchain 17 (384 + 9 des
+  fiches 038/039) ; baseline de parité RE-SIGNÉE **380 → 382 fichiers**
+  (les 2 tests neufs).
+- **Jar moteur** : 754 695 o (+6 469 vs 3c).
+- **Scan ART pile complète** : 6 × « AUCUNE », rc=0 (moteur 268 classes /
+  296 méthodes déclarées — borne basse ; coquille 3a corrigée, §8.2.4 ;
+  ServiceLoader OK descripteur vérifié).
+- **Dexage d8** (build-tools 34 local, min-api 26) : **25 636 références
+  de méthodes (78 % du plafond 32 768) / 4 090 064 o = 3,90 Mo (65 % du
+  budget 6 Mo)** — +15 méthodes / +7 048 o vs 3c ; seuils tenus (E-K8
+  inchangée).
+- **Banc JDK 17** (bac à sable, 2 cœurs) : froid 209,9/21,0 ms,
+  p50 7,4/22,1 ms, p95 34,0/49,4 ms, productions 5 448/31 368 et jetons
+  4 210/24 274 — déterminisme IDENTIQUE (la grammaire n'est pas
+  touchée), marqueurs d'erreur 0, tas 3 845 Kio.
+- **Provenance** : `verifier-provenance.sh` rc=0 (aucune reprise — code
+  NEUF intégral, zones noyau anciennes jamais consultées R9.1).

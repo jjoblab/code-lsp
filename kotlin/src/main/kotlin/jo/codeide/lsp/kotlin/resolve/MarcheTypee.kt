@@ -74,6 +74,20 @@ internal object MarcheTypee {
             return candidats.first().type
         }
 
+        /**
+         * Le nom est-il LIÉ par une portée locale, typé OU NON (étage 3
+         * vague 3d — fiche 038 : un composant DÉSTRUCTURÉ `(_, total)` lie
+         * sans type écrit démontrable — la preuve de résolution tient par
+         * la seule existence de la liaison).
+         *
+         * @param nom le nom consulté ;
+         * @return `true` si une liaison le porte (paramètre, locale ou
+         * composant destructuré).
+         */
+        internal fun estLie(nom: String): Boolean {
+            return !candidatsDe(nom).isNullOrEmpty()
+        }
+
         /** Les candidats du nom (collectés une fois, mémoïsés ; `null` en cycle). */
         private fun candidatsDe(nom: String): List<Candidat>? {
             if (cache.containsKey(nom)) return cache[nom]
@@ -121,6 +135,20 @@ internal object MarcheTypee {
                                 nomTypeEcritDeReference(reference)?.let { collectes.add(Candidat(noeud.fin, it)) }
                             }
                     }
+                    // La DESTRUCTURATION du paramètre (étage 3 vague 3d —
+                    // fiche 038 : `{ (_, total) -> total }` — chaque
+                    // COMPOSANT NOMMÉ lie comme un paramètre, sans type
+                    // écrit démontrable (le typage par componentN relève
+                    // du modèle complet : la LIAISON seule résout).
+                    noeud.enfants
+                        .firstOrNull { it.genre == KtNodeTypes.DESTRUCTURING_DECLARATION }
+                        ?.enfants
+                        ?.filter { it.genre == KtNodeTypes.DESTRUCTURING_DECLARATION_ENTRY }
+                        ?.forEach { entree ->
+                            val nomEntree = entree.jetonsPropres
+                                .firstOrNull { it.genre == KtTokens.IDENTIFIER }?.texte
+                            if (nomEntree == nom) collectes.add(Candidat(entree.fin, null))
+                        }
                 }
                 KtNodeTypes.PROPERTY -> {
                     val n = noeud.jetonsPropres.firstOrNull { it.genre == KtTokens.IDENTIFIER }?.texte

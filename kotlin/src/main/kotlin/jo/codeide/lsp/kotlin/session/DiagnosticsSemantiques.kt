@@ -614,6 +614,23 @@ internal object DiagnosticsSemantiques {
             KtNodeTypes.REFERENCE_EXPRESSION -> {
                 verifierNomNu(noeud, contextes, diagnostics, liaison, pile, nomsZone, enteteBrisee)
             }
+            KtNodeTypes.LAMBDA_EXPRESSION -> {
+                // Étage 3 vague 3d (fiche 038) : une lambda EN POSITION
+                // dont l'ATTENTE porte un RÉCEPTEUR prête ce récepteur
+                // comme this implicite du CORPS — `Etage { compter() }`
+                // (PorteeMaison.() -> Unit, projet), `Ecran { bricoler() }`
+                // (classpath), `buildList { add(…) }` (Function1 rendu par
+                // l'index). Miroir de la pile des this de Couches.aPosition.
+                val couchePortee = TypageBorne.recepteurAttenduDeLambda(
+                    contextes.univers.arbre,
+                    noeud.debut,
+                    contextes.univers,
+                )?.let { Couches.deType(contextes.univers, it) }
+                val pilePortee = if (couchePortee != null) pile.empiler(couchePortee) else pile
+                noeud.enfants.forEach {
+                    marcher(it, contextes, diagnostics, liaison, pilePortee, nomsZone, enteteBrisee)
+                }
+            }
             KtNodeTypes.VALUE_ARGUMENT -> {
                 // Un argument NOMMÉ (`copy(x = 1)`) : le nom de l'argument
                 // (production `VALUE_ARGUMENT_NAME`) n'est JAMAIS un usage —
@@ -958,7 +975,7 @@ internal object DiagnosticsSemantiques {
         // la PILE DES THIS (`this.layoutInflater`, membres implicites).
         val typeRecepteur = TypageBorne.typeDeLexpression(recepteur, contextes.univers, liaison, pile)
             ?: return
-        val verdict = contextes.univers.verifierSelecteur(typeRecepteur, nom)
+        val verdict = contextes.univers.verifierSelecteur(typeRecepteur, nom, pile)
         if (verdict != UniversPreuves.Verdict.SIGNALABLE) return
         emettreNonResolu(
             reference = noeudNom,

@@ -513,7 +513,6 @@ internal object TypageBorne {
             .lastOrNull { it.genre == KtNodeTypes.LAMBDA_EXPRESSION } ?: return null
         val chaine = chaineAncetres(arbre.noeud, expression.debut)
         val parent = chaine.getOrNull(chaine.indexOf(expression) - 1) ?: return null
-
         return when (parent.genre) {
             KtNodeTypes.LAMBDA_ARGUMENT -> {
                 // Le parent du LAMBDA_ARGUMENT est le CALL porteur.
@@ -606,6 +605,141 @@ internal object TypageBorne {
             .lastOrNull { it.genre == KtNodeTypes.CALL_EXPRESSION } ?: return null
         val indice = liste.enfants.indexOf(argument)
         return attenteDeLappel(appel, univers, indice)
+    }
+
+    /**
+     * Le RÉCEPTEUR ATTENDU de la lambda englobante (étage 3 vague 3d —
+     * fiche 038 : le paramètre `content: RowScope.() -> Unit` de Compose
+     * `Row { … }` prête RowScope comme this IMPLICITE du corps — le
+     * candidat PROJET porte le récepteur ÉCRIT du type fonctionnel, le
+     * candidat CLASSPATH le porte par la forme RENDUE `Function1<R, U>`
+     * du descripteur amont — `buildList { add(…) }` prête MutableList).
+     *
+     * @param arbre la racine du document ;
+     * @param position l'offset DANS le corps de la lambda ;
+     * @param univers l'univers des preuves ;
+     * @return le type du récepteur attendu ; `null` sans attente
+     * démontrable (lambda orpheline, appel inconnu, type sans récepteur).
+     */
+    internal fun recepteurAttenduDeLambda(
+        arbre: KtFichier,
+        position: Int,
+        univers: UniversPreuves,
+    ): TypeValeur? {
+        val litteral = chaineAncetres(arbre.noeud, position)
+            .lastOrNull { it.genre == KtNodeTypes.FUNCTION_LITERAL } ?: return null
+        val expression = chaineAncetres(arbre.noeud, litteral.debut)
+            .lastOrNull { it.genre == KtNodeTypes.LAMBDA_EXPRESSION } ?: return null
+        val chaine = chaineAncetres(arbre.noeud, expression.debut)
+        val parent = chaine.getOrNull(chaine.indexOf(expression) - 1) ?: return null
+        return when (parent.genre) {
+            KtNodeTypes.LAMBDA_ARGUMENT -> {
+                val chaineParent = chaineAncetres(arbre.noeud, parent.debut)
+                val appel = chaineParent.getOrNull(chaineParent.indexOf(parent) - 1)
+                if (appel?.genre == KtNodeTypes.CALL_EXPRESSION) {
+                    recepteurDeLappel(appel, univers)
+                } else {
+                    null
+                }
+            }
+            KtNodeTypes.VALUE_ARGUMENT -> {
+                val liste = chaineAncetres(arbre.noeud, parent.debut)
+                    .lastOrNull { it.genre == KtNodeTypes.VALUE_ARGUMENT_LIST } ?: return null
+                val appel = chaineAncetres(arbre.noeud, liste.debut)
+                    .lastOrNull { it.genre == KtNodeTypes.CALL_EXPRESSION } ?: return null
+                recepteurDeLappel(appel, univers, liste.enfants.indexOf(parent))
+            }
+            else -> null
+        }
+    }
+
+    /**
+     * Le récepteur attendu du PARAMÈTRE de lambda d'un appel (l'index du
+     * paramètre compte les arguments ORDINAIRES — miroir de
+     * [attenteDeLappel]) : le candidat PROJET d'abord (récepteur ÉCRIT du
+     * type fonctionnel), puis le candidat CLASSPATH visible (forme RENDUE
+     * `Function1<R, U>`).
+     */
+    private fun recepteurDeLappel(
+        appel: NoeudArbre,
+        univers: UniversPreuves,
+        indiceLambda: Int = -1,
+    ): TypeValeur? {
+        val nom = appel.enfants
+            .firstOrNull { it.genre == KtNodeTypes.REFERENCE_EXPRESSION }
+            ?.texteCanonique.orEmpty()
+        if (nom.isEmpty()) return null
+        val indice = if (indiceLambda >= 0) {
+            indiceLambda
+        } else {
+            appel.enfants
+                .firstOrNull { it.genre == KtNodeTypes.VALUE_ARGUMENT_LIST }
+                ?.enfants?.size ?: 0
+        }
+        // Le candidat PROJET : le récepteur ÉCRIT du type fonctionnel du
+        // paramètre du même index. Le nom écrit vit dans le FICHIER
+        // DÉCLARANT : sa résolution tente le document courant (types du
+        // projet, imports, défauts) PUIS le nom simple UNIQUE des entrées
+        // du classpath (le récepteur d'un scope classpath — `Ecran(bloc:
+        // PorteeEtrangere.() -> Unit)` déclaré dans un autre fichier,
+        // dont l'import n'est PAS dans le document en édition).
+        for (candidat in univers.modele.appelables(nom, univers.paquet)) {
+            val parametre = candidat.parametres.getOrNull(indice) ?: continue
+            val recepteur = parametre.typeFonction?.recepteur ?: continue
+            resoudreRecepteurEcrit(univers, recepteur)?.let { return it }
+        }
+        // Le candidat CLASSPATH visible : la forme RENDUE Function1<R, U>
+        // du paramètre du même index (package courant et paquets par
+        // défaut — la preuve de visibilité, miroir de la voie 6).
+        if (univers.index != null) {
+            for (appelable in univers.index.topParNom(nom)) {
+                if (appelable.paquet != univers.paquet &&
+                    appelable.paquet !in UniversPreuves.PAQUETS_DEFAUT
+                ) {
+                    continue
+                }
+                val parametre = appelable.parametres.getOrNull(indice) ?: continue
+                val rendu = parametre.type ?: continue
+                val recepteur = premierArgumentFunction1(rendu) ?: continue
+                return univers.resoudreTypeEcrit(recepteur)
+            }
+        }
+        return null
+    }
+
+    /**
+     * Le PREMIER argument de type d'une forme RENDUE `Function1<R, U>` (le
+     * récepteur d'un type fonctionnel à récepteur, encodé Function1 par le
+     * compilateur) : les génériques imbriqués sont dépouillés
+     * (`MutableList<E>` → `MutableList`).
+     */
+    private fun premierArgumentFunction1(rendu: String): String? {
+        if (!rendu.startsWith("Function1<") || !rendu.endsWith(">")) return null
+        val corps = rendu.removePrefix("Function1<").removeSuffix(">")
+        var profondeur = 0
+        for ((indice, caractere) in corps.withIndex()) {
+            when (caractere) {
+                '<' -> profondeur++
+                '>' -> profondeur--
+                ',' -> if (profondeur == 0) {
+                    return corps.substring(0, indice).substringBefore('<').trim().ifEmpty { null }
+                }
+            }
+        }
+        return corps.substringBefore('<').trim().ifEmpty { null }
+    }
+
+    /**
+     * Résout le nom ÉCRIT du récepteur d'un type fonctionnel déclaré dans
+     * un AUTRE fichier (étage 3 vague 3d) : le document courant d'abord
+     * (types du projet, imports, défauts), puis le nom simple UNIQUE des
+     * ENTRÉES du classpath — le récepteur d'un scope classpath (`Ecran(bloc:
+     * PorteeEtrangere.() -> Unit)`) s'y désigne sans équivoque.
+     */
+    private fun resoudreRecepteurEcrit(univers: UniversPreuves, recepteur: String): TypeValeur? {
+        univers.resoudreTypeEcrit(recepteur)?.let { return it }
+        val fqcns = univers.vueJvm?.fqcnParNomSimple(recepteur) ?: return null
+        return fqcns.singleOrNull()?.let { TypeValeur.Jvm(it) }
     }
 
     /**

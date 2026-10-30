@@ -161,6 +161,13 @@ internal class MembreProjet(
     internal val typeRetourNomme: String?,
     internal val parametres: List<ParametreProjet> = emptyList(),
     /**
+     * Le nom ÉCRIT du RÉCEPTEUR d'une MEMBER-EXTENSION (étage 3 vague 3d —
+     * fiche 038 : `fun Maison.orner()` déclarée DANS PorteeMaison — le
+     * sélecteur `Maison().orner()` résout dans la portée du scope) ;
+     * `null` pour un membre simple.
+     */
+    internal val recepteurNomme: String? = null,
+    /**
      * Le membre est ABSTAIT (vague 2f — fiche 020 : un `fun` SANS corps, une
      * propriété SANS initialiseur — la matière du quick-fix « implémenter
      * les membres manquants », jamais les membres CONCRETS du supertype).
@@ -206,6 +213,13 @@ internal class ParametreProjet(
 internal class TypeFonctionEcrit(
     internal val parametres: List<String>,
     internal val retour: String,
+    /**
+     * Le nom ÉCRIT du RÉCEPTEUR du type fonctionnel (étage 3 vague 3d —
+     * fiche 038 : `PorteeMaison.() -> Unit` prête PorteeMaison comme this
+     * IMPLICITE du corps de la lambda — `null` pour un type simple
+     * `(String) -> Unit`).
+     */
+    internal val recepteur: String? = null,
 )
 
 /**
@@ -601,6 +615,7 @@ internal class ModeleProjet private constructor(
                                 MembreProjet(
                                     n, GenreMembreProjet.FONCTION, typeRetourEcrit(membre),
                                     parametresDeclares(membre),
+                                    recepteurNomme = recepteurEcritMembre(membre),
                                     estAbstrait = membre.enfants.none {
                                         it.genre != KtNodeTypes.BLOCK &&
                                             it.genre != KtNodeTypes.TYPE_REFERENCE &&
@@ -772,6 +787,23 @@ internal class ModeleProjet private constructor(
             return null
         }
 
+        /**
+         * Le nom ÉCRIT du RÉCEPTEUR d'une MEMBER-EXTENSION (étage 3 vague
+         * 3d — fiche 038 : `fun Maison.orner()` déclarée dans le corps d'un
+         * type) : la référence de type portée AVANT la liste des
+         * paramètres (`null` pour un membre simple).
+         */
+        private fun recepteurEcritMembre(noeud: NoeudArbre): String? {
+            val enfants = noeud.enfants
+            val listeParams = enfants.indexOfFirst { it.genre == KtNodeTypes.VALUE_PARAMETER_LIST }
+            val borne = if (listeParams >= 0) listeParams else enfants.size
+            for (i in 0 until borne) {
+                if (enfants[i].genre != KtNodeTypes.TYPE_REFERENCE) continue
+                return typeEcritDeReference(enfants[i])
+            }
+            return null
+        }
+
         /** Le type ÉCRIT d'une propriété (`null` si absent). */
         private fun typeEcritPropriete(noeud: NoeudArbre): String? {
             for (enfant in noeud.enfants) {
@@ -871,6 +903,13 @@ internal fun typeFonctionEcritDe(reference: NoeudArbre): TypeFonctionEcrit? {
     val fonctionnelle = reference.enfants
         .filter { it.genre == KtNodeTypes.FUNCTION_TYPE }
         .firstOrNull() ?: return null
+    // Le RÉCEPTEUR du type fonctionnel (étage 3 vague 3d — fiche 038 :
+    // `PorteeMaison.() -> Unit` porte FUNCTION_TYPE_RECEIVER avant la
+    // liste des paramètres).
+    val recepteur = fonctionnelle.enfants
+        .firstOrNull { it.genre == KtNodeTypes.FUNCTION_TYPE_RECEIVER }
+        ?.enfants?.firstOrNull { it.genre == KtNodeTypes.TYPE_REFERENCE }
+        ?.let { referenceTypeEcritSimple(it) }
     val parametres = mutableListOf<String>()
     val liste = fonctionnelle.enfants
         .filter { it.genre == KtNodeTypes.VALUE_PARAMETER_LIST }
@@ -887,7 +926,7 @@ internal fun typeFonctionEcritDe(reference: NoeudArbre): TypeFonctionEcrit? {
         .lastOrNull { it.genre == KtNodeTypes.TYPE_REFERENCE }
         ?.let { referenceTypeEcritSimple(it) }
         ?: return null
-    return TypeFonctionEcrit(parametres, retour)
+    return TypeFonctionEcrit(parametres, retour, recepteur)
 }
 
 /** Le nom simple ÉCRIT d'une référence de type (nullable déballée — aide). */
