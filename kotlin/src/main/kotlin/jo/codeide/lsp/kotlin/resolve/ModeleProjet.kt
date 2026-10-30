@@ -324,6 +324,18 @@ internal class ModeleProjet private constructor(
     internal fun typesParNomSimple(): List<String> = parNomSimple.keys.sorted()
 
     /**
+     * Les NOMS des appelables de premier niveau du modèle (étage 3 vague
+     * 3a — fiche 025 : la complétion de nom dans un corps propose les
+     * fonctions et propriétés DECLARÉES du projet par préfixe), tous
+     * packages confondus — la clé interne (package + nom) est DÉPOUILLÉE
+     * de son package.
+     *
+     * @return les noms distincts, TRIÉS (déterminisme).
+     */
+    internal fun nomsAppelables(): List<String> =
+        appelables.keys.map { it.substringAfter('\u0000') }.distinct().sorted()
+
+    /**
      * Rend les appelables de premier niveau portant EXACTEMENT ce nom dans
      * ce package.
      *

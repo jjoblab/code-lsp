@@ -11,8 +11,10 @@ import java.io.File
 import java.util.concurrent.locks.ReentrantReadWriteLock
 import jo.codeide.lsp.kotlin.api.ClasspathKotlin
 import jo.codeide.lsp.kotlin.api.DiagnosticKotlin
+import jo.codeide.lsp.kotlin.api.GenreContexteKotlin
 import jo.codeide.lsp.kotlin.api.PlagePliableKotlin
 import jo.codeide.lsp.kotlin.api.PropositionKotlin
+import jo.codeide.lsp.kotlin.api.ReponseCompletionKotlin
 import jo.codeide.lsp.kotlin.api.SessionLangageKotlin
 import jo.codeide.lsp.kotlin.api.SurvolKotlin
 import jo.codeide.lsp.kotlin.index.IndexAppelablesKotlin
@@ -207,23 +209,40 @@ internal class SessionLangageKotlinDocuments(
     }
 
     /**
-     * Rend les propositions de complétion au point demandé (étage 2 vague
-     * 2a : le GERME MEMBRE — fiche 022 ; le pipeline complet est l'étage 3).
+     * Rend les propositions de complétion au point demandé (étage 3 —
+     * ADR 0113 : le pipeline complet — classification du caret, régimes de
+     * collecte, arrangement honnête ; le germe membre vague 2a reste couvert
+     * par le régime MEMBRE).
      *
      * @param uri l'identifiant du document ;
      * @param deplacement l'offset du caret dans le texte du document ;
-     * @return les propositions du récepteur typé du projet ; liste VIDE
-     * pour un document inconnu/fermé ou une position sans récepteur —
+     * @return les propositions ARRANGÉES (≤ plafond d'affichage) ; liste
+     * VIDE pour un document inconnu/fermé ou une position sans contexte —
      * jamais `null`, jamais d'exception.
      */
     override fun completion(uri: String, deplacement: Int): List<PropositionKotlin> {
+        return completionArrangee(uri, deplacement).propositions
+    }
+
+    /**
+     * Rend la réponse ARRANGÉE de complétion au point demandé (étage 3 —
+     * ADR 0113 : le genre du contexte et le TOTAL RÉEL de l'espace de
+     * candidats voyagent avec la liste plafonnée — le plafond ne ment
+     * jamais).
+     *
+     * @param uri l'identifiant du document ;
+     * @param deplacement l'offset du caret dans le texte du document ;
+     * @return la réponse arrangée ; propositions VIDE et genre INCONNU pour
+     * un document inconnu/fermé — jamais `null`, jamais d'exception.
+     */
+    override fun completionArrangee(uri: String, deplacement: Int): ReponseCompletionKotlin {
         val document =
             verrou.read {
                 if (fermee) return@read null
                 documents[uri]
-            } ?: return emptyList()
+            } ?: return ReponseCompletionKotlin(GenreContexteKotlin.INCONNU, emptyList(), 0)
         val guichet = indexSiPret()
-        return CompletionMembres.proposer(
+        return CompletionPipeline.proposer(
             document = document,
             uri = uri,
             deplacement = deplacement,

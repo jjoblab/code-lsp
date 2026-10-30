@@ -70,6 +70,155 @@ internal class VueJvmMembres(private val entrees: List<EntreeClasspathKotlin>) {
     /** Le cache des CHAÎNES de supertypes par FQCN (vague 2d — fiche 033). */
     private val cacheChaines = HashMap<String, List<String>?>()
 
+    /** Le cache des jeux DÉTAILLÉS par FQCN (étage 3 vague 3a — fiche 045). */
+    private val cacheJeuxDetailles = HashMap<String, List<MembreDetailleJvm>?>()
+
+    /**
+     * L'ANNUAIRE paresseux des types des entrées (étage 3 vague 3a —
+     * fiche 045 : complétion de nom avec auto-import et complétion
+     * d'import) : `null` tant qu'aucune requête ne l'exige, puis UNE
+     * marche des entrées construit les trois tables — noms SIMPLES triés
+     * (recherche par préfixe), noms simples → FQCN (les collisions sont
+     * LÉGALES : plusieurs paquets portent un `Builder`), paquets CONNUS
+     * (tout préfixe de paquet d'une classe, intermédiaires compris).
+     */
+    private var annuaire: AnnuaireTypesJvm? = null
+
+    /**
+     * L'annuaire des types — construit à la PREMIÈRE requête (une seule
+     * marche des entrées : les noms d'entrées du zip central seuls, aucun
+     * class-file n'est ouvert — la complétion de nom reste une requête
+     * légère), puis servi du champ.
+     *
+     * @return l'annuaire immuable (jamais `null` après construction).
+     */
+    private fun annuaireTypes(): AnnuaireTypesJvm {
+        annuaire?.let { return it }
+        val parNomSimple = HashMap<String, MutableList<String>>()
+        val paquets = HashSet<String>()
+        for (i in entrees.indices) {
+            val zip = zipDe(i) ?: continue
+            val entreesZip = try {
+                zip.entries()
+            } catch (_: Exception) {
+                continue
+            }
+            for (entree in entreesZip) {
+                val nom = entree.name
+                if (!nom.endsWith(".class")) continue
+                if (nom.endsWith("/module-info.class") ||
+                    nom.endsWith("/package-info.class")
+                ) {
+                    continue
+                }
+                val base = nom.substringAfterLast('/')
+                if ('\$' in base) continue
+                val fqcn = nom.removeSuffix(".class").replace('/', '.')
+                parNomSimple.getOrPut(base.removeSuffix(".class")) { mutableListOf() }.add(fqcn)
+                // Tout PRÉFIXE de paquet est un paquet CONNU (les
+                // intermédiaires `android` de `android.widget.TextView`
+                // n'ont aucune classe propre — ils existent pourtant).
+                var paquet = fqcn
+                while (true) {
+                    paquet = paquet.substringBeforeLast('.', "")
+                    if (paquet.isEmpty()) break
+                    if (!paquets.add(paquet)) break
+                }
+            }
+        }
+        val construit = AnnuaireTypesJvm(
+            nomsTries = parNomSimple.keys.sorted(),
+            parNomSimple = parNomSimple,
+            paquets = paquets,
+        )
+        annuaire = construit
+        return construit
+    }
+
+    /**
+     * Les FQCN des classes des entrées dont le nom SIMPLE porte ce
+     * PRÉFIXE (étage 3 — fiche 045 : « types du classpath avec
+     * auto-import ») : marche binaire bornée sur les noms triés, chaque
+     * nom rend TOUS ses FQCN (les collisions se proposent toutes —
+     * l'hôte arbitre par import).
+     *
+     * @param prefixe le préfixe sensible à la casse (`TextV`) ;
+     * @param limite le nombre maximum de noms simples parcourus ;
+     * @return les FQCN distincts, triés (déterminisme) ; liste vide sans
+     * classe correspondante ou entrée lisible.
+     */
+    internal fun fqcnParPrefixe(prefixe: String, limite: Int): List<String> {
+        if (prefixe.isEmpty() || limite <= 0) return emptyList()
+        synchronized(this) {
+            val annuaireTypes = annuaireTypes()
+            val trouves = sortedSetOf<String>()
+            var indice = annuaireTypes.nomsTries.binarySearch { nom ->
+                nom.compareTo(prefixe).takeIf { it != 0 } ?: 1
+            }
+            if (indice < 0) indice = -indice - 1
+            var visites = 0
+            while (indice < annuaireTypes.nomsTries.size && visites < limite) {
+                val nom = annuaireTypes.nomsTries[indice]
+                if (!nom.startsWith(prefixe)) break
+                annuaireTypes.parNomSimple[nom]?.let { trouves.addAll(it) }
+                indice++
+                visites++
+            }
+            return trouves.toList()
+        }
+    }
+
+    /**
+     * Les SOUS-PAQUETS DIRECTS d'un paquet des entrées (étage 3 — fiche
+     * 045 : « complétion import : sous-paquets du paquet tapé ») : les
+     * enfants immédiats qui PORTENT des classes ou en portent plus bas
+     * (`android` → `widget`, `view`…).
+     *
+     * @param parent le paquet parent (`android`) ;
+     * @return les sous-paquets directs, TRIÉS (déterminisme) ; liste vide
+     * si le paquet n'est pas connu.
+     */
+    internal fun sousPaquetsDirects(parent: String): List<String> {
+        if (parent.isEmpty()) return emptyList()
+        synchronized(this) {
+            val annuaireTypes = annuaireTypes()
+            if (parent !in annuaireTypes.paquets) return emptyList()
+            val cible = "$parent."
+            val enfants = sortedSetOf<String>()
+            for (paquet in annuaireTypes.paquets) {
+                if (!paquet.startsWith(cible)) continue
+                enfants.add(cible + paquet.removePrefix(cible).substringBefore('.'))
+            }
+            return enfants.toList()
+        }
+    }
+
+    /**
+     * Les FQCN des classes directement posées dans ce PAQUET (étage 3 —
+     * complétion d'import : les types directs du paquet tapé, sous les
+     * sous-paquets dominants).
+     *
+     * @param paquet le paquet (`android.widget`) ;
+     * @return les FQCN triés ; liste vide si le paquet n'est pas connu.
+     */
+    internal fun typesDansPaquet(paquet: String): List<String> {
+        if (paquet.isEmpty()) return emptyList()
+        synchronized(this) {
+            val annuaireTypes = annuaireTypes()
+            if (paquet !in annuaireTypes.paquets) return emptyList()
+            val cible = "$paquet."
+            val trouves = sortedSetOf<String>()
+            for ((_, fqcns) in annuaireTypes.parNomSimple) {
+                for (fqcn in fqcns) {
+                    if (fqcn.startsWith(cible) && fqcn.removePrefix(cible).indexOf('.') == -1) {
+                        trouves.add(fqcn)
+                    }
+                }
+            }
+            return trouves.toList()
+        }
+    }
+
     /**
      * Les membres DÉCLARÉS d'un FQCN des entrées (sans héritage).
      *
@@ -116,6 +265,26 @@ internal class VueJvmMembres(private val entrees: List<EntreeClasspathKotlin>) {
             if (cacheJeux.containsKey(fqcn)) return cacheJeux[fqcn]
             val jeu = assemblerJeu(fqcn)
             cacheJeux[fqcn] = jeu
+            return jeu
+        }
+    }
+
+    /**
+     * Le jeu de membres DÉTAILLÉ d'un FQCN (étage 3 vague 3a — fiche 045 :
+     * « champ et méthode le long de la chaîne de supertypes ») : la MÊME
+     * marche que [jeuComplet], mais chaque nom emporte son GENRE (fonction
+     * ou propriété) et son TYPE de présentation (le type nu du champ, le
+     * type de la propriété dérivée — nom simple, `CharSequence`) — le
+     * plus dérivé gagne par nom, miroir de [chercherMembreChaine].
+     *
+     * @param fqcn le nom pleinement qualifié du récepteur ;
+     * @return le jeu détaillé ; `null` si la chaîne n'est pas lisible.
+     */
+    internal fun jeuDetaille(fqcn: String): List<MembreDetailleJvm>? {
+        synchronized(this) {
+            if (cacheJeuxDetailles.containsKey(fqcn)) return cacheJeuxDetailles[fqcn]
+            val jeu = assemblerJeuDetaille(fqcn)
+            cacheJeuxDetailles[fqcn] = jeu
             return jeu
         }
     }
@@ -394,6 +563,62 @@ internal class VueJvmMembres(private val entrees: List<EntreeClasspathKotlin>) {
     }
 
     /**
+     * Assemble le jeu DÉTAILLÉ par la même marche bornée que
+     * [assemblerJeu] (chaîne de supertypes, cycle-interrompue, terminaux
+     * connus) — chaque nom emporte genre et type de présentation, le
+     * PREMIER maillon déclarant gagne (le plus dérivé).
+     *
+     * @param fqcn le FQCN de départ ;
+     * @return le jeu détaillé ; `null` si un maillon manque des entrées.
+     */
+    private fun assemblerJeuDetaille(fqcn: String): List<MembreDetailleJvm>? {
+        val membres = LinkedHashMap<String, MembreDetailleJvm>()
+        fun ajouter(detaille: MembreDetailleJvm) {
+            if (detaille.nom !in membres) membres[detaille.nom] = detaille
+        }
+        val visites = HashSet<String>()
+        val pile = ArrayDeque<String>()
+        pile.addLast(fqcn)
+        var profondeur = 0
+        while (pile.isNotEmpty()) {
+            if (++profondeur > PROFONDEUR_MAX) return null
+            val courant = pile.removeLast()
+            if (!visites.add(courant)) continue
+            if (courant == "java.lang.Object" || courant == "kotlin.Any") {
+                IMPLICITS_ANY.forEach { ajouter(MembreDetailleJvm(it, GenreMembreHerite.FONCTION, null)) }
+                continue
+            }
+            if (courant == "java.lang.Enum") {
+                IMPLICITS_ENUM.forEach { ajouter(MembreDetailleJvm(it, GenreMembreHerite.PROPRIETE, null)) }
+                continue
+            }
+            val declares = lireMembres(courant) ?: return null
+            for (membre in declares.membres) {
+                ajouter(
+                    MembreDetailleJvm(
+                        nom = membre.nom,
+                        genre = if (membre.estChamp) GenreMembreHerite.PROPRIETE else GenreMembreHerite.FONCTION,
+                        typeDetail = membre.retour()?.substringAfterLast('.'),
+                    ),
+                )
+            }
+            for (derivee in declares.proprietesDerivees) {
+                ajouter(
+                    MembreDetailleJvm(
+                        nom = derivee.nom,
+                        genre = GenreMembreHerite.PROPRIETE,
+                        typeDetail = derivee.typeFqcn?.substringAfterLast('.'),
+                    ),
+                )
+            }
+            declares.superFqcn?.let { pile.addLast(it) }
+            pile.addAll(declares.interfaces)
+        }
+        IMPLICITS_ANY.forEach { ajouter(MembreDetailleJvm(it, GenreMembreHerite.FONCTION, null)) }
+        return membres.values.toList()
+    }
+
+    /**
      * Cherche un membre PAR NOM sur la chaîne (vague 2c) : le premier
      * maillon qui DÉCLARE le nom (membre brut ou propriété dérivée)
      * — le plus dérivé gagne, miroir de la sémantique de surcharge.
@@ -407,8 +632,14 @@ internal class VueJvmMembres(private val entrees: List<EntreeClasspathKotlin>) {
             if (++profondeur > PROFONDEUR_MAX) return null
             val courant = pile.removeLast()
             if (!visites.add(courant)) continue
-            if (courant == "java.lang.Object" || courant == "kotlin.Any") return null
-            if (courant == "java.lang.Enum") return null
+            // Les TERMINAUX CONNUS ne portent RIEN de lisible dans les
+            // entrées — la marche CONTINUE sur le reste de la pile (étage
+            // 3, fiche 045 : le récepteur TextView porte des INTERFACES
+            // dont la superclasse binaire EST Object — l'exploration
+            // d'Object AVANT la superclasse View ne doit pas éteindre la
+            // recherche d'un membre hérité ; miroir de [assemblerJeu]).
+            if (courant == "java.lang.Object" || courant == "kotlin.Any") continue
+            if (courant == "java.lang.Enum") continue
             val declares = lireMembres(courant) ?: return null
             val signatures = declares.membres.filter { it.nom == nom }
                 .map { SignatureJvm(it.nom, it.estChamp, it.parametres(), it.retour()) }
@@ -648,6 +879,22 @@ internal class CompagnonJvm(
 )
 
 /**
+ * Un membre du jeu DÉTAILLÉ (étage 3 vague 3a — fiche 045) : le nom, son
+ * genre et son type de présentation (nom SIMPLE — `CharSequence`), la
+ * matière des propositions de complétion membre riches.
+ *
+ * @property nom le nom appelé ;
+ * @property genre fonction ou propriété ;
+ * @property typeDetail le type de présentation (nom simple), `null` sans
+ * type démontrable (une fonction sans détail de signature).
+ */
+internal class MembreDetailleJvm(
+    internal val nom: String,
+    internal val genre: GenreMembreHerite,
+    internal val typeDetail: String?,
+)
+
+/**
  * Le jeu de membres COMPLET d'un récepteur classpath (la matière des
  * preuves ADR 0223 — présence et absence) : déclarés de toute la chaîne,
  * propriétés dérivées et implicites de Any/Object.
@@ -664,6 +911,23 @@ internal class JeuMembresJvm(internal val noms: Set<String>) {
      */
     internal fun contient(nom: String): Boolean = nom in noms
 }
+
+/**
+ * L'ANNUAIRE des types des entrées du classpath (étage 3 vague 3a —
+ * fiche 045) : la structure servie par la marche paresseuse de la vue —
+ * noms simples TRIÉS (recherche par préfixe en binaire), noms simples →
+ * FQCN (les collisions se proposent toutes), paquets CONNUS
+ * (intermédiaires compris).
+ *
+ * @property nomsTries les noms SIMPLES des classes, triés ;
+ * @property parNomSimple les FQCN par nom simple ;
+ * @property paquets les paquets portant (ou précédant) des classes.
+ */
+internal class AnnuaireTypesJvm internal constructor(
+    internal val nomsTries: List<String>,
+    internal val parNomSimple: Map<String, List<String>>,
+    internal val paquets: Set<String>,
+)
 
 /**
  * Le dépouillement des DESCRIPTEURS de la JVMS §4.3 (vague 2c) : les types

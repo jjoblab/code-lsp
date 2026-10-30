@@ -7,6 +7,7 @@
 // lecture interdite R9.1 — cette implémentation est écrite cahier en main.
 package jo.codeide.lsp.kotlin.resolve
 
+import jo.codeide.lsp.kotlin.api.NaturePropositionKotlin
 import jo.codeide.lsp.kotlin.index.VueAppelables
 import jo.codeide.lsp.kotlin.parse.NoeudArbre
 import jo.codeide.lsp.kotlin.parse.kt.KtDirectiveImport
@@ -623,6 +624,116 @@ internal class UniversPreuves(
     }
 
     /**
+     * Les propositions de complétion membre DÉTAILLÉES d'un récepteur TYPÉ
+     * (étage 3 vague 3a — fiche 045 : « champ et méthode le long de la
+     * chaîne de supertypes ») : les MÊMES sources que
+     * [propositionsMembres], dans le MÊME ordre de rencontre — chaque nom
+     * emporte sa NATURE (fonction, propriété, constante d'enum, type
+     * imbriqué) et son DÉTAIL de présentation (le type écrit d'une
+     * propriété, le type du champ JVM, le type de retour d'une extension).
+     *
+     * @param recepteur le type du récepteur (projet ou classpath) ;
+     * @return les propositions détaillées ; liste vide si rien.
+     */
+    internal fun propositionsMembresDetaillees(recepteur: TypeValeur): List<PropositionDetaillee> {
+        val propositions = LinkedHashMap<String, PropositionDetaillee>()
+
+        fun poser(nom: String, nature: NaturePropositionKotlin, detail: String? = null) {
+            if (nom.isNotEmpty() && nom !in propositions) {
+                propositions[nom] = PropositionDetaillee(nom, nature, detail)
+            }
+        }
+
+        fun poserMembreProjet(membre: MembreProjet) {
+            when (membre.genre) {
+                GenreMembreProjet.FONCTION -> poser(membre.nom, NaturePropositionKotlin.FONCTION)
+                GenreMembreProjet.PROPRIETE ->
+                    poser(membre.nom, NaturePropositionKotlin.PROPRIETE, membre.typeRetourNomme)
+                GenreMembreProjet.TYPE_IMBRIQUE -> poser(membre.nom, NaturePropositionKotlin.CLASSE)
+            }
+        }
+
+        if (recepteur is TypeValeur.Projet) {
+            // La clôture d'abord : les DÉCLARÉS puis les HÉRITÉS de la
+            // chaîne mixte — une chaîne ouverte retombe sur les déclarés
+            // seuls (miroir exact de propositionsMembres).
+            val cloture = if (recepteur.type.absenceFiable) null else clotureDe(recepteur.type)
+            if (cloture != null) {
+                for ((nom, membre) in cloture.membres) {
+                    when (membre.genre) {
+                        GenreMembreHerite.FONCTION -> poser(nom, NaturePropositionKotlin.FONCTION)
+                        GenreMembreHerite.PROPRIETE ->
+                            poser(nom, NaturePropositionKotlin.PROPRIETE, membre.typeEcrit)
+                        GenreMembreHerite.TYPE_IMBRIQUE -> poser(nom, NaturePropositionKotlin.CLASSE)
+                    }
+                }
+            } else {
+                for (membre in recepteur.type.membres) poserMembreProjet(membre)
+            }
+            if (recepteur.type.genre == GenreTypeProjet.ENUM) {
+                for (entree in recepteur.type.entreesEnum) {
+                    poser(entree, NaturePropositionKotlin.ENUM, recepteur.type.nomSimple)
+                }
+            }
+            MEMBRES_IMPLICITS.forEach { poser(it, NaturePropositionKotlin.FONCTION) }
+            // Les membres du COMPAGNON (portée STATIQUE du conteneur).
+            for (membre in recepteur.type.membresCompagnon) poserMembreProjet(membre)
+            for (extension in modele.extensionsSur(recepteur.type.fqcn)) {
+                poser(extension.nom, NaturePropositionKotlin.FONCTION, extension.typeRetourNomme)
+            }
+            if (index != null) {
+                for (extension in index.extensionsSur(recepteur.type.fqcn)) {
+                    poser(extension.nom, NaturePropositionKotlin.FONCTION, extension.typeRetour)
+                }
+            }
+            return propositions.values.toList()
+        }
+        val fqcn = (recepteur as TypeValeur.Jvm).fqcn
+        val mappes = MAPPES_JVM[fqcn] ?: fqcn
+        // Le jeu DÉTAILLÉ de la chaîne (déclarés + dérivés + implicites) ;
+        // une chaîne illISIBLE rend la complétion vide d'entrées membres
+        // (les extensions de l'index se proposent encore — D3).
+        val detailles = vueJvm?.jeuDetaille(mappes)
+        if (detailles != null) {
+            for (membre in detailles) {
+                when (membre.genre) {
+                    GenreMembreHerite.FONCTION -> poser(membre.nom, NaturePropositionKotlin.FONCTION)
+                    GenreMembreHerite.PROPRIETE ->
+                        poser(membre.nom, NaturePropositionKotlin.PROPRIETE, membre.typeDetail)
+                    GenreMembreHerite.TYPE_IMBRIQUE -> poser(membre.nom, NaturePropositionKotlin.CLASSE)
+                }
+            }
+        } else {
+            vueJvm?.jeuComplet(mappes)?.noms?.forEach { poser(it, NaturePropositionKotlin.FONCTION) }
+        }
+        // Les IMBRIQUÉES `$` du conteneur et de sa chaîne (vague 2c).
+        vueJvm?.imbriquesDe(mappes)?.forEach { poser(it, NaturePropositionKotlin.CLASSE) }
+        MEMBRES_IMPLICITS.forEach { poser(it, NaturePropositionKotlin.FONCTION) }
+        // Les membres du COMPAGNON du classpath — l'illisible ne propose
+        // RIEN (D3) ; les natures se lisent du jeu détaillé du compagnon.
+        val compagnon = vueJvm?.compagnonDe(fqcn)
+        if (compagnon != null && !compagnon.illisible) {
+            val detailsCompagnon = vueJvm?.jeuDetaille(fqcn + "$Companion")
+                ?.associateBy { it.nom }.orEmpty()
+            for (nom in compagnon.noms) {
+                val detail = detailsCompagnon[nom]
+                when (detail?.genre) {
+                    GenreMembreHerite.PROPRIETE ->
+                        poser(nom, NaturePropositionKotlin.PROPRIETE, detail.typeDetail)
+                    GenreMembreHerite.TYPE_IMBRIQUE -> poser(nom, NaturePropositionKotlin.CLASSE)
+                    else -> poser(nom, NaturePropositionKotlin.FONCTION)
+                }
+            }
+        }
+        if (index != null) {
+            for (extension in index.extensionsSur(fqcn)) {
+                poser(extension.nom, NaturePropositionKotlin.FONCTION, extension.typeRetour)
+            }
+        }
+        return propositions.values.toList()
+    }
+
+    /**
      * Résout un CHEMIN DE SEGMENTS en classe (vague 2c — fiches 044 E4/
      * E4bis, 028/029 : les types QUALIFIÉS et les FQN d'expression) :
      * (a) le chemin complet comme FQCN ABSOLU du projet
@@ -948,3 +1059,20 @@ private fun KtDirectiveImport.nomEffectif(): String? {
     val segment = chemin.substringAfterLast('.')
     return segment.ifEmpty { null }
 }
+
+/**
+ * Une proposition de complétion membre DÉTAILLÉE (étage 3 vague 3a —
+ * fiche 045) : le nom, sa nature et son détail de présentation — la
+ * matière interne du régime MEMBRE, convertie en
+ * [jo.codeide.lsp.kotlin.api.PropositionKotlin] par le pipeline.
+ *
+ * @property nom le nom proposé (nu) ;
+ * @property nature la nature de l'entité ;
+ * @property detail le détail de présentation (type écrit, type du champ,
+ * type de retour d'extension), `null` sans détail démontrable.
+ */
+internal class PropositionDetaillee(
+    internal val nom: String,
+    internal val nature: NaturePropositionKotlin,
+    internal val detail: String?,
+)

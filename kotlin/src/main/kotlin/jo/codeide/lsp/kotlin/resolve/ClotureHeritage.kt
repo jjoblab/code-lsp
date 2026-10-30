@@ -137,6 +137,14 @@ internal class PileThis private constructor(private val couches: List<CoucheThis
         get() = couches.flatMapTo(LinkedHashSet()) { it.cloture?.membres?.keys.orEmpty() }
 
     /**
+     * Les membres DÉTAILLÉS de toutes les couches (étage 3 vague 3a —
+     * fiche 045 : la complétion de nom propose les membres du récepteur
+     * IMPLICITE avec leur nature et leur type écrit).
+     */
+    internal val membresDetaillesDesCouches: List<MembreHerite>
+        get() = couches.flatMap { it.cloture?.membres?.values.orEmpty() }
+
+    /**
      * Le TYPE d'un membre de la pile (vague 2c — le typage des récepteurs
      * implicites : `layoutInflater` type `LayoutInflater`, `compte` type
      * `Int`, l'imbriquée `Resultats` type `Base$Resultats`).

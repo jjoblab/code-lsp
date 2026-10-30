@@ -18,3 +18,10 @@ local.properties
 
 # Oracle du banc de parité croisée (étage T — construit par scripts/preparer-oracle.sh, JAMAIS committé, R6.4)
 .oracle/
+
+# Outils de mesure locaux (build-tools d8 téléchargé + sorties dex — bac à sable)
+bt/
+dex-sortie/
+# Sorties du sous-processus K2 du banc de fidélité (CWD du compilateur)
+kotlin/mondes/
+kotlin/META-INF/

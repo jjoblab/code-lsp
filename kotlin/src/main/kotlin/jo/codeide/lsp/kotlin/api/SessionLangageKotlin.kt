@@ -119,22 +119,43 @@ public interface SessionLangageKotlin : AutoCloseable {
     public fun survol(uri: String, deplacement: Int): SurvolKotlin?
 
     /**
-     * Rend les propositions de COMPLÉTION au point demandé (étage 2 vague
-     * 2a : le GERME MEMBRE — les membres d'un récepteur typé du PROJET
-     * après le point, fiche 022 : « copy proposé après `p.` » ; le pipeline
-     * complet du catalogue est l'étage 3).
+     * Rend les propositions de COMPLÉTION au point demandé (étage 3 —
+     * ADR 0113 : le pipeline complet — classification du caret, régimes
+     * de collecte membre/nom/import/contextuelle, arrangement honnête ;
+     * le germe membre de la vague 2a, fiche 022 : « copy proposé après
+     * `p.` », reste couvert par le régime MEMBRE).
      *
-     * Le germe est conservateur : un point sans récepteur typé du projet
-     * rend une liste VIDE honnête (les récepteurs classpath, les positions
-     * de noms et les contextes requêteurs relèvent de l'étage 3).
+     * Le moteur est conservateur : un point sans contexte prouvable rend
+     * une liste VIDE honnête (récepteur non typé, valeur en cours de
+     * frappe — D3), jamais une invention.
      *
      * @param uri l'identifiant du document ;
      * @param deplacement l'offset du caret dans le texte du document ;
-     * @return les propositions, en ordre de déclaration du récepteur ;
-     * liste VIDE pour un document inconnu, fermé, ou une position sans
-     * récepteur typé du projet — jamais `null`, jamais d'exception.
+     * @return les propositions ARRANGÉES (ordonnées puis plafonnées à
+     * l'affichage) ; liste VIDE pour un document inconnu, fermé ou une
+     * position sans contexte — jamais `null`, jamais d'exception.
      */
     public fun completion(uri: String, deplacement: Int): List<PropositionKotlin>
+
+    /**
+     * Rend la réponse ARRANGÉE de complétion au point demandé (étage 3 —
+     * ADR 0113 : l'arrangement honnête — le plafond d'affichage ne ment
+     * jamais sur la taille de l'espace de candidats).
+     *
+     * Le genre du contexte (membre, nom, import, arguments nommés,
+     * constantes d'enum, attributs d'annotation) voyage avec la réponse :
+     * l'hôte sait POURQUOI la liste a cette forme (contexte exclusif ou
+     * régime de repli), et le total réel lui dit si la liste est
+     * tronquée.
+     *
+     * @param uri l'identifiant du document ;
+     * @param deplacement l'offset du caret dans le texte du document ;
+     * @return la réponse arrangée (genre + propositions ≤ plafond +
+     * total réel) ; propositions VIDE et genre [GenreContexteKotlin.INCONNU]
+     * pour un document inconnu, fermé ou une position sans contexte —
+     * jamais `null`, jamais d'exception.
+     */
+    public fun completionArrangee(uri: String, deplacement: Int): ReponseCompletionKotlin
 
     /**
      * Rend les FQCN candidats à l'IMPORT pour le nom sous le point demandé

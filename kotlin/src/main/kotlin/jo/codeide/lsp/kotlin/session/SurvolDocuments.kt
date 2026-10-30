@@ -86,7 +86,12 @@ internal object SurvolDocuments {
         // 3. Déclarations externes du scan (L1).
         val externe = scan?.declaration(nom)
         if (externe != null) {
-            return SurvolKotlin(signature = externe.signature, documentation = externe.documentation)
+            // Garde D3 (ADR 0208, fiche 045) : la KDoc tierce voyage avec
+            // le SNAPSHOT du scan — un fichier déclarant DISPARU depuis ne
+            // la sert plus (signature seule, jamais d'exception) ; une URI
+            // non-fichier (fixture) ne se vérifie pas : la KDoc reste.
+            val documentation = externe.documentation?.takeIf { fichierDeclarantLisible(externe.uri) }
+            return SurvolKotlin(signature = externe.signature, documentation = documentation)
         }
 
         // 3-bis. Les APPELABLES de premier niveau du CLASSPATH (vague 2e —
@@ -244,6 +249,24 @@ internal object SurvolDocuments {
     // ------------------------------------------------------------------
     // Rendu : signature et documentation.
     // ------------------------------------------------------------------
+
+    /**
+     * Le fichier déclarant d'une déclaration du scan est-il encore LISIBLE
+     * (garde D3 — ADR 0208) : une URI `file:` se vérifie par existence ;
+     * toute autre forme (fixture, schéma inconnu) ne se vérifie PAS — la
+     * documentation reste servie (conservateur honnête).
+     *
+     * @param uri l'URI de la déclaration externe ;
+     * @return `true` si le fichier existe (ou si l'URI n'est pas vérifiable).
+     */
+    private fun fichierDeclarantLisible(uri: String): Boolean {
+        if (!uri.startsWith("file:")) return true
+        return try {
+            java.io.File(java.net.URI(uri)).isFile
+        } catch (_: Exception) {
+            true
+        }
+    }
 
     /**
      * Rend le survol d'une déclaration IN-VIVO (document ouvert) : signature
@@ -470,8 +493,16 @@ internal object SurvolDocuments {
             for (enfant in enfants) {
                 val declaration = FabriqueKt.declaration(enfant, fichier.source) ?: continue
                 resultat.add(declaration)
-                val corps = enfant.enfants.firstOrNull { it.genre == KtNodeTypes.CLASS_BODY }
-                if (corps != null) collecter(corps.enfants)
+                // Les corps porteurs de déclarations : le CORPS DE CLASSE
+                // (membres) et le BLOC d'une fonction (LOCALES — étage 3
+                // vague 3a, fiche 045 : « survol : locale avec type écrit »,
+                // « définition : locale du document courant » — une locale
+                // se survole et se définit comme toute déclaration).
+                for (corps in enfant.enfants) {
+                    if (corps.genre == KtNodeTypes.CLASS_BODY || corps.genre == KtNodeTypes.BLOCK) {
+                        collecter(corps.enfants)
+                    }
+                }
             }
         }
         val enfants = fichier.noeud.enfants
