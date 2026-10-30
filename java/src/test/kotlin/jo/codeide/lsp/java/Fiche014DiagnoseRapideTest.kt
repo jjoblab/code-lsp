@@ -199,4 +199,45 @@ class Fiche014DiagnoseRapideTest {
             "équivalence stricte (portage à offsets identiques)",
         )
     }
+
+    @Test
+    fun corpsHoteLongIdentifieStructurellementPasParIdentite() {
+        // Régression v1.1.1 (retour appareil du 30/10 : « l'éditeur n'affiche rien
+        // quand je tape, aucun signe des fonctionnalités du serveur ») : quand le
+        // corps hôte est ASSEZ LONG pour être masquable (>= SYNTHETIQUE.length),
+        // sourceMasquee comparait l'hôte par IDENTITÉ (===) — or l'hôte rendu par
+        // preuveDeConfinement est une instance de SON scan interne, et
+        // diagnostiquerRapide re-scanne la source : DEUX scans distincts produisent
+        // des instances DISTINCTES. L'hôte n'était jamais reconnu : il était masqué
+        // par le synthétique « throw new RuntimeException(); » comme les autres
+        // corps — la frappe de l'utilisateur était EFFACÉE du texte diagnostiqué,
+        // et l'erreur fraîche du corps édité n'apparaissait JAMAIS (0 diagnostic).
+        // Les corps de la fixture historique sont tous plus courts que le
+        // synthétique (laissés verbatim) : c'est pourquoi ce défaut a traversé la
+        // CI de la v1.1.0. Ici, le corps hôte dépasse volontairement la longueur
+        // du synthétique — la voie masquable est exercée.
+        val sourceValide = """
+            package app;
+
+            public class LongCorps {
+                void edite() { System.out.println("une ligne assez longue pour etre masquee"); }
+            }
+        """.trimIndent()
+        val sourceCassee = sourceValide.replace("System.out.println", "Systeme.out.printl")
+        val moteur = MoteurJava()
+        moteur.diagnose("/app/LongCorps.java", sourceValide) // état initial (diagnose complet)
+        val resultats = moteur.diagnose("/app/LongCorps.java", sourceCassee) // frappe confinée, corps masquable
+        assertEquals(1, moteur.fastDiagnoseHits, "le fast-path est bien emprunté (corps confiné)")
+        // Témoin AU MÊME CHEMIN que le moteur sous test (le helper [temoin] diagnostique
+        // à « /app/Main.java » : le nom de fichier du témoin doit correspondre à la
+        // classe de CETTE fixture — sinon un « must be defined in its own file » parasite
+        // la référence).
+        val reference = MoteurJava().diagnose("/app/LongCorps.java", sourceCassee)
+        assertEquals(reference.size, resultats.size, "l'erreur fraîche « Systeme » doit PARAÎTRE (taille du témoin)")
+        assertEquals(
+            reference.map { listOf(it.plage.debutOffset, it.plage.finOffset, it.severite, it.message, it.code) },
+            resultats.map { listOf(it.plage.debutOffset, it.plage.finOffset, it.severite, it.message, it.code) },
+            "équivalence stricte au témoin neuf (l'hôte diagnostiqué INTACT)",
+        )
+    }
 }

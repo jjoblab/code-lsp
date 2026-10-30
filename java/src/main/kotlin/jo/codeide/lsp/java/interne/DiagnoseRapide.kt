@@ -122,7 +122,17 @@ public object DiagnoseRapide {
         val resultat = source.toCharArray()
         var frontierePrecedente = -1
         for (plage in corps) {
-            if (plage === hote) continue
+            // Égalité STRUCTURELLE (==), jamais l'identité (===) : l'hôte rendu par
+            // [preuveDeConfinement] est une instance de SON scan interne, tandis que
+            // cette liste vient du re-scan de diagnostiquerRapide — DEUX scans de la
+            // même source produisent des instances DISTINCTES. Avec ===, l'hôte
+            // n'était JAMAIS reconnu : il était masqué par le synthétique comme les
+            // autres corps, la frappe de l'utilisateur était EFFACÉE du texte
+            // diagnostiqué (0 diagnostic pour une erreur fraîche — v1.1.0, mesuré
+            // sur JVM ET appareil : « l'éditeur n'affiche rien quand je tape »).
+            // PlageCorps est une data class ; les plages d'une même liste étant
+            // disjointes, l'égalité structurelle ne peut confondre deux corps.
+            if (plage == hote) continue
             if (plage.debutInterieur < frontierePrecedente) continue // imbriqué : déjà couvert
             if (plage.longueur >= SYNTHETIQUE.length) {
                 for (k in 0 until SYNTHETIQUE.length) {

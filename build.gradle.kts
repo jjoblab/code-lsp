@@ -24,5 +24,5 @@ plugins {
 // sérialisation superDefinition ALIGNÉ sur le vendord {path, start, end,
 // label} (miroir cel-lsp — aucune adaptation client requise) ; fiche 066.
 allprojects {
-    version = "1.1.0"
+    version = "1.1.1"
 }

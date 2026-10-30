@@ -351,3 +351,73 @@ installer, B1–B8 de `TESTS_MANUELS.md`, fiches 004/010/039, PV à
 consigner) **et I6** (retrait physique du vendored après « 2 versions
 sans régression » — l'habitat unique Java est EFFECTIF depuis cette
 poussée).
+
+## 9. Exécution (31/10 au matin, suite) — I5 : la panne « rien ne s'affiche » reproduite, isolée et CORRIGÉE (v1.1.1)
+
+Le retour appareil du 30/10 au soir (CodeIDE **0.203.0**, session
+`b5e5cc70` — « le serveur semble ne pas fonctionner, l'éditeur n'affiche
+rien quand je tape, aucun signe des fonctionnalités du serveur » ; 39
+entrées exportées) a été **reproduit sur JVM** par un harnais miroir du
+branchement complet (cel-lsp **4.14.1** + transport in-process +
+`ServeurLangageJava(EnvironnementCompilation)` + frappe réelle dans le
+document) : didOpen/didChange partent, `publishDiagnostics` ARRIVE — mais
+**toujours avec 0 diagnostic**, y compris pour une ligne volontairement
+cassée (`Systeme.out.printl`).
+
+### 9.1 Cause racine (mesurée, pas déduite)
+
+`DiagnoseRapide.sourceMasquee` comparait le corps hôte par **IDENTITÉ**
+(`===`). Or l'hôte est rendu par `preuveDeConfinement` — une instance de
+SON scan interne — tandis que `diagnostiquerRapide` re-scanne la source
+pour construire la liste des corps : **deux scans de la même source
+produisent des instances DISTINCTES**, l'hôte n'était JAMAIS reconnu et
+était masqué par le synthétique `throw new RuntimeException();` comme les
+autres corps. La frappe de l'utilisateur était littéralement EFFACÉE du
+texte soumis à ecj : le diagnose rapide rendait les diagnostics PORTÉS de
+l'état précédent (0 après une ouverture saine) — plus AUCUN diagnostic à
+la frappe, sur appareil comme sur JVM. L'arbre focalisé (complétion dans
+le corps hôte, fiche 015) étant construit sur la même source masquée, la
+complétion dans le corps était atteinte du même défaut.
+
+**Pourquoi la CI de la v1.1.0 n'a rien vu** : les corps de la fixture de
+la fiche 014 sont tous PLUS COURTS que le synthétique (30 caractères) —
+laissés VERBATIM par `sourceMasquee`, la voie masquable n'était jamais
+exercée sur le corps HÔTE. Tout fichier Java réel (corps ≥ 30 caractères)
+déclenchait le défaut à la première frappe confinée.
+
+### 9.2 Correctif + garde
+
+1. **`sourceMasquee`** : l'hôte est désormais comparé par égalité
+   STRUCTURELLE (`==` — `PlageCorps` est une data class ; les plages
+   d'une même liste étant disjointes, deux corps distincts ne peuvent
+   être égaux). Audit des autres comparaisons d'identité :
+   `SourceFocuser` dérive l'hôte de LA MÊME liste qu'il itère (un seul
+   scan — sain) ; `portables` passe par `indexOf` (structurel — sain) ;
+   `corpsHote` n'est consommé que par plage (`contient` — sain).
+2. **Régression verrouillée** (fiche 014, `corpsHoteLong…`) : corps hôte
+   VOLONTAIREMENT ≥ 30 caractères, diagnose initial sain puis frappe
+   confinée cassée — équivalence stricte au témoin neuf exigée (le test
+   ÉCHOUE sur la v1.1.0 — vérifié sur le jar publié — et passe avec le
+   correctif).
+
+### 9.3 Validation locale (bac à sable — même incident 429 Central, même
+contournement miroir jetable que §8)
+
+`:java:test --rerun-tasks` : **478 tests verts** (dont la régression
+nouvelle) ; `test --rerun-tasks` sur tout le dépôt : 640 tests, **1 flake
+de minutage** (`IntegrationMoteurIndexTest` « réouverture chaude 3 ms /
+froid 2 ms » — passe isolément, sans rapport avec le correctif, même
+classe d'incident que les flakes de bench documentés par les dépôts
+frères). Publication **v1.1.1** : version du dépôt 1.1.0 → 1.1.1,
+`USAGE.md` aligné (serverInfo 1.1.1 — 3 occurrences + historique).
+
+### 9.4 Chaîne de consommation (au propriétaire)
+
+La correction ne sert CodeIDE qu'au terme de la chaîne : tag **v1.1.1**
+(ci-dessous) → CI de publication → **montée du pin hôte**
+`codeide-lsp-java = "1.1.1"` dans le catalogue de codeide-lsp + release
+de l'hôte (1.23.1) → bump du catalogue CodeIDE. D'ici là, le diagnostic
+de la v1.1.0 reste observable côté CodeIDE 0.204.0 : le sink cel-lsp
+câblé en v0.204.0 montre précisément `didChange` envoyé puis
+`publishDiagnostics: 0 diagnostics received` — la signature exacte de CE
+défaut.

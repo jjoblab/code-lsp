@@ -175,7 +175,7 @@ publications traversent la sérialisation Gson et les en-têtes
   `typeHierarchyProvider`, `workspaceSymbolProvider`,
   `inlayHintProvider`, et la capability maison
   `x-codeide.completionRanking` (§8).
-- `serverInfo` : nom **`lspjava`**, version **1.1.0** — lue de la
+- `serverInfo` : nom **`lspjava`**, version **1.1.1** — lue de la
   ressource embarquée `version.properties`, générée à la construction
   depuis la version du projet (fiche 059 I7 : jamais de version fantôme).
 
@@ -220,7 +220,7 @@ Extrait de réponse (seule la capability maison est tronquée ici, voir §8) :
       "workspaceSymbolProvider": true,
       "inlayHintProvider": true
     },
-    "serverInfo": { "name": "lspjava", "version": "1.1.0" }
+    "serverInfo": { "name": "lspjava", "version": "1.1.1" }
   }
 }
 ```
@@ -347,7 +347,7 @@ Exemple d'une session complète au fil :
 
 ```json
 {"jsonrpc":"2.0","id":1,"method":"initialize","params":{"rootUri":"file:///projet/demo","capabilities":{}}}
-{"jsonrpc":"2.0","id":1,"result":{"capabilities":{ … },"serverInfo":{"name":"lspjava","version":"1.1.0"}}}
+{"jsonrpc":"2.0","id":1,"result":{"capabilities":{ … },"serverInfo":{"name":"lspjava","version":"1.1.1"}}}
 {"jsonrpc":"2.0","method":"initialized","params":{}}
 {"jsonrpc":"2.0","id":2,"method":"textDocument/hover","params":{ … }}
 {"jsonrpc":"2.0","id":2,"result":{ … }}
@@ -1137,8 +1137,10 @@ re-signature de `parite-completion.json` (les stubs de façade suivent).
   gabarit `bancs/GABARIT-BASCULE-APPAREIL.md` (passe appareil moto g06 —
   18/18, 0 saut, p50/p95 GLOBAL 42,93/73,01 ms ; deltas 165 arbitrés
   103/62/0 — `ANALYSE-DELTAS-BASCULE.md`) ; `serverInfo.version` rend
-  désormais **1.1.0** (générée du dépôt, fiche 059 I7 — la 1.0.0 était
-  celle de la signature de bascule, la 1.1.0 celle de l'intégration) ;
+  désormais **générée du dépôt** (fiche 059 I7 — la 1.0.0 était
+  celle de la signature de bascule, la 1.1.0 celle de l'intégration, la
+  1.1.1 celle du correctif du diagnose rapide — le corps hôte masqué par
+  erreur d'identité, §9 d'INTEGRATION-CODEIDE) ;
   mise en œuvre client : `docs/BASCULE-CODEIDE.md` +
   `docs/INTEGRATION-CODEIDE.md` ; suivi post-bascule borné au §6 du
   gabarit.
