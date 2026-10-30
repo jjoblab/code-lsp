@@ -529,9 +529,13 @@ section du présent journal + commit/push.
 
 **CI VERTE 9/9 sur les QUATRE commits de livraison 3a→3d, PREMIÈRE
 TENTATIVE** (runs `41127294348`, `41129037195`, `41130310022`,
-`41136152557` — consultés le 31/10 via l'API GitHub Actions ; la 3e
-ajoute le 10ᵉ job `kotlin-banc-qualite`, attesté au run du commit de
-clôture).
+`41136152557` — consultés le 31/10 via l'API GitHub Actions) — **et CI
+VERTE 10/10 sur le commit de livraison 3e `cb562f2` (run `41142982589`,
+PREMIÈRE TENTATIVE)** : le nouveau job `kotlin-banc-qualite` y est VERT
+— la baseline SIGNÉE est tenue dans l'ENVIRONNEMENT CI (les nombres
+déterministes du corpus y sont reproduits : recall/top-1/MRR au bit
+près, p95 sous la borne), la gate de valeur, le contrat gel et les
+contrôles de santé y passent à chaque build désormais.
 
 **LES CINQ CRITÈRES DE SORTIE DE L'ÉTAGE 3 (§2) SONT ATTESTÉS** :
 
