@@ -98,7 +98,11 @@ public class ServiceCompletion(
             // la chaîne D8 et le gel des têtes restent intacts ; la clé
             // exacte domine, la clé partielle reste discrète.
             val items = jo.codeide.lsp.java.gabarits.ServiceGabarits.enrichir(reponse.items, contexte, source, offset)
-            ReponseCompletion(items, reponse.totalDisponible, contexte.genre)
+            // Auto-import (retours appareil du 31/10/2026, banc S06) : le
+            // FQCN porté par l'item devient une ÉDITION D'INSERTION —
+            // additionalTextEdits côté LSP, le geste Android Studio.
+            val avecImports = items.map { ajouterEditionImport(it, contexte, source) }
+            ReponseCompletion(avecImports, reponse.totalDisponible, contexte.genre)
         } catch (_: Exception) {
             // Aucune levée ne franchit la frontière du service (fiche 035) :
             // un échec interne rend une liste vide honnête.
@@ -526,6 +530,75 @@ public class ServiceCompletion(
             }
         }
         return items
+    }
+
+    // ------------------------------------------------------------------ //
+    // Auto-import des types proposés
+    // ------------------------------------------------------------------ //
+
+    /**
+     * L'édition d'INSERTION d'import d'un item d'auto-import (banc S06) :
+     * un item portant [ItemCompletion.autoImportFqn] reçoit une édition
+     * `import <fqn>;\n` posée au POINT D'INSERTION des imports de l'unité —
+     * le client LSP l'applique comme `additionalTextEdits` au moment de la
+     * SÉLECTION (jamais avant), le geste exact d'Android Studio.
+     *
+     * Aucune édition quand l'import est INUTILE : déjà présent (exact ou
+     * `.*`), type du PAQUET COURANT, ou `java.lang` — les mêmes règles de
+     * visibilité que [typesVisibles].
+     *
+     * @param item l'item candidate.
+     * @param contexte le contexte (imports + paquet courant de l'unité).
+     * @param source la source du document.
+     * @return l'item complété de son édition, ou l'item intact.
+     */
+    private fun ajouterEditionImport(
+        item: ItemCompletion,
+        contexte: ContexteCompletion,
+        source: String,
+    ): ItemCompletion {
+        val fqn = item.autoImportFqn ?: return item
+        if (fqn.contains('$')) return item // imbriqué : jamais importé directement
+        val paquetType = fqn.substringBeforeLast('.')
+        if (paquetType == contexte.paquetCourant) return item
+        if (paquetType == "java.lang") return item
+        for (importe in contexte.importsFqcn) {
+            if (importe == fqn) return item
+            if (importe.endsWith(".*") && fqn.startsWith(importe.removeSuffix(".*") + ".")) return item
+        }
+        val insertion = pointInsertionImport(source)
+        val edition = jo.codeide.lsp.java.outils.EditionTexte(
+            offset = insertion,
+            longueur = 0,
+            texte = "import $fqn;\n",
+        )
+        return item.copy(editionsAdditionnelles = item.editionsAdditionnelles + edition)
+    }
+
+    /**
+     * Le point d'insertion d'un import dans l'unité : après le DERNIER
+     * import existant, sinon après la déclaration de paquet, sinon au début
+     * (balayage ligne à ligne — les lignes `import` incomplètes de la frappe
+     * compte aussi : l'insertion reste un import valide à sa suite).
+     *
+     * @param source la source du document.
+     * @return l'offset d'insertion (toujours dans les bornes).
+     */
+    private fun pointInsertionImport(source: String): Int {
+        var position = 0
+        var point = 0
+        for (ligne in source.lineSequence()) {
+            val amorce = ligne.trimStart()
+            if (amorce.startsWith("package ") || amorce.startsWith("import ") || amorce.startsWith("import\t")) {
+                if (amorce.startsWith("package ") && !amorce.contains(';')) {
+                    position += ligne.length + 1
+                    continue
+                }
+                point = position + ligne.length + 1
+            }
+            position += ligne.length + 1
+        }
+        return point.coerceAtMost(source.length)
     }
 
     // ------------------------------------------------------------------ //
