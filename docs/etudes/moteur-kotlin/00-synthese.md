@@ -7,10 +7,12 @@
 > `02-spike-mesures.md` (Phase 2, S0–S3) · cahier
 > `docs/cahier-specifications-kotlin/` (53 fiches, 469 comportements) ·
 > manifeste `docs/PROVENANCE-REPRISE-KOTLIN.md` · ADR `0100–0121`
-> (**Proposées** — R7).
-> **La mission s'arrête ici** : aucune implémentation n'est démarrée ;
-> tout attend la décision du propriétaire (§8 STOP — l'ADR 0100 porte
-> la question de gouvernance).
+> (**0100 et 0103 Acceptés** le 2026-10-30 — les autres restent Proposées
+> jusqu'à leur étage, R7).
+> **Décision du propriétaire reçue le 2026-10-30** (« commencer les
+> étapes », branche `etude/moteur-kotlin` seule) : l'étude est CLOSE,
+> l'EXÉCUTION est ouverte — étage 0 (amorçage) engagé, rapport dans
+> `03-execution-etage0.md`.
 
 ## 1. Recommandation unique
 
@@ -146,6 +148,15 @@ l'étage LSP complets) ; à affiner cahier en main à la fin de l'étage 1
    jars) sur stockage FUSE réel.
 
 ## 6. Décision demandée au propriétaire (STOP — §8 du prompt)
+
+> **Décision REÇUE le 2026-10-30** dans le canal de mission : « Je t'autorise à
+> commencer les étapes, tu dois travailler uniquement sur ta branche » — les
+> étages du plan §4 sont ouverts sur la branche `etude/moteur-kotlin`
+> (ADR 0100 : voie C acceptée ; ADR 0103 : voie (i) acceptée). Le rapport
+> d'exécution de l'étage 0 vit dans
+> `03-execution-etage0.md` ; les points 4 ci-dessous restent des actions
+> propriétaire ouvertes (licences P-K2, arbitrage Q-K1–Q-K6, lecture du
+> second manifeste).
 
 1. **ADR 0100 — voie de gouvernance** : A / B / C (proposée) / D
    (repli). Les quatre sont documentées à armes égales ; aucun fichier

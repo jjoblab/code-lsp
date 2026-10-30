@@ -1,7 +1,7 @@
 # ADR 0100 — Décision de fond : voie de gouvernance A/B/C/D et règles de reprise Kotlin
 
-- **Statut** : **Proposé** — décision du **propriétaire** (avant toute copie)
-- **Date** : 2026-10-30
+- **Statut** : **Accepté** — décision du **propriétaire** reçue dans le canal de mission le 2026-10-30 : « Je t'autorise à commencer les étapes, tu dois travailler uniquement sur ta branche » — **option C — hybride** (la seule voie GO proposée par la synthèse §1 ; le démarrage des étages du plan §4 vaut acceptation de la recommandation). L'exécution démarre par l'étage 0 (amorçage) sur la branche `etude/moteur-kotlin` uniquement. L'option D demeure le repli permanent.
+- **Date** : 2026-10-30 (rédaction initiale — proposée) / 2026-10-30 (acceptation propriétaire — exécution ouverte)
 
 ## Contexte
 

@@ -1,7 +1,7 @@
 # ADR 0103 — Stratégie sémantique : modèle maison / Analysis API K2 / hybride / externe
 
-- **Statut** : Proposé
-- **Date** : 2026-10-30
+- **Statut** : **Accepté** — décision du **propriétaire** reçue dans le canal de mission le 2026-10-30 (même autorisation d'exécution que l'ADR 0100 : « Je t'autorise à commencer les étapes, tu dois travailler uniquement sur ta branche ») : **option (i) — parseur officiel + modèle de symboles conservateur**, avec **(iii) en extension différée** (profondeur K2 en tâche explicite, jamais sur une frappe). L'option (ii) reste archivée avec ses preuves de disqualification (S1 [mesuré]).
+- **Date** : 2026-10-30 (rédaction initiale — proposée) / 2026-10-30 (acceptation propriétaire — exécution ouverte)
 
 ## Contexte
 
