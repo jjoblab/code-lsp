@@ -5,12 +5,15 @@
 > `banc-appareil.sh` (Termux), reporte les valeurs ci-dessous et joint le
 > fichier au ticket de l'étage 1. **Aucune valeur de ce document n'a été
 > pré-remplie** (R5 : jamais prétendre une mesure appareil sans résultats
-> réels) — les chiffres entre parenthèses sont les LIMITES BASSES de bac à
-> sable (JVM de bureau conteneurisée, 2 cœurs, rapport d'étage 0 §3).
+> réels) — les chiffres entre parenthèses sont les LIMITES BASSES de bac
+> à sable (JVM de bureau conteneurisée, 2 cœurs — **vague 1c**, journal §12 ;
+> bruit de mesure entre exécutions documenté au même endroit).
 >
-> **Statut : PAS ENCORE EXÉCUTÉ** — la mesure appareil est la PORTE
-> D'ENTRÉE de l'étage 1 (décision Java §10.2 transposée, synthèse §6.3) :
-> l'étage 1 ne s'ouvre qu'avec ce gabarit rempli par une passe réelle.
+> **Statut : EN ATTENTE DE LA PASSE AVEC KIT** — le propriétaire a lancé le
+> script le 30/10 sur l'appareil (échec attendu « kit incomplet » : le kit
+> s'assemble sur la machine de build, en-tête du script) ; `kit-kotlin.zip`
+> (vague 1c, piles sha1 publiés vérifiées) a été assemblé et livré — la
+> présente passe attend son exécution avec le kit en place.
 
 ## 1. Environnement déclaré (à remplir)
 
@@ -28,12 +31,12 @@
 
 | Mesure | Valeur appareil | (limite basse bac à sable) |
 |---|---|---|
-| Démarrage à froid (1er parse, 500 l.) | | 274,5 ms |
-| Parse p50 / p95 (500 l.) | | 6,4 / 37,0 ms |
-| Parse p50 / p95 (3 000 l.) | | 18,6 / 51,9 ms |
+| Démarrage à froid (1er parse, 500 l.) | | 188,1 ms |
+| Parse p50 / p95 (500 l.) | | 5,1 / 38,8 ms |
+| Parse p50 / p95 (3 000 l.) | | 20,6 / 53,7 ms |
 | Productions / jetons (3 000 l.) — déterminisme | | 31 368 / 24 274 |
 | Tolérance : troncatures / levers | | 101 / 0 |
-| Tas au repos | | 3 698 Kio |
+| Tas au repos | | 3 700 Kio |
 
 Notes brutes (min/médiane/max sur passes répétées, thermique — 3 passes
 minimum recommandées, miroir §5.4 de la synthèse) :
@@ -42,7 +45,7 @@ minimum recommandées, miroir §5.4 de la synthèse) :
 
 | Mesure | Valeur appareil | (bac à sable) |
 |---|---|---|
-| Classes / méthodes déclarées (jar moteur) | | 69 / 150 |
+| Classes / méthodes déclarées (jar moteur) | | 122 / 205 |
 | Références sensibles ART | | AUCUNE |
 
 ## 4. Compléments demandés (si possible sur l'appareil)
@@ -50,8 +53,8 @@ minimum recommandées, miroir §5.4 de la synthèse) :
 - Le facteur ART 3–5× annoncé (E-K4) se vérifie ici : rapport
   p50 appareil / p50 bac à sable — à reporter tel quel.
 - Dexage réel : déjà couvert par la CI (`kotlin-art`, build-tools 34) —
-  15 964 références de méthodes / 2,74 Mo [mesuré bac à sable, d8 r34] ;
-  l'appareil n'a PAS à le rejouer.
+  **16 307 références de méthodes / 2,69 Mo (2 821 056 o)** [mesurés par la
+  CI à la vague 1c, run 41004282232] ; l'appareil n'a PAS à le rejouer.
 - GC : comportement observé pendant les 20+ passes (pauses visibles ?) —
   note libre (ADR 0117 : les soft-références et ReferenceQueue se
   testeront à l'étage 1 avec la session).

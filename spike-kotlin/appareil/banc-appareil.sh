@@ -25,6 +25,8 @@
 #   #   find ~/.gradle/caches/modules-2 -name 'annotations-26.0.2.jar' -exec cp {} kit-kotlin/libs/ \;
 #   #   find ~/.gradle/caches/modules-2 -name 'kotlin-stdlib-2.2.10.jar' -exec cp {} kit-kotlin/libs/ \;
 #   #   zip -r kit-kotlin.zip kit-kotlin
+#   # Assembleur dédié (ces pas MÉCANISÉS + garde sha1 publiée de chaque pile,
+#   # testé positif et négatif) : bash spike-kotlin/scripts/assembler-kit.sh
 #   unzip -o kit-kotlin.zip -d kit    # à la racine du clone
 #
 # Exécution :

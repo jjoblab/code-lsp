@@ -16,6 +16,11 @@
 > façade `Kt*`. **Vague 1b : session documents — fiches 049/042, SPI
 > `ServiceMoteurLangageKotlin` en zone `api/`. Vague 1c : scan projet
 > paresseux — fiche 041 (15 comportements, accès concurrents).**
+> **Mise à jour (30/10, matin) — la passe appareil est ENGAGÉE : le
+> propriétaire a fourni et lancé `banc-appareil.sh` sur l'appareil (échec
+> « kit incomplet », attendu — le kit s'assemble sur la machine de build) ;
+> le kit `kit-kotlin.zip` a été assemblé et livré, le retour du gabarit est
+> attendu (§13).**
 
 ## 1. Périmètre exécuté (vague 1a — façade `Kt*`, fiche 013)
 
@@ -131,7 +136,7 @@ hors registre (code neuf libre ; aucune reprise voie C cette vague).
 | Fiches index vertes | Ouvert | Fiches 008/009/034 — vague 1d |
 | Fiches synthétiques vertes | **Bloqué propriétaire** | R1/R2 attendent l'audit P-K1 (recommandé avant l'étage 1 — toujours ouvert) |
 | Latences S0 tenues (reparse < 50 ms JVM à 3 000 l.) | **Atteint** | parse chaud p50 18,9 ms / p95 48,6 ms à 3 000 l. [mesuré] |
-| Gabarit appareil rempli (porte d'entrée) | **Différé** | Instruction propriétaire : `banc-appareil.sh` fourni plus tard — le critère reste OUVERT |
+| Gabarit appareil rempli (porte d'entrée) | **En cours** | Script lancé par le propriétaire le 30/10 (échec « kit incomplet » — attendu, §13) ; kit assemblé et livré — retour du gabarit attendu |
 
 **CI VERTE 9/9 sur le commit de livraison** (run `40988517140`, commit
 `a1b29c8`, consulté le 30/10 à 01:56 UTC) — build et tests JDK 21, bancs
@@ -169,7 +174,7 @@ mécanique.**
 
 | # | Action | Référence | Bloque |
 |---|---|---|---|
-| 1 | Passe appareil (Termux) : `banc-appareil.sh` + gabarit — **le propriétaire a annoncé fournir le script plus tard** | GABARIT-RESULTATS.md, §4 | le critère de sortie « gabarit appareil rempli » de l'étage 1 |
+| 1 | Passe appareil (Termux) : script fourni et lancé le 30/10 — kit assemblé/livré, **retour du gabarit attendu** | GABARIT-RESULTATS.md, §13 | le critère de sortie « gabarit appareil rempli » de l'étage 1 |
 | 2 | Audit de similarité GPL (P-K1) | manifeste §5 | la copie de synthetics R1/R2 (vague 1d/2) |
 | 3 | Arbitrages Q-K1 (CIDX vs index dédié) / Q-K2 (décodage @Metadata) | DEMANDES-INTERFACE, ADR 0108 | le câblage classpath final (le développement suit l'hypothèse index dédié) |
 | 4 | Conditions binaires intellij-dependencies (P-K2) | ADR 0120, NOTICE | la PUBLICATION du pack langue (pas le développement) |
@@ -435,3 +440,57 @@ sans aucun lien avec le périmètre kotlin (le diff de la vague ne touche
 que `kotlin/` et `docs/`). La relance du job échoué a rendu la tentative 2
 VERTE ; le correctif (marge de tolérance) relève du chantier Java —
 recommandation portée au propriétaire dans `ALERTES.md` (E-K6).
+
+## 13. Passe appareil — soutien de la machine de build (30/10, après la vague 1c)
+
+**Le propriétaire a lancé `banc-appareil.sh` sur l'appareil** [sortie brute
+reçue dans le canal de mission, 30/10 00:41 heure appareil] : moto g06,
+Android 15, aarch64, Termux openjdk **17.0.19**. Résultat : `ÉCHEC : kit
+incomplet (../kit/kit-kotlin)` — **échec attendu** : le kit d'exécution
+s'assemble sur la machine de build puis se transfère (en-tête du script,
+§6.c du prompt de mission). Aucune mesure appareil n'existe donc encore
+(R5 tenu — aucune valeur présumée).
+
+**Kit assemblé et livré [mesuré]** — `spike-kotlin/scripts/assembler-kit.sh`
+(NEUF, livré avec la présente vague de soutien) mécanise la procédure de
+l'en-tête du banc : jar moteur + classes du banc + quatre piles de
+dépendances + `scan-art.py` + `SHA256SUMS.txt`, zippé **2 439 844 o**
+(sha256 `2a69a72a138a66242ba7f28c1069ba586a90f35ac62faaca0e7141d731141d6d`).
+Chaque pile est GARDÉE par son **sha1 PUBLIÉ** (épinglage dans le script :
+syntax-api/lang-syntax 0.3.340 — cache-redirector/intellij-dependencies ;
+annotations 26.0.2 et kotlin-stdlib 2.2.10 — Maven Central, contrôle par
+miroir public pendant le quota HTTP 429) : le kit est « octets identiques
+aux mesures de bac à sable » comme l'exige le banc — preuve
+cryptographique, pas supposition. L'assembleur est testé POSITIF
+(assemblage + déballage + `sha256sum -c` OK) et NÉGATIF (pile absente →
+rc=1 ; sha1 corrompu → rc=1, refus sec).
+
+**Passe de validation machine de build [mesurée]** — le banc appareil a
+été REJOUÉ sur le kit déballé (mêmes octets que ceux livrés) :
+productions/jetons **31 368 / 24 274** (déterminisme IDENTIQUE au §12 et à
+l'étage 0), tolérance **101 troncatures / 0 lever**, tas au repos 4 364
+Kio (bruit de mesure §12), parse froid 140,4 / 43,0 ms, p50 6,5 / 18,5
+ms, p95 38,8 / 46,2 ms (500 / 3 000 l. — mêmes ordres que §12). Scan ART
+sur le jar du kit : **122 classes / 205 méthodes déclarées / AUCUNE
+référence sensible**, trace `ServiceLoader : OK — 1 référence(s),
+descripteur(s) vérifié(s)` — miroir de la CI (run 41004282232). Versions
+de class-file : 61:122 — bytecode 17 CONSOMMABLE par l'openjdk 17.0.19
+déclaré par l'appareil.
+
+**Livraison** : `kit-kotlin.zip` remis au propriétaire par le canal de
+mission avec sa note de mise en place (vérification sha256, `unzip -o …
+-d kit`, `sha256sum -c SHA256SUMS.txt`, puis `bash appareil/banc-appareil.sh
+../kit/kit-kotlin > resultats-appareil.txt` ; le scan ART s'exécute si
+`python3` est présent — `pkg install python3`). `GABARIT-RESULTATS.md` est
+recalé sur les limites basses **vague 1c** (§12 ci-dessus, dexage CI
+16 307 / 2,69 Mo) pour une comparaison honnête. **La passe appareil est EN
+ATTENTE du retour du propriétaire** — le critère de sortie « gabarit
+appareil rempli » suit son cours.
+
+Note d'infrastructure (bac à sable, hors périmètre dépôt) : la résolution
+Gradle de la machine de build a été momentanément bloquée par un quota
+HTTP 429 de Maven Central au moment de l'assemblage ; le kit a donc été
+assemblé par re-assemblage de l'arbre déjà bâti (`ASSEMBLER_SAUTER_BUILD=1`
+de l'assembleur — artefacts du §12 inchangés, jar 320 138 o) avec garde
+sha1 des piles ; le build du commit `6df996c` reste attesté par la CI
+verte 9/9 (run 41004282232).
