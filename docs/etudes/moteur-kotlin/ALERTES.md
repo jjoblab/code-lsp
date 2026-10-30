@@ -121,6 +121,30 @@
   avec une marge de tolérance (p. ex. `chaud <= froid × 1,5` ou une borne
   absolue), ou comparer des durées MÉDIANÉES sur plusieurs passes.
 
+- **E-K7 — Classe de risque « référence API JDK 21 dans du bytecode 17 »
+  (découverte par la Passe appareil du 30/10/2026, corrigée pour :kotlin)** :
+  `MutableList.removeLast()` (grammaire vendorée) compilée sous JDK 21
+  émet l'InterfaceMethodref `java.util.List.removeLast` — méthode **JDK 21
+  seule** — DANS du bytecode 61, QUEL QUE SOIT jvmTarget (constaté par
+  expérience au compilateur 2.2.10 : les cibles 17 et 21 émettent l'une et
+  l'autre la référence ; `jvmTarget` ne borne pas le pool de constantes).
+  L'erreur n'est visible QUE sur un runtime sans la méthode : l'openjdk 17
+  de Termux a levé `NoSuchMethodError` au premier parse, alors que bac à
+  sable et CI (JDK 21) exécutaient le même jar sans erreur — **une CI JDK
+  21 ne peut pas attraper cette famille**. CORRECTIF posé pour :kotlin :
+  toolchain 17 (compilation/tests/bancs sous le JDK de l'appareil), garde
+  `CompatibiliteJdk17Test` (pool de constantes), motif corrélé
+  `List.<SequencedCollection>` dans scan-art.py (CI), garde d'expédition
+  dans `assembler-kit.sh`. Vérification factuelle du périmètre voisin :
+  `java-1.0.0.jar` (PUBLIÉ, tag v1.0.0) scanné **PROPRE** [mesuré, scan du
+  pool de constantes — famille SequencedCollection sur java.util.List :
+  aucune]. RECOMMANDATION au propriétaire (périmètre Java, chantier clos) :
+  la même classe de garde avant toute future montée du moteur Java
+  (l'exécution CodeIDE de :java sous un runtime < 21 partagerait le
+  mécanisme — sa toolchain est 21 avec jvmTarget 17, config exacte de
+  l'incident ; le scan actuel ne trouve rien, le risque est celui des
+  écritures FUTURES).
+
 ## 5. Points restés « à vérifier » (non clos par l'étude)
 
 - Comportement GC ART (SoftReference/ReferenceQueue) — appareil requis.

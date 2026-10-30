@@ -95,6 +95,21 @@ prendre_pile "lang-syntax-jvm-0.3.340.jar"   "$SHA1_LANG_SYNTAX"
 prendre_pile "annotations-26.0.2.jar"        "$SHA1_ANNOTATIONS"
 prendre_pile "kotlin-stdlib-2.2.10.jar"      "$SHA1_STDLIB"
 
+# --- 3.bis. Garde de compatibilité JDK 17 AVANT expédition ------------------
+# Incident appareil du 30/10 : java.util.List.removeLast (JDK 21 seul) dans
+# le bytecode 61 du jar moteur — NoSuchMethodError sur l'openjdk 17 de
+# Termux. Le kit doit être EXÉCUTABLE par le JDK de l'appareil : on refuse
+# d'expédier tout artefact qui référence la famille SequencedCollection sur
+# java.util.List (miroir du garde CompatibiliteJdk17Test du module et du
+# motif MOTIFS_MEMBRES de scan-art.py en CI).
+if command -v python3 >/dev/null 2>&1; then
+  python3 spike-kotlin/scripts/scan-jdk21.py \
+    "$STAGING/kit-kotlin/libs/$(basename "$MOTEUR")" "$STAGING/kit-kotlin/banc" \
+    || echouer "kit non conforme JDK 17 (références JDK 21+ détectées) — expédition REFUSÉE."
+else
+  echo "AVERTISSEMENT : python3 absent — garde JDK 17 non exécutée (le garde CI scan-art.py reste actif)."
+fi
+
 # --- 4. Sommes de contrôle du kit (vérification du transfert appareil) -----
 ( cd "$STAGING/kit-kotlin" \
   && find . -type f ! -name SHA256SUMS.txt -print0 | sort -z \

@@ -218,6 +218,7 @@ b0c09f8b0800f78d09e04c2a74f645e039aceae4882383ec44f2301c9b639d62  java/src/main/
 b2a1f2c6cd02d775ed25429946a93d620aebae78564a0c254e05f6a2094d12cf  spike-kotlin/src/main/kotlin/spikekotlin/ParseurOfficiel.kt
 b2afdec9eac752ba7511373ebe5e1c122380eb9660bae8c80d16c2d529992864  kotlin/src/main/kotlin/jo/codeide/lsp/kotlin/session/SurvolDocuments.kt
 b2b7a6822bab46a6436fde2f2f3b295a63c5ad318fc3fdaf5ff022964cc25979  index/src/main/kotlin/jo/codeide/lsp/index/EcrivainSegment.kt
+b3ac0f4637e566d1c1f8bed1e1b76ce6edb9a4d9dd0618f7b5575b3464acb1e6  kotlin/src/test/kotlin/jo/codeide/lsp/kotlin/CompatibiliteJdk17Test.kt
 b61b9cbe67b9dc6da6012bec20d9334dbaaa01ca8e3ed616b4761ae4008dced6  java/src/main/kotlin/jo/codeide/lsp/java/navigation/ServiceUsages.kt
 b76e4f1dfba43beee21330a067859932c784970fc14ccd6e2fefe1670f4b5d92  kotlin/src/main/vendor/gen/KDocFlexLexer.kt
 b76e4f1dfba43beee21330a067859932c784970fc14ccd6e2fefe1670f4b5d92  spike-kotlin/src/main/vendor/gen/KDocFlexLexer.kt

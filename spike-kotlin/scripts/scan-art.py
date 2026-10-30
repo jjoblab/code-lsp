@@ -52,6 +52,15 @@ MOTIFS_SENSIBLES = [
 MOTIFS_MEMBRES = [
     (re.compile(r"^java/io/InputStream$"), re.compile(r"^readAllBytes$"), "InputStream.readAllBytes (API 33+)"),
     (re.compile(r"^java/io/InputStream$"), re.compile(r"^readNBytes$"), "InputStream.readNBytes (API 33+)"),
+    # Famille SequencedCollection sur java.util.List (JDK 21 — née de
+    # l'incident appareil du 30/10 : NoSuchMethodError List.removeLast sur
+    # l'openjdk 17 de Termux, invisible en CI JDK 21). Le DECLARANT seul
+    # rend la référence sensible : Deque/ArrayDeque/LinkedList portent ces
+    # méthodes depuis Java 6, kotlin.collections.ArrayDeque est une
+    # implémentation Kotlin pure — aucun des trois n'est sensible.
+    (re.compile(r"^java/util/(List|SequencedCollection)$"),
+     re.compile(r"^(addFirst|addLast|getFirst|getLast|removeFirst|removeLast|reversed)$"),
+     "java.util.List.<SequencedCollection> (JDK 21 — absent JDK 17/ART)"),
 ]
 
 # Catégorie à VÉRIFIER (pas interdite d'office) : java.util.ServiceLoader

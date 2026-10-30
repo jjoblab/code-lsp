@@ -38,7 +38,15 @@ zéro fichier hors registre ; 0 motif ART** (rapport :
   ADR 0115.4 ancien) — l'exemption est limitée à `src/main/vendor/` par
   construction.
 - **Bytecode 17** (consommable par d8/ART — convention dépôt), toolchain
-  JDK 21, Kotlin 2.2.10 (chaîne racine du dépôt).
+  **JDK 17** — exigence appareil du 30/10 (passe `banc-appareil` :
+  `NoSuchMethodError List.removeLast` JDK 21 dans le bytecode 61, invisible
+  en CI JDK 21 ; compilation, tests et bancs courent désormais sous le JDK
+  de l'appareil — journal §14, alerte E-K7), Kotlin 2.2.10 (chaîne racine
+  du dépôt).
+- **Garde de compatibilité JDK 17** : `CompatibiliteJdk17Test` (pool de
+  constantes du code compilé — famille SequencedCollection sur
+  `java.util.List`), motif corrélé dans `scan-art.py` (CI) et garde
+  d'expédition dans `spike-kotlin/scripts/assembler-kit.sh` (kit appareil).
 - La baseline digeste (`src/test/resources/parite/digeste-corpus.txt`) se
   re-signe DÉLIBÉRÉMENT : `-Dparite.majBase=true --rerun-tasks` (le diff
   fait partie de la revue — cf. KDoc de `Fiche010PariteCorpusDepotTest`).
@@ -62,8 +70,9 @@ zéro fichier hors registre ; 0 motif ART** (rapport :
 | Session documents (vague 1b, fiches 049/042) | **Livrée** : didOpen/didChange/didClose + diagnostics `kt.syntax`/`kt.unusedImport`/`kt.conflictingImport` (tags INUTILE + informations liées KP15), plages pliables, survol S2 (signature + KDoc), `rafraichirSources` (L1), branchement A211 (moteur nourricier, sous-lecture honnête, guérison à la requête suivante) |
 | Scan projet paresseux (vague 1c, fiche 041) | **Livré** : passe bornée (collecte ≤ 2 000 fichiers, compte honnête) et ANNULABLE (observateur entre fichiers) sur fil dédié unique ; amorce warm à la définition, lecture joint le vol en cours, incrémental mtime (delta-only), rafraîchissement externe L1, progression à total connu (marche avant parse), accès concurrents KP6 (verrou du scan + champs volatils) — le snapshot publié n’est servi que s’il couvre les racines courantes |
 | Concurrence | Verrou lecture-écriture (ADR 0117/0212) : écritures = mutations/définitions/publication du scan ; requêtes en lectures PARALLÈLES ; le scan L1 court hors verrou |
-| Suite du module | 72 tests verts (fiches 010–013, 049, 042, 041) — `./gradlew :kotlin:test` |
-| Jar moteur | 312,6 Kio / 122 classes (56 code neuf) — descripteur `META-INF/services` + notices vendor embarqués |
+| Suite du module | 73 tests verts (fiches 010–013, 049, 042, 041 + garde `CompatibiliteJdk17Test`) — `./gradlew :kotlin:test` (exécution JDK 17) |
+| Jar moteur | 312,6 Kio / 122 classes (56 code neuf) — descripteur `META-INF/services` + notices vendor embarqués, **aucune référence JDK 21+** (garde) |
+| Passe appareil (porte d'entrée étage 1) | **EN COURS** : première passe 30/10 échouée (kit v1 — bug JDK 21 corrigé, §14) ; kit v2 livré (sha256 `1352072e…`), retour du gabarit attendu |
 
 Journal d'exécution de l'étage : `docs/etudes/moteur-kotlin/04-execution-etage1.md`
 (vague suivante : 1d classpath + index

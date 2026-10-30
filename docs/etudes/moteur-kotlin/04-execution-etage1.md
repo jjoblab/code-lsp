@@ -16,11 +16,11 @@
 > façade `Kt*`. **Vague 1b : session documents — fiches 049/042, SPI
 > `ServiceMoteurLangageKotlin` en zone `api/`. Vague 1c : scan projet
 > paresseux — fiche 041 (15 comportements, accès concurrents).**
-> **Mise à jour (30/10, matin) — la passe appareil est ENGAGÉE : le
-> propriétaire a fourni et lancé `banc-appareil.sh` sur l'appareil (échec
-> « kit incomplet », attendu — le kit s'assemble sur la machine de build) ;
-> le kit `kit-kotlin.zip` a été assemblé et livré, le retour du gabarit est
-> attendu (§13).**
+> **Mise à jour (30/10, 2ᵉ passe) — INCIDENT RÉEL corrigé : le kit v1 a
+> levé `NoSuchMethodError List.removeLast` sur l'appareil (référence
+> JDK 21 seule dans le bytecode 17 — invisible CI JDK 21) ; correctif
+> toolchain 17 + gardes, kit v2 livré et validé sous openjdk 17 en machine
+> de build — retour du gabarit attendu (§14).**
 
 ## 1. Périmètre exécuté (vague 1a — façade `Kt*`, fiche 013)
 
@@ -136,7 +136,7 @@ hors registre (code neuf libre ; aucune reprise voie C cette vague).
 | Fiches index vertes | Ouvert | Fiches 008/009/034 — vague 1d |
 | Fiches synthétiques vertes | **Bloqué propriétaire** | R1/R2 attendent l'audit P-K1 (recommandé avant l'étage 1 — toujours ouvert) |
 | Latences S0 tenues (reparse < 50 ms JVM à 3 000 l.) | **Atteint** | parse chaud p50 18,9 ms / p95 48,6 ms à 3 000 l. [mesuré] |
-| Gabarit appareil rempli (porte d'entrée) | **En cours** | Script lancé par le propriétaire le 30/10 (échec « kit incomplet » — attendu, §13) ; kit assemblé et livré — retour du gabarit attendu |
+| Gabarit appareil rempli (porte d'entrée) | **En cours** | Passe 1 (30/10 01:33) : échec kit incomplet — attendu (§13) ; passe 2 : incident JDK 21 CORRIGÉ (§14, kit v2) — retour du gabarit attendu |
 
 **CI VERTE 9/9 sur le commit de livraison** (run `40988517140`, commit
 `a1b29c8`, consulté le 30/10 à 01:56 UTC) — build et tests JDK 21, bancs
@@ -174,7 +174,7 @@ mécanique.**
 
 | # | Action | Référence | Bloque |
 |---|---|---|---|
-| 1 | Passe appareil (Termux) : script fourni et lancé le 30/10 — kit assemblé/livré, **retour du gabarit attendu** | GABARIT-RESULTATS.md, §13 | le critère de sortie « gabarit appareil rempli » de l'étage 1 |
+| 1 | Passe appareil (Termux) : passes 1 et 2 du 30/10 (kit incomplet puis incident JDK 21 corrigé) — **kit v2 livré, retour du gabarit attendu** | GABARIT-RESULTATS.md, §13–§14 | le critère de sortie « gabarit appareil rempli » de l'étage 1 |
 | 2 | Audit de similarité GPL (P-K1) | manifeste §5 | la copie de synthetics R1/R2 (vague 1d/2) |
 | 3 | Arbitrages Q-K1 (CIDX vs index dédié) / Q-K2 (décodage @Metadata) | DEMANDES-INTERFACE, ADR 0108 | le câblage classpath final (le développement suit l'hypothèse index dédié) |
 | 4 | Conditions binaires intellij-dependencies (P-K2) | ADR 0120, NOTICE | la PUBLICATION du pack langue (pas le développement) |
@@ -494,3 +494,91 @@ assemblé par re-assemblage de l'arbre déjà bâti (`ASSEMBLER_SAUTER_BUILD=1`
 de l'assembleur — artefacts du §12 inchangés, jar 320 138 o) avec garde
 sha1 des piles ; le build du commit `6df996c` reste attesté par la CI
 verte 9/9 (run 41004282232).
+
+## 14. Passe appareil — incident JDK 21 et correctif (30/10, deuxième passe)
+
+**Le propriétaire a rejoué le banc AVEC le kit v1** [sortie brute reçue
+dans le canal de mission, 30/10 01:33 heure appareil] : la pile se charge,
+le banc démarre — et lève au PREMIER parse
+`java.lang.NoSuchMethodError: 'java.lang.Object java.util.List.removeLast()'`
+depuis `org.jetbrains.kotlin.kmp.lexer.KotlinFlexLexer.popState`
+(`KotlinFlexLexer.kt:774`). **La porte d'entrée appareil a fait son
+travail** : l'erreur était invisible en bac à sable ET en CI (JDK 21 —
+la méthode y existe), et le scan ART (exécuté jusqu'au bout sur le même
+jar : 122 classes / 205 méthodes / AUCUN motif) ne pouvait pas l'attraper
+— la référence vise le JDK, pas android.jar.
+
+**Diagnostic [mesuré, mécanique]**. Un scan du pool de constantes du jar
+(neuf script `spike-kotlin/scripts/scan-jdk21.py`, parseur miroir de
+scan-art.py) localise la référence : `java/util/List.removeLast` dans la
+SEULE classe `KotlinFlexLexer.class` — la source vendorée appelle
+`states.removeLast()` sur `private val states: MutableList<State>`
+(gen/KotlinFlexLexer.kt:752/774). Piles (syntax-api, lang-syntax,
+stdlib), classes du banc et code neuf (son `ArrayDeque` est
+kotlin.collections — implémentation pure) : **PROPRES**. Expérience menée
+au compilateur 2.2.10 embarqué (spike-jars) sur un échantillon exact :
+`MutableList.removeLast()` compile vers l'InterfaceMethodref JDK **quel
+que soit jvmTarget** (17 et 21 l'émettent l'un et l'autre, en bytecode
+61) — le MEMBRE `java.util.List.removeLast` (JDK 21 SEUL) visible du JDK
+de compilation PRIME sur l'extension kotlin.collections, et `jvmTarget`
+ne borne pas le pool de constantes. Le bac à sable/CI (JDK 21) exécutait
+donc un jar dont une méthode n'existe pas dans l'openjdk 17 de l'appareil.
+
+**Correctif [livré]** — compiler, tester et mesurer SOUS le JDK de
+l'appareil :
+
+1. **Toolchain 17** (`VERSION_JDK = 17`, `kotlin/build.gradle.kts`) : la
+   compilation sous JDK 17 rend le membre JDK 21 INVISIBLE à la
+   résolution (retombée sur le chemin sûr) ; tests ET bancs exécutent
+   désormais sur la toolchain (la tâche `bench` est câblée
+   `javaLauncher`) — cette classe d'erreur devient un ÉCHEC CI, pas une
+   panne appareil.
+2. **Garde statique** : `CompatibiliteJdk17Test` (neuf, 1 test) scanne le
+   pool de constantes du code compilé (main + vendor) et échoue au moindre
+   receveur `java/util/List`/`SequencedCollection` appelé avec un nom de
+   la famille SequencedCollection (JDK 21 — absents de JDK 17 ET
+   d'android.jar).
+3. **Motif corrélé CI** : `scan-art.py` MOTIFS_MEMBRES gagne la famille
+   (receveur List/SequencedCollection × addFirst/addLast/getFirst/
+   getLast/removeFirst/removeLast/reversed) — le job `kotlin-art` scanne
+   le jar assemblé ; Deque/ArrayDeque/LinkedList (Java 6) et
+   kotlin.collections.ArrayDeque restent légitimes.
+4. **Garde d'expédition** : `assembler-kit.sh` refuse d'expédier un kit
+   dont le jar moteur ou les classes du banc référencent la famille.
+
+**Preuves [mesurées]**. Jar recompilé sous toolchain 17 : **320 122 o**
+(−16 o vs §12), scan-jdk21 **PROPRE** ; **suite du module : 73 tests
+VERTS sur JDK 17** (72 fiches + le garde neuf — les fiches, qui parsent,
+auraient ATTRAPÉ l'incident en exécutant sous 17) ; baseline digeste
+re-signée (corpus 303 → **304 fichiers** — le fichier de test neuf,
+procédure `-Dparite.majBase=true --rerun-tasks`) ; banc `:kotlin:bench`
+sous JDK 17 : parse froid 273,8 / 23,1 ms, p50 6,1 / 25,0 ms, p95 32,1 /
+58,1 ms, déterminisme **31 368 / 24 274** (inchangé), tolérance 101 / 0,
+tas au repos 3 781 Kio — les limites basses du GABARIT sont recalées sur
+ces nombres JDK 17 (mêmes conditions que l'appareil ; le bruit entre
+passes documenté au §12 demeure).
+
+**Validation décisive machine de build [mesurée]** — le VRAI
+`banc-appareil.sh` rejoué sur le kit v2 déballé **avec l'openjdk 17
+(Temurin 17.0.21, toolchain) en tête de PATH** — la condition EXACTE du
+Termux : banc complet VERT (plus AUCUNE exception), déterminisme
+31 368 / 24 274, tolérance 101 / 0, tas 3 788 Kio, parse froid 173,9 /
+48,3 ms, p50 8,6 / 28,8 ms, p95 41,5 / 66,8 ms (500 / 3 000 l. — bruit
+entre passes), scan ART 122 classes / 205 méthodes déclarées / AUCUNE
+référence sensible + ServiceLoader descripteur vérifié, class-file
+61:122.
+
+**Kit v2 livré** : `kit-kotlin.zip` **2 440 071 o**, sha256
+`1352072e35b11fcabde83443e165209bd44a94b97a200e9baa1984e5f360567a`
+(piles inchangées — sha1 publiés vérifiés ; jar moteur corrigé ;
+`SHA256SUMS.txt` ; garde d'expédition exécutée : PROPRE). **La passe
+appareil attend le retour du propriétaire avec le kit v2.**
+
+Note d'infrastructure (suite du §13) : les rafales HTTP 429 de Maven
+Central ont persisté ; le build local a résolu via un script d'init
+Gradle **propre au bac à sable, jamais commité** (miroir public en tête
+de résolution, dépôt inchangé — la CI résout normalement). Alerte
+**E-K7** posée (ALERTES.md §4) : la classe de risque vaut pour tout
+module à toolchain 21/jvmTarget 17 — `java-1.0.0.jar` PUBLIÉ scanné
+**PROPRE** [mesuré], recommandation de garde adressée au propriétaire
+pour les écritures futures du chantier Java.

@@ -1,6 +1,7 @@
 import org.jetbrains.kotlin.gradle.dsl.ExplicitApiMode
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+import org.gradle.jvm.toolchain.JavaLanguageVersion
 
 // Module :kotlin — moteur Kotlin LSP de CodeIDE (voie C hybride, ADR 0100
 // ACCEPTÉE le 2026-10-30 ; stratégie sémantique (i), ADR 0103 acceptée).
@@ -39,6 +40,17 @@ plugins {
 val VERSION_GRAMMAIRE = "v2.3.0"
 
 // ---------------------------------------------------------------------------
+// Version du JDK de la toolchain — ÉPINGLAGE UNIQUE (exigence appareil).
+// ---------------------------------------------------------------------------
+// L'appareil de mesure (banc-appareil, Termux) exécute openjdk 17 : depuis
+// l'incident du 30/10 (java.util.List.removeLast JDK 21 dans le bytecode
+// 61 — NoSuchMethodError appareil invisible en CI JDK 21), le module
+// compile, TESTE et MESURE sous le MÊME JDK que l'appareil (17) : la
+// compilation y rend invisibles les API JDK 21 (retombée sur le chemin
+// sûr) et les erreurs de cette famille échouent la CI, plus l'appareil.
+val VERSION_JDK = 17
+
+// ---------------------------------------------------------------------------
 // Grammaire vendorée : compilation SÉPARÉE (exemption explicitApi).
 // ---------------------------------------------------------------------------
 // Les sources amont (org.jetbrains.kotlin.kmp.*, Apache-2.0, octet pour
@@ -62,7 +74,22 @@ sourceSets.named("test") {
 }
 
 kotlin {
-    jvmToolchain(21)
+    // Toolchain 17 — EXIGENCE APPAREIL (banc-appareil du 30/10, moto g06 /
+    // Termux openjdk 17.0.19) : la grammaire vendorée appelle
+    // MutableList.removeLast() (gen/KotlinFlexLexer.kt:774) ; compilée sous
+    // JDK 21, le MEMBRE java.util.List.removeLast (JDK 21 SEUL) prime sur
+    // l'extension kotlin.collections et se retrouve DANS le bytecode 61
+    // quel que soit jvmTarget (vérifié par expérience : -jvm-target 17 et 21
+    // émettent l'un et l'autre l'InterfaceMethodref) — NoSuchMethodError
+    // sur l'openjdk 17 de l'appareil, invisible en bac à sable/CI JDK 21
+    // (la méthode y existe). La compilation SOUS JDK 17 rend le membre
+    // INVISIBLE à la résolution (retombée sur le chemin sûr) ET fait
+    // exécuter tests et bancs SUR 17 : cette classe d'erreur devient un
+    // ÉCHEC CI, pas une panne appareil. Gardes complémentaires :
+    // CompatibiliteJdk17Test (pool de constantes du code compilé) et
+    // scan-art.py (MOTIFS_MEMBRES famille SequencedCollection — la CI
+    // scanne le jar assemblé).
+    jvmToolchain(VERSION_JDK)
     compilerOptions {
         // Même cible que les modules du dépôt (bytecode consommable par d8/ART).
         jvmTarget.set(JvmTarget.JVM_17)
@@ -194,6 +221,14 @@ tasks.register<JavaExec>("bench") {
     description = "Banc d'empreinte et de latence de la grammaire (étage 0 — p50/p95 + tas + taille jar)."
     mainClass.set("jo.codeide.lsp.kotlin.banc.BancGrammaireKt")
     classpath = bancSourceSet.runtimeClasspath
+    // Le banc s'exécute SUR la toolchain du module (JDK 17 — même JVM que
+    // l'appareil Termux) : un banc JDK 21 a MASQUÉ l'incident du 30/10
+    // (List.removeLast y existe) — les nombres du bac à sable doivent être
+    // mesurés dans les CONDITIONS de l'appareil, pas seulement compilés
+    // pour lui.
+    javaLauncher.set(
+        javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(VERSION_JDK)) },
+    )
     // JVM bornée comme les bancs du domaine (-Xmx2g, SerialGC — mesures
     // reproductibles, miroir :java:bench / :index:bench).
     jvmArgs("-Xmx2g", "-XX:+UseSerialGC")
