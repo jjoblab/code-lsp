@@ -62,6 +62,25 @@ plugins {
 // non vides, paquets proposés à l'import, sur le fil LSP4J). Étude
 // éditeur↔LSP (mandat propriétaire) : docs/etudes/editeur-lsp/. §12
 // d'INTEGRATION-CODEIDE.
+// 1.1.5 : banc PROJET ANDROID RÉEL (retours appareil du 31/10, logs
+// codeide-logs-2026-10-30-124450.zip — « je propose que tu crées un test
+// projet android complet (avec de vrais jar, aar) et testé les
+// fonctionnalités ») : cinq correctifs moteur issus du premier run —
+// qualifier imbriqué (`R.layout.a|` proposait 0 item : chaînage `$` +
+// sonde pointée), auto-import MUET devenu additionalTextEdits (l'insertion
+// au point d'imports, jamais si inutile), marqueur de splice en fuite
+// (`__codeide_completion__()` dans l'inventaire à préfixe vide), identifiant
+// isolé en corps de méthode (SingleTypeReference de recovery ECJ → le
+// contexte NOM : la locale en tête, le popup Android Studio). Montage :
+// bancs/projet-android/ (réplique monip) + sources générées +
+// scripts/preparer-projet-android.sh (android.jar 34-ext12 + 16 AARs/jars
+// réels, fermeture transitive vérifiée classe par classe) +
+// BancProjetAndroidReelTest (20 tests : timeline appareil rejouée au
+// protocole — didOpen avant sync, diagnostics du cache, sync,
+// LIVE-REPUBLISH — puis chaque famille de complétion). Validation : 20/20,
+// :java:test 521/0/0 gates ouvertes, benchQualite baseline SIGNÉE intacte
+// (1,000/1,000/1,000, p95 36,7 ms), benchUsages 1,000/43 ms. §13
+// d'INTEGRATION-CODEIDE.
 allprojects {
-    version = "1.1.4"
+    version = "1.1.5"
 }

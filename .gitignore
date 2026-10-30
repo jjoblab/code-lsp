@@ -18,3 +18,8 @@ local.properties
 
 # Oracle du banc de parité croisée (étage T — construit par scripts/preparer-oracle.sh, JAMAIS committé, R6.4)
 .oracle/
+
+# Bibliothèques du banc projet Android réel (téléchargées par
+# scripts/preparer-projet-android.sh — jamais committées, R6.4) :
+# android.jar, AARs et classes.jar extraits.
+bancs/projet-android-libs/

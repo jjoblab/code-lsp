@@ -82,8 +82,10 @@ jobs:
           mkdir -p "$HOME/.gradle/caches/modules-2/files-2.1/androidx.appcompat/appcompat/ci-gate"
           curl -sSfL --retry 3 -o "$HOME/.gradle/caches/modules-2/files-2.1/androidx.appcompat/appcompat/ci-gate/appcompat-1.7.0.aar" \
             "https://maven.google.com/androidx/appcompat/appcompat/1.7.0/appcompat-1.7.0.aar"
+      - name: Bibliothèques réelles du banc projet Android (INTEGRATION-CODEIDE §13)
+        run: bash scripts/preparer-projet-android.sh
       - name: Tests avec gates ouvertes (:java:test)
-        run: ./gradlew :java:test --no-daemon --stacktrace
+        run: BANC_ANDROID_LIBS="$PWD/bancs/projet-android-libs" ./gradlew :java:test --no-daemon --stacktrace
 
   # Critère de sortie de l'étage N2 (PLAN-REECRITURE §4, ADR 0016 option 1) :
   # le banc de qualité de complétion compare recall/top-1/MRR + p95 + sauts

@@ -794,3 +794,118 @@ par hypothèses visibles — android.jar absent du poste, etc.), version
 - Deux écarts documentés, décision propriétaire (étude §5.5/e1-e2) :
   capabilities annoncées en régime dégradé (fenêtre réduite par le présent
   correctif) et distinction couche 1 ↔ LSP dans la méthode de passe terrain.
+
+## 13. Exécution (31/10) — le banc PROJET ANDROID RÉEL : la précision Android Studio, éprouvée sur vraies bibliothèques
+
+### 13.1 Ce que les retours demandaient
+
+Le propriétaire (31/10, logs `codeide-logs-2026-10-30-124450.zip`, CodeIDE
+0.204.4) : « il y a encore beaucoup d'incohérences, de retard dans les
+suggestions de complétion, les suggestions doivent être précises
+dépendamment d'où je suis (import, classe, membre, etc.), exactement comme
+Android Studio. Pour résoudre ces problèmes, je propose que tu crées un
+test projet android complet (avec de vrais jar, aar) et testé les
+fonctionnalités. »
+
+L'audit des logs a d'abord établi les FAITS :
+
+- la session démarre NOURRIE DU CACHE (t+8,5 s, 2 modules) — le classpath
+  réel n'arrive qu'à t+123,9 s (« session LSP nourrie (1 module(s)
+  actif(s), 47 entrées d'index) ») : pendant DEUX MINUTES, `import a|`
+  rend 0 item et « AppCompatActivity cannot be resolved » squiggle —
+  honnête, mais l'utilisateur voit « rien ne marche » ;
+- les complétions 11–12 s (t+339 s, t+625 s) sont le PREMIER appel après
+  invalidation du moteur par la sync — la reconstruction froide de
+  l'environnement de noms sur classpath réel ;
+- `import androidx.appcompat.app.ActionBar` finit par résoudre (t+560 s :
+  « The import … is never used ») : la chaîne sync → classpath →
+  résolution EST saine une fois nourrie.
+
+### 13.2 Le banc (v1.1.5) — `bancs/projet-android/` + vraies bibliothèques
+
+Le montage demandé — un PROJET ANDROID COMPLET aux artefacts réels :
+
+- `bancs/projet-android/` : la réplique du projet « monip »
+  (com.example.monip, AppCompatActivity, ActivityMainBinding data binding,
+  Greeter, layout `<layout>`) ;
+- `bancs/projet-android-genere/` : les sources GÉNÉRÉES simulées (R.java,
+  ActivityMainBinding) à leur emplacement AGP ;
+- `scripts/preparer-projet-android.sh` : télécharge la plateforme
+  **android.jar 34-ext12** + **16 AARs/jars réels** (appcompat 1.7.0,
+  material 1.12.0, constraintlayout, core, fragment, activity 1.8.2,
+  lifecycle, savedstate, viewbinding, databinding-runtime…) — la FERMETURE
+  transitive vérifiée CLASSE PAR CLASSE (AppCompatActivity →
+  FragmentActivity → ComponentActivity → … → Object) : sans activity ni
+  viewbinding ni lifecycle-common, ecj rend « The hierarchy of the type
+  MainActivity is inconsistent » — le montage est celui d'une VRAIE sync
+  Gradle ;
+- `BancProjetAndroidReelTest` (20 tests ordonnés) : la timeline appareil
+  REJOUÉE au protocole (régime VIVANT, routeur multi-racines, jdkHome
+  inexistant — la plateforme vit ENTIÈREMENT dans android.jar comme sur
+  ART) : didOpen avant sync → diagnostics du cache → sync → LIVE-REPUBLISH
+  → PUIS chaque famille de complétion.
+
+### 13.3 Les cinq correctifs moteur (les écarts du premier run)
+
+Première exécution : 12/18 — les écarts étaient les bugs demandés :
+
+1. **qualifier IMBRIQUÉ** (`R.layout.a|` → 0 item) : `fqcnDuNomType`
+   rejetait tout nom à point. Les segments se chaînent maintenant en
+   imbriqués `$` (`com.example.monip.R$layout`, repli fichier englobant en
+   sources) et la sonde binaire du membre statique reçoit la forme pointée ;
+2. **auto-import muet** (`MaterialAlertDialogB|` → le type, SANS édition) :
+   le FQCN voyagait en détail mais AUCUNE édition n'était produite. L'item
+   porte désormais `additionalTextEdits` — l'insertion
+   `import com.google.android.material.dialog.MaterialAlertDialogBuilder;`
+   au point d'insertion des imports, jamais quand l'import est inutile
+   (déjà présent, paquet courant, java.lang) ;
+3. **marqueur de splice en fuite** : l'identifiant interne
+   `__codeide_completion__()` paraissait dans l'inventaire à préfixe vide
+   (il parse comme déclaration du type englobant) — écarté au dernier
+   rempart du filtrage ET à la source de collecte ;
+4. **identifiant isolé en corps de méthode** (`ti|` → des TYPES seuls :
+   Tile, Time, Timer…) : ECJ parse l'identifiant nu d'une frappe comme
+   SingleTypeReference de recovery ; toute vraie position de type porte une
+   ancre (superclass, argument, allocation, returnType…). Sans ancre dans
+   une méthode concrète, le contexte est NOM — la locale `titre` paraît
+   EN TÊTE, les types suivent : le popup Android Studio ;
+5. **classpath de banc incomplet** (hiérarchie inconsistante) — corrigé par
+   la fermeture transitive réelle (§13.2), miroir du montage hôte.
+
+### 13.4 Validation — 20/20, puis TOUT le dépôt
+
+- banc projet Android réel : **20/20** (6,6 s) — la timeline complète :
+  S01 diagnostics honnêtes du cache (11 « cannot be resolved », Bundle
+  résout), S02 LIVE-REPUBLISH propre après sync, S02b froid complet
+  237 ms, S03–S05 imports précis par niveau (android/androidx → appcompat
+  → AppCompatActivity), S06 type + auto-import + nom dérivé `builder`,
+  S07–S10 membres (binding.textTitre, liaison.saluer, R.layout.
+  activity_main, inflate), S11 locale en tête + filtrage de préfixe
+  strict, S12 `new Bund|` → Bundle, S13/S13b stubs d'override (toString
+  en tête, 120 items à préfixe vide, zéro fuite de marqueur), S14 hover,
+  S15 definition → jdt://decompiled, S16 cohérence de la frappe continue,
+  S17 chaud p95=119 ms / frappe pire=82 ms, S18 repli utile en frappe ;
+- suite complète `:java:test` (gates Android ouvertes) : **521 tests,
+  0 échec, 0 erreur** ;
+- `:java:benchQualite` : **recall 1,000 / top-1 1,000 / MRR 1,000,
+  p95 36,7 ms, 0 saut** — la baseline SIGNÉE tient (les correctifs ne
+  dégradent RIEN du contrat de classement) ;
+- `:java:benchUsages` : rappel 1,000, p95 43 ms ;
+- `:java:bench` : diagnose complet p50 12,8 ms, hover 0,09 ms,
+  complétion membres p50 5,7 ms, tas 17 Mo.
+
+Écart documenté (décision future) : la frappe du MOT-CLÉ lui-même
+(`i`, `im`, `import` avant l'espace) rend 0 item — Android Studio y
+propose `import`/`interface` ; la complétion de mot-clé en position de
+top-level n'est pas câblée (aucun impact sur les paquets après « import »,
+le sujet des retours).
+
+### 13.5 Chaîne exécutée et reste
+
+- code-lsp : cinq correctifs + banc + script (§13.2–13.3), suite verte
+  (§13.4). Reste au propriétaire : publication v1.1.5 (tag) + pin hôte
+  codeide-lsp + version CodeIDE — même geste que §12.5 ;
+- la passe appareil attendue sur moto g06 : le banc garantit désormais le
+  comportement MOTEUR sur classpath réel — les écarts restants appareil se
+  lisent donc côté HÔTE (nourrissage du cache à l'ouverture, délai de la
+  première sync) : le banc S01/S02 en est la sonde de parité exacte.
