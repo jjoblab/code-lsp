@@ -74,6 +74,28 @@
 > 3 980 148 o (identiques au bac à sable, seuils tenus — E-K8 à 95 %,
 > l'arbitrage Q-K1 devient pressant) ; la vague 2d (classpath côté
 > Kotlin) est la suivante (§7.4).**
+>
+> **Décision du propriétaire reçue le 2026-10-31** : « Go vague 2d, 2e, 2f
+> et 2g — Élève le budget (E-k8) » — les QUATRE dernières vagues de
+> l'étage 2 sont ouvertes EN SÉQUENCE sur la branche `etude/moteur-kotlin`,
+> et le budget T1 est ÉLEVÉ 4 Mo → 6 Mo (ALERTES §4 — arbitrage consigné
+> dans le commit `566de1b`, le seuil méthodes reste ≤ 32 768 : moitié du
+> mur 64K, jamais négociable).
+>
+> **Mise à jour (31/10, vague 2d) — LE CLASSPATH CÔTÉ KOTLIN EST LIVRÉ (25
+> comportements — fiches 023/024/026/033/037) : les COMPAGNONS (projet —
+> portée STATIQUE du conteneur, nommé ou anonyme ; classpath — la porte à
+> trois états `fqcn$Companion` : absente/ne change rien, lisible/ses noms
+> et l'absence reste prouvable, illisible/muet), les OBJETS du classpath
+> (`INSTANCE` + membres d'instance — survol typé et propriétaire), les
+> extensions sur les MAILLONS DISTANCIÉS (`collect` sur `SharedFlow` vit
+> sur `Flow` — coroutines RÉELLES 1.9.0 en dépendance de test), les
+> INTRINSÈQUES RÉPUTÉES (voie 6-bis : `arrayOf` et la famille des
+> constructeurs de tableaux vivent dans `kotlin.kotlin_builtins`, aucune
+> facade `*Kt` ne les porte — plancher documenté des appelables), les
+> TYPEALIAS de bibliothèque en chemin qualifié (voie d-bis) et le TYPE des
+> CHAMPS de bibliothèque (descripteur de champ = type NU) ; 128/204
+> comportements diagnostics verts.**
 
 ## 1. Périmètre de l'étage (plan §4 — cahier en main)
 
@@ -92,7 +114,7 @@
 
 | Critère | État | Preuve |
 |---|---|---|
-| 204 comportements diagnostics verts (23 fiches du domaine) | EN COURS — 103/204 | Vague 2a (§5) : fiches 017 (8/8) + 022 (8/8) + 006 (4/4) ; vague 2b (§6) : fiche 046 (39/39) ; vague 2c (§7) : fiches 044 (13/13) + 028 (12/12) + 032 (3/3) + 040 (11/11) + 029 (5/5) |
+| 204 comportements diagnostics verts (23 fiches du domaine) | EN COURS — 128/204 | Vague 2a (§5) : fiches 017 (8/8) + 022 (8/8) + 006 (4/4) ; vague 2b (§6) : fiche 046 (39/39) ; vague 2c (§7) : fiches 044 (13/13) + 028 (12/12) + 032 (3/3) + 040 (11/11) + 029 (5/5) ; vague 2d (§8) : fiches 023 (2/2) + 024 (7/7) + 026 (2/2) + 033 (9/9) + 037 (5/5) |
 | Zéro faux positif corpus quatre mondes | OUVERT | — |
 | Banc fidélité baseline signée | OUVERT | — |
 
@@ -554,12 +576,80 @@ fiches 044/028/032/040/029 verts, **103/204** au critère §2. La vague 2d
 (classpath côté Kotlin : compagnons, objets `INSTANCE`, typealias de
 bibliothèque, extensions à récepteur paramètre de type, appelables
 builtin — fiches 023/024/026/033/037, 25 comportements) est la suivante.
-LIVRÉS** : la clôture mixte des supertypes, la pile des this (objets
-anonymes et `apply`), la chaîne profondeur 7+ du monde Views, les
-imbriquées projet et classpath, les chemins FQN, les zones de construction,
-la dérivation consciente des descripteurs, le survol et la complétion des
-membres hérités ; 44/44 comportements des fiches 044/028/032/040/029
-verts, **103/204** au critère §2. La vague 2d (classpath côté Kotlin :
-compagnons, objets `INSTANCE`, typealias de bibliothèque, extensions à
-récepteur paramètre de type, appelables builtin — fiches 023/024/026/033/
-037, 25 comportements) est la suivante.
+
+## 8. Vague 2d — le classpath côté Kotlin (31/10, fiches 023/024/026/033/037)
+
+### 8.1 Périmètre exécuté
+
+| # | Item | État | Détail |
+|---|---|---|---|
+| 1 | Compagnons PROJET (fiche 024) | **Fait** | `ModeleProjet` : le `companion object` du corps (nommé ou anonyme — `KtTokens.COMPANION_MODIFIER`) porte ses membres FUN/PROPERTY dans `membresCompagnon` du CONTENEUR (portée STATIQUE — `Boite.creer()`), le nom en `nomCompagnon` (`"Companion"` effectif pour l'anonyme) ; le compagnon NOMMÉ reste un type imbriqué du modèle (`Boite.Fabrique.creer()` par la marche existante) ; `verifierSelecteurProjet` consulte la portée statique APRÈS la clôture (jamais dans le jeu d'INSTANCE — `instance.creer()` reste signalé, miroir kotlinc) ; `propositionsMembres` propose les membres du compagnon ; le `this` implicite du corps passe par la PILE DES THIS (couche nommée du modèle / couche anonyme existantes) |
+| 2 | Compagnons CLASSPATH (fiche 024) | **Fait** | `VueJvmMembres.compagnonDe(fqcn)` : l'entrée `fqcn$Companion.class` des ENTRÉES posées — TROIS états (ABSENTE : rien ne change ; PRÉSENTE LISIBLE : ses noms — membres + dérivées — la classe est close et énumérable, l'absence d'un AUTRE nom reste PROUVÉE ; PRÉSENTE ILLISIBLE : muet, D3) ; `verifierSelecteur` (classpath) la consulte après le jeu complet ; `propositionsMembres` l'offre ; `SurvolDocuments` survole par `fqcn$Companion` en repli — preuves sur le stdlib réel : `Regex.escape` (méthode d'instance de `kotlin.text.Regex$Companion` — vérifiée au bytecode par sonde), `UInt.MAX_VALUE` (champ STATIQUE `I` porté par la classe encadrante — la sonde écarte le compagnon vide) |
+| 3 | Extensions à récepteur paramètre de type (fiche 026) | **Fait** | La garde 2a « extensions GÉNÉRIQUES » (présence dans l'index SANS récepteur de classe → MUET) couvre `let`/`also`/`apply`/`run`/`takeIf`/`takeUnless` sur récepteur classpath LISIBLE (android.jar + stdlib réels) ; le contrôle négatif (membre réellement absent du même récepteur) reste SIGNALÉ — la preuve s'exerce VRAIMENT |
+| 4 | Objets du classpath `INSTANCE` (fiche 033) | **Fait** | Le jar de fixture calque la structure RÉELLE d'un objet compilé (champ STATIQUE `INSTANCE` du type propre + membres d'INSTANCE, accès 0x0009) : `MaterialTheme.typography`/`.colorant` (propriétés), `Arrangement.spacedBy(8)` (fonction membre), membre inexistant SIGNALÉ, SURVOL du membre (signature typée + propriétaire déclarant) ; `objectimporte` : le membre inexistant d'un object du PROJET reste signalé |
+| 5 | Coroutines réelles (fiche 033) | **Fait** | `kotlinx-coroutines-core-jvm:1.9.0` en dépendance de TEST (ancre de classe `kotlinx.coroutines.flow.Flow` — AUCUN impact dex, test seul) : `flux.collect { }` (extension suspend sur le récepteur EXACT `Flow`) et `m.etat?.collect { }` sur `SharedFlow`/`StateFlow` (le MAILLON DISTANCIÉ) — `VueJvmMembres.chainesDe(fqcn)` rend la fermeture des supertypes lue des entrées (terminaux connus exclus), `recepteursExtension` consulte chaque maillon (nom JVM + MIROIR KOTLIN des types mappés `MAPPES_JVM_INVERSE`) : l'extension déclarée sur un SUPERTYPE du récepteur résout — l'import du membre peut vivre ailleurs, la résolution par le RÉCEPTEUR n'en dépend pas |
+| 6 | Intrinsèques réputées (fiche 023) | **Fait** | CONSTAT sonde : `arrayOf`/`intArrayOf` vivent dans la RESSOURCE `kotlin/kotlin.kotlin_builtins` (29 399 o du stdlib 2.2.10 — aucun miroir de facade `*Kt`, le décodeur @Metadata ne les verra JAMAIS par conception D4) alors que `listOf`/`println`/`emptyArray` résolvent par la voie 6 ; **voie 6-bis** : `BUILTINS_REPUTES_MUETS` (les onze constructeurs de tableaux du module par défaut, scannés de la ressource) — plancher documenté des APPELABLES, miroir du catalogue KP8 des types (SPECIFICATION P7/A21) |
+| 7 | Typealias de bibliothèque (fiche 037) | **Fait** | `cheminClasse` voie **d-bis** : le chemin complet consulte `estTypeAliasConnu` (l'index porte les alias publics des facades — kotlinx-datetime 0.6.1 réel : `kotlinx.datetime.DayOfWeek` qualifié reste MUET alors qu'AUCUN class-file ne le porte) ; type nu importé (voie imports), type nu derrière joker (univers ouvert existant), classes réelles du corpus (`Clock`, `Instant`) muettes en import ET en qualifié, nom inconnu qualifié SIGNALÉ |
+| 8 | Type des CHAMPS de bibliothèque (fiche 033 — discovered) | **Fait** | CORRECTIF découvert par la fixture : un descripteur de CHAMP est le TYPE NU (`Lexo/theme/Typography;`), pas une forme `(params)retour` — `DescripteursJvm.typeNu` + `MembreJvm.retour` adaptés (le survol de `MaterialTheme.typography` rend `var typography: Typography (exo.theme.MaterialTheme)`, le typage des champs s'en nourrit ; les TABLEAUX restent muets, D3) |
+| 9 | Fixture builder étendu | **Fait** | `OutilsJarFixture` : membres STATIQUES (accès 0x0009 — champ `INSTANCE`, `const`, compagnon `@JvmStatic`) à côté des membres d'instance 0x0001 — les fixtures 2c restent inchangées par défaut |
+| 10 | Tests neufs | **Fait** | 25 comportements aux noms exacts du cahier : fiche 023 (2) + 024 (7) + 026 (2) + 033 (9) + 037 (5) — jars RÉELS (stdlib, android.jar AOSP, kotlinx-coroutines 1.9.0, kotlinx-datetime 0.6.1) et fixture Compose-like autoconteue ; câblage par le chemin de production D6 |
+
+### 8.2 Décisions d'exécution consignées (pas dans le plan initial)
+
+1. **Le compagnon classpath est une PORTE À TROIS ÉTATS, pas un membre** :
+   l'entrée `fqcn$Companion.class` ABSENTE ne change rien (la classe n'a
+   pas de compagnon — l'absence se prouve sur le seul jeu d'instance),
+   PRÉSENTE et LISIBLE elle rend ses NOMS (close et énumérable — la garde
+   D3 de la fiche 024 s'exerce : un membre introuvable du compagnon reste
+   signalé), PRÉSENTE mais ILLISIBLE elle MUET la preuve (univers ouvert).
+   La sonde bytecode a établi la structure réelle : les méthodes du
+   compagnon sont des méthodes d'INSTANCE de `fqcn$Companion`
+   (`Regex.escape`), les `const` des champs STATIQUES de la classe
+   ENCLOSANTE (`UInt.MAX_VALUE`) — le lecteur ne distingue pas (il lit
+   tout, filtre SYNTHETIC/BRIDGE seulement), la consultation des DEUX
+   côtés couvre la famille sans faux positif.
+2. **Les extensions se consultent sur la CHAÎNE, pas le récepteur seul** :
+   `collect` sur `SharedFlow` vit sur `Flow` — la preuve par l'extension
+   exige la fermeture des supertypes du récepteur (`chainesDe`, terminaux
+   connus exclus — jamais des clés d'extension). Les maillons lus du
+   bytecode portent des noms JVM, les clés de l'index des noms KOTLIN :
+   le MIROIR INVERSE des types mappés est consulté sur chaque maillon.
+   Décision de périmètre : la complétion n'offre PAS encore les extensions
+   des maillons distanciés (sélecteur seulement — l'étage 3 classera).
+3. **La voie 6-bis est un PLANCHER DOCUMENTÉ, pas un index** : les
+   intrinsèques réputées sont scannées de la ressource
+   `kotlin.kotlin_builtins` du stdlib ÉPINGLÉ (onze noms, liste close) —
+   une lecture de la ressource en production resterait possible (Q-K1)
+   mais le plancher borne le silence au MINIMUM documenté : tout autre
+   appelable absent de l'index RESTE signalé.
+4. **Le stdlib réel ne ferme pas toutes les chaînes** : `Regex` implémente
+   `java.io.Serializable`, `UInt` implémente `java.lang.Comparable` — des
+   maillons absents du stdlib ET du android.jar Maven 4.1.1.4 (SANS
+   classes java.*). La garde D3 de la fiche 024 s'exerce donc sur un
+   compagnon de FIXTURE autocontenu (chaîne fermée sur le terminal
+   Object) — la preuve est VRAIE, le harnais ne valide pas un « tout
+   muet » ; la garde `UInt.PAS_UN_CHAMP` sur stdlib seul resterait muette
+   (chaîne ouverte, D3 honnête).
+
+### 8.3 Preuves du bac à sable (avant poussée)
+
+- **Suite** : 260 tests VERTS sur la toolchain 17 (235 + 25 — fiches
+  023/024/026/033/037 vertes 25/25), baseline de parité RE-SIGNÉE
+  346 → 351 fichiers (les 5 fichiers de test neufs, procédure documentée
+  `-Dparite.majBase=true --rerun-tasks`).
+- **Jar moteur** : 625 131 o (+4 569 vs 2c).
+- **Scan ART pile complète** : 6 × « AUCUNE » (moteur 225 classes / 276
+  méthodes déclarées — +1/+3, class-file 61:225, ServiceLoader OK
+  descripteur vérifié), rc=0.
+- **Dexage d8** (build-tools 34 local, min-api 26) : **25 287 références
+  de méthodes / 3 985 408 o (3,80 Mo)** — +14 méthodes / +5 260 o vs 2c ;
+  seuils tenus : méthodes 77 % du plafond 32 768, taille **63 % du
+  NOUVEAU budget 6 Mo** (ÉLEVÉ par le propriétaire le 31/10 — E-K8,
+  ALERTES §4 ; l'ancien budget 4 Mo eût été à 95 %).
+- **Banc JDK 17** (bac à sable, 2 cœurs) : froid 210,7/23,1 ms,
+  p50 7,1/21,8 ms, p95 38,8/50,5 ms, productions 5 448/31 368 et jetons
+  4 210/24 274 — déterminisme IDENTIQUE, marqueurs d'erreur 0,
+  tas 3 845 Kio.
+- **Provenance** : `verifier-provenance.sh` rc=0 (aucune reprise nouvelle
+  — code NEUF intégral ; kotlinx-coroutines en dépendance de TEST seule,
+  jamais dans la pile chaude).

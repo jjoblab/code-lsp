@@ -173,7 +173,7 @@ jobs:
   #                   les seuils arrivent avec les bancs ADR 0119).
   # ---------------------------------------------------------------------
   kotlin-parite:
-    name: Moteur Kotlin - suite du module (fiches 010-013 + 049/042/041 + 002-005/008/009/034 + synthétiques R1/R2 + 017/022/006 + 046, étages 1-2 vagues 1a-2b)
+    name: Moteur Kotlin - suite du module (fiches 010-013 + 049/042/041 + 002-005/008/009/034 + synthétiques R1/R2 + 017/022/006 + 046 + 044/028/032/040/029 + 023/024/026/033/037, étages 1-2 vagues 1a-2d)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

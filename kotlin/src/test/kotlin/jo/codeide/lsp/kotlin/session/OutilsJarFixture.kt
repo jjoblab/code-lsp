@@ -19,15 +19,18 @@ import java.util.zip.ZipOutputStream
  * `resolve/VueJvmMembres.kt` attend : `0xCAFEBABE`, version 52, pool
  * dédupliqué, `access_flags` 0x0021, `this_class`/`super_class` par
  * indirection Class (tag 7 → Utf8), aucune interface, champs puis méthodes à
- * `attributes_count = 0` (les accès 0x0001 publics — jamais SYNTHETIC/BRIDGE).
+ * `attributes_count = 0` (les accès 0x0001 publics — jamais SYNTHETIC/BRIDGE ;
+ * 0x0009 publics STATIQUES depuis la vague 2d : champ `INSTANCE` des objets,
+ * membres de compagnons, `const`).
  */
 internal object OutilsJarFixture {
 
-    /** Un membre de fixture (nom, descripteur JVMS §4.3, champ ou méthode). */
+    /** Un membre de fixture (nom, descripteur JVMS §4.3, champ ou méthode, drapeau statique). */
     internal class Membre(
         internal val nom: String,
         internal val descripteur: String,
         internal val estChamp: Boolean,
+        internal val estStatique: Boolean = false,
     )
 
     /** Un bâtisseur accumulant les classes avant écriture. */
@@ -63,8 +66,14 @@ internal object OutilsJarFixture {
     /** Un champ de fixture (`champ("mFenetre", "Landroid/view/View;")`). */
     internal fun champ(nom: String, descripteur: String): Membre = Membre(nom, descripteur, true)
 
+    /** Un champ STATIQUE de fixture (`champStatique("INSTANCE", "Lexo/theme/MaterialTheme;")`). */
+    internal fun champStatique(nom: String, descripteur: String): Membre = Membre(nom, descripteur, true, estStatique = true)
+
     /** Une méthode de fixture (`methode("setContentView", "(Landroid/view/View;)V")`). */
     internal fun methode(nom: String, descripteur: String): Membre = Membre(nom, descripteur, false)
+
+    /** Une méthode STATIQUE de fixture (vague 2d — le compagnon `@JvmStatic`). */
+    internal fun methodeStatique(nom: String, descripteur: String): Membre = Membre(nom, descripteur, false, estStatique = true)
 
     /** Les octets d'un class-file minimal (pool dédupliqué, membres sans attributs). */
     private fun octetsClasse(fqcn: String, superFqcn: String?, membres: List<Membre>): ByteArray {
@@ -109,7 +118,10 @@ internal object OutilsJarFixture {
                 val duGenre = membres.filter { it.estChamp == estChamp }
                 flux.writeShort(duGenre.size)
                 for (membre in duGenre) {
-                    flux.writeShort(0x0001) // ACC_PUBLIC (jamais SYNTHETIC/BRIDGE).
+                    // ACC_PUBLIC (jamais SYNTHETIC/BRIDGE) ; ACC_STATIC pour
+                    // les membres statiques (vague 2d — INSTANCE des objets,
+                    // compagnons, const) — 0x0009.
+                    flux.writeShort(if (membre.estStatique) 0x0009 else 0x0001)
                     flux.writeShort(indexDe(membre.nom))
                     flux.writeShort(indexDe(membre.descripteur))
                     flux.writeShort(0) // attributes_count.

@@ -64,6 +64,12 @@ internal class VueJvmMembres(private val entrees: List<EntreeClasspathKotlin>) {
     /** Le cache des imbriquées par FQCN parent (vague 2c — fiche 028/029). */
     private val cacheImbriques = HashMap<String, List<String>>()
 
+    /** Le cache des COMPAGNONS par FQCN (vague 2d — fiche 024). */
+    private val cacheCompagnons = HashMap<String, CompagnonJvm?>()
+
+    /** Le cache des CHAÎNES de supertypes par FQCN (vague 2d — fiche 033). */
+    private val cacheChaines = HashMap<String, List<String>?>()
+
     /**
      * Les membres DÉCLARÉS d'un FQCN des entrées (sans héritage).
      *
@@ -210,6 +216,97 @@ internal class VueJvmMembres(private val entrees: List<EntreeClasspathKotlin>) {
         if (nomSimple.isEmpty() || '\$' in nomSimple) return false
         synchronized(this) {
             return entreeExiste(fqcnParent.replace('.', '/') + "\$" + nomSimple + ".class")
+        }
+    }
+
+    /**
+     * Le COMPAGNON d'une classe du classpath (vague 2d — fiche 024 : le
+     * compilateur Kotlin émet `fqcn$Companion`, les membres du compagnon
+     * y vivent — `Regex.escape` est une méthode d'INSTANCE de
+     * `kotlin.text.Regex$Companion`, les `const` des champs STATIQUES —
+     * le lecteur ne distingue pas, il lit tout).
+     *
+     * Les trois états (jamais de faux positif, D3) : l'entrée ABSENTE
+     * rend `null` (la classe n'a pas de compagnon — l'absence des
+     * sélecteurs se prouve sur le seul jeu d'instance) ; l'entrée
+     * PRÉSENTE et LISIBLE rend les NOMS (membres + propriétés dérivées
+     * — la classe du compagnon est close et énumérable, l'absence y
+     * reste prouvable) ; l'entrée PRÉSENTE mais ILLISIBLE rend
+     * [CompagnonJvm.illisible] (la preuve se tait).
+     *
+     * @param fqcn le FQCN de la classe porteuse ;
+     * @return le compagnon ; `null` si aucune entrée ne porte
+     * `fqcn$Companion.class`.
+     */
+    internal fun compagnonDe(fqcn: String): CompagnonJvm? {
+        synchronized(this) {
+            if (cacheCompagnons.containsKey(fqcn)) return cacheCompagnons[fqcn]
+            val nomCompanion = fqcn + "\$Companion"
+            if (!entreeExiste(nomCompanion.replace('.', '/') + ".class")) {
+                cacheCompagnons[fqcn] = null
+                return null
+            }
+            val declares = lireMembres(nomCompanion)
+            val compagnon = if (declares == null) {
+                CompagnonJvm(emptySet(), illisible = true)
+            } else {
+                val noms = LinkedHashSet<String>()
+                for (membre in declares.membres) noms.add(membre.nom)
+                for (derivee in declares.proprietesDerivees) noms.add(derivee.nom)
+                CompagnonJvm(noms, illisible = false)
+            }
+            cacheCompagnons[fqcn] = compagnon
+            return compagnon
+        }
+    }
+
+    /**
+     * La chaîne des FQCN de SUPERTYPES d'une classe des entrées (vague 2d
+     * — fiche 033 : l'extension `collect` vit sur `Flow`, le récepteur
+     * `SharedFlow` l'atteint par son MAILLON DISTANCIÉ) : la fermeture
+     * transitive superclass + interfaces, cycle-interrompue et bornée —
+     * les TERMINAUX CONNUS (`java.lang.Object`, `kotlin.Any`,
+     * `java.lang.Enum`) n'y entrent PAS (leurs membres sont le socle
+     * commun, jamais des clés d'extensions).
+     *
+     * @param fqcn le FQCN de départ ;
+     * @return les FQCN des maillons (le récepteur EXCLU) ; `null` si un
+     * maillon manque des entrées (chaîne non lisible — miroir de
+     * [jeuComplet]).
+     */
+    internal fun chainesDe(fqcn: String): List<String>? {
+        synchronized(this) {
+            if (cacheChaines.containsKey(fqcn)) return cacheChaines[fqcn]
+            val maillons = LinkedHashSet<String>()
+            val visites = HashSet<String>()
+            val pile = ArrayDeque<String>()
+            pile.addLast(fqcn)
+            var profondeur = 0
+            var lisible = true
+            while (pile.isNotEmpty()) {
+                if (++profondeur > PROFONDEUR_MAX) {
+                    lisible = false
+                    break
+                }
+                val courant = pile.removeLast()
+                if (!visites.add(courant)) continue
+                if (courant == "java.lang.Object" || courant == "kotlin.Any" ||
+                    courant == "java.lang.Enum"
+                ) {
+                    continue
+                }
+                val declares = lireMembres(courant)
+                if (declares == null) {
+                    lisible = false
+                    break
+                }
+                if (courant != fqcn) maillons.add(courant)
+                declares.superFqcn?.let { pile.addLast(it) }
+                pile.addAll(declares.interfaces)
+            }
+            val resultat = if (lisible) maillons.toList() else null
+            cacheChaines[fqcn] = resultat
+            return resultat
         }
     }
 
@@ -473,8 +570,19 @@ internal class MembreJvm(
     /** Les types FQCN Kotlin des PARAMÈTRES (`null` si tableau/illisible). */
     internal fun parametres(): List<String>? = DescripteursJvm.parametres(descripteur)
 
-    /** Le type FQCN Kotlin du RETOUR (`null` si tableau/illisible). */
-    internal fun retour(): String? = DescripteursJvm.retour(descripteur)
+    /**
+     * Le type FQCN Kotlin du RETOUR ou du CHAMP (`null` si tableau/
+     * illisible) — vague 2d : un descripteur de CHAMP n'a PAS la forme
+     * `(params)retour`, c'est le TYPE NU du champ (`Lexo/theme/Typography;`)
+     * — le dépouillement s'y adapte (le survol d'un membre d'objet
+     * `MaterialTheme.typography` rend son type, fiche 033).
+     */
+    internal fun retour(): String? =
+        if (estChamp) {
+            DescripteursJvm.typeNu(descripteur)
+        } else {
+            DescripteursJvm.retour(descripteur)
+        }
 }
 
 /**
@@ -524,6 +632,20 @@ internal class MembreChaineJvm(
 )
 
 /**
+ * Le COMPAGNON d'une classe du classpath (vague 2d — fiche 024) : les
+ * NOMS appelables du compagnon `fqcn$Companion`, ou le témoin ILLISIBLE
+ * qui muet la preuve (D3).
+ *
+ * @property noms les noms des membres + propriétés dérivées du compagnon ;
+ * @property illisible l'entrée compagnon existe mais ne se parse PAS — la
+ * preuve d'absence se tait (univers ouvert).
+ */
+internal class CompagnonJvm(
+    internal val noms: Set<String>,
+    internal val illisible: Boolean,
+)
+
+/**
  * Le jeu de membres COMPLET d'un récepteur classpath (la matière des
  * preuves ADR 0223 — présence et absence) : déclarés de toute la chaîne,
  * propriétés dérivées et implicites de Any/Object.
@@ -562,6 +684,16 @@ internal object DescripteursJvm {
         val fermeture = descripteur.indexOf(')')
         if (fermeture < 0 || !descripteur.startsWith("(")) return null
         return lire(descripteur, fermeture + 1, descripteur.length)?.first?.singleOrNull()
+    }
+
+    /**
+     * Le type FQCN Kotlin d'un descripteur de CHAMP NU (vague 2d — le type
+     * DU champ, pas un retour : `Lexo/theme/Typography;` →
+     * `exo.theme.Typography`) ; `null` si tableau/illisible (conservateur).
+     */
+    internal fun typeNu(descripteur: String): String? {
+        if (descripteur.startsWith("(")) return null
+        return lire(descripteur, 0, descripteur.length)?.first?.singleOrNull()
     }
 
     /** La lecture d'une tranche de descripteur (types lus, position finale). */

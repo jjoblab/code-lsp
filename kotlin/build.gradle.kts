@@ -216,6 +216,12 @@ dependencies {
     testImplementation("com.google.android:android:4.1.1.4")
     testImplementation("org.jetbrains.kotlinx:kotlinx-datetime-jvm:0.6.1")
     testImplementation("org.jetbrains.kotlinx:kotlinx-serialization-core-jvm:1.9.0")
+
+    // ── Corpus de test de la vague 2d (fiche 033 — coroutines RÉELLES) ──
+    // `collect` suspend extension sur Flow/SharedFlow : le jar véritable du
+    // classpath de test, ancré par classe (kotlinx.coroutines.flow.Flow) —
+    // AUCUN impact dex (test seul, jamais la pile chaude du moteur).
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:1.9.0")
 }
 
 // ---------------------------------------------------------------------------

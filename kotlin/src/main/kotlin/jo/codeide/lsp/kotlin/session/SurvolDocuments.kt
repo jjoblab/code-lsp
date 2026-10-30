@@ -152,7 +152,12 @@ internal object SurvolDocuments {
             }
             null -> return null
         }
-        val chaine = vue.membreChaine(univers.mapeJvm(fqcn), nom) ?: return null
+        val chaine = vue.membreChaine(univers.mapeJvm(fqcn), nom)
+            // Le COMPAGNON du classpath (vague 2d — fiche 024 : le survol
+            // de `UInt.MAX_VALUE` lit le champ STATIQUE du compagnon —
+            // `fqcn$Companion`, la classe manquante rend `null` d'elle-même).
+            ?: vue.membreChaine(univers.mapeJvm(fqcn) + "\$Companion", nom)
+            ?: return null
         return renduMembreJvm(chaine.proprietaire, chaine, nom)
     }
 

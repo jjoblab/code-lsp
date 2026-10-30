@@ -204,6 +204,14 @@ internal class UniversPreuves(
             }
         }
 
+        // 6-bis. Les INTRINSÈQUES RÉPUTÉES du module par défaut (vague 2d
+        //    — fiche 023 : `arrayOf` et la famille des constructeurs de
+        //    tableaux vivent dans la RESSOURCE `kotlin.kotlin_builtins`,
+        //    AUCUNE facade `*Kt` ne les porte — le décodeur @Metadata ne
+        //    les verra JAMAIS, par conception D4) : le plancher documenté
+        //    des appelables, miroir du catalogue KP8 pour les types.
+        if (nom in BUILTINS_REPUTES_MUETS) return Verdict.RESOLU
+
         // 7. Le catalogue KP8 : les types des paquets par défaut (positions
         //    de types ET d'expressions — un accès statique y est légal).
         if (nom in CATALOGUE_TYPES_DEFAUT) return Verdict.RESOLU
@@ -395,13 +403,33 @@ internal class UniversPreuves(
         // Les implicites de Any/Object (le socle commun de tout récepteur).
         if (nom in MEMBRES_IMPLICITS) return Verdict.RESOLU
 
+        // Le COMPAGNON du classpath (vague 2d — fiche 024 : `Regex.escape`
+        // vit sur `kotlin.text.Regex$Companion`) : l'entrée compagnon
+        // PRÉSENTE et LISIBLE rend ses noms (la classe est close, l'absence
+        // y reste prouvable) ; PRÉSENTE mais ILLISIBLE = univers ouvert.
+        val compagnon = vueJvm?.compagnonDe(fqcn)
+        if (compagnon != null) {
+            if (compagnon.illisible) return Verdict.MUET
+            if (nom in compagnon.noms) return Verdict.RESOLU
+        }
+
         return verdictExtensions(fqcn, nom)
     }
 
     /** La suite des EXTENSIONS du verdict classpath (récepteur FQCN Kotlin). */
     private fun verdictExtensions(fqcn: String, nom: String): Verdict {
         if (index == null) return Verdict.MUET
-        if (index.extensionsSur(fqcn).any { it.nom == nom }) return Verdict.RESOLU
+        // Les extensions sur le récepteur EXACT puis sur toute sa CHAÎNE de
+        // supertypes (vague 2d — fiche 033 : `collect` sur `SharedFlow` vit
+        // sur le maillon DISTANCIÉ `Flow`) — les maillons lus du bytecode
+        // portent des noms JVM, les clés de l'index des noms KOTLIN : le
+        // miroir inverse des types MAPPÉS est consulté aussi.
+        if (recepteursExtension(fqcn).any { recepteur ->
+                index.extensionsSur(recepteur).any { it.nom == nom }
+            }
+        ) {
+            return Verdict.RESOLU
+        }
         // Les extensions GÉNÉRIQUES (`<T> T.…`) atteignent TOUT récepteur —
         // leur présence MUET la preuve (fiche 026 : let/also/apply/run…).
         if (index.topParNom(nom).any { it.recepteur == null && it.genre == jo.codeide.lsp.kotlin.index.GenreAppelable.FONCTION }) {
@@ -410,6 +438,23 @@ internal class UniversPreuves(
         // Les extensions de `kotlin.Any` atteignent tout récepteur.
         if (index.extensionsSur("kotlin.Any").any { it.nom == nom }) return Verdict.MUET
         return Verdict.SIGNALABLE
+    }
+
+    /**
+     * Les RÉCEPTEURS d'extension à consulter pour un FQCN (vague 2d —
+     * fiche 033) : le récepteur EXACT, puis chaque MAILLON de sa chaîne
+     * de supertypes lue des entrées (nom JVM + miroir KOTLIN des types
+     * mappés) ; liste vide si la chaîne ne se lit pas (le jeu complet a
+     * déjà fait foi — appelée après lui, jamais seule).
+     */
+    private fun recepteursExtension(fqcn: String): List<String> {
+        val recepteurs = LinkedHashSet<String>()
+        recepteurs.add(fqcn)
+        for (maillon in vueJvm?.chainesDe(MAPPES_JVM[fqcn] ?: fqcn).orEmpty()) {
+            recepteurs.add(maillon)
+            MAPPES_JVM_INVERSE[maillon]?.let { recepteurs.add(it) }
+        }
+        return recepteurs.toList()
     }
 
     /**
@@ -449,6 +494,12 @@ internal class UniversPreuves(
 
         // Les implicites de Any/Object (le socle commun de tout récepteur).
         if (nom in MEMBRES_IMPLICITS) return Verdict.RESOLU
+
+        // Les membres du COMPAGNON du type (vague 2d — fiche 024 :
+        // `Boite.creer()` appelle le membre du compagnon par le NOM de la
+        // classe) — portée STATIQUE du conteneur, énumérable : l'absence
+        // d'un autre nom reste PROUVABLE (garde D3 de la fiche).
+        if (recepteur.membresCompagnon.any { it.nom == nom }) return Verdict.RESOLU
 
         // Les extensions du PROJET sur ce récepteur (résolues par FQCN à
         // l'assemblage du modèle — deuxième passe).
@@ -520,6 +571,11 @@ internal class UniversPreuves(
                 propositions.addAll(recepteur.type.entreesEnum)
             }
             propositions.addAll(MEMBRES_IMPLICITS)
+            // Les membres du COMPAGNON (vague 2d — fiche 024 : `Boite.`
+            // propose `creer` — la portée STATIQUE du conteneur).
+            for (membre in recepteur.type.membresCompagnon) {
+                propositions.add(membre.nom)
+            }
             for (extension in modele.extensionsSur(recepteur.type.fqcn)) {
                 propositions.add(extension.nom)
             }
@@ -538,6 +594,9 @@ internal class UniversPreuves(
         vueJvm?.jeuComplet(MAPPES_JVM[fqcn] ?: fqcn)?.let { propositions.addAll(it.noms) }
         vueJvm?.let { propositions.addAll(it.imbriquesDe(MAPPES_JVM[fqcn] ?: fqcn)) }
         propositions.addAll(MEMBRES_IMPLICITS)
+        // Les membres du COMPAGNON du classpath (vague 2d — fiche 024 :
+        // `Regex.` propose `escape`) — l'illisible ne propose RIEN (D3).
+        vueJvm?.compagnonDe(fqcn)?.takeIf { !it.illisible }?.let { propositions.addAll(it.noms) }
         if (index != null) {
             for (extension in index.extensionsSur(fqcn)) {
                 propositions.add(extension.nom)
@@ -616,6 +675,12 @@ internal class UniversPreuves(
         // packages — `android.os.Bundle`, fiche 044 E4).
         val vueJvmLocale = vueJvm ?: return null
         if (vueJvmLocale.possedeClasse(absolu)) return absolu
+
+        // (d-bis) Le chemin complet comme TYPEALIAS PUBLIC du classpath
+        // (vague 2d — fiche 037 : `kotlinx.datetime.DayOfWeek` — AUCUN
+        // miroir bytecode, la facade `*Kt` est sa seule existence) : le
+        // dernier segment reste MUET en type qualifié.
+        if (index?.estTypeAliasConnu(absolu) == true) return absolu
         return null
     }
 
@@ -790,6 +855,33 @@ internal class UniversPreuves(
             "kotlin.Float" to "java.lang.Float",
             "kotlin.Boolean" to "java.lang.Boolean",
         )
+
+        /**
+         * Le plancher des INTRINSÈQUES RÉPUTÉES (vague 2d — fiche 023) :
+         * les constructeurs de tableaux du module par défaut, déclarés
+         * dans la RESSOURCE `kotlin/kotlin.kotlin_builtins` (aucune facade
+         * `*Kt` ne les porte, le décodeur @Metadata ne les indexe jamais —
+         * constaté sur le stdlib 2.2.10 : `arrayOf`/`intArrayOf` absents de
+         * l'index, `listOf`/`println` présents). Silence conservateur
+         * DOCUMENTÉ, miroir du catalogue KP8 pour les appelables — la
+         * garde D3 de la fiche 023 l'exige (un type hors catalogue et hors
+         * classpath reste SIGNALÉ, l'inverse n'ouvre RIEN).
+         */
+        internal val BUILTINS_REPUTES_MUETS: Set<String> = setOf(
+            "arrayOf", "arrayOfNulls", "emptyArray",
+            "booleanArrayOf", "byteArrayOf", "charArrayOf", "doubleArrayOf",
+            "floatArrayOf", "intArrayOf", "longArrayOf", "shortArrayOf",
+        )
+
+        /**
+         * Le MIROIR INVERSE des types mappés (vague 2d — `java.lang.String`
+         * → `kotlin.String`) : les maillons de chaîne lus du bytecode
+         * portent des noms JVM, les clés d'extension de l'index des noms
+         * KOTLIN — la consultation des extensions sur un maillon passe par
+         * les DEUX.
+         */
+        internal val MAPPES_JVM_INVERSE: Map<String, String> =
+            MAPPES_JVM.entries.associate { (kotlin, jvm) -> jvm to kotlin }
 
         /**
          * Les types mappés NUMÉRIQUES et booléens : leurs membres KOTLIN

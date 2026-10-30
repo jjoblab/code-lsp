@@ -58,7 +58,16 @@ internal enum class GenreTypeProjet {
  * @property entreesEnum les entrées d'enum déclarées (`ROUGE`, `VERT`) ;
  * @property parametresPrimaire les paramètres du constructeur PRIMAIRE
  * (val/var ou non — le témoin d'arité d'un appel de constructeur les
- * compte TOUS, fiche 046) ; liste vide sans constructeur primaire.
+ * compte TOUS, fiche 046) ; liste vide sans constructeur primaire ;
+ * @property membresCompagnon les membres du COMPAGNON du corps (vague 2d
+ * — fiche 024 : `companion object` nommé ou anonyme — `Boite.creer()`
+ * appelle le membre du compagnon par le NOM de la classe) : ils entrent
+ * dans la portée STATIQUE du conteneur, jamais dans son jeu d'INSTANCE
+ * (`instance.creer()` reste SIGNALÉ, miroir kotlinc) ; liste vide sans
+ * compagnon ;
+ * @property nomCompagnon le nom ÉCRIT du compagnon (`Fabrique`),
+ * `"Companion"` pour l'anonyme (le nom EFFECTIF Kotlin), `null` sans
+ * compagnon.
  */
 internal class TypeProjet(
     internal val uri: String?,
@@ -70,6 +79,8 @@ internal class TypeProjet(
     internal val estData: Boolean,
     internal val entreesEnum: List<String>,
     internal val parametresPrimaire: List<ParametreProjet> = emptyList(),
+    internal val membresCompagnon: List<MembreProjet> = emptyList(),
+    internal val nomCompagnon: String? = null,
 ) {
 
     /**
@@ -519,9 +530,30 @@ internal class ModeleProjet private constructor(
             }
 
             val corps = noeud.enfants.firstOrNull { it.genre == KtNodeTypes.CLASS_BODY }
+            val membresCompagnon = mutableListOf<MembreProjet>()
+            var nomCompagnon: String? = null
             if (corps != null) {
                 for (membre in corps.enfants) {
                     when (membre.genre) {
+                        // Le COMPAGNON du corps (vague 2d — fiche 024) : ses
+                        // membres FUN/PROPERTY entrent dans la portée
+                        // STATIQUE du conteneur (`Boite.creer()`), le nom du
+                        // compagnon est porté (`"Companion"` pour l'anonyme
+                        // — le nom EFFECTIF Kotlin) ; le compagnon NOMMÉ
+                        // reste AUSSI un type imbriqué du modèle (la marche
+                        // `Boite.Fabrique` de la collecte récursive le porte).
+                        KtNodeTypes.OBJECT_DECLARATION -> {
+                            if (porteurModificateur(membre, KtTokens.COMPANION_MODIFIER)) {
+                                nomCompagnon = nomDeDeclaration(membre) ?: "Companion"
+                                membresCompagnon.addAll(membresDuCompagnon(membre))
+                                nomDeDeclaration(membre)?.let { n ->
+                                    membres.add(MembreProjet(n, GenreMembreProjet.TYPE_IMBRIQUE, null))
+                                }
+                                continue
+                            }
+                            val n = nomDeDeclaration(membre) ?: continue
+                            membres.add(MembreProjet(n, GenreMembreProjet.TYPE_IMBRIQUE, null))
+                        }
                         KtNodeTypes.FUN -> {
                             val n = nomDeDeclaration(membre) ?: continue
                             membres.add(
@@ -535,7 +567,7 @@ internal class ModeleProjet private constructor(
                             val n = nomDeDeclaration(membre) ?: continue
                             membres.add(MembreProjet(n, GenreMembreProjet.PROPRIETE, typeEcritPropriete(membre)))
                         }
-                        KtNodeTypes.CLASS, KtNodeTypes.OBJECT_DECLARATION -> {
+                        KtNodeTypes.CLASS -> {
                             // Un type IMBRIQUÉ du corps est un MEMBRE du
                             // conteneur (vague 2c — fiche 029) : le
                             // sélecteur `Bac` sur un récepteur `Aquarium`
@@ -570,6 +602,8 @@ internal class ModeleProjet private constructor(
                 estData = estData,
                 entreesEnum = entrees,
                 parametresPrimaire = parametresPrimaire,
+                membresCompagnon = membresCompagnon,
+                nomCompagnon = nomCompagnon,
             )
             if (estData && nbProprietesCtor > 0) {
                 type = type.avecSynthesesData(nbProprietesCtor)
@@ -582,6 +616,36 @@ internal class ModeleProjet private constructor(
             return noeud.enfants
                 .filter { it.genre == KtNodeTypes.MODIFIER_LIST }
                 .any { liste -> liste.enfants.any { it.genre == modificateur } }
+        }
+
+        /**
+         * Les membres FUN/PROPERTY du CORPS d'un compagnon (vague 2d —
+         * fiche 024 : la portée STATIQUE du conteneur) — le même dépouillement
+         * que les membres d'instance, types de retour compris.
+         */
+        private fun membresDuCompagnon(compagnon: NoeudArbre): List<MembreProjet> {
+            val corps = compagnon.enfants.firstOrNull { it.genre == KtNodeTypes.CLASS_BODY }
+                ?: return emptyList()
+            val membres = mutableListOf<MembreProjet>()
+            for (membre in corps.enfants) {
+                when (membre.genre) {
+                    KtNodeTypes.FUN -> {
+                        val n = nomDeDeclaration(membre) ?: continue
+                        membres.add(
+                            MembreProjet(
+                                n, GenreMembreProjet.FONCTION, typeRetourEcrit(membre),
+                                parametresDeclares(membre),
+                            ),
+                        )
+                    }
+                    KtNodeTypes.PROPERTY -> {
+                        val n = nomDeDeclaration(membre) ?: continue
+                        membres.add(MembreProjet(n, GenreMembreProjet.PROPRIETE, typeEcritPropriete(membre)))
+                    }
+                    else -> Unit
+                }
+            }
+            return membres
         }
 
         /** Les enfants directs d'un nœud interne d'un genre exact (aide). */
@@ -790,5 +854,7 @@ private fun TypeProjet.avecSynthesesData(nbProprietes: Int): TypeProjet {
         estData = estData,
         entreesEnum = entreesEnum,
         parametresPrimaire = parametresPrimaire,
+        membresCompagnon = membresCompagnon,
+        nomCompagnon = nomCompagnon,
     )
 }
