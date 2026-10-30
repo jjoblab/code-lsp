@@ -206,9 +206,21 @@ jobs:
           echo "$SORTIE"
           # Gate étage 0 : la pile SPÉCIFIQUE Kotlin (moteur + syntax-api +
           # lang-syntax + annotations) doit être SANS AUCUN motif sensible.
+          # Règle vérifiée du scanner (vague 1b) : une référence
+          # java.util.ServiceLoader AVEC descripteur META-INF/services valide
+          # (chaque ligne résoluble en .class dans le jar) est tracée « OK »
+          # et ne compte PAS comme motif sensible — le SPI du pack langue
+          # (D6) charge le moteur par ServiceLoader, miroir de l'ancien ;
+          # SANS descripteur valide, la référence RESTE un motif sensible
+          # (descripteur cassé = chargement cassé au runtime).
+          # Motifs MEMBRES corrélés (vague 1b) : readAllBytes/readNBytes ne
+          # signale QUE java/io/InputStream (API 33+) — Files.readAllBytes
+          # est Java 7 / ART 26+, légitime (le nom de membre seul est ambigu
+          # dans le pool de constantes).
           # kotlin-stdlib (fondation PARTAGÉE avec :java, déjà portée par
-          # l'hôte) est scannée pour mémoire : 2 références readAllBytes
-          # (API 33+, désugarables) y sont tolérées et documentées.
+          # l'hôte) est scannée pour mémoire : AUCUNE attendue depuis la
+          # corrélation (ses 2 anciens signaux readAllBytes étaient des noms
+          # Utf8 non corrélés à java/io/InputStream).
           AUCUNES=$(echo "$SORTIE" | grep -c 'références sensibles ART : AUCUNE' || true)
           if [ "$AUCUNES" -lt 4 ]; then
             echo "ÉCHEC : au moins un jar de la pile spécifique Kotlin porte des références sensibles ART (attendu : 4 × AUCUNE, constaté : $AUCUNES)."

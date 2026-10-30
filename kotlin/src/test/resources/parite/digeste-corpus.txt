@@ -79,7 +79,6 @@
 38a1d15f0a7a23fc8c9f8bcac091251d0d66ee5490b5562af41bb4dc53e7ff88  java/src/main/kotlin/jo/codeide/lsp/java/completion/ContexteCompletion.kt
 3915352a492e4d565f5bc13c1169ad6fa0e8070d3e7b64523c585c70394936a3  java/src/main/kotlin/jo/codeide/lsp/java/hierarchie/ServiceHierarchies.kt
 3a01c90c1aa4e7f65cf5e8d02d3bfd38961c03e673f65a0071e2efacb76f44af  java/src/main/kotlin/jo/codeide/lsp/java/formatage/StyleFormattage.kt
-3ad3a07d1da66d938adfdb10e552be77edc59a93a40c07b3086a47f003b70820  kotlin/src/main/kotlin/jo/codeide/lsp/kotlin/session/ScanSources.kt
 3b2f638d3e5b3758b409f1ab361ca985db17c13841af4bb0f52e148075b9aa5f  java/src/test/kotlin/jo/codeide/lsp/java/protocole/Fiche059HygieneCycleVieTest.kt
 3d2071053c59f5441ce00cbfd4428ff48c3426f73b4788db1b4e29266f788a42  kotlin/src/main/vendor/org/jetbrains/kotlin/kmp/lexer/KDocTokens.kt
 3d2071053c59f5441ce00cbfd4428ff48c3426f73b4788db1b4e29266f788a42  spike-kotlin/src/main/vendor/org/jetbrains/kotlin/kmp/lexer/KDocTokens.kt
@@ -151,6 +150,7 @@
 774363cde979f9705921d66669d7887d3d2a4e3626a34103602ddd9193f2b1fa  kotlin/src/test/kotlin/jo/codeide/lsp/kotlin/parite/Fiche011ToleranceErreursTest.kt
 782e86a9a991ea0b8d9067a219cce397bfd777785365c79d5575311cbb3c84d0  kotlin/src/main/vendor/org/jetbrains/kotlin/kmp/lexer/KDocKnownTag.kt
 782e86a9a991ea0b8d9067a219cce397bfd777785365c79d5575311cbb3c84d0  spike-kotlin/src/main/vendor/org/jetbrains/kotlin/kmp/lexer/KDocKnownTag.kt
+785888c21f3c0e486332c93aa3e3ad867bfbf19755a53aecd9cc5607db34e89f  kotlin/src/main/kotlin/jo/codeide/lsp/kotlin/session/ScanSources.kt
 78e7976d509f4bfb65c3b85b6902e5000f9271ccf325e9fa88331fe395731842  java/src/main/kotlin/jo/codeide/lsp/java/interne/UnitesSource.kt
 79259a1c3be9eb085d156201e13647d5bc7a4ebca25ecea41771f2e9579579fb  java/src/test/kotlin/jo/codeide/lsp/java/hierarchie/Fiche018HierarchiesTest.kt
 79f645f23dfae0c8e623e3b3d04643f5701f148dd73197e8c06c6995bb6cf0fb  index/src/test/kotlin/jo/codeide/lsp/index/AssembleurSegmentTest.kt

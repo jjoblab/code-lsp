@@ -241,6 +241,27 @@ mécanique.**
    paramètres, retour après ; supertypes pour les types) — le corps et les
    initialiseurs ne voyagent jamais. Tronqué sans nom ⇒ pas de survol (la
    chaîne CONTINUE — une déclaration tronquée n'arrête pas la recherche).
+8. **Première passe CI ROUGE puis guérie — scanner ART affiné sur ses
+   propres règles (run `40999088759`, job `kotlin-art`)** : le scan a
+   signalé `1 × ServiceLoader` dans le jar moteur (la gate étage 0 exige
+   AUCUN motif). La catégorie disait « présent ART — vérifier
+   META-INF/services » : la vérification est désormais MÉCANIQUE — une
+   référence ServiceLoader AVEC descripteur META-INF/services valide
+   (chaque ligne un nom binaire résoluble en .class DANS LE MÊME jar) est
+   tracée « OK » et ne compte pas comme motif sensible (le SPI du pack
+   D6 charge le moteur par ServiceLoader, miroir de l'ancien — le repli
+   noyau reste si le ServiceLoader échoue au chargement) ; SANS descripteur
+   valide la référence RESTE un motif sensible (chemin négatif testé sur
+   un jar artificiel privé de son descripteur). Profité pour corriger une
+   imprécision voisine : `readAllBytes`/`readNBytes` sont désormais des
+   motifs MEMBRES CORRÉLÉS (Methodref → déclarant ↔ nom) — seul
+   `java/io/InputStream.readAllBytes` (API 33+) se signale,
+   `Files.readAllBytes` (Java 7, ART 26+) est légitime ; les 2 anciens
+   signaux de kotlin-stdlib étaient des noms Utf8 non corrélés (elle
+   scanne désormais AUCUNE). Au passage, le `ScanSources` de la session a
+   été aligné min-api 26 (`Paths.get` + `Files.readAllBytes` explicites
+   UTF-8 au lieu de `Path.of`/`Files.readString` Java 11) — le dexage du
+   pack cible min-api 26. Baseline re-signée après le diff de code.
 
 ## 9. Mesures de la vague 1b (bac à sable — JVM de bureau conteneurisée,
 2 cœurs, OpenJDK 21.0.13)

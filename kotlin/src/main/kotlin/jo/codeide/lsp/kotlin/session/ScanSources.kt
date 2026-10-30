@@ -6,7 +6,8 @@
 package jo.codeide.lsp.kotlin.session
 
 import java.nio.file.Files
-import java.nio.file.Path
+import java.nio.file.InvalidPathException
+import java.nio.file.Paths
 import jo.codeide.lsp.kotlin.parse.ParseurKotlin
 
 /**
@@ -64,6 +65,11 @@ internal class ScanSources private constructor(
          * sous verrou) ; l'ordre est DÉTERMINISTE : racines dans l'ordre
          * posé, fichiers triés par chemin.
          *
+         * L'API NIO employée est la couche Java 7 CONSOMMABLE par ART dès
+         * l'API 26 ([Paths.get], [Files.readAllBytes] — PAS `Path.of` ni
+         * `Files.readString`, arrivées avec Java 11 : le dexage du pack
+         * cible min-api 26) ; l'UTF-8 est explicite à la lecture.
+         *
          * @param racines les dossiers racines à scanner (chemins) ;
          * @return le scan publié (vide si aucune racine ou aucun fichier —
          * jamais d'exception).
@@ -71,7 +77,12 @@ internal class ScanSources private constructor(
         internal fun scanner(racines: List<String>): ScanSources {
             val collectees = mutableMapOf<String, DeclarationExterne>()
             for (racine in racines) {
-                val dossier = Path.of(racine)
+                val dossier = try {
+                    Paths.get(racine)
+                } catch (_: InvalidPathException) {
+                    // Chemin illisible : racine ignorée honnêtement (D3).
+                    continue
+                }
                 if (!Files.isDirectory(dossier)) continue
                 val fichiers = try {
                     Files.walk(dossier).use { flux ->
@@ -88,7 +99,7 @@ internal class ScanSources private constructor(
                 }
                 for (fichier in fichiers) {
                     val texte = try {
-                        Files.readString(fichier)
+                        String(Files.readAllBytes(fichier), Charsets.UTF_8)
                     } catch (_: Exception) {
                         continue
                     }
