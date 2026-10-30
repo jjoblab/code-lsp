@@ -237,7 +237,10 @@ public class ServiceCompletion(
     /** Membres STATIQUES du qualifier de type (fiche 020 : jamais une méthode d'instance). */
     private fun membresStatiques(contexte: ContexteCompletion): List<ItemCompletion> {
         val fqcn = contexte.recepteurFqcn ?: return emptyList()
-        val binding = bindingDe(fqcn) ?: return emptyList()
+        // Forme POINTÉE pour la sonde source : les imbriqués voyagent en
+        // `$` côté FQCN (`com.example.monip.R$layout`) mais la source Java
+        // de la sonde exige les points (`com.example.monip.R.layout`).
+        val binding = bindingDe(fqcn.replace('$', '.')) ?: return emptyList()
         return membresDe(binding, statique = true)
     }
 

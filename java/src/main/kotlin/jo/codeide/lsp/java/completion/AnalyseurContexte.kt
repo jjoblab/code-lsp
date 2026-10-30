@@ -853,16 +853,64 @@ public class AnalyseurContexte(
     }
 
     /**
-     * FQCN d'un NOM SIMPLE résolu comme TYPE VISIBLE (imports, paquet
+     * FQCN d'un NOM DE TYPE résolu comme TYPE VISIBLE (imports, paquet
      * courant, java.lang) — l'épreuve du qualifier DE TYPE (fiche 020) ;
      * résolution par l'environnement (caches négatifs), SANS index complet.
+     *
+     * Les qualifiers IMBRIQUÉS (`R.layout`, `Build.VERSION`) sont portés par
+     * le premier segment (résolu comme nom simple) puis chaînés en
+     * imbriqués `$` (`com.example.monip.R$layout`) — la forme attendue par
+     * [ServiceCompletion.membresStatiques] et [EnvironnementNoms.trouverFqcn]
+     * (retombe sur le fichier de l'englobant en sources, entrée exacte en
+     * jars). Sans CE chemin, la complétion statique imbriquée rendait une
+     * liste vide — `R.layout.a|` ne proposait rien (retours appareil du
+     * 31/10/2026, banc S09).
+     *
+     * @param nom le nom candidat (simple `TextView` ou imbriqué `R.layout`).
+     * @param arbre l'arbre original (imports de l'unité).
+     * @return le FQCN du type (forme `$` pour les imbriqués), ou null si le
+     *   nom n'est pas un type visible.
+     */
+    private fun fqcnDuNomType(nom: String, arbre: CompilationUnitDeclaration?): String? {
+        if (nom.isEmpty()) return null
+        if (!nom.contains('.')) return fqcnDuNomSimple(nom, arbre)
+        val segments = nom.split('.')
+        var courant = fqcnDuNomSimple(segments.first(), arbre) ?: return null
+        for (segment in segments.drop(1)) {
+            courant = "$courant\$$segment"
+            if (!typeResolvable(courant)) return null
+        }
+        return courant
+    }
+
+    /**
+     * Épreuve d'existence d'un type (imbriqué compris) : l'entrée EXACTE
+     * d'abord (jars — `R$layout` y vit en entrée propre), puis le FICHIER
+     * ENGLOBANT en sources (un imbriqué source vit dans le `.java` de son
+     * englobant — miroir du repli interne de [EnvironnementNoms.trouver]).
+     *
+     * @param fqcn le FQCN candidat (forme `$` pour les imbriqués).
+     * @return vrai ssi le type est résolvable dans l'environnement.
+     */
+    private fun typeResolvable(fqcn: String): Boolean {
+        if (environnement.trouverFqcn(fqcn) != null) return true
+        val positionDollar = fqcn.lastIndexOf('$')
+        if (positionDollar > 0) {
+            val englobant = fqcn.substring(0, positionDollar)
+            if (englobant.contains('.') && environnement.trouverFqcn(englobant) != null) return true
+        }
+        return false
+    }
+
+    /**
+     * FQCN d'un nom SIMPLE résolu comme type visible — le cœur historique
+     * de [fqcnDuNomType] (paquet courant, java.lang, imports).
      *
      * @param nom le nom simple candidat (jamais qualifié).
      * @param arbre l'arbre original (imports de l'unité).
      * @return le FQCN du type, ou null si le nom n'est pas un type visible.
      */
-    private fun fqcnDuNomType(nom: String, arbre: CompilationUnitDeclaration?): String? {
-        if (nom.contains('.') || nom.isEmpty()) return null
+    private fun fqcnDuNomSimple(nom: String, arbre: CompilationUnitDeclaration?): String? {
         val candidats = mutableListOf<String>()
         arbre?.currentPackage?.let { ref ->
             val paquet = ref.tokens.joinToString(".") { String(it) }
