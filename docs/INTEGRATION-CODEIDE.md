@@ -1001,18 +1001,34 @@ la cause racine des retards appareil selon §13.5, client §4, décisions
 - `:java:benchQualite` : **recall 1,000 / top-1 1,000 / MRR 1,000,
   p95 ≈ 37 ms, 0 saut** — la baseline SIGNÉE tient.
 
-### 14.4 Chaîne à exécuter et reste
+### 14.4 Chaîne exécutée et reste
 
 - code-lsp : trois correctifs + inventaire `docs/ECARTS-SERVEUR.md` +
-  ce §14, suite verte (§14.3). La chaîne de consommation suit le geste
-  de la v1.1.5 (§13.5) : tag annoté `v1.1.6` → workflow Publication →
-  artefacts vérifiés sur `maven.pkg.github.com/jjoblab/code-lsp` (POM
-  moteur sans ecj, `version.properties=1.1.6` embarqué, bytecode 17,
-  compagnon ecj-art) → codeide-lsp **1.23.6** (pin moteur 1.1.6 seul) →
-  CodeIDE **0.204.6** (catalogue miroir + CHANGELOG) — le PV de
-  franchissement sera consigné ici à l'exécution ;
-- reste : la passe appareil moto g06 (0.204.6) ; les écarts HÔTE de
-  l'inventaire (H1 fenêtre des 2 minutes de cache, H2 complétions
-  11–12 s post-sync, H3 churn de sessions, H4 arbre `build/generated`)
-  — la cause racine des « progrès minuscules » ressentis, à traiter
-  côté codeide-lsp/CodeIDE (ECARTS-SERVEUR §3).
+  ce §14, suite verte (§14.3). **Publication v1.1.6 EFFECTUÉE le
+  31/10** (même geste que la v1.1.5, §13.5) : commit `f15b738` poussé,
+  CI **VERTE** (run `41134718315`) au préalable → tag annoté `v1.1.6`
+  → workflow Publication run `41135515100` **VERTE** → artefacts
+  re-téléchargés et vérifiés sur `maven.pkg.github.com/jjoblab/code-lsp` :
+  metadata `latest=1.1.6`, POM moteur sans ecj (kotlin-stdlib 2.2.10
+  compile + lsp4j 0.21.2 runtime seules dépendances),
+  `version.properties=1.1.6` embarqué, bytecode 17 (major 61),
+  compagnon 942 entrées dont 929 `org/eclipse/jdt` + 3 shims
+  `jo/codeide/lsp/ecjart/compat` + `about.html` + registre
+  `META-INF/ECJ-ART-MODIFICATIONS.txt` (EPL-2.0) ;
+- codeide-lsp **1.23.6** (`28ad766`, tag `v1.23.6`) : pin moteur 1.1.6
+  seul — AUCUN changement d'hôte requis ; CI `41136150523` +
+  Publication `41137147520` **VERTES** ; POM `host:1.23.6` vérifié
+  portant `jo-codeide-lsp-java:1.1.6` (compile) +
+  `jo-codeide-lsp-java-ecj-art:1.1.6` (runtime) ;
+- CodeIDE **0.204.6** (`f36ddd8a`, catalogue miroir 1.23.6/1.1.6,
+  CHANGELOG 0.204.6) : poussé sur main, CI **VERTE** (4/4 checks — le
+  garde-fou composite `skipped` par design, même état que la référence
+  0.204.5) ;
+- reste : la passe appareil moto g06 (0.204.6) — attendu : `im|` avant
+  l'espace propose `import`, la virgule traînante d'un appel de méthode
+  du projet sert l'aide de signature (paramètre actif exact), la frappe
+  des grands fichiers ne ralentit plus avec la taille ; les « progrès
+  minuscules » restants se lisent dans les écarts HÔTE de l'inventaire
+  (H1 fenêtre des 2 minutes de cache, H2 complétions 11–12 s post-sync,
+  H3 churn de sessions, H4 arbre `build/generated`) — à traiter côté
+  codeide-lsp/CodeIDE (ECARTS-SERVEUR §3).
