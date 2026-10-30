@@ -335,7 +335,7 @@ public class AnalyseurContexte(
 
         // --- le marqueur est une position de TYPE (TypeReference) ---
         if (plusInterieur is TypeReference) {
-            return classerPositionType(chemin, prefixe, commun)
+            return classerPositionType(chemin, prefixe, commun, source, debutMarqueur)
         }
 
         // --- le marqueur est une expression simple ---
@@ -346,12 +346,43 @@ public class AnalyseurContexte(
         return base
     }
 
-    /** Classification d'une position de TYPE : la clause grammaticale se lit dans les ancêtres. */
-    private fun classerPositionType(chemin: List<ASTNode>, prefixe: String, commun: Communs): ContexteCompletion {
+    /**
+     * Classification d'une position de TYPE : la clause grammaticale se lit
+     * dans les ancêtres.
+     *
+     * La branche LocalDeclaration porte l'heuristique MULTI-LIGNE (retours
+     * appareil du 31/10/2026, banc S11) : un marqueur avalé comme TYPE d'une
+     * déclaration recovery (`MARQUEUR titre` né de `ti` seul sur sa ligne
+     * suivi d'une autre instruction) n'est une vraie position de TYPE que
+     * si le NOM déclaré suit SUR LA MÊME LIGNE — sinon l'utilisateur tape
+     * une EXPRESSION sur sa propre ligne et le contexte est NOM (locales +
+     * membres + mots-clés + types, exactement le popup Android Studio).
+     */
+    private fun classerPositionType(
+        chemin: List<ASTNode>,
+        prefixe: String,
+        commun: Communs,
+        source: String,
+        debutMarqueur: Int,
+    ): ContexteCompletion {
         val typeRef = chemin.last()
         for (i in chemin.indices.reversed()) {
             val ancetre = chemin[i]
             if (ancetre === typeRef) continue
+            if (ancetre is LocalDeclaration && ancetre.type === typeRef) {
+                // La fin du marqueur vers le NOM déclaré : seuls des blancs
+                // peuvent séparer les deux (l'ordre Java est TYPE NOM = …) ;
+                // un SAUT DE LIGNE avant le premier jeton = le marqueur
+                // n'est pas le type d'une vraie déclaration en cours.
+                var indice = (debutMarqueur + MARQUEUR.length).coerceAtMost(source.length)
+                while (indice < source.length && (source[indice] == ' ' || source[indice] == '\t')) indice++
+                val memeLigne = indice >= source.length || source[indice] != '\n'
+                return if (memeLigne) {
+                    ContexteCompletion(GenreContexte.TYPE, prefixe, importsFqcn = commun.imports, paquetCourant = commun.paquet)
+                } else {
+                    ContexteCompletion(GenreContexte.NOM, prefixe, importsFqcn = commun.imports, paquetCourant = commun.paquet)
+                }
+            }
             if (ancetre is TypeDeclaration) {
                 if (ancetre.superclass === typeRef) {
                     return ContexteCompletion(GenreContexte.TYPE, prefixe, FiltreGrammatical.CLASSES_SEULES, importsFqcn = commun.imports, paquetCourant = commun.paquet)
@@ -385,6 +416,20 @@ public class AnalyseurContexte(
             if (ancetre is SingleMemberAnnotation && ancetre.type === typeRef) {
                 return ContexteCompletion(GenreContexte.TYPE, prefixe, FiltreGrammatical.ANNOTATIONS_SEULES, importsFqcn = commun.imports, paquetCourant = commun.paquet)
             }
+            if (ancetre is MethodDeclaration && ancetre.returnType === typeRef) {
+                return ContexteCompletion(GenreContexte.TYPE, prefixe, importsFqcn = commun.imports, paquetCourant = commun.paquet)
+            }
+        }
+        // Repli (retours appareil du 31/10/2026, banc S11) : une référence
+        // de type NUE au niveau INSTRUCTION (ECJ parse l'identifiant isolé
+        // d'une frappe en cours comme SingleTypeReference de recovery) —
+        // toute vraie position de type porte une ANCRE de déclaration ci-
+        // dessus (superclass, implements, throws, argument, allocation,
+        // annotation, type de retour, type de locale/champ). Dans le CORPS
+        // d'une méthode CONCRÈTE, le popup est donc NOM : locales +
+        // membres + mots-clés + types, exactement Android Studio.
+        if (chemin.any { it is MethodDeclaration && it.statements != null }) {
+            return ContexteCompletion(GenreContexte.NOM, prefixe, importsFqcn = commun.imports, paquetCourant = commun.paquet)
         }
         return ContexteCompletion(GenreContexte.TYPE, prefixe, importsFqcn = commun.imports, paquetCourant = commun.paquet)
     }
