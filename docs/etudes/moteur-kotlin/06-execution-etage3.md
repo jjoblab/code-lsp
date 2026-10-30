@@ -535,7 +535,10 @@ PREMIÈRE TENTATIVE)** : le nouveau job `kotlin-banc-qualite` y est VERT
 — la baseline SIGNÉE est tenue dans l'ENVIRONNEMENT CI (les nombres
 déterministes du corpus y sont reproduits : recall/top-1/MRR au bit
 près, p95 sous la borne), la gate de valeur, le contrat gel et les
-contrôles de santé y passent à chaque build désormais.
+contrôles de santé y passent à chaque build désormais). Le commit de
+CLÔTURE (`a9a9b50`, diff `docs/` seul) a connu l'échec transitoire du
+flottant E-K6 sur sa tentative 1 (run `41143338177`) — relance verte
+(10/10), occurrence consignée dans `ALERTES.md` §4.
 
 **LES CINQ CRITÈRES DE SORTIE DE L'ÉTAGE 3 (§2) SONT ATTESTÉS** :
 

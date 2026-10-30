@@ -127,6 +127,11 @@
   RECOMMANDATION au propriétaire (périmètre Java) : assouplir l'assertion
   avec une marge de tolérance (p. ex. `chaud <= froid × 1,5` ou une borne
   absolue), ou comparer des durées MÉDIANÉES sur plusieurs passes.
+  **Deuxième occurrence CI (31/10/2026, clôture étage 3)** : échec sur la
+  tentative 1 du run `41143338177` (commit `a9a9b50`, dont le diff ne
+  touche QUE `docs/` — journal de clôture) ; relance du job → tentative 2
+  VERTE (10/10). Le motif et la résorption sont IDENTIQUES à la première
+  occurrence : le flottement demeure, la recommandation aussi.
 
 - **E-K7 — Classe de risque « référence API JDK 21 dans du bytecode 17 »
   (découverte par la Passe appareil du 30/10/2026, corrigée pour :kotlin)** :
