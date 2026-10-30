@@ -770,13 +770,21 @@ suite complète `:java:test` : **501 tests, 0 échec, 0 erreur** (39 ignorés
 par hypothèses visibles — android.jar absent du poste, etc.), version
 1.1.4 posée.
 
-### 12.5 Chaîne et reste
+### 12.5 Chaîne exécutée et reste
 
 - code-lsp : correctif v1.1.4 + étude `docs/etudes/editeur-lsp/` + ce §12,
-  suite `:java:test` complète verte (501/0/0, cf. §12.4).
-- Publication v1.1.4 (tag) + montée codeide-lsp (pin moteur) + CodeIDE
-  (catalogue miroir) : À ENCHAÎNER selon la procédure établie (§10.4/§11.3)
-  après validation du propriétaire sur la présente passe.
+  suite `:java:test` complète verte (501/0/0, cf. §12.4). Poussé
+  `fc906f0` (CI 41086126289 verte) ; tag **v1.1.4** → Publication
+  41086202563 VERTE, artefacts `jo-codeide-lsp-java:1.1.4` +
+  `jo-codeide-lsp-java-ecj-art:1.1.4` vérifiés HTTP 200 sur
+  `maven.pkg.github.com/jjoblab/code-lsp`.
+- codeide-lsp **1.23.4** (`fe89b7d`, tag v1.23.4) : pin moteur 1.1.4 seul —
+  AUCUN changement d'hôte requis ; CI 41087160192 + Publication
+  41087160073 VERTES ; POM `host:1.23.4` vérifié portant
+  `jo-codeide-lsp-java:1.1.4` + `ecj-art:1.1.4`.
+- CodeIDE **0.204.4** (`d664fd8`, catalogue miroir 1.23.4/1.1.4,
+  CHANGELOG 0.204.4) : poussé sur main, CI 41088855726 **VERTE**
+  (compilation de l'app contre la chaîne du registre).
 - Passe appareil attendue sur moto g06 (0.204.4) : les TROIS signaux
   « unused » à l'ouverture et leur persistance à la frappe ; les paquets
   (`com`, `java`, `javax`, `org`, `exemple`…) dès la première lettre après
