@@ -43,6 +43,12 @@
 > coupure est l'étage 2) ; 28 comportements de tests NEUFS (§17) — 132
 > tests verts ; tous les critères de sortie de l'étage 1 sont ATTEINTS
 > (§4), la clôture formelle suit la preuve CI (§17).**
+> **Clôture (30/10, 08:10 UTC) — ÉTAGE 1 CLOS : CI VERTE 9/9 sur le commit
+> de livraison `d3486d7` (run `41024404548`) — 132 tests verts toolchain 17,
+> scan ART 6 × AUCUNE, dex 24 772 méthodes / 3 815 728 o (identiques au bac
+> à sable, seuils tenus) ; les six critères de sortie sont ATTEINTS (§4),
+> la clôture est consommée §17.4 — l'étage 2 (résolution + diagnostics)
+> est le suivant.**
 
 ## 1. Périmètre exécuté (vague 1a — façade `Kt*`, fiche 013)
 
@@ -187,7 +193,7 @@ mécanique.**
   publication (snapshot immuable hors verrou).
 - **Vague 1d — classpath + index appelables** : LIVRÉE (§16) — reprises R4/R5 (décodeur `@Metadata` + lecteur de classes, voie C), index dédié `.kidx` en code neuf (segments par empreinte, cache mémoire, garde de couverture, auto-guérison), pilote de passages (séquence ADR 0213, annulation, reprise ciblée) ; fiches 002–005/008/009/034 (31 comportements).
 - **Vague 1e — synthétiques** : LIVRÉE (§17) — reprises R1/R2 (`AnalyseRessourcesAndroid` + `ClassesSynthetiques`, voie C — réserve P-K1/D5 tracée, copie sur ordre de poursuite du propriétaire), modèle de sortie local neuf (`DeclarationProjet`/`GenreDeclaration`), câblage moteur (racines posées à `definirClasspath`, accès interne `groupesSynthetiques` — la fusion avec coupure est l'étage 2) ; 28 comportements de tests neufs.
-- **Clôture de l'étage** : tous les critères §4 ATTEINTS — preuve CI consignée §17.
+- **Clôture de l'étage** : FAITE (§17.4) — CI VERTE 9/9 sur `d3486d7` (run `41024404548`, consulté 30/10 08:10 UTC) ; l'étage 2 (résolution + diagnostics, 204 fiches) est le suivant.
 
 ## 6. Actions propriétaire ouvertes (mise à jour)
 
@@ -913,9 +919,25 @@ Avec la vague 1e, les SIX critères de sortie de l'étage 1 (§4) sont
 **ATTEINTS** : fiches parse (27/27), session (45/45), index (31/31),
 synthétiques (reprise + câblage + 28 comportements — §17.2.4),
 latences S0 (reparse p50 18,9 ms à 3 000 l.), gabarit appareil (§15).
-La preuve CI mécanique du commit de livraison clôt la vague ; la
-fermeture FORMELLE de l'étage (journal + critères + rapport au
-propriétaire) est le commit suivant sur la même preuve. L'étage 2
+
+**CI VERTE 9/9 sur le commit de livraison `d3486d7`** (run `41024404548`,
+consulté le 30/10 à 08:10 UTC) — build et tests JDK 21, bancs
+noyau/qualité/parité T, gates Android, provenance (rc=0 — reprises R1/R2
++ fichier neuf associé au registre), et les trois jobs Kotlin : suite du
+module **132 tests VERTS sur la toolchain 17** (fiches 010-013 +
+049/042/041 + 002-005/008/009/034 + synthétiques R1/R2), scan ART **6 ×
+« AUCUNE »** sur la pile complète (moteur 162 classes / 227 méthodes
+déclarées — ServiceLoader OK descripteur vérifié), dexage d8 **24 772
+références de méthodes / 3 815 728 o (3,64 Mo)** [mesurés par la CI —
+IDENTIQUES au bac à sable, seuils étage 0 tenus], banc empreinte/latence
+sous JDK 17.
+
+**L'ÉTAGE 1 EST CLOS sur preuve mécanique** : le noyau
+parse/session/classpath/synthétiques du moteur Kotlin est livré — façade
+`Kt*`, session documents (verrou ADR 0212), scan projet paresseux,
+décodage `@Metadata` + index appelables `.kidx` (ADR 0211/0213),
+classes synthétiques Android avant build (voie C complète du périmètre
+étage 1 — R1/R2/R4/R5 copiées, R3/R6–R9 restent aux étages 5). L'étage 2
 (résolution + diagnostics — 204 fiches) est le suivant : la fusion des
 groupes synthétiques avec COUPURE y est spécifiée par les fiches
 040/045/047, et la consommation de l'index des appelables par les
