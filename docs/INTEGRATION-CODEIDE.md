@@ -552,3 +552,98 @@ rejouer la passe appareil — attendu : les requêtes RÉPONDENT (plus de
 `ResponseErrorException: Internal error.`), la frappe d'une erreur
 republie des diagnostics N > 0 ; écart résiduel possible sur la
 complétion `java.*` pure (régime instantané).
+
+## 11. Exécution (30/10, deuxième vague) — v1.1.3 : les familles muettes parlent (superDefinition, « unused », déclencheur @)
+
+> Retour appareil sur CodeIDE 0.204.2 (logs `codeide-logs-2026-10-30-025629.zip`,
+> moto g06, session 4e363797) : « il y a grand progrès » — la chaîne de
+> consommation est FRANCHIE (connect SUCCESS, capabilities YES, complétion
+> `import com.` → **58 items reçus**, `publishDiagnostics` reçus avec
+> sévérité correcte `[3]` = erreur côté échelle interne du client). Deux
+> familles restent muettes côté utilisateur ; diagnostic MESURÉ sur les
+> logs + reproduction verrouillée (`Repro20261030AppareilTest`, 11 tests).
+
+### 11.1 Ce que les logs disaient (et ce que la repro a prouvé)
+
+- **« j'ai tapé "import ", il n'y a pas de suggestions de package ; j'ai
+  même essayé "import com.", j'aurais dû avoir "exemple" »** : la requête
+  `com.` A ÉTÉ envoyée (trigger `.`) et le moteur a rendu 58 items — la
+  repro confirme le contenu au fil : « `import ` » (préfixe vide) rend
+  com/java/javax/org + paquets projet, « `import com.` » rend les
+  sous-paquets DONT « exemple » (paquet projet), labels = SEGMENTS
+  (compatibles avec le re-filtrage local cel-lsp), filterText = label
+  (I12). L'absence d'affichage après « `import ` » + espace suit la
+  POLITIQUE cel-lsp (préfixe vide = caractère déclencheur requis,
+  comportement identique au vendord) : les suggestions arrivent à la
+  première LETTRE (debounce 80 ms), après « . », ou via Cmplt/Ctrl+Espace.
+- **« le fichier des imports non utilisés, variables non utilisées et
+  autres, il ne les affiche pas »** : reproduit — la table analytique ne
+  portait que `unusedImport`, la table rapide RIEN, et les diagnostics
+  HORS CORPS n'étaient pas portés : à la première frappe dans une
+  méthode, l'import inutilisé DISPARAISSAIT (le diagnose rapide ne peut
+  pas le recalculer honnêtement — le masquage des autres corps casserait
+  son analyse d'usages).
+- **`superDefinition: ERROR … Unsupported request method:
+  textDocument/superDefinition`** (journal 09:34) : le `@JsonRequest` NU
+  sur `ServiceExperimental` (interface HORS hiérarchie
+  `TextDocumentService`) enregistrait la méthode sous son nom NU — le
+  client cel-lsp appelle le nom COMPLET (préfixe `textDocument/` du
+  `@JsonSegment` du vendord). Le harnais du dépôt appelait le même nom
+  nu des deux côtés : les tests passaient, la production échouait.
+- **Écarts mineurs relevés au passage** : `codeAction` avec « context: 0
+  diagnostics » (le client n'a pas encore de diagnostics dans la plage —
+  honnête), `documentHighlight`/`inlayHint` « no results » sur un fichier
+  SYNTAXIQUEMENT CASSÉ par la frappe de l'utilisateur (l'import testé était
+  dans le CORPS de la classe — erreurs de syntaxe) : comportement moteur
+  attendu sur AST cassé, vérifié non-nul sur code sain par la repro.
+
+### 11.2 Corrections (v1.1.3)
+
+1. **Noms de méthodes EXPLICITES** : `@JsonRequest("textDocument/
+   superDefinition")` / `@JsonRequest("textDocument/decompiledSource")`
+   sur `ServiceExperimental` — le fil est aligné sur le contrat du
+   client cel-lsp SANS toucher à la hiérarchie des interfaces.
+2. **Trois tables ecj** (PontEcj) : analytique (import + locale + champ/
+   méthode/type privé inutilisés — diagnose complet), rapide (locale
+   seule — corps hôte INTACT : les usages d'une locale vivent dans SA
+   méthode, aucun fallacieux fiche 014), stricte (passes masquées).
+   **Portage hors corps** (`DiagnoseRapide.portablesHorsCorps`) : les
+   signaux unitaires analytiques (import/membre privé) sont PORTÉS du
+   dernier diagnose complet pendant la frappe, translatés du delta de fin
+   du corps hôte après lui, inchangés avant lui, abandonnés à cheval.
+   Fraîcheur bornée (même doctrine que le portage des corps masqués) :
+   apparition/révocation au prochain diagnose complet ; un fichier
+   syntaxiquement cassé ne produit pas ces signaux (ecj les saute sur
+   unité non parsable — honnête).
+3. **Déclencheurs `[".", "@"]`** (CapacitesServeur) — miroir EXACT du
+   vendord (`ServerCapabilitiesProvider`, `List.of(".", "@")`) : la
+   complétion d'annotation s'arme à la frappe. TABLE_JAVA de parité de
+   l'hôte alignée (`déclencheurs .@`).
+
+### 11.3 Validation
+
+- **Reproduction verrouillée** : `Repro20261030AppareilTest` — serveur
+  réel sur racine `com/exemple/monip` + boucle LSP4J + client MIRROR
+  CEL-LSP (interface portant les noms COMPLETS) : les 11 scénarios
+  (complétion d'import aux trois profondeurs + contexte cassé,
+  diagnostics unused × 3, survie à la frappe dans un corps,
+  superDefinition par son nom complet, documentHighlight, inlayHint).
+- **494 tests moteur verts** (fiche 014 : 4 tests adaptés à la part
+  STABLE de l'oracle — erreurs + avertissements de corps en équivalence
+  stricte, signaux unitaires en politique sticky documentée dans la
+  KDoc du test).
+- **Chaîne** : code-lsp tag v1.1.3 (CI 41027683205 + Publication
+  41027683332 vertes, artefacts vérifiés) → codeide-lsp 1.23.3 (pin +
+  TABLE_JAVA ; 258 tests d'hôte verts contre le moteur 1.1.3 ;
+  Publication 41028341920 verte ; le premier passage CI du tag a
+  échoué sur le flaky documenté `OrchestrateurLspTest.controles de
+  passage` — re-run vert, connu v1.8.0/v1.9.0) → CodeIDE 0.204.3
+  (`f6ebdddf`, catalogue miroir 1.23.3/1.1.3, validation locale contre
+  le registre : `:app:compileDebugKotlin` VERT, chaîne
+  `host:1.23.3 → jo-codeide-lsp-java:1.1.3 + ecj-art:1.1.3`).
+
+Reste au propriétaire : installer l'APK 0.204.3 sur le moto g06 et
+rejouer la passe appareil — attendu : les TROIS signaux « unused » à
+l'ouverture, leur PERSISTANCE pendant la frappe dans un corps, le GO TO
+« Super » qui répond, la complétion d'annotation armée par « @ », et les
+suggestions de paquets dès la première lettre après « import ».
