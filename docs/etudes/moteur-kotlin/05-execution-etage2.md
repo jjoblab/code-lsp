@@ -29,6 +29,13 @@
 > comportements verts — fiches 017 (8/8), 022 (8/8), 006 (4/4) ; le tableau
 > règles × spec exigé par l'ADR 0106 vit dans
 > `kotlin/SPECIFICATION-RESOLUTION.md` (versionné, rempli fiche par fiche).**
+> **Clôture (30/10) — VAGUE 2A CLOSE : CI VERTE 9/9 sur le commit de
+> livraison `a07d381` (run `41054215181`, tentative 2 — le test flottant
+> E-K6 du chantier Java a fait échouer la tentative 1, sans lien avec le
+> diff) ; 152 tests verts toolchain 17, scan ART 6 × AUCUNE, dex 24 996
+> méthodes / 3 882 064 o (identiques au bac à sable, seuils tenus — E-K8 à
+> 93 %) ; la vague 2b (familles sémantiques K4, fiche 046) est la
+> suivante (§5.4).**
 
 ## 1. Périmètre de l'étage (plan §4 — cahier en main)
 
@@ -47,7 +54,7 @@
 
 | Critère | État | Preuve |
 |---|---|---|
-| 204 comportements diagnostics verts (23 fiches du domaine) | OUVERT | — |
+| 204 comportements diagnostics verts (23 fiches du domaine) | EN COURS — 20/204 | Vague 2a (§5) : fiches 017 (8/8) + 022 (8/8) + 006 (4/4) |
 | Zéro faux positif corpus quatre mondes | OUVERT | — |
 | Banc fidélité baseline signée | OUVERT | — |
 
@@ -175,3 +182,36 @@ CI 9 tâques verte + section du présent journal + commit/push.
 - **Provenance** : `verifier-provenance.sh` rc=0 (aucune reprise nouvelle —
   la vague est du code NEUF intégral, zones `resolve/` écrites cahier en
   main).
+
+### 5.4 Clôture de la vague 2a
+
+**CI VERTE 9/9 sur le commit de livraison `a07d381`** (run `41054215181`,
+tentative 2 — consulté le 30/10) : build et tests JDK 21, bancs
+noyau/qualité/parité T, gates Android, provenance (rc=0), et les trois jobs
+Kotlin — suite du module **152 tests VERTS sur la toolchain 17** (fiches
+010-013 + 049/042/041 + 002-005/008/009/034 + synthétiques R1/R2 +
+**017/022/006**), scan ART **6 × « AUCUNE »** sur la pile complète (moteur
+189 classes / 250 méthodes déclarées — ServiceLoader OK descripteur
+vérifié), dexage d8 **24 996 références de méthodes / 3 882 064 o (3,70
+Mo)** [mesurés par la CI — IDENTIQUES au bac à sable, seuils étage 0
+tenus], banc empreinte/latence sous JDK 17.
+
+**Écart d'exécution signalé (E-K6, miroir de la vague 1c)** : la tentative
+1 du run a échoué sur le test flottant CONNU du chantier Java
+(`testing/…/IntegrationMoteurIndexTest.reouvertureChaudeSansReconstruction`
+— assertion de TEMPO sans tolérance, documenté ALERTES §4 E-K6 depuis la
+vague 1c) ; le diff de la vague ne touche QUE `kotlin/` et `docs/` (aucun
+lien avec le périmètre Java), la relance du job a rendu la tentative 2
+VERTE (9/9). La recommandation d'assouplissement au propriétaire
+(périmètre Java) DEMEURE.
+
+**LA VAGUE 2A EST CLOSE sur preuve mécanique** : le socle de résolution
+est livré — hiérarchie de portées, modèle de symboles projet (Kotlin ET
+Java), preuve d'absence `kt.unresolved` (noms nus et sélecteurs sur
+récepteurs projet typés), garde par déclaration, journal « explain »,
+`kt.missingReturn` (cas positif), germe de complétion membre ; 20/20
+comportements des fiches 017/022/006 verts. La vague 2b (familles
+sémantiques K4 — fiche 046, 39 comportements : typage borné, smart casts,
+lambdas par attente, `kt.typeMismatch`/`kt.argumentCount`/`kt.unsafeNullable`
+/`kt.unreachable`/`kt.valReassign`, gardes KP8/ADR 0203, `importsCandidats`,
+et la question de la vue JVM des membres du classpath) est la suivante.
