@@ -1,5 +1,6 @@
 // CodeIDE — session de langage Kotlin « documents » (module :kotlin, étage 1
-// vague 1b). Code NEUF jjoblab (clean-room — contrat : fiches 049/042 du
+// vague 1b — session documents ; vague 1c — scan paresseux fiche 041). Code
+// NEUF jjoblab (clean-room — contrat : fiches 049/042/041 du
 // cahier docs/cahier-specifications-kotlin/ ; concurrence ADR 0117/ADR 0212
 // ancien : verrou lecture-écriture, écritures = mutations de documents et
 // définitions, lectures parallèles = requêtes, JAMAIS de scan sous verrou).
@@ -37,14 +38,27 @@ internal class DocumentOuvert(
  *
  * UN verrou lecture-écriture pour cette session :
  * - ÉCRIVENT : [ouvrir], [modifier], [fermer], [definirClasspath], [close]
- *   et la PUBLICATION du scan ([rafraichirSources] — la marche des racines
- *   elle-même court HORS verrou : jamais de scan sous verrou) ;
+ *   et la PUBLICATION du scan ([rafraichirSources] — la passe du scan court
+ *   sur le fil dédié du scanneur, HORS verrou : jamais de scan sous verrou,
+ *   l'attente de la passe est elle aussi hors verrou) ;
  * - LISENT EN PARALLÈLE : [diagnostics], [plagesPliables], [survol] et le
  *   guichet d'index [indexSiPret] — aucune requête ne mute l'état, aucune
  *   ré-entrance lecture→écriture n'existe.
  *
  * L'analyse (parse complet) se fait SOUS le verrou d'écriture, au moment de
  * la mutation : les requêtes ne relisent que des arbres immuables en cache.
+ *
+ * ## Scan des racines (L1 — vague 1c, fiche 041)
+ *
+ * Le scan des racines sources vit dans le scanneur paresseux
+ * ([ScanProjetParesseux]) : [definirClasspath] y pose les racines (l'amorce
+ * WARM part à la définition — le coût n'est pas à la première frappe), mais
+ * la session ne SERT un snapshot qu'après [rafraichirSources] (contrat de la
+ * vague 1b préservé : avant le rafraîchissement, une déclaration externe
+ * reste hors de portée ; la définition reste un branchement qui ne re-lect
+ * rien). [rafraichirSources] rafraîchit puis attend l'aboutissement de la
+ * passe (HORS verrou) et publie le snapshot immuable — publication hors du
+ * chemin des requêtes.
  *
  * ## Classpath (fiche 042 — ADR 0211)
  *
@@ -82,6 +96,14 @@ internal class SessionLangageKotlinDocuments(
 
     /** Le dernier scan des racines publié (L1 — `null` tant qu'inexistant). */
     private var scanPublie: ScanSources? = null
+
+    /**
+     * Le scanneur paresseux des racines sources (L1 — vague 1c, fiche 041 :
+     * passe bornée annulable sur fil dédié, cache mtime, progression). Ses
+     * résultats ne sont SERVIS par la session qu'à la publication de
+     * [rafraichirSources] (contrat vague 1b inchangé).
+     */
+    private val scanneur = ScanProjetParesseux()
 
     // ------------------------------------------------------------------
     // Cycle de vie des documents (écritures).
@@ -171,8 +193,11 @@ internal class SessionLangageKotlinDocuments(
     /**
      * Pose le classpath : BRANCHEMENT si un moteur nourricier est câblé
      * (aucune re-lecture — les requêtes consultent l'état publié), nourrissage
-     * ICI synchrone sinon (usage direct). Les racines changent : le scan
-     * précédent est abandonné (moins riche mais jamais faux).
+     * ICI synchrone sinon (usage direct). Les racines sont posées au scanneur
+     * paresseux — l'amorce WARM y part à la définition (fiche 041 : le coût
+     * du scan n'est pas à la première frappe) mais la session n'en SERT rien
+     * avant [rafraichirSources] : le scan précédent reste abandonné (moins
+     * riche mais jamais faux).
      */
     override fun definirClasspath(classpath: ClasspathKotlin) {
         verrou.write {
@@ -184,22 +209,31 @@ internal class SessionLangageKotlinDocuments(
                 vueLocale = null
             }
             scanPublie = null
+            scanneur.definirRacines(classpath.racinesSources)
         }
     }
 
     /**
-     * Re-scanne les racines sources (L1) : la marche court HORS verrou
-     * (ADR 0212), seule la publication prend le verrou d'écriture. Une
-     * session fermée l'ignore silencieusement.
+     * Re-scanne les racines sources (L1) : rafraîchit la passe du scanneur
+     * paresseux (delta-only — cache mtime, fiche 041), ATTEND son
+     * aboutissement HORS verrou (jamais de scan sous verrou — ADR 0212), puis
+     * publie le snapshot immuable : une déclaration externe devient
+     * résolvable pour le survol à partir de la requête suivante. Une session
+     * fermée l'ignore silencieusement ; une publication dont les racines
+     * auraient changé entre-temps n'est pas servie (jamais faux).
      */
     override fun rafraichirSources() {
         val racines = verrou.read {
             if (fermee) return
             classpathPose?.racinesSources ?: return
         }
-        val scan = ScanSources.scanner(racines)
+        scanneur.rafraichir()
+        scanneur.attendrePassageCourant()
+        val frais = scanneur.snapshotCourant()
         verrou.write {
-            if (!fermee) scanPublie = scan
+            if (!fermee && classpathPose?.racinesSources == racines) {
+                scanPublie = frais
+            }
         }
     }
 
@@ -208,8 +242,9 @@ internal class SessionLangageKotlinDocuments(
     // ------------------------------------------------------------------
 
     /**
-     * Abandonne TOUT : documents, classpath, vue et scan. Les appels
-     * postérieurs sont des no-ops silencieux ; la fermeture est idempotente.
+     * Abandonne TOUT : documents, classpath, vue et scan (le fil dédié du
+     * scanneur est interrompu). Les appels postérieurs sont des no-ops
+     * silencieux ; la fermeture est idempotente.
      */
     override fun close() {
         verrou.write {
@@ -219,6 +254,7 @@ internal class SessionLangageKotlinDocuments(
             vueLocale = null
             scanPublie = null
         }
+        scanneur.fermer()
     }
 
     // ------------------------------------------------------------------

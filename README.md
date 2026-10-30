@@ -125,7 +125,7 @@ hiérarchie non balayée par `availableMethods` d'ecj, internes
 | `docs/PROVENANCE-REPRISE.md` | manifeste de reprise sélective (règle R9 — registre des copies autorisées) |
 | `spike/` | bancs de mesure V1/V2/V3, scanner de compatibilité ART, gabarit appareil |
 | `java/` | **moteur Java LSP réécrit — étages N1–N8 INTÉGRALEMENT LIVRÉS** (noyau compilateur & environnement, complétion & classement avec échelle de variantes, hover/inlay/signatures, navigation & usages, rename v2, actions de code ModCommand, confort éditeur, cycle de vie LSP & protocole riche lsp4j ; bancs `:java:bench` / `:java:benchQualite` / `:java:benchUsages` / `:java:benchParite`) |
-| `kotlin/` | **moteur Kotlin LSP — réécriture voie C (ADR 0100 acceptée, branche `etude/moteur-kotlin`)** : étage 0 CLOS (grammaire officielle vendorée par ré-obtention amont, suite de parité, CI dex/scan/seuils) ; étage 1 ENGAGÉ — vague 1a **façade `Kt*` LIVRÉE** (fiche 013 : 13/13, domaine `parse` du cahier complet 27/27) ; journal `docs/etudes/moteur-kotlin/04-execution-etage1.md` |
+| `kotlin/` | **moteur Kotlin LSP — réécriture voie C (ADR 0100 acceptée, branche `etude/moteur-kotlin`)** : étage 0 CLOS (grammaire officielle vendorée par ré-obtention amont, suite de parité, CI dex/scan/seuils) ; étage 1 ENGAGÉ — vagues 1a/1b/1c LIVRÉES (façade `Kt*` fiche 013 13/13 ; session documents fiches 049 26/26 + 042 4/4, SPI zone `api/` ; scan projet paresseux fiche 041 15/15 — suite 72 tests verts) ; journal `docs/etudes/moteur-kotlin/04-execution-etage1.md` |
 | `USAGE.md` | **guide d'utilisation du serveur `lspjava`** — démarrage LSP, cycle de vie, chaque fonctionnalité avec exemples de requêtes/réponses, capability maison, extensions expérimentales, API in-process du moteur |
 | `testing/` | suite d'intégration moteur ↔ index CIDX — **réécrite en Kotlin neuf à l'étage N1** (adaptateur `IndexNoms` + 4 tests) |
 | `index/` | index disque CIDX — **repris contrôlé vague 1b** (17 f. main + 15 f. test + banc) |
@@ -267,10 +267,13 @@ Détail : `docs/PLAN-REECRITURE.md` (programme complet) et
 - **Étage 1 — ENGAGÉ le 30/10/2026** (instruction propriétaire : « commencer
   les chantiers », passe appareil différée — `banc-appareil.sh` à venir) :
   vague 1a **façade `Kt*` LIVRÉE** (fiche 013 13/13 ; domaine `parse`
-  27/27 ; suite 27 tests verts) — `04-execution-etage1.md` ; suivent les
-  vagues session (049/042), scan projet (041), classpath + index
-  (R4/R5, fiches 002–005, 008/009/034) ; synthétiques R1/R2 bloqués à
-  l'audit P-K1.
+  27/27) ; vague 1b **session documents LIVRÉE** (fiches 049 26/26 + 042
+  4/4 — SPI `ServiceMoteurLangageKotlin` né en zone `api/`) ; vague 1c
+  **scan projet paresseux LIVRÉE** (fiche 041 15/15 — passe bornée
+  annulable sur fil dédié, amorce warm, incrémental mtime, KP6) — suite
+  72 tests verts, `04-execution-etage1.md` ; suivent les vagues
+  classpath + index (R4/R5, fiches 002–005, 008/009/034) ; synthétiques
+  R1/R2 bloqués à l'audit P-K1.
 
 Historique des livraisons (séquence confirmée N1 → N2 → N3 → N7 → N4 →
 N5 → N6 → N8, T traversant) :

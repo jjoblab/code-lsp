@@ -1,14 +1,10 @@
-// CodeIDE — scan des racines sources d'une session (L1, module :kotlin,
-// étage 1 vague 1b). Code NEUF jjoblab (clean-room — contrat : fiche 049 du
-// cahier : « rafraichirSources : une déclaration externe devient
-// resolvable »). Scan minimal SYNCHRONE de la vague 1b — le scan paresseux
-// borné annulable (fiche 041) est la vague 1c.
+// CodeIDE — le snapshot immuable du scan des racines sources (L1, module
+// :kotlin, étage 1). Code NEUF jjoblab (clean-room — contrat : fiches 049/041
+// du cahier). Étage 1 vague 1c : le scan minimal SYNCHRONE de la vague 1b est
+// REMPLACÉ par le scanneur paresseux borné annulable ([ScanProjetParesseux],
+// fiche 041) — ce type demeure l'UNITÉ DE PUBLICATION (snapshot immuable, hors
+// verrou de session : « moins riche, jamais faux »).
 package jo.codeide.lsp.kotlin.session
-
-import java.nio.file.Files
-import java.nio.file.InvalidPathException
-import java.nio.file.Paths
-import jo.codeide.lsp.kotlin.parse.ParseurKotlin
 
 /**
  * Le résultat IMMUABLE d'un scan des racines sources (L1) : les déclarations
@@ -21,21 +17,25 @@ import jo.codeide.lsp.kotlin.parse.ParseurKotlin
  * marche gagne (racines dans l'ordre posé, fichiers triés par chemin — les
  * surcharges relèvent de la résolution, étage 2).
  *
- * @property declarations les déclarations externes indexées par nom.
+ * @property parNom les déclarations externes indexées par nom (ordre de
+ * marche — déterministe).
  */
-internal class ScanSources private constructor(
-    private val declarations: Map<String, DeclarationExterne>,
+internal class ScanSources internal constructor(
+    private val parNom: Map<String, DeclarationExterne>,
 ) {
 
     /**
      * Une déclaration externe rendue par le scan.
      *
+     * @property nom le nom de la déclaration (clé du scan — la première
+     * déclaration du nom en ordre de marche gagne) ;
      * @property uri l'identifiant (chemin) du fichier la portant ;
      * @property signature la signature écrite conservatrice ;
      * @property documentation la documentation KDoc qui la précède (`null`
      * si aucune).
      */
     internal class DeclarationExterne(
+        internal val nom: String,
         internal val uri: String,
         internal val signature: String,
         internal val documentation: String?,
@@ -49,77 +49,23 @@ internal class ScanSources private constructor(
      * scan n'en connaît aucune.
      */
     internal fun declaration(nom: String): DeclarationExterne? {
-        return declarations[nom]
+        return parNom[nom]
     }
 
-    internal companion object {
-
-        /** Le parseur du scan (sans état — partagé par les passes). */
-        private val parseur = ParseurKotlin()
-
-        /**
-         * Scan les racines sources : marche des dossiers, lecture et parse
-         * des fichiers Kotlin, collecte des déclarations nommées.
-         *
-         * La marche est HORS verrou de session (ADR 0212 : jamais de scan
-         * sous verrou) ; l'ordre est DÉTERMINISTE : racines dans l'ordre
-         * posé, fichiers triés par chemin.
-         *
-         * L'API NIO employée est la couche Java 7 CONSOMMABLE par ART dès
-         * l'API 26 ([Paths.get], [Files.readAllBytes] — PAS `Path.of` ni
-         * `Files.readString`, arrivées avec Java 11 : le dexage du pack
-         * cible min-api 26) ; l'UTF-8 est explicite à la lecture.
-         *
-         * @param racines les dossiers racines à scanner (chemins) ;
-         * @return le scan publié (vide si aucune racine ou aucun fichier —
-         * jamais d'exception).
-         */
-        internal fun scanner(racines: List<String>): ScanSources {
-            val collectees = mutableMapOf<String, DeclarationExterne>()
-            for (racine in racines) {
-                val dossier = try {
-                    Paths.get(racine)
-                } catch (_: InvalidPathException) {
-                    // Chemin illisible : racine ignorée honnêtement (D3).
-                    continue
-                }
-                if (!Files.isDirectory(dossier)) continue
-                val fichiers = try {
-                    Files.walk(dossier).use { flux ->
-                        flux.filter { fichier ->
-                            Files.isRegularFile(fichier) && (
-                                fichier.fileName.toString().endsWith(".kt") ||
-                                    fichier.fileName.toString().endsWith(".kts")
-                                )
-                        }.sorted().toList()
-                    }
-                } catch (_: Exception) {
-                    // Racine illisible : ignorée honnêtement (D3).
-                    continue
-                }
-                for (fichier in fichiers) {
-                    val texte = try {
-                        String(Files.readAllBytes(fichier), Charsets.UTF_8)
-                    } catch (_: Exception) {
-                        continue
-                    }
-                    val uri = fichier.toUri().toString()
-                    val script = fichier.fileName.toString().endsWith(".kts")
-                    val arbre = parseur.arbre(texte, script)
-                    val commentaires = arbre.noeud.commentaires
-                    for (declaration in SurvolDocuments.declarationsRecursives(arbre)) {
-                        val nom = declaration.nom() ?: continue
-                        if (collectees.containsKey(nom)) continue
-                        val signature = SurvolDocuments.renduSignature(declaration) ?: continue
-                        collectees[nom] = DeclarationExterne(
-                            uri = uri,
-                            signature = signature,
-                            documentation = SurvolDocuments.kdocPrecedente(declaration, commentaires),
-                        )
-                    }
-                }
-            }
-            return ScanSources(collectees)
+    /**
+     * Rend les déclarations du snapshot, l'URI du document courant exclue.
+     *
+     * @param uriExclue l'URI à exclure (le document courant vit son arbre
+     * frais côté session : son doublon du scan serait périmé) ; `null` pour
+     * tout rendre ;
+     * @return les déclarations en ordre de marche (déterministe) — jamais
+     * `null`.
+     */
+    internal fun declarations(uriExclue: String? = null): List<DeclarationExterne> {
+        return if (uriExclue == null) {
+            parNom.values.toList()
+        } else {
+            parNom.values.filter { it.uri != uriExclue }
         }
     }
 }

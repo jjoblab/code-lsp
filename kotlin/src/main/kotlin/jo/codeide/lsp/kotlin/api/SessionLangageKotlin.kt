@@ -34,8 +34,11 @@ package jo.codeide.lsp.kotlin.api
  * le moteur possède le nourrissage (`nourrissageParMoteur`), la définition
  * est un BRANCHEMENT — elle ne re-lect rien, chaque requête consulte l'état
  * publié par le moteur (sous-lecture honnête tant que rien n'est couvert).
- * [rafraichirSources] (L1) re-scanne les racines : une déclaration externe
- * devient alors résolvable pour le survol.
+ * La pose des racines AMORCE le scan en tâche de fond (fiche 041 : le coût
+ * du scan n'est pas à la première frappe) — mais la session ne SERT rien du
+ * scan avant [rafraichirSources]. [rafraichirSources] (L1) rafraîchit la
+ * passe (incrémentale par fichier) : une déclaration externe devient alors
+ * résolvable pour le survol.
  */
 public interface SessionLangageKotlin : AutoCloseable {
 
@@ -119,9 +122,12 @@ public interface SessionLangageKotlin : AutoCloseable {
      * externes deviennent résolvables pour le survol à partir de la requête
      * suivante.
      *
-     * Le scan ne court JAMAIS sous le verrou de session (ADR 0212) : la
-     * marche des racines précède la publication du résultat. Une session
-     * fermée l'ignore silencieusement (no-op honnête, fiche 049).
+     * La passe court sur le FIL DÉDIÉ du scanneur paresseux (fiche 041 :
+     * jamais de parse sur le fil appelant, jamais de scan sous le verrou de
+     * session — ADR 0212) et est INCRÉMENTALE par fichier (cache mtime : un
+     * fichier inchangé n'est jamais re-parsé) ; l'appel attend
+     * l'aboutissement de la passe puis publie le snapshot immuable. Une
+     * session fermée l'ignore silencieusement (no-op honnête, fiche 049).
      */
     public fun rafraichirSources()
 

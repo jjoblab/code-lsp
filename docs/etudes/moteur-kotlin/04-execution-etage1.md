@@ -14,7 +14,8 @@
 > journal d'exécution de l'étage (méthode : miroir des rapports précédents
 > — chiffres étiquetés [mesuré] / [estimé], écarts signalés). Vague 1a :
 > façade `Kt*`. **Vague 1b : session documents — fiches 049/042, SPI
-> `ServiceMoteurLangageKotlin` en zone `api/`.**
+> `ServiceMoteurLangageKotlin` en zone `api/`. Vague 1c : scan projet
+> paresseux — fiche 041 (15 comportements, accès concurrents).**
 
 ## 1. Périmètre exécuté (vague 1a — façade `Kt*`, fiche 013)
 
@@ -126,7 +127,7 @@ hors registre (code neuf libre ; aucune reprise voie C cette vague).
 | Critère | État | Preuve |
 |---|---|---|
 | Fiches parse vertes | **Atteint** | 010–013 : 27/27 comportements (domaine `parse` du cahier complet) |
-| Fiches session vertes | **Atteint** | Fiches 049 (26/26) + 042 (4/4) — vague 1b, §7 |
+| Fiches session vertes | **Atteint** | Fiches 049 (26/26) + 042 (4/4) — vague 1b, §7 ; fiche 041 (15/15) — vague 1c, §10 |
 | Fiches index vertes | Ouvert | Fiches 008/009/034 — vague 1d |
 | Fiches synthétiques vertes | **Bloqué propriétaire** | R1/R2 attendent l'audit P-K1 (recommandé avant l'étage 1 — toujours ouvert) |
 | Latences S0 tenues (reparse < 50 ms JVM à 3 000 l.) | **Atteint** | parse chaud p50 18,9 ms / p95 48,6 ms à 3 000 l. [mesuré] |
@@ -151,8 +152,12 @@ mécanique.**
   verrou lecture/écriture). Le SPI `ServiceMoteurLangageKotlin` est NÉ en
   zone `api/` (chemin de production de l'hôte, D6 — le pack futur se
   branche là, et uniquement là).
-- **Vague 1c — scan projet paresseux** : fiche 041 (15 comportements,
-  accès concurrents) — sur la façade livrée.
+- **Vague 1c — scan projet paresseux** : LIVRÉE (§10–§12) — fiche 041
+  (15 comportements : paresseux, amorce warm, incrémental mtime,
+  rafraîchissement externe L1, accès concurrents KP6, progression à total
+  connu, annulation coopérative, reprise, projet sans sources) — le scan
+  synchrone de la vague 1b est REMPLACÉ sans changer le contrat de
+  publication (snapshot immuable hors verrou).
 - **Vague 1d — classpath + index appelables** : reprises R4/R5 au câblage
   (inscription PRÉALABLE déjà posée, re-contrôle R9.4 à la copie) +
   fiches 002/003/004/005 (11 comportements) ; index appelables fiches
@@ -307,3 +312,104 @@ trois jobs Kotlin : suite du module (57 tests verts — fiches 010–013,
 raffinement du scanner), dexage d8 **16 256 méthodes / 2,68 Mo** (seuils
 tenus), banc empreinte/latence. **La vague 1b est CLOSE sur preuve
 mécanique.**
+
+## 10. Périmètre exécuté (vague 1c — scan projet paresseux, fiche 041)
+
+| # | Item | État | Détail |
+|---|---|---|---|
+| 1 | Scanneur paresseux | **Fait** | `session/ScanProjetParesseux.kt` : passe BORNÉE (collecte ≤ 2 000 fichiers, compte honnête au-delà) et ANNULABLE (observateur consulté entre fichiers) sur FIL DÉDIÉ unique (démon `scan-projet-kotlin`) ; vol unique — les lectures REJOIGNENT la passe en vol, jamais de parse sur le fil appelant |
+| 2 | Amorce warm | **Fait** | `definirRacines` AMORCE la passe à la définition (le coût n’est pas à la première frappe) ; CHANGEMENT = invalidation puis re-scan ; MÊMES racines = no-op chaud |
+| 3 | Incrémental mtime | **Fait** | Cache par FICHIER (chemin → mtime + déclarations) : un fichier inchangé n’est JAMAIS re-parsé, `rafraichir` (L1) est delta-only ; purge des disparus sur les vivants de la marche |
+| 4 | Progression à total connu | **Fait** | La MARCHE précède le PARSE : le total des fichiers éligibles est connu dès le PREMIER tick (`surFichier(faits, total, nom)`) ; retour `false` = annulation coopérative (l’acquis publié, le passage PARTIEL abouti — pas de boucle d’amorcage), `rafraichir` complète la reprise |
+| 5 | Accès concurrents (KP6) | **Fait** | Paire (racines, snapshot servi) mutée sous le verrou du scan, visibilité par champs volatils ; un snapshot n’est servi que s’il couvre les racines COURANTES (jamais faux) ; `attendrePassageCourant` au drapeau `pret` (un projet sans sources est un état abouti) |
+| 6 | Session câblée | **Fait** | `definirClasspath` pose les racines au scanneur (amorce warm — résultats NON servis avant `rafraichirSources`, contrat 1b préservé) ; `rafraichirSources` = rafraîchir + attendre HORS verrou + publier le snapshot immuable (garde : racines inchangées) ; `close` interrompt le fil dédié |
+| 7 | Suite fiche 041 | **Fait** | `session/Fiche041ScanProjetParesseuxTest.kt` : 15/15 comportements (noms exacts du cahier, couture interne câblée main) — 3 passes consécutives vertes [mesuré] |
+| 8 | Baseline de parité | **Re-signée** | Corpus 301 → **303 fichiers** [mesuré] (2 neufs : 1 main + 1 test) — procédure `-Dparite.majBase=true --rerun-tasks` |
+| 9 | Manifeste de reprise | **Inchangé** | Code 100 % neuf (aucune reprise voie C) ; `verifier-provenance.sh` rc=0 — écart de PROCÉDURE R9.1 consigné (E-K5, §11.1) |
+
+## 11. Décisions d’exécution consignées (vague 1c — pas dans le plan initial)
+
+1. **ÉCART DE PROCÉDURE R9.1 (alerte E-K5, `ALERTES.md` §4) — déclaré au
+   propriétaire** : pendant le cadrage de la vague, l’implémenteur a lu par
+   erreur l’implémentation source `ScanProjet.kt` de l’ancien dépôt (zone
+   noyau `session/` en LECTURE INTERDITE — seuls les TESTS sont
+   consultables, base du cahier, R9.5). Aucune ligne n’est copiée, le code
+   livré est neuf (conventions du module) et l’écart est tracé dans
+   l’en-tête du fichier ; la convergence de certains mécanismes (vol
+   unique, cache mtime, marche avant parse) tient au CONTRAT de la fiche
+   041 et de son test. La condition de clean-room strict étant rompue pour
+   cette vague, un audit de similarité d’expression mené par un rôle
+   distinct des implémenteurs est RECOMMANDÉ (même principe que P-K1).
+   Aucune autre zone du main ancien n’a été lue depuis la découverte.
+2. **Le snapshot devient porteur du NOM** : `DeclarationExterne` gagne
+   `nom` (la clé du scan — la fiche 041 éprouve `declarations().map {
+   it.nom }`) ; `ScanSources` demeure l’UNITÉ DE PUBLICATION immuable, son
+   scan synchrone (vague 1b) est RETIRÉ — remplacé par le scanneur
+   paresseux sans changer le contrat de session observable.
+3. **Amorce warm à la définition, service au rafraîchissement** : la pose
+   des racines amorce la passe en tâche de fond, mais la session ne SERT
+   rien du scan avant `rafraichirSources` — le comportement
+   `rafraichirSources---une-declaration-externe-devient-resolvable` de la
+   fiche 049 (« HORS de portée AVANT le rafraîchissement ») l’exige. Le
+   cache mtime rend la passe de rafraîchissement quasi gratuite après
+   l’amorce (delta-only).
+4. **Publication et libération du vol DANS le corps de la tâche** : un
+   lecteur qui rejoint le vol est garanti de voir le résultat publié ET le
+   vol libéré (précédence-avant du `FutureTask`) ; une libération côté
+   exécuteur ne garantirait rien (elle courrait après l’achèvement — la
+   fenêtre de course est fermée par construction).
+5. **Un snapshot n’est servi que s’il couvre les racines COURANTES** : le
+   changement de racines détache le snapshot publié (lectures vides
+   honnêtes : « moins riche, jamais faux »), le rafraîchissement garde
+   l’ancien servi pendant la passe (mêmes racines : jamais moins riche) —
+   les deux bornes du contrat de service, tranchées par la garde
+   d’identité des racines.
+6. **`rafraichir` pendant un vol : la borne documentée** : le vol unique
+   interdit de doubler une passe en cours — un rafraîchissement demandé
+   PENDANT une passe amorcée voit son intention portée par cette passe (sa
+   marche a pu précéder la création du fichier externe) ; la passe
+   suivante rattrape. Aucune fiche n’éprouve cette fenêtre ; elle est
+   documentée ici pour la revue.
+7. **La borne de collecte est posée, sa preuve attend sa fiche** : la
+   marche collecte ≤ 2 000 fichiers mais COMPTE au-delà (total honnête) ;
+   la troncation observable et la preuve d’absence coupée sont le sujet
+   des fiches 036/022 (étapes ultérieures) — la couture (paramètre de
+   construction) est en place, aucun mécanisme mort n’est livré.
+8. **Le fil dédié est un DÉMON nommé** (`scan-projet-kotlin`) : la JVM ne
+   l’attend pas ; `close()` de session l’interrompt (`shutdownNow`) et
+   pose un drapeau qui neutralise les amorces et publications résiduelles.
+
+## 12. Mesures de la vague 1c (bac à sable — JVM de bureau conteneurisée,
+2 cœurs, OpenJDK 21.0.13)
+
+**Suite du module : 72 tests verts** [mesuré] (fiches 010 : 2, 011 : 3,
+012 : 9, 013 : 13, 049 : 26, 042 : 4, **041 : 15**). Trois passes
+consécutives de la fiche 041 vertes [mesuré] — stabilité des comportements
+concurrentiels (KP6, amorce warm, annulation).
+
+**Banc `:kotlin:bench` (nombres, aucun seuil — banc grammaire, la session
+n’y vit pas)** : parse froid 188,1 ms / 27,4 ms (500/3 000 l.), parse
+chaud p50 5,1 ms / 20,6 ms, p95 38,8 ms / 53,7 ms, tolérance 101
+troncatures hostiles 0 lever, tas au repos 3 700 Kio (4 356 Kio aux
+passes 1a/1b — bruit de mesure entre exécutions, le banc n’éprouve pas le
+scanneur).
+
+**Jar moteur : 320 138 o (312,6 Kio)** [mesuré] — 302,1 Kio à la vague
+1b ; **+10,5 Kio** pour le scanneur paresseux (122 classes dont **56 code
+neuf** [mesuré par scan du jar] — 51 à la vague 1b ; 66 grammaire vendorée
+inchangée). Le dexage d8 et les seuils sont vérifiés par la CI
+(`kotlin-art`) — attestation au commit de clôture ci-dessous.
+
+**Code livré [mesuré]** : 1 fichier main neuf (583 l.) + 1 fichier de
+test (303 l.) ; 3 fichiers adaptés (`ScanSources.kt` : le scan synchrone
+part, −18 l. net ; `SessionLangageKotlinDocuments.kt` : câblage du
+scanneur ; `api/SessionLangageKotlin.kt` : KDoc du contrat). KDoc
+français détaillé partout, explicitApi Strict. Comptage `synchronized` du
+code neuf : **10** [mesuré par `rg`] (9 au verrou du scan — hors chemin
+des requêtes hormis les brèves lectures d’état — et le verrou moteur
+inchangé de la vague 1b) ; la session vit toujours sur son verrou
+lecture-écriture (ADR 0117).
+
+**Provenance : `verifier-provenance.sh` rc=0** [mesuré] — aucun fichier
+hors registre (code neuf libre ; aucune reprise voie C cette vague ;
+l’écart de LECTURE R9.1 est consigné E-K5, §11.1).
