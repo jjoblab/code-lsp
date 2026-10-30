@@ -780,6 +780,16 @@ paresseux des classes, `kotlin-metadata-jvm` jamais chargé sur son fil) ;
 une future passe appareil couvrant l'étage 1 enrichira l'assembleur de la
 pile KM (§6, recommandation consignée).
 
-**La vague 1d est livrée sur preuve mécanique locale — la CI du commit
-atteste ; restent à l'étage 1 : les synthétiques (R1/R2 — audit P-K1
-propriétaire) puis la clôture de l'étage.**
+**CI VERTE 9/9 sur le commit de livraison `172343b`** (run `41020167427`,
+consulté le 30/10 à 07:32 UTC) — build et tests JDK 21, bancs
+noyau/qualité/parité T, gates Android, provenance (rc=0 — reprises R4/R5
+au registre), et les trois jobs Kotlin : suite du module **104 tests
+VERTS sur la toolchain 17** (fiches 010–013 + 049/042/041 +
+002–005/008/009/034), scan ART **6 × « AUCUNE »** sur la pile complète
+(moteur + syntax-api + lang-syntax + annotations + kotlin-stdlib +
+kotlin-metadata-jvm — ServiceLoader OK descripteurs vérifiés, moteur et
+MetadataExtensions), dexage d8 **24 673 références de méthodes /
+3 790 192 o (3,61 Mo)** [mesurés par la CI — IDENTIQUES au bac à sable,
+seuils tenus], banc empreinte/latence sous JDK 17. **La vague 1d est
+CLOSE sur preuve mécanique — restent à l'étage 1 : les synthétiques
+(R1/R2 — audit P-K1 propriétaire) puis la clôture de l'étage.**
