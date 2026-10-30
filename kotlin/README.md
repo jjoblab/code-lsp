@@ -52,3 +52,18 @@ zéro fichier hors registre ; 0 motif ART** (rapport :
 - `kotlin-compiler-embeddable` est **interdit de fait** dans le graphe
   compile-scope du module (garde CI ADR 0120 — voie (ii) disqualifiée au
   spike : 53,6 Mo / 64 507 méthodes / ~2 170 motifs ART [mesuré]).
+
+## État — étage 1 (noyau parse/session/classpath) — vagues 1a/1b
+
+| Élément | État |
+|---|---|
+| Façade `Kt*` (vague 1a, fiche 013) | Livrée : reconstruction d'arbre immuable + accesseurs conservateurs (introuvable = null/vide, jamais d'exception) |
+| SPI zone `api/` (vague 1b) | **Né** : `ServiceMoteurLangageKotlin` (`unique` : ServiceLoader sur descripteur embarqué + repli moteur noyau) et `SessionLangageKotlin` — types 100 % neutres (D6 : le pack futur se branche là, et uniquement là) |
+| Session documents (vague 1b, fiches 049/042) | **Livrée** : didOpen/didChange/didClose + diagnostics `kt.syntax`/`kt.unusedImport`/`kt.conflictingImport` (tags INUTILE + informations liées KP15), plages pliables, survol S2 (signature + KDoc), `rafraichirSources` (L1), branchement A211 (moteur nourricier, sous-lecture honnête, guérison à la requête suivante) |
+| Concurrence | Verrou lecture-écriture (ADR 0117/0212) : écritures = mutations/définitions/publication du scan ; requêtes en lectures PARALLÈLES ; le scan L1 court hors verrou |
+| Suite du module | 57 tests verts (fiches 010–013, 049, 042) — `./gradlew :kotlin:test` |
+| Jar moteur | 302,1 Kio / 117 classes (51 code neuf) — descripteur `META-INF/services` + notices vendor embarqués |
+
+Journal d'exécution de l'étage : `docs/etudes/moteur-kotlin/04-execution-etage1.md`
+(vagues suivantes : 1c scan projet paresseux — fiche 041 ; 1d classpath + index
+appelables — fiches 002–005/008/009/034, reprises R4/R5).

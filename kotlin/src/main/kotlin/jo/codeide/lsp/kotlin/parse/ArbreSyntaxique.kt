@@ -136,10 +136,53 @@ internal object ArbreSyntaxique {
             )
         }
 
-        return racineSure.figer(
+        val racineFige = racineSure.figer(
             jetons = jetons,
             blancs = parseur.whitespaces,
             commentaires = parseur.comments,
+        )
+
+        // Vague 1b (fiche 049) : les jetons de COMMENTAIRES du document sont
+        // des trivia hors productions — l'arbre ne les porte pas. La racine
+        // les collecte pour les services qui en ont besoin (KDoc du survol
+        // S2, pliage des blocs de documentation).
+        val commentairesDoc = mutableListOf<JetonBrut>()
+        for (indice in 0 until jetons.tokenCount) {
+            val genre = jetons.getTokenType(indice) ?: continue
+            if (!parseur.comments.contains(genre)) continue
+            val texte = jetons.getTokenText(indice) ?: continue
+            commentairesDoc.add(
+                JetonBrut(
+                    genre = genre,
+                    texte = texte.toString(),
+                    debut = jetons.getTokenStart(indice),
+                    fin = jetons.getTokenEnd(indice),
+                ),
+            )
+        }
+        return racineFige.avecCommentaires(commentairesDoc)
+    }
+
+    /**
+     * Re-construit la racine en lui attachant la liste des commentaires du
+     * document (copie immuable — seul le niveau racine les porte).
+     *
+     * @param commentaires les jetons de commentaire du document, en ordre du
+     * document ;
+     * @return la racine portant [NoeudArbre.commentaires].
+     */
+    private fun NoeudArbre.avecCommentaires(commentaires: List<JetonBrut>): NoeudArbre {
+        return NoeudArbre(
+            genre = genre,
+            debut = debut,
+            fin = fin,
+            debutJetons = debutJetons,
+            finJetons = finJetons,
+            messageErreur = messageErreur,
+            enfants = enfants,
+            jetonsPropres = jetonsPropres,
+            texteCanonique = texteCanonique,
+            commentaires = commentaires,
         )
     }
 
@@ -297,7 +340,10 @@ private class NoeudEnConstruction(
  * @property jetonsPropres les jetons significatifs situés DIRECTEMENT dans
  * la plage du nœud (hors plages des enfants), blancs et commentaires exclus ;
  * @property texteCanonique le texte écrit du nœud sans trivia (tous les
- * jetons de la plage, enfants compris, blancs et commentaires exclus).
+ * jetons de la plage, enfants compris, blancs et commentaires exclus) ;
+ * @property commentaires les jetons de COMMENTAIRE du document — portés par
+ * la RACINE uniquement (vague 1b : KDoc du survol, pliage), vide pour tout
+ * autre nœud ; les commentaires sont des trivia hors productions.
  */
 internal class NoeudArbre(
     internal val genre: SyntaxElementType,
@@ -309,6 +355,7 @@ internal class NoeudArbre(
     internal val enfants: List<NoeudArbre>,
     internal val jetonsPropres: List<JetonBrut>,
     internal val texteCanonique: String,
+    internal val commentaires: List<JetonBrut> = emptyList(),
 )
 
 /**

@@ -147,13 +147,16 @@ jobs:
 
   # ---------------------------------------------------------------------
   # DOMAINE KOTLIN — étage 0 clos / étage 1 engagé (ADR 0100 acceptée le
-  # 2026-10-30 ; vague 1a façade `Kt*` livrée le 30/10 au soir).
+  # 2026-10-30 ; vague 1a façade `Kt*`, vague 1b session documents + SPI
+  # livrées le 30/10 au soir).
   # Trois gates mécaniques des critères de sortie :
-  #   kotlin-parite : « suite du module verte » (fiches 010–013 du cahier —
-  #                   corpus du dépôt sans marqueur d'erreur + digeste
-  #                   baseline + tolérance aux fautes + façade `Kt*` :
-  #                   le job lance TOUT `:kotlin:test`, la couverture suit
-  #                   l'avancement des vagues) ;
+  #   kotlin-parite : « suite du module verte » (fiches 010–013 (parse) +
+  #                   049/042 (session documents, branchement A211) du
+  #                   cahier — corpus du dépôt sans marqueur d'erreur +
+  #                   digeste baseline + tolérance aux fautes + façade
+  #                   `Kt*` + session par le SPI : le job lance TOUT
+  #                   `:kotlin:test`, la couverture suit l'avancement des
+  #                   vagues) ;
   #   kotlin-art    : « 0 motif ART » (scan du moteur ET de sa pile amont)
   #                   + dexage d8 réel (E-K2 : le bac à sable n'a pas d8 —
   #                   la CI le fait) + seuils (méthodes/taille vs budget T1) ;
@@ -161,7 +164,7 @@ jobs:
   #                   les seuils arrivent avec les bancs ADR 0119).
   # ---------------------------------------------------------------------
   kotlin-parite:
-    name: Moteur Kotlin - suite du module (fiches 010-013, étage 1 vague 1a)
+    name: Moteur Kotlin - suite du module (fiches 010-013 + 049/042, étage 1 vagues 1a-1b)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
