@@ -42,9 +42,11 @@ internal class ContexteCompletion internal constructor(
  *  3. **NOM** — le reste des positions d'identifiant (le régime de
  *     repli honnête : locales, membres implicites, types, mots-clés).
  *
- * Les genres contextuels v1 (arguments nommés, constantes d'enum des
- * branches d'un `when`, attributs d'annotation) sont classifiés en vague
- * 3b — ils s'insèrent entre MEMBRE et NOM.
+ * Les genres CONTEXTUELS v1 (arguments nommés, constantes d'enum des
+ * branches d'un `when`, attributs d'annotation — fiche 043) se sondent
+ * dans le PIPELINE entre le régime membre et le repli de nom : leur
+ * classification exige la RÉSOLUTION (appel résolu, sujet enum typé,
+ * annotation résolue), pas l'arbre seul — voir `CompletionContextuelle`.
  */
 internal object CompletionContextes {
 

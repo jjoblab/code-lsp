@@ -93,29 +93,42 @@ internal object CompletionPipeline {
             GenreContexteKotlin.IMPORT ->
                 CompletionImports.collecter(contexte.cheminImport.orEmpty(), vueJvm)
 
-            GenreContexteKotlin.MEMBRE -> {
+            else -> {
+                // Les CONTEXTES CONTEXTUELS v1 (fiche 043 — vague 3b) se
+                // sondent AVANT le régime membre : un caret dans la LISTE
+                // D'ARGUMENTS d'un appel membre (`m.copier(|`) est une
+                // position d'ARGUMENT, pas de sélecteur. Chaque contexte
+                // est PROUVÉ sur l'arbre ET la résolution (appel résolu,
+                // sujet enum typé, annotation résolue) — un contexte non
+                // prouvable rend `null` et la suite reprend son cours.
                 val univers = univers()
                 val region = regionContenant(arbre.noeud, deplacement)
                 val liaison = MarcheTypee.Liaison(arbre = arbre, univers = univers, region = region)
-                CompletionMembres.collecter(arbre, univers, liaison, deplacement)
+                val pile = jo.codeide.lsp.kotlin.resolve.Couches.aPosition(arbre, univers, liaison, deplacement)
+                val contextuel = CompletionContextuelle.argumentsNommes(arbre, univers, liaison, pile, deplacement)
+                    ?: CompletionContextuelle.constantesEnum(arbre, univers, liaison, pile, deplacement)
+                    ?: CompletionContextuelle.attributsAnnotation(arbre, univers, deplacement)
+                if (contextuel != null) {
+                    return ReponseCompletionKotlin(
+                        genre = contextuel.genre,
+                        propositions = contextuel.propositions,
+                        totalDisponible = contextuel.propositions.size,
+                    )
+                }
+                if (contexte.genre == GenreContexteKotlin.MEMBRE) {
+                    CompletionMembres.collecter(arbre, univers, liaison, deplacement)
+                } else {
+                    CompletionNoms.collecter(
+                        arbre = arbre,
+                        univers = univers,
+                        liaison = liaison,
+                        pile = pile,
+                        deplacement = deplacement,
+                        index = index,
+                        vueJvm = vueJvm,
+                    )
+                }
             }
-
-            GenreContexteKotlin.NOM -> {
-                val univers = univers()
-                val region = regionContenant(arbre.noeud, deplacement)
-                val liaison = MarcheTypee.Liaison(arbre = arbre, univers = univers, region = region)
-                CompletionNoms.collecter(
-                    arbre = arbre,
-                    univers = univers,
-                    liaison = liaison,
-                    pile = jo.codeide.lsp.kotlin.resolve.Couches.aPosition(arbre, univers, liaison, deplacement),
-                    deplacement = deplacement,
-                    index = index,
-                    vueJvm = vueJvm,
-                )
-            }
-
-            else -> emptyList()
         }
 
         // L'ARRANGEMENT (3a : ordre de rencontre, total réel honnête — le

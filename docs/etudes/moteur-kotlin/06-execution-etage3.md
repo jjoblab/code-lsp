@@ -47,6 +47,29 @@
 > View par le DFS des interfaces), la KDOC TIERCE vérifie l'existence du
 > fichier déclarant (garde D3 ADR 0208).**
 
+> **Mise à jour (31/10, vague 3b) — LA COMPLÉTION CONTEXTUELLE V1 EST
+> LIVRÉE avec la fiche 043 ENTIÈRE (14 comportements) : les trois
+> contextes repris en parité de l'ADR 0228 — ARGUMENTS NOMMÉS d'un appel
+> résolu (les surcharges du projet du même nom, l'union des paramètres ;
+> l'appel MEMBRE QUALIFIÉ lit les paramètres du MEMBRE typé ; les fournis
+> en forme NOMMÉE exclus ; le filtre par préfixe ; insertion avec
+> séparateur `nom = ` et signature écrite en détail), CONSTANTES D'ENUM
+> des branches d'un `when` à sujet TYPÉ (projet : les entrées du modèle ;
+> classpath : les champs STATIQUES typés par l'enum elle-même, la
+> superclasse binaire `java.lang.Enum` exigée — l'INSTANCE d'un singleton
+> n'y entre pas ; contexte EXCLUSIF, le corps d'une branche est muet),
+> ATTRIBUTS d'annotation RÉSOLUE (les méthodes ABSTRAITES de la classe
+> binaire, fournis exclus, insertion avec séparateur, FQCN en détail) —
+> chaque contexte porte sa borne conservatrice D3 : la position de VALEUR
+> (un littéral en cours de frappe couvre le caret, le slot après `=` d'un
+> argument nommé TRONQUÉ — les ERROR_ELEMENT de plage nulle de la
+> récupération d'erreur ne comptent pas comme valeur), l'appel inconnu,
+> l'annotation non résolue et le sujet non enum retombent sur le RÉGIME DE
+> NOM (mots-clés visibles — le témoin du repli honnête). Les sondes
+> contextuelles courent AVANT le régime membre dans le pipeline : un caret
+> dans la liste d'arguments d'un appel membre (`m.copier(|`) est une
+> position d'ARGUMENT, pas de sélecteur.**
+
 ## 1. Périmètre de l'étage (plan §4 — cahier en main)
 
 | # | Item | Source du contrat |
@@ -62,7 +85,7 @@
 
 | Critère | État | Preuve |
 |---|---|---|
-| 44 fiches vertes (fiches 038 + 039 + 043 + 045 du domaine complétion) | **21/44** (fiche 045 — vague 3a, §5) | `Fiche045SessionLangageKotlinK3Test` : 21 comportements |
+| 44 fiches vertes (fiches 038 + 039 + 043 + 045 du domaine complétion) | **35/44** (fiche 045 — §5 ; fiche 043 — §6) | `Fiche045SessionLangageKotlinK3Test` : 21 ; `Fiche043SessionLangageKotlinCompletionContextuelleTest` : 14 |
 | Banc : recall ≥ baseline | À atteindre (banc livré en 3e) | — |
 | Banc : top-1/MRR +5 pts vs naïf | À atteindre (classement 3c, banc 3e) | — |
 | Banc : p95 ≤ baseline (JVM = limite basse ; cible appareil < 100 ms) | À atteindre (banc livré en 3e) | — |
@@ -174,3 +197,46 @@ section du présent journal + commit/push.
   marqueurs d'erreur 0, tas 3 079 Kio.
 - **Provenance** : `verifier-provenance.sh` rc=0 (aucune reprise — code
   NEUF intégral).
+
+## 6. Vague 3b — la complétion contextuelle v1 (31/10, fiche 043 — 14 comportements)
+
+### 6.1 Périmètre exécuté
+
+| # | Item | État | Détail |
+|---|---|---|---|
+| 1 | Arguments nommés | **Fait** | `CompletionContextuelle.argumentsNommes` : la liste d'arguments d'APPEL couvrant le caret (la plus profonde — le PORTEUR voyage avec la liste, l'arbre n'a pas de pointeur parent) ; l'appel NU lit les surcharges du projet du même nom (`ModeleProjet.appelables`, union des paramètres) ; l'appel MEMBRE QUALIFIÉ type le récepteur et lit les paramètres du MEMBRE dans SES déclarations (les paramètres y vivent — un membre hérité du scan sans paramètres relus rend `null`, D3) ; les fournis en forme NOMMÉE exclus (noms lus des `VALUE_ARGUMENT_NAME`) ; insertion avec séparateur `nom = `, signature écrite en détail |
+| 2 | Constantes d'enum | **Fait** | `CompletionContextuelle.constantesEnum` : le `when` couvrant le caret en ZONE DE CONDITION (après la fin du sujet, hors des CORPS de branches — après la flèche) ; le SUJET se type (première production enfant hors entrées) ; projet : les entrées du modèle ; classpath : les champs STATIQUES typés par l'enum ELLE-MÊME (`Ldemo/Couleur;`), la superclasse binaire `java.lang.Enum` EXIGÉE (l'INSTANCE d'un singleton typé par lui-même n'y entre pas) ; contexte EXCLUSIF |
+| 3 | Attributs d'annotation | **Fait** | `CompletionContextuelle.attributsAnnotation` : la liste d'arguments d'ENTRÉE D'ANNOTATION couvrant le caret ; le nom écrit (CONSTRUCTOR_CALLEE → référence de type) se résout en classe du classpath ; les attributs sont les méthodes ABSTRAITES de la classe binaire (0x0401 — les accesseurs) ; fournis exclus, insertion avec séparateur, FQCN en détail ; contexte EXCLUSIF |
+| 4 | Bornes D3 | **Fait** | `estPositionDeNom` : le caret dans le SLOT DE VALEUR d'un argument nommé (après son `=`), DANS une expression de valeur (un littéral en cours de frappe le couvre), ou dans le slot d'un nommé TRONQUÉ (nom écrit sans valeur — les `ERROR_ELEMENT` de plage nulle de la récupération d'erreur ne comptent pas) → repli sur le régime de NOM ; l'appel inconnu, l'annotation non résolue et le sujet non enum rendent `null` (repli honnête) |
+| 5 | Ordre des sondes | **Fait** | Les sondes contextuelles courent AVANT le régime membre dans le pipeline : un caret dans la liste d'arguments d'un appel membre (`m.copier(|`) est une position d'ARGUMENT, pas de sélecteur — écart découvert par le comportement « appel membre qualifié » et corrigé |
+| 6 | Tests neufs | **Fait** | 14 comportements aux noms exacts du cahier : `Fiche043SessionLangageKotlinCompletionContextuelleTest` — l'annotation `demo.Anno` et l'enum `demo.Couleur` du classpath vivent dans un JAR DE FIXTURE (superclasse `java.lang.Enum`, méthodes abstraites, champ d'instance `ordre` hors jeu) |
+
+### 6.2 Décisions d'exécution consignées
+
+1. **L'union des surcharges** : un appel nu résolu à plusieurs surcharges du
+   même nom propose l'UNION de leurs paramètres — l'arbitrage par arité et
+   type relève du typage complet (fiche 046, déjà livré) et du futur mode
+   profond ; l'union est honnête (aucun paramètre réel manquant).
+2. **Les seuls fournis NOMMÉS sont exclus** : les arguments positionnels
+   fournis n'excluent RIEN (leur appariement aux paramètres exige
+   l'arbitrage des surcharges — miroir du comportement source « déjà
+   fourni en forme nommée exclu »).
+3. **Le marqueur binaire d'enum** : la superclasse `java.lang.Enum` exigée
+   avant de proposer des « constantes » d'un type du classpath — un
+   singleton `object` JVM (champ `INSTANCE` typé par lui-même) n'entre
+   jamais au contexte enum.
+
+### 6.3 Preuves du bac à sable (avant poussée)
+
+- **Suite** : **372 tests VERTS** sur la toolchain 17 (358 + 14 de la
+  fiche 043) ; baseline de parité RE-SIGNÉE **376 → 378 fichiers** (les
+  2 neufs : `CompletionContextuelle.kt` + le test de la fiche).
+- **Jar moteur** : 719 857 o (+12 464 vs 3a).
+- **Scan ART pile complète** : 6 × « AUCUNE », rc=0.
+- **Dexage d8** (build-tools 34 local, min-api 26) : **25 529 références
+  de méthodes (78 % du plafond) / 4 064 332 o = 3,88 Mo (65 % du budget
+  6 Mo)**.
+- **Banc JDK 17** : froid 246,1/25,5 ms, p50 6,7/26,9 ms, p95 35,1/57,1 ms,
+  productions 5 448/31 368 et jetons 4 210/24 274 — déterminisme
+  IDENTIQUE, marqueurs d'erreur 0, tas 3 845 Kio.
+- **Provenance** : `verifier-provenance.sh` rc=0 (aucune reprise).
