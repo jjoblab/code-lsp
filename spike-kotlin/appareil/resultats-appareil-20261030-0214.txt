@@ -1,0 +1,26 @@
+==============================================================
+ banc-appareil — moteur Kotlin étage 0 (2026-10-30 02:14:51)
+ hôte : aarch64 / 15 / moto g06
+ java : openjdk version "17.0.19" 2026-04-21
+==============================================================
+==============================================================
+ banc-grammaire — :kotlin étage 0 (Linux)
+ java : 17.0.19 ; cœurs : 8
+==============================================================
+K;corpus=500;parse_froid=1692.8ms;parse_chaud_p50=58.6ms;parse_chaud_p95=149.7ms;passes=50;productions=5448;jetons=4210;marqueurs_erreur=0
+K;corpus=3000;parse_froid=252.1ms;parse_chaud_p50=247.6ms;parse_chaud_p95=371.5ms;passes=20;productions=31368;jetons=24274;marqueurs_erreur=0
+K;tolerance;troncatures=101;levers=0
+K;tas;repos=3800Kio
+OK : banc terminé — nombres à comparer entre versions (aucun seuil).
+---
+=== kotlin-1.0.0.jar ===
+classes analysées : 122
+méthodes déclarées (borne basse dex) : 205
+versions de class-file (majeure:nombre) : 61:122
+références sensibles ART : AUCUNE
+  ServiceLoader : OK — 1 référence(s), descripteur(s) vérifié(s) : META-INF/services/jo.codeide.lsp.kotlin.api.ServiceMoteurLangageKotlin (1 fournisseur(s))
+
+==============================================================
+ Terminé — remplir appareil/GABARIT-RESULTATS.md et le joindre au
+ ticket de l'étage 1 (aucune mesure appareil n'est présumée, R5).
+==============================================================

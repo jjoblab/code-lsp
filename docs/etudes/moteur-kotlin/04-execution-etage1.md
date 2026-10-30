@@ -21,6 +21,12 @@
 > JDK 21 seule dans le bytecode 17 — invisible CI JDK 21) ; correctif
 > toolchain 17 + gardes, kit v2 livré et validé sous openjdk 17 en machine
 > de build — retour du gabarit attendu (§14).**
+> **Mise à jour (30/10, 3ᵉ passe, 02:14:51) — GABARIT APPAREIL REMPLI : le
+> kit v2 a exécuté le banc complet ET le scan ART sur l'appareil (openjdk
+> 17.0.19) — « OK : banc terminé », déterminisme 31 368 / 24 274 IDENTIQUE
+> au bac à sable, tolérance 101/0, aucune référence sensible ; premières
+> mesures appareil réelles consignées, la porte d'entrée de l'étage 1 est
+> franchie (§15).**
 
 ## 1. Périmètre exécuté (vague 1a — façade `Kt*`, fiche 013)
 
@@ -136,7 +142,7 @@ hors registre (code neuf libre ; aucune reprise voie C cette vague).
 | Fiches index vertes | Ouvert | Fiches 008/009/034 — vague 1d |
 | Fiches synthétiques vertes | **Bloqué propriétaire** | R1/R2 attendent l'audit P-K1 (recommandé avant l'étage 1 — toujours ouvert) |
 | Latences S0 tenues (reparse < 50 ms JVM à 3 000 l.) | **Atteint** | parse chaud p50 18,9 ms / p95 48,6 ms à 3 000 l. [mesuré] |
-| Gabarit appareil rempli (porte d'entrée) | **En cours** | Passe 1 (30/10 01:33) : échec kit incomplet — attendu (§13) ; passe 2 : incident JDK 21 CORRIGÉ (§14, kit v2) — retour du gabarit attendu |
+| Gabarit appareil rempli (porte d'entrée) | **Atteint** | Passe 3 (30/10 02:14:51, kit v2 sur l'appareil) : banc + tolérance + tas + scan ART VERTS sous openjdk 17.0.19 — déterminisme 31 368 / 24 274 IDENTIQUE au bac à sable ; GABARIT-RESULTATS.md rempli des valeurs brutes (§15) |
 
 **CI VERTE 9/9 sur le commit de livraison** (run `40988517140`, commit
 `a1b29c8`, consulté le 30/10 à 01:56 UTC) — build et tests JDK 21, bancs
@@ -174,7 +180,7 @@ mécanique.**
 
 | # | Action | Référence | Bloque |
 |---|---|---|---|
-| 1 | Passe appareil (Termux) : passes 1 et 2 du 30/10 (kit incomplet puis incident JDK 21 corrigé) — **kit v2 livré, retour du gabarit attendu** | GABARIT-RESULTATS.md, §13–§14 | le critère de sortie « gabarit appareil rempli » de l'étage 1 |
+| 1 | Passe appareil (Termux) : **passe 3 du 30/10 02:14:51 — VERTE, gabarit REMPLI (§15)** ; passes 1–2 du 30/10 (kit incomplet puis incident JDK 21 corrigé — §13/§14) ; passes répétées OPTIONNELLES pour le suivi longitudinal (thermique) | GABARIT-RESULTATS.md, §13–§15 | plus rien — le critère de sortie « gabarit appareil rempli » est ATTEINT |
 | 2 | Audit de similarité GPL (P-K1) | manifeste §5 | la copie de synthetics R1/R2 (vague 1d/2) |
 | 3 | Arbitrages Q-K1 (CIDX vs index dédié) / Q-K2 (décodage @Metadata) | DEMANDES-INTERFACE, ADR 0108 | le câblage classpath final (le développement suit l'hypothèse index dédié) |
 | 4 | Conditions binaires intellij-dependencies (P-K2) | ADR 0120, NOTICE | la PUBLICATION du pack langue (pas le développement) |
@@ -594,3 +600,80 @@ de résolution, dépôt inchangé — la CI résout normalement). Alerte
 module à toolchain 21/jvmTarget 17 — `java-1.0.0.jar` PUBLIÉ scanné
 **PROPRE** [mesuré], recommandation de garde adressée au propriétaire
 pour les écritures futures du chantier Java.
+
+## 15. Passe appareil — GABARIT REMPLI, première passe complète et verte (30/10, troisième passe — kit v2)
+
+**Le propriétaire a exécuté `banc-appareil.sh` AVEC le kit v2** [sortie
+brute reçue dans le canal de mission, 30/10 **02:14:51** heure appareil —
+consignée en dépôt : `spike-kotlin/appareil/resultats-appareil-20261030-0214.txt`]
+: moto g06, Android 15, aarch64, Termux openjdk **17.0.19**, 8 cœurs
+visibles de la JVM. Résultat : **« OK : banc terminé »** — banc grammaire,
+tolérance, tas et scan ART exécutés JUSQU'AU BOUT, sans exception. C'est
+la PREMIÈRE passe appareil complète : **les premières mesures appareil
+réelles existent** (R5 tenu de bout en bout — aucune valeur n'a été
+présumée avant ce retour). L'exécution complète sous 17.0.19 n'était
+possible qu'avec le jar corrigé (le kit v1 lève `NoSuchMethodError` au
+premier parse — §14, référence JDK 21 dans `KotlinFlexLexer.popState`) :
+elle atteste le kit v2 en place sur l'appareil (sha256 publié
+`1352072e35b11fcabde83443e165209bd44a94b97a200e9baa1984e5f360567a` pour
+la vérification du propriétaire).
+
+**Mesures reportées [sortie brute du propriétaire]** — valeurs telles
+quelles :
+
+| Mesure | 500 l. | 3 000 l. |
+|---|---|---|
+| parse_froid | 1 692,8 ms | 252,1 ms |
+| parse_chaud p50 / p95 | 58,6 / 149,7 ms | 247,6 / 371,5 ms |
+| passes | 50 | 20 |
+| productions / jetons | 5 448 / 4 210 | **31 368 / 24 274** |
+| marqueurs d'erreur | 0 | 0 |
+
+Tolérance : **101 troncatures / 0 lever** ; tas au repos : **3 800 Kio**
+(JVM bornée 2g / SerialGC — mêmes conditions que le banc de bac à sable).
+Scan ART sur le jar moteur : **122 classes / 205 méthodes déclarées /
+AUCUNE référence sensible** (motif `List.<SequencedCollection>` du
+correctif §14 inclus — garde silencieuse), ServiceLoader **OK** — 1
+référence, descripteur
+`META-INF/services/jo.codeide.lsp.kotlin.api.ServiceMoteurLangageKotlin`
+vérifié, 1 fournisseur ; class-file **61:122**.
+
+**Déterminisme appareil ATTESTÉ** : compteurs IDENTIQUES au bac à sable et
+à la CI — 31 368 / 24 274 (§12 ; kit v1 déballé §13 ; toolchain 17 et
+replay kit v2 §14), 101 / 0, 122 / 205, 61:122, AUCUNE ; les compteurs du
+corpus 500 (5 448 / 4 210) identifient aussi le relevé brut étage 0
+(`resultats/mesures-brutes.txt`). La couche grammaticale produit les MÊMES
+nombres sur l'appareil : les seules valeurs spécifiques à l'appareil sont
+les temps et le tas. **Aucun marqueur d'erreur** sur les deux corpora —
+les parses appareil sont propres.
+
+**Écart aux limites basses JDK 17** (GABARIT §2 — `:kotlin:bench`
+toolchain 17, machine de build ; §14) [calculé sur les valeurs brutes] :
+
+| Mesure | Appareil | Limite basse | Rapport |
+|---|---|---|---|
+| Froid (1er parse, 500 l.) | 1 692,8 ms | 273,8 ms | ×6,2 |
+| p50 (500 l.) | 58,6 ms | 6,1 ms | ×9,6 |
+| p95 (500 l.) | 149,7 ms | 32,1 ms | ×4,7 |
+| p50 (3 000 l.) | 247,6 ms | 25,0 ms | ×9,9 |
+| p95 (3 000 l.) | 371,5 ms | 58,1 ms | ×6,4 |
+| Tas au repos | 3 800 Kio | 3 781 Kio | +0,5 % |
+
+Contre la replay kit v2 de la machine de build (§14 : p50 8,6 / 28,8 ms,
+p95 41,5 / 66,8 ms — MÊME script, MÊME kit, MÊME JVM majeure) : p50
+×6,8 / ×8,6, p95 ×3,6 / ×5,6, tas +0,3 %. NB : la passe exécute
+l'**openjdk 17 (HotSpot) de Termux** — ces rapports mesurent l'écart de
+CPU entre l'appareil d'entrée de gamme et la machine de build À runtime
+identique (la machine de bac à sable reste conteneurisée à 2 cœurs
+effectifs — E-K4 : toute mesure bac à sable est une limite basse) ; le
+facteur **ART 3–5× (E-K4) reste à mesurer sous dalvikvm/ART** aux étapes
+ultérieures, la présente passe ne l'éprouve pas.
+
+**GABARIT-RESULTATS.md est REMPLI** de ces valeurs (premières mesures
+appareil — sorties brutes jointes en dépôt) : le critère de sortie «
+gabarit appareil rempli (porte d'entrée) » de l'étage 1 est **ATTESTÉ**
+(§4 mis à jour). Restent ouverts pour l'étage 1 : fiches index (vague 1d
+— classpath + index appelables, reprises R4/R5) et synthétiques (audit
+P-K1). Recommandation consignée (§6) : passes appareil répétées
+(thermique, min/médiane/max) pour le suivi longitudinal — pas un
+bloqueur, le déterminisme étant déjà attesté par les compteurs.
