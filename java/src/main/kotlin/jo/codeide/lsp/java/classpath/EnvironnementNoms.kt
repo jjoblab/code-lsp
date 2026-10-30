@@ -28,10 +28,19 @@ import java.nio.file.Path
  * (fiche 010) : l'ordre des racines n'est jamais signifiant — voir
  * `MoteurJava.fqcnPour`.
  *
+ * **Régime plein** (v1.1.4) : la plateforme est déclarée résoluble par
+ * [plateformeResolvable] dès que `java.lang.Object` est atteignable — par
+ * le jrt OU par un jar du classpath (sur ART, le fournisseur jrt du JDK
+ * externe est ininstanciable et le `android.jar` du modèle porte la
+ * plateforme). Le régime instantané (fiche 028) ne survit que lorsque
+ * NI le jrt NI un jar porteur n'existent.
+ *
  * @param racines racines sources (répertoires existants recommandés).
- * @param jars jars du classpath (l'ordre de déclaration est conservé).
+ * @param jars jars du classpath (l'ordre de déclaration est conservé) —
+ *   un jar portant `java.lang.Object` (ex. `android.jar`) vaut plateforme.
  * @param jdkHome home JDK explicite (null = runtime courant ; sans
- *   `lib/modules` = pas de jrt, régime instantané).
+ *   `lib/modules` ou fournisseur jrt ininstanciable = pas de jrt — le
+ *   régime reste plein si un jar du classpath porte la plateforme).
  */
 public class EnvironnementNoms(
     racines: List<Path>,
@@ -55,6 +64,40 @@ public class EnvironnementNoms(
 
     /** Indique si une image jrt est chargée (sonde de plateforme). */
     public fun jrtDisponible(): Boolean = accesJrt != null
+
+    /**
+     * La plateforme est-elle RÉSOLUBLE par cet environnement — la sonde du
+     * régime plein (retours appareil du 30/10 10:59, correctif v1.1.4) :
+     * vrai dès que la classe racine `java.lang.Object` est atteignable,
+     * soit par l'image jrt ( JVM de bureau, JDK Termux utilisable ), soit
+     * par un JAR DU CLASSPATH porteur ( ART : le `android.jar` du modèle —
+     * le boot classpath Android embarque `java.*` ET `android.*`, miroir
+     * exact de la règle d'Android Studio « la plateforme suit le module » ).
+     *
+     * Pourquoi cette sonde : sur ART, le fournisseur `jrt` du
+     * `lib/jrt-fs.jar` du JDK externe NE PEUT PAS s'instancier ( internes
+     * JDK absents du runtime — incident contenu en v1.1.2 ) : l'ancienne
+     * définition du régime plein — `jrtDisponible()` seul — dégradait donc
+     * l'appareil en régime instantané ALORS QUE le classpath portait la
+     * plateforme complète, coupant diagnostics analytiques, navigation,
+     * survol, inlay et complétion de classpath ( INTEGRATION-CODEIDE §12 ).
+     *
+     * La sonde n'est PAS `aSourceBinaire()` : n'importe quel jar
+     * applicatif rendrait « plateforme présente » à tort — il faut un jar
+     * portant `java.lang.Object`, la classe que TOUTE résolution ecj
+     * réclame. Le verdict est mémoïsé par [CacheLocalisation.jarPour]
+     * ( positif et négatif ) : la sonde ne paie qu'UN balayage de table
+     * centrale, jamais un parcours répété.
+     *
+     * @return vrai ssi la plateforme est résoluble ( jrt OU jar porteur ).
+     */
+    public fun plateformeResolvable(): Boolean =
+        accesJrt != null || cacheLocalisation.jarPour(FQCN_SONDE_PLATEFORME) != null
+
+    /** La classe racine qui définit la plateforme comme résoluble. */
+    private companion object {
+        const val FQCN_SONDE_PLATEFORME = "java.lang.Object"
+    }
 
     /**
      * Indique si l'environnement dispose d'une source BINAIRE indexable.

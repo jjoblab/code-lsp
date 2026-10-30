@@ -49,6 +49,19 @@ plugins {
 // les recalculer honnêtement, le masquage casserait leur analyse d'usages) ;
 // (3) déclencheurs de complétion « . » ET « @ » (miroir EXACT du vendord —
 // la complétion d'annotation s'arme à la frappe).
+// 1.1.4 : passe appareil 0.204.3 (logs codeide-logs-2026-10-30-105910.zip)
+// — l'appareil vivait en RÉGIME INSTANTANÉ : sur ART le jrt du JDK externe
+// est ininstanciable (v1.1.2) ET l'ancienne sonde du régime plein ne voyait
+// QUE le jrt, alors que le classpath porte android.jar (plateforme java.*
+// + android.*). La sonde devient EnvironnementNoms.plateformeResolvable()
+// — java.lang.Object résoluble par le jrt OU par un jar porteur : les ~30
+// gardes, diagnose (tables analytiques « unused ») et completer repassent
+// en régime plein sur l'appareil. Régression ART simulée verrouillée :
+// PlateformeClasspathARTTest (8 tests, faux jdk + jar de plateforme extrait
+// du jrt — les TROIS signaux « unused » publiés, définition/documentHighlight
+// non vides, paquets proposés à l'import, sur le fil LSP4J). Étude
+// éditeur↔LSP (mandat propriétaire) : docs/etudes/editeur-lsp/. §12
+// d'INTEGRATION-CODEIDE.
 allprojects {
-    version = "1.1.3"
+    version = "1.1.4"
 }

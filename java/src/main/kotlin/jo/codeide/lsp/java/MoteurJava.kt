@@ -69,14 +69,17 @@ import java.nio.file.Path
  * granularité fichier arrivera avec les vagues de concurrence (ADR 0010).
  *
  * Sur le plan des régimes : `isLikelyUsable()` distingue le régime plein
- * (image jrt disponible) du régime instantané (fiche 028) — dans le repli,
+ * (plateforme résoluble — jrt OU jar du classpath porteur, v1.1.4) du
+ * régime instantané (fiche 028 : NI jrt NI jar porteur) — dans le repli,
  * `diagnose` sert la SYNTAXE seule (jamais de « cannot be resolved »
  * fabriqué) et `complete` sert le fichier courant.
  *
  * @param racines racines sources du module (FQCN par plus long préfixe).
- * @param jars jars du classpath du module.
- * @param jdkHome home JDK explicite (null = runtime ; sans `lib/modules` =
- *   régime instantané).
+ * @param jars jars du classpath du module — un jar portant `java.lang.Object`
+ *   (ex. `android.jar` sur ART) vaut plateforme (régime plein, v1.1.4).
+ * @param jdkHome home JDK explicite (null = runtime ; sans `lib/modules`
+ *   ni fournisseur jrt instanciable = pas de jrt — le régime reste plein
+ *   si un jar du classpath porte la plateforme).
  * @param compliance niveau Java EFFECTIF du moteur (défaut de l'environnement
  *   ou niveau posé par module).
  * @param niveauDemande niveau posé explicitement pour le module (null =
@@ -183,11 +186,16 @@ public class MoteurJava(
     // ------------------------------------------------------------------ //
 
     /**
-     * Sonde de disponibilité de la plateforme : vrai dès qu'une image jrt
-     * (runtime ou externe) charge — faux en régime instantané (classpath
-     * vide + jdkHome sans `lib/modules`, fiche 028).
+     * Sonde de disponibilité de la plateforme (régime plein, v1.1.4) :
+     * vrai dès que `java.lang.Object` est résoluble — par l'image jrt
+     * (runtime ou externe) OU par un jar du classpath porteur (sur ART,
+     * le `android.jar` du modèle : le fournisseur jrt du JDK externe y est
+     * ininstanciable, cf. AccesJrt v1.1.2). Faux seulement en régime
+     * instantané (NI jrt NI jar porteur, fiche 028).
+     *
+     * @return vrai ssi la plateforme est résoluble (régime plein).
      */
-    public fun isLikelyUsable(): Boolean = synchronized(this) { environnementNoms().jrtDisponible() }
+    public fun isLikelyUsable(): Boolean = synchronized(this) { environnementNoms().plateformeResolvable() }
 
     /** Niveau Java EFFECTIF du moteur (hérité ou posé par module). */
     public fun complianceDemandee(): String = compliance
@@ -1294,7 +1302,7 @@ public class MoteurJava(
     // ------------------------------------------------------------------ //
 
     /** Sonde interne de plateforme (sous verrou). */
-    private fun isLikelyUsableInterne(): Boolean = environnementNoms().jrtDisponible()
+    private fun isLikelyUsableInterne(): Boolean = environnementNoms().plateformeResolvable()
 
     /** Service de hiérarchies (paresseux — racines + résolution + annuaire). */
     private fun serviceHierarchies(): ServiceHierarchies {

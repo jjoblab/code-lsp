@@ -13,7 +13,8 @@ import jo.codeide.lsp.java.MoteurJava
  *    cohérente (`startOffset >= 0`, `endOffset >= startOffset`) — les
  *    plages sont en offsets absolus dans le fichier (pas ligne/colonne) ;
  *  - **repli syntaxe** (fiche 028) : quand la plateforme manque
- *    (`isLikelyUsable()` faux — jdkHome sans image jrt), le service sert
+ *    (`isLikelyUsable()` faux — NI image jrt NI jar du classpath porteur
+ *    de `java.lang.Object`, v1.1.4), le service sert
  *    la syntaxe seule : une source cassée rend ses erreurs de SYNTAXE
  *    (garantie ①), une source saine non résolue rend une liste VIDE
  *    (garantie ② — jamais de « cannot be resolved » fabriqué).

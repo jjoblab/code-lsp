@@ -30,7 +30,8 @@ import java.nio.file.Path
  * (garde `isDirectory`).
  *
  * @param jdkHome home JDK explicite (null = runtime courant ; sans
- *   `lib/modules` = régime instantané pour tous les moteurs).
+ *   `lib/modules` ni fournisseur jrt instanciable = pas de jrt — le régime
+ *   reste PLEIN dès qu'un jar de contexte porte la plateforme, v1.1.4).
  * @param complianceDefaut niveau Java par défaut (défaut constructeur « 17 »,
  *   transmis par héritage aux modules sans niveau posé).
  */

@@ -647,3 +647,142 @@ rejouer la passe appareil — attendu : les TROIS signaux « unused » à
 l'ouverture, leur PERSISTANCE pendant la frappe dans un corps, le GO TO
 « Super » qui répond, la complétion d'annotation armée par « @ », et les
 suggestions de paquets dès la première lettre après « import ».
+
+## 12. Exécution (30/10, troisième vague) — la passe appareil 0.204.3 : audit fonctionnalité par fonctionnalité, cause racine ART, correctif v1.1.4
+
+> Retour appareil sur CodeIDE 0.204.3 (logs `codeide-logs-2026-10-30-105910.zip`,
+> moto g06, session 7e7665d8, 463 entrées dont 443 `LspEditeur`) : « à part le
+> document highlight qui me semble fonctionner bien, les autres fonctionnalités
+> non. Les diagnostics, go to, complétion, etc. rien du tout, seulement du
+> basic. » Le propriétaire demande en outre (mandat consigné dans
+> `docs/etudes/editeur-lsp/01-responsabilites-editeur-lsp.md`) : consulter
+> Android Studio sur la répartition des responsabilités éditeur ↔ LSP AVANT
+> toute décision de refonte, puis travailler UNE FONCTIONNALITÉ À LA FOIS
+> depuis le LSP jusqu'à l'éditeur.
+
+### 12.1 Ce que les logs disent — l'audit fonctionnalité par fonctionnalité
+
+La chaîne est franchie (connect SUCCESS, capabilities YES ×16, didChange ×57,
+publishDiagnostics reçus ×57). Témoins extraits des 443 entrées `LspEditeur` :
+
+| Fonctionnalité | Requêtes observées | Réponses serveur | Ce que voit l'utilisateur | Verdict |
+|---|---|---|---|---|
+| Diagnostics (syntaxe) | — (push) | reçus ×57, sévérité correcte | squigglés de frappe | **passe** |
+| Diagnostics analytiques (unused import/variable/champ) | — (push) | **count=0 sur fichier sain** | rien | **MUET** |
+| Complétion | 17 requêtes | 6/58/66/3/5/1/0 items — **mots-clés + fichier courant** (58 = mots-clés, cf. instantané) | « pas de suggestions de package » | **PAUVRE** |
+| documentHighlight | 50 requêtes | **« no results » ×50** (même fichier SAIN en fin de session) | surlignage = couche 1 de l'éditeur (mot sous le caret) — cru « fonctionnel » | **MUET (masqué)** |
+| inlayHint | 28 requêtes | « no results » ×28 | rien | **MUET** |
+| definition / typeDefinition / superDefinition / implementation | 1 chacune (fin de session, fichier sain) | « no results » | rien | **MUET** |
+| codeAction | 1 (contexte 0 diagnostics) | « no results » | rien | **MUET** |
+| hover / signatureHelp / rename / formatting | 0 requête | — | — | non sollicités dans la session (hover = appui-long côté cel-lsp) |
+
+Fait décisif n°1 : les « no results » persistent SUR FICHIER SAIN (fin de
+session : didChange v52–v56 → publishDiagnostics count=0, puis
+documentHighlight/inlayHint/definition/… → vides). Fait décisif n°2 : la
+complétion rend des mots-clés en masse (58 items après « . ») — la signature
+du RÉGIME INSTANTANÉ (`RegimeInstantane.completionInstantanee` : fichier
+courant + mots-clés filtrés par préfixe), pas celle du régime plein.
+
+### 12.2 La cause racine — la sonde de plateforme ne voit que le jrt
+
+Sur ART, le fournisseur `jrt` du `lib/jrt-fs.jar` du JDK Termux externe est
+ININSTANCIABLE ( internes JDK absents — incident contenu en v1.1.2,
+`AccesJrt.ouvrirDepuisJarExterne` → null ). La sonde du régime plein était
+`MoteurJava.isLikelyUsable()` = `jrtDisponible()` = **jrt seul** :
+
+- `java/src/main/kotlin/jo/codeide/lsp/java/MoteurJava.kt:1297` (avant
+  correctif) : `isLikelyUsableInterne() = environnementNoms().jrtDisponible()` ;
+- ~30 points de garde `if (!isLikelyUsableInterne()) return emptyList()` —
+  definition, typeDefinition, implementation, superDefinition, survol,
+  surbrillances, inlay, usages, renommage, code actions, sélection, pliage… ;
+- `diagnose` → repli syntaxe seule (`MoteurJava.diagnose:247`) — les tables
+  analytiques (unused) ne tournent JAMAIS ;
+- `completer` → `RegimeInstantane.completionInstantanee` (mots-clés).
+
+OR l'hôte branche `android.jar` dans le classpath (boot classpath Android :
+`java.*` ET `android.*` — KDoc `SessionLsp`, lot h4 écart 1) : la plateforme
+EST résoluble par l'ordre de repli de `EnvironnementNoms` (sources → **jars**
+→ jrt → stubs, fiche 042) — la sonde la déclarait absente. Toutes les
+familles muettes ont UNE cause, côté serveur, pas côté éditeur : l'étude
+`docs/etudes/editeur-lsp/01-responsabilites-editeur-lsp.md` écarte la piste
+« politique cel-lsp » (l'éditeur est générique, l'adaptateur est pur, les
+politiques d'affichage restent légitimes) — le document highlight « vu
+fonctionnel » par l'utilisateur est la couche 1 de l'éditeur (surlignage
+lexical du mot), pas le documentHighlight LSP.
+
+Pourquoi la repro §11 ne l'a pas vu : `Repro20261030AppareilTest` tourne sur
+JVM avec `JdkDeTest.home()` (jrt RÉEL) — le régime y est PLEIN par jrt ; la
+condition ART (jrt ininstanciable + plateforme du classpath) n'y était pas
+jouée. C'est le masquage documenté en §11.2/v1.1.2 : sur JVM, le fournisseur
+système précède toujours le cassé.
+
+### 12.3 Le correctif (v1.1.4) — la plateforme suit le classpath, comme android.jar
+
+Miroir de la règle Android Studio « la plateforme suit le module » (étude
+citée, R4) : la sonde du régime plein devient **« `java.lang.Object`
+résoluble »** — par le jrt OU par un jar du classpath porteur.
+
+1. `EnvironnementNoms.plateformeResolvable()` (nouveau) :
+   `accesJrt != null || cacheLocalisation.jarPour("java.lang.Object") != null`
+   — la classe racine que TOUTE résolution ecj réclame ; verdict mémoïsé
+   (positif ET négatif) par `CacheLocalisation`. La sonde n'est PAS
+   `aSourceBinaire()` : un jar applicatif seul ne doit PAS ouvrir le régime
+   plein (les fiches 042 gardent leur contrat).
+2. `MoteurJava.isLikelyUsable()` / `isLikelyUsableInterne()` passent de
+   `jrtDisponible()` à `plateformeResolvable()` — les ~30 gardes, `diagnose`
+   et `completer` suivent sans autre changement.
+3. KDocs mis à jour (MoteurJava, EnvironnementNoms, EnvironnementCompilation,
+   ServiceDiagnostics, RegimeInstantane) : « régime instantané » = NI jrt NI
+   jar porteur.
+
+### 12.4 Validation — la régression ART simulée, fonctionnalité par fonctionnalité
+
+`java/src/test/kotlin/jo/codeide/lsp/java/protocole/PlateformeClasspathARTTest.kt`
+(8 tests verts) : home JDK factice SANS `lib/modules` + JAR DE PLATEFORME
+construit depuis l'image jrt du runtime ( `java.lang.Object`, `String`,
+`Iterable`, `Integer`, `java.util.ArrayList` — le rôle d'`android.jar` ) +
+racine `com/exemple/monip`. Témoins extraits de l'exécution :
+
+```
+[ART] publishDiagnostics sur le fil → [The import java.util.ArrayList is never used,
+       The value of the field Main.jamaisUtilise is not used, The value of the local variable x is not used]
+[ART] textDocument/definition sur le fil → 1 cible(s)
+[ART] documentHighlight(total) → 2 occurrence(s)
+[ART] complétion import (vide) → 2 items : [com, java]
+```
+
+- sonde : régime PLEIN sans jrt dès qu'un jar porte la plateforme ; repli
+  instantané INTACT sans jar porteur (fiche 028 inchangée — vérifiée) ;
+- diagnostics analytiques : les TROIS signaux « unused » (import, champ
+  privé, locale) rendus ET publiés sur le fil ;
+- résolution : `java.lang.Object` depuis le jar — zéro « cannot be
+  resolved » fabriqué ;
+- complétion d'import : segments `com` (racine source) + `java` (jar de
+  plateforme) — avec le vrai `android.jar` : `com`/`java`/`javax`/`org` ;
+- navigation : definition (1 cible) + documentHighlight (2 occurrences) ;
+- protocole (aller-retour LSP4J authentique par `BoucleLocale`) :
+  definition servie, diagnostics publiés, complétion servie.
+
+Non-régressions exécutées : `Fiche028RepliSyntaxeTest` (12), 
+`Fiche042StubsIntrinsequesTest` (5 — leurs jars ne portent PAS
+`java.lang.Object`, repli inchangé), `Fiche031JrtExterneTest` (7), et la
+suite complète `:java:test` : **501 tests, 0 échec, 0 erreur** (39 ignorés
+par hypothèses visibles — android.jar absent du poste, etc.), version
+1.1.4 posée.
+
+### 12.5 Chaîne et reste
+
+- code-lsp : correctif v1.1.4 + étude `docs/etudes/editeur-lsp/` + ce §12,
+  suite `:java:test` complète verte (501/0/0, cf. §12.4).
+- Publication v1.1.4 (tag) + montée codeide-lsp (pin moteur) + CodeIDE
+  (catalogue miroir) : À ENCHAÎNER selon la procédure établie (§10.4/§11.3)
+  après validation du propriétaire sur la présente passe.
+- Passe appareil attendue sur moto g06 (0.204.4) : les TROIS signaux
+  « unused » à l'ouverture et leur persistance à la frappe ; les paquets
+  (`com`, `java`, `javax`, `org`, `exemple`…) dès la première lettre après
+  « import » et au « . » ; go-to définition/super NON vide ; documentHighlight
+  LSP visible (le distinguer de la couche 1 : tester sur un champ lié à son
+  usage, pas sur un mot isolé) ; inlay hints présents ; hover à l'appui-long.
+- Deux écarts documentés, décision propriétaire (étude §5.5/e1-e2) :
+  capabilities annoncées en régime dégradé (fenêtre réduite par le présent
+  correctif) et distinction couche 1 ↔ LSP dans la méthode de passe terrain.

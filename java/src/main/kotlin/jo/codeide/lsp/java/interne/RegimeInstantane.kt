@@ -10,7 +10,8 @@ import org.eclipse.jdt.internal.compiler.env.ICompilationUnit
  * Régime instantané (étage N1, cahier fiche 028 — lot h4 « LSP instantané »).
  *
  * Le régime de repli quand la plateforme manque (classpath vide AVANT la
- * première sync, jdkHome sans `lib/modules`) : l'état de l'appareil entre
+ * première sync, jdkHome sans `lib/modules` NI jar porteur de la
+ * plateforme — v1.1.4) : l'état de l'appareil entre
  * le didOpen et la première synchronisation utile. Deux garanties
  * fondamentales verrouillées par le cahier :
  *
