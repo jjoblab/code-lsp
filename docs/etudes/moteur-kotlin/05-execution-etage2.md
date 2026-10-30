@@ -153,6 +153,19 @@
 > (compte + empreinte SHA-256 du détail — 1 FN mesuré : preuve
 > d'absence des sélecteurs sur récepteurs builtin non couverte à cet
 > étage, D3 muet — la couverture se mesure, elle ne se déclare pas).**
+> **Clôture (31/10) — VAGUE 2G CLOSE ET ÉTAGE 2 CLOS SUR PREUVE
+> MÉCANIQUE : CI VERTE 9/9 sur le commit de livraison `f9a5a5f` (run
+> `41112383347`, PREMIÈRE TENTATIVE — 337 tests toolchain 17, LE BANC
+> D'ORACLE COMPRIS ; scan ART 6 × AUCUNE, dex 25 420 / 4 030 800 o
+> IDENTIQUES au bac à sable, banc JDK 17 déterminisme IDENTIQUE
+> marqueurs 0 tas 2 008 Kio) ; les TROIS critères §2 sont ATTESTÉS
+> (204/204 comportements, zéro faux positif corpus quatre mondes,
+> baseline signée compte + empreinte) ; PREMIER RECALAGE D'EFFORT
+> exécuté (§11.4 : 12 commits, +17 373 lignes, 132 → 337 tests, ≈ 85
+> l./comportement, coût marginal STABLE — l'abaque 98–156 j-h des
+> étages restants est CONFIRMÉE, recalage n° 2 à la clôture de
+> l'étage 3) ; l'étage 3 (complétion + classement, banc commun Java)
+> est le suivant.**
 
 ## 1. Périmètre de l'étage (plan §4 — cahier en main)
 
@@ -172,8 +185,8 @@
 | Critère | État | Preuve |
 |---|---|---|
 | 204 comportements diagnostics verts (23 fiches du domaine) | **ATTESTÉ** (clôture 2f — §10.4 : CI verte 9/9 sur `31f4e1b`, run `41107801655`) | Vague 2a (§5) : fiches 017 (8/8) + 022 (8/8) + 006 (4/4) ; vague 2b (§6) : fiche 046 (39/39) ; vague 2c (§7) : fiches 044 (13/13) + 028 (12/12) + 032 (3/3) + 040 (11/11) + 029 (5/5) ; vague 2d (§8) : fiches 023 (2/2) + 024 (7/7) + 026 (2/2) + 033 (9/9) + 037 (5/5) ; vague 2e (§9) : fiches 030 (5/5) + 031 (5/5) + 035 (2/2) + 036 (3/3) + 025 (12/12) + 027 (5/5) ; vague 2f (§10) : fiches 016 (13/13) + 020 (10/10) + 047 (21/21) — **204/204** |
-| Zéro faux positif corpus quatre mondes | OUVERT | — |
-| Banc fidélité baseline signée | OUVERT | — |
+| Zéro faux positif corpus quatre mondes | **ATTESTÉ** (vague 2g — §11.4 : CI verte 9/9 sur `f9a5a5f`, run `41112383347`, le banc s'exécute en CI) | `BancFideliteK2Test` : moteur **0** / oracle **0** sur les quatre mondes sains — FP = 0 (invariant §4) ; la PREMIÈRE passe avait 6 FP (dont 5 × `@Suppress`) : corrigés (règle A31), la surveillance est MÉCANIQUE à chaque build |
+| Banc fidélité baseline signée | **ATTESTÉ** (vague 2g — §11.4) | `fidelite/baseline-fidelite.txt` : `faux-negatifs=1` ET empreinte SHA-256 `62b21b7f…` comparés à chaque build (toute variation = divergence à EXPLIQUER avant re-signature : `-Dfidelite.majBase=true --rerun-tasks`) ; le FN mesuré documente la preuve d'absence non couverte sur récepteurs builtin |
 
 ## 3. Plan de vagues (cahier en main — l'ordre suit le plan de migration ADR 0106 : portées/imports d'abord, membres hérités ensuite, récepteurs de portée enfin)
 
@@ -970,3 +983,86 @@ positif corpus quatre mondes, banc de fidélité baseline signée — la vague
   `62b21b7f0009b90dad304a5cb20ea57bae731031cf223d5c26b5008075b7459c`.
 - **Provenance** : `verifier-provenance.sh` rc=0 (aucune reprise nouvelle
   — code NEUF intégral).
+
+### 11.4 Clôture de la vague 2g, de l'ÉTAGE 2 — et premier recalage d'effort
+
+**CI VERTE 9/9 sur le commit de livraison `f9a5a5f`** (run `41112383347`,
+PREMIÈRE TENTATIVE — un seul run pour le head_sha, consulté le 31/10 via
+l'API GitHub Actions) : build et tests JDK 21, bancs noyau/qualité/parité
+T, gates Android, provenance, et les trois jobs Kotlin — suite du module
+**BUILD SUCCESSFUL sur la toolchain 17 (337 tests, LE BANC DE FIDÉLITÉ
+COMPRIS : l'oracle K2 s'exécute en CI, ~20 s de sous-processus — ADR 0119
+R2 tenu)**, scan ART **6 × « AUCUNE »**, dexage d8 **25 420 références de
+méthodes / 4 030 800 o (3,84 Mo)** — IDENTIQUES au bac à sable, seuils
+tenus, banc JDK 17 déterminisme **IDENTIQUE** (productions 5 448/31 368,
+jetons 4 210/24 274, marqueurs d'erreur 0, tas 2 008 Kio).
+
+**LES TROIS CRITÈRES DE SORTIE DE L'ÉTAGE 2 (§2) SONT ATTESTÉS** :
+
+1. **204/204 comportements diagnostics verts** (23 fiches, vagues 2a→2f —
+   §10.4) ;
+2. **Zéro faux positif corpus quatre mondes** — le banc le prouve
+   MÉCANIQUEMENT à chaque build : moteur 0 / oracle 0 sur les quatre
+   mondes sains, FP = 0 (invariant §4) ; la première passe avait trouvé
+   6 FP (dont 5 × `@Suppress`) : corrigés par la règle A31, la
+   surveillance n'est plus déclarative ;
+3. **Banc fidélité baseline signée** — compte (`faux-negatifs=1`) ET
+   empreinte SHA-256 du détail complet comparés à chaque build ; toute
+   variation, en hausse comme en baisse, est une divergence à expliquer
+   avant re-signature (`-Dfidelite.majBase=true --rerun-tasks`).
+
+**L'ÉTAGE 2 EST CLOS sur preuve mécanique** : la résolution et les
+diagnostics du moteur Kotlin sont livrés — hiérarchie de portées
+complète (locales/membres/englobantes/paquet/imports/défauts, récepteurs
+implicites `with`/`apply`, membres hérités par clôture mixte), catalogue
+`kt.*` conservateur de 7 familles, garde par déclaration, journal
+« explain », tableau de spécification A1–A31, correctifs texte et membres
+manquants — et la fidélité au compilateur est désormais une DONNÉE
+CHIFFRÉE comparée à chaque build. L'étage 3 (complétion + classement —
+44 fiches, banc commun Java ADR 0113/0119) est le suivant.
+
+#### Le recalage de l'effort (premier recalage Kotlin)
+
+Écart de gouvernance consigné d'abord : la synthèse §4 promettait un
+affinage « cahier en main à la fin de l'étage 1 (méthode des recalages
+Java) » — ce recalage n° 1 n'a pas été exécuté à sa porte (l'étage 2 a
+été ouvert directement sur le « Go » du propriétaire) ; il s'exécute
+ici, à la première porte de clôture qui l'exigeait (§3, ligne 2g).
+
+**Ce que l'étage 2 a coûté** [mesuré — commandes :
+`git diff --shortstat cf9a29c..f9a5a5f`, `git rev-list --count`, compte
+des tests des journaux §5–§11] :
+
+| Grandeur | Valeur | Détail |
+|---|---:|---|
+| Commits de l'étage | 12 | 2a→2g : livraisons + clôtures (borne : clôture étage 1 `cf9a29c`) |
+| Fichiers touchés | 65 | +17 373 / −95 lignes |
+| `kotlin/` main | 27 fichiers, +8 645 / −63 | résolution, diagnostics, correctifs, membres manquants |
+| `kotlin/` test | 32 fichiers, +7 490 / −10 | fiches 2a→2f + banc de fidélité + corpus |
+| Tests du module | 132 → **337** | +205 pour 204 comportements et 1 banc (≈ 1 test/comportement) |
+| Tableau de spécification | A1 → **A31** | rempli vague par vague (item §1 n° 1) |
+| Tempo [mesuré-agent] | 30/10 12:17 → 31/10 (UTC+8) | 7 vagues en ~2 jours calendaires de séances |
+
+**Comparaison à l'estimation** : la fourchette de l'étage 2 était
+**38–60 j-h [estimé]** (synthèse §4, abaque socle + marginal). Le rythme
+agent n'est PAS transposable au jour-homme humain (miroir
+`RECALAGE-1.md` §3.4) : l'étage a été couvert en séances continues sur
+~2 jours calendaires [mesuré-agent], à ≈ 85 lignes livrées par
+comportement (17 373 l. / 204 comport. — main ET tests ET journal
+compris). La donnée utile pour l'abaque : le coût marginal par
+comportement est resté STABLE sur les sept vagues (aucune refonte, aucun
+retour arrière — la CI des SEPT commits de livraison est passée en
+PREMIÈRE TENTATIVE sur six d'entre eux ; la seule reprise était 2a, le
+test flottant E-K6 du chantier Java, sans lien avec le diff — §5.4).
+
+**Re-projection** [estimé] : les étages restants (3 complétion/classement,
+4 navigation/rename, 5 confort, 6 serveur LSP, T transverse) restent à
+l'abaque de la synthèse §4 — **98–156 j-h** cumulés. Aucune donnée ne
+permet de la réviser SÉRIEUSEMENT aujourd'hui : le classement (étage 3)
+et la navigation (étage 4) sont des dominantes différentes de la
+résolution, et la seule donnée transversale nouvelle (la stabilité du
+socle : 204 comportements sans refonte, zéro faux positif tenu
+mécaniquement) plaide pour la CONFIRMATION de l'abaque plutôt que pour
+sa révision. **Recommandation : recalage n° 2 à la clôture de l'étage 3**
+— la première donnée de CLASSEMENT (recall/top-1/MRR, banc commun Java)
+y sera mesurée, miroir de `RECALAGE-1.md` (§6 de sa méthode).
