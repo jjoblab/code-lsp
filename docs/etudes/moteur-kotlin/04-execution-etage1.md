@@ -33,6 +33,16 @@
 > cahier en main (fiches 002–005/008/009/034 — 31 comportements verts,
 > §16) ; dépendance kotlin-metadata-jvm 2.2.10 activée (budget dex 90 % —
 > alerte E-K8) ; la passe moteur nourrit réellement l'index (ADR 0211/0213).**
+> **Mise à jour (30/10, vague 1e) — SYNTHÉTIQUES LIVRÉS, ÉTAGE 1 PARCOURU
+> DE BOUT EN BOUT : reprises R1/R2 copiées (lecture des ressources Android
+> + classes synthétiques R/BuildConfig/ViewBinding/DataBinding — voie C,
+> manifeste §3/§6, réserve P-K1/D5 tracée — copie effectuée sur ordre de
+> poursuite du propriétaire, audit recommandé DEMEURE OUVERT a
+> posteriori), modèle de sortie local neuf, câblage moteur (racines posées
+> à la définition du classpath, groupes consultables — la fusion avec
+> coupure est l'étage 2) ; 28 comportements de tests NEUFS (§17) — 132
+> tests verts ; tous les critères de sortie de l'étage 1 sont ATTEINTS
+> (§4), la clôture formelle suit la preuve CI (§17).**
 
 ## 1. Périmètre exécuté (vague 1a — façade `Kt*`, fiche 013)
 
@@ -146,7 +156,7 @@ hors registre (code neuf libre ; aucune reprise voie C cette vague).
 | Fiches parse vertes | **Atteint** | 010–013 : 27/27 comportements (domaine `parse` du cahier complet) |
 | Fiches session vertes | **Atteint** | Fiches 049 (26/26) + 042 (4/4) — vague 1b, §7 ; fiche 041 (15/15) — vague 1c, §10 |
 | Fiches index vertes | **Atteint** | Vague 1d (§16) : fiches 002/003/004/005 (13 comportements — décodeur, lecteur, différentiel réflexion, sonde typealias) + 008/009/034 (18 — index disque, pilote, segments persistants) = 31 ; 104 tests verts au total |
-| Fiches synthétiques vertes | **Bloqué propriétaire** | R1/R2 attendent l'audit P-K1 (recommandé avant l'étage 1 — toujours ouvert) |
+| Fiches synthétiques vertes | **Atteint** | Vague 1e (§17) : reprises R1/R2 copiées (voie C — manifeste §3/§6, réserve P-K1/D5 TRACÉE : copie sur ordre de poursuite du propriétaire, audit recommandé demeurant OUVERT a posteriori) + câblage moteur + 28 comportements de tests NEUFS — la zone n'a PAS de fiche cahier dédiée (aucun test source ne l'éprouvait directement dans l'ancien dépôt : la capacité y est couverte par les fiches 039/040/045/047 des étages 2–3) ; le critère est réputé atteint sur cette preuve locale, décision consignée |
 | Latences S0 tenues (reparse < 50 ms JVM à 3 000 l.) | **Atteint** | parse chaud p50 18,9 ms / p95 48,6 ms à 3 000 l. [mesuré] |
 | Gabarit appareil rempli (porte d'entrée) | **Atteint** | Passe 3 (30/10 02:14:51, kit v2 sur l'appareil) : banc + tolérance + tas + scan ART VERTS sous openjdk 17.0.19 — déterminisme 31 368 / 24 274 IDENTIQUE au bac à sable ; GABARIT-RESULTATS.md rempli des valeurs brutes (§15) |
 
@@ -176,14 +186,15 @@ mécanique.**
   synchrone de la vague 1b est REMPLACÉ sans changer le contrat de
   publication (snapshot immuable hors verrou).
 - **Vague 1d — classpath + index appelables** : LIVRÉE (§16) — reprises R4/R5 (décodeur `@Metadata` + lecteur de classes, voie C), index dédié `.kidx` en code neuf (segments par empreinte, cache mémoire, garde de couverture, auto-guérison), pilote de passages (séquence ADR 0213, annulation, reprise ciblée) ; fiches 002–005/008/009/034 (31 comportements).
-- **Synthétiques** : R1/R2 bloqués à l'audit P-K1 (§4).
+- **Vague 1e — synthétiques** : LIVRÉE (§17) — reprises R1/R2 (`AnalyseRessourcesAndroid` + `ClassesSynthetiques`, voie C — réserve P-K1/D5 tracée, copie sur ordre de poursuite du propriétaire), modèle de sortie local neuf (`DeclarationProjet`/`GenreDeclaration`), câblage moteur (racines posées à `definirClasspath`, accès interne `groupesSynthetiques` — la fusion avec coupure est l'étage 2) ; 28 comportements de tests neufs.
+- **Clôture de l'étage** : tous les critères §4 ATTEINTS — preuve CI consignée §17.
 
 ## 6. Actions propriétaire ouvertes (mise à jour)
 
 | # | Action | Référence | Bloque |
 |---|---|---|---|
 | 1 | Passe appareil (Termux) : **passe 3 du 30/10 02:14:51 — VERTE, gabarit REMPLI (§15)** ; passes 1–2 du 30/10 (kit incomplet puis incident JDK 21 corrigé — §13/§14) ; passes répétées OPTIONNELLES pour le suivi longitudinal (thermique) ; une future passe couvrant l'ÉTAGE 1 exigera un kit enrichi de la pile `kotlin-metadata-jvm` (§16 — recommandation consignée) | GABARIT-RESULTATS.md, §13–§16 | plus rien — le critère de sortie « gabarit appareil rempli » est ATTEINT |
-| 2 | Audit de similarité GPL (P-K1) | manifeste §5 | la copie de synthetics R1/R2 (vague 1d/2) |
+| 2 | Audit de similarité GPL (P-K1) — **statut changé par la vague 1e** : la copie R1/R2 est EFFECTUÉE sur ordre de poursuite de l'étage 1 (« Go étage 1 », 30/10) SANS audit préalable — la réserve est tracée au manifeste (§3/§6) et à ALERTES §2, les adaptations de câblage sont documentées dans les diffs du commit ; l'audit RECOMMANDÉ (rôle distinct des implémenteurs) s'exercerait désormais a posteriori | manifeste §5/§6, ALERTES §2 | plus rien de dur (le développement suit) — le propriétaire en reste juge |
 | 3 | Arbitrages Q-K1 (CIDX vs index dédié) / Q-K2 (décodage @Metadata) | DEMANDES-INTERFACE, ADR 0108 | le câblage classpath final (le développement suit l'hypothèse index dédié) |
 | 4 | Conditions binaires intellij-dependencies (P-K2) | ADR 0120, NOTICE | la PUBLICATION du pack langue (pas le développement) |
 | 5 | Lecture du second manifeste | synthèse §6.4 | rien |
@@ -793,3 +804,120 @@ MetadataExtensions), dexage d8 **24 673 références de méthodes /
 seuils tenus], banc empreinte/latence sous JDK 17. **La vague 1d est
 CLOSE sur preuve mécanique — restent à l'étage 1 : les synthétiques
 (R1/R2 — audit P-K1 propriétaire) puis la clôture de l'étage.**
+
+## 17. Vague 1e — synthétiques repris + clôture de l'étage 1 (30/10, reprises R1/R2)
+
+> Ordre de poursuite reçu du propriétaire dans le canal de mission
+> (« Go étage 1 », 30/10) alors que seuls restaient à l'étage 1 les
+> synthétiques (bloqués sur l'action propriétaire P-K1) puis la clôture :
+> l'ordre vaut décision de poursuivre — la copie R1/R2 est effectuée SOUS
+> RÉSERVE P-K1/D5 tracée (manifeste §3/§6 + ALERTES §2, R6.5 : signalé
+> factuellement), l'audit recommandé (rôle distinct des implémenteurs)
+> DEMEURE OUVERT et s'exerce désormais a posteriori — les adaptations de
+> câblage sont documentées dans les diffs du commit de livraison pour le
+> faciliter.
+
+### 17.1 Périmètre exécuté
+
+| # | Item | État | Détail |
+|---|---|---|---|
+| 1 | Reprise R1 — lecture des ressources | **Fait** | `synthetics/AnalyseRessourcesAndroid.kt` (284 l. à l'origine) copié de codeide-lsp @ bc11253 : manifeste (paquet), layouts (racines, `@+id`, DataBinding, variables), `values*`, noms de fichiers, types de vues — adaptations de câblage SEULES (paquet, en-tête d'origine, deux références KDoc retéléphonées vers `ScanProjetParesseux`) — corps repris TEL QUEL (diff à 3 lignes près : paquet ×1, KDoc ×2) |
+| 2 | Reprise R2 — classes synthétiques | **Fait** | `synthetics/ClassesSynthetiques.kt` (383 l. à l'origine) copié : groupes `R`/`BuildConfig`/bindings AVANT TOUT BUILD, paresseux sous verrou interne (ADR 0212), bornes D3, sous-paquet `databinding` (ADR 0219) — adaptations de câblage SEULES (paquet, imports du noyau ancien RETIRÉS, en-tête d'origine, quatre références KDoc retéléphonées) — corps repris TEL QUEL (diff à 6 lignes près) |
+| 3 | Modèle de sortie local | **Fait** | `synthetics/DeclarationProjet.kt` — code NEUF (fichier associé inscrit au manifeste §3 R2) : `DeclarationProjet` + `GenreDeclaration` (CLASSE/OBJET/PROPRIETE/FONCTION), champs dictés par la SURFACE D'USAGE du corps repris (appels nommés du constructeur) ; l'ancien `jo.lspkotlin.resolve.DeclarationProjet`, type du NOYAU, n'a PAS été lu (frontière R9.1 tenue — c'est la frontière C cartographiée par l'inventaire §3) ; `parametres` → `index.ParametreAppelable` (patron de retéléphonage 1d) |
+| 4 | Câblage moteur | **Fait** | `MoteurLangageKotlinNoyau` possède les synthétiques (partagés comme l'index, patron ancien) : `definirClasspath` y pose les racines sources (invalidation immédiate au changement, calcul PARESSEUX au premier consult) ; accès interne `groupesSynthetiques()` — la consommation par les requêtes (fusion avec COUPURE : une classe générée RÉELLE efface le groupe homonyme) est l'étage 2, aucun consommateur spéculatif n'est livré |
+| 5 | Tests neufs | **Fait** | 28 comportements : 13 `AnalyseRessourcesAndroidTest` + 12 `ClassesSynthetiquesTest` + 3 `MoteurSynthetiquesTest` (câblage) — AUCUN test source dédié n'existe dans le cahier pour la zone (l'ancien dépôt n'en avait pas : la capacité y est éprouvée via les fiches 039/040/045/047 des étages 2–3) ; les tests verrouillent le contrat du KDoc repris |
+| 6 | Manifeste et alertes | **Fait** | §3 R1/R2 passées à COPIÉE (chemins + adaptations + fichier neuf associé), §6 journal (copies + statut P-K1 factuel), ALERTES §2 P-K1 (statut vague 1e) et E-K8 (actualisation dex) |
+
+### 17.2 Décisions d'exécution consignées (pas dans le plan initial)
+
+1. **Le modèle de sortie est LOCAL à la zone** (et non une reprise du type
+   noyau) : l'ancien `DeclarationProjet` vivait dans `resolve/` (noyau,
+   lecture interdite — jamais lu) ; sa forme neuve est dictée par les
+   champs que le corps repris construit (11 champs nommés, dont
+   `debutNom`/`finNom` toujours 0, `recepteur` toujours `null`,
+   `parametres` toujours vide — champs de forme commune CONSERVÉS pour
+   garder le corps repris TEL QUEL, zéro édition de corps ; documentés au
+   KDoc du modèle). La résolution de l'étage 2 le consommera ou y mappera
+   sa propre forme au moment de la fusion.
+2. **Câblage MOTEUR, pas session** : les groupes vivent côté moteur
+   (partagés entre sessions comme l'index — l'ancien KDoc le dit :
+   « partagé par le moteur ») ; les sessions ne servent RIEN des
+   synthétiques à l'étage 1 (aucune requête ne les consomme encore) —
+   poser les racines à la définition rend le chemin RÉEL (le moteur
+   nourrit réellement le synthétiseur), l'exposition interne suffit aux
+   tests et à l'étage 2.
+3. **Comportements du corps repris découverts et verrouillés par les
+   tests** (constats, repris tels quels — jamais « corrigés ») :
+   (a) le DOM namespace-aware REJETTE un attribut `android:` sans
+   `xmlns:android` déclaré : le fichier ENTIER est absent (partiel honnête
+   D3 — les layouts réels déclarent toujours le xmlns, les fixtures le
+   font) ; (b) `LinearLayout` (ni `ConstraintLayout`) n'est pas dans la
+   table `VUES_CONNUES` : le membre `root` d'un binding retombe sur
+   `android.view.View` (sous-rapport D3 assumé par l'origine — jamais
+   faux : le champ existe, son type précis appartient au build) ;
+   (c) la famille `color` issue de `values*` est ÉCRASÉE par les noms de
+   fichiers `res/color*` s'il en existe (ordre d'écriture du catalogue) ;
+   (d) un dossier QUALIFIÉ seul (`mipmap-hdpi` sans `mipmap/`) ne produit
+   RIEN (le dossier de base doit exister pour que les frères soient
+   parcourus).
+4. **Le critère « fiches synthétiques vertes » est interprété et la
+   décision consignée** : le plan §4 de la synthèse porte le mot
+   « synthétiques » dans la ligne de critères, mais le cahier ne CONTIENT
+   aucune fiche dédiée à la zone (53 fiches, aucune ne teste
+   directement `synthetics/` — la capacité y vit dans les fiches
+   039/040/045/047 des étages 2–3). Le critère est donc réputé atteint
+   sur : reprise voie C contrôlée + câblage moteur réel + 28
+   comportements neufs verts. Si le propriétaire préfère lier le critère
+   aux fiches 039/040/045/047, il se fermera de fait aux étages 2–3 —
+   l'écart d'interprétation est signalé ici (R6.5).
+
+### 17.3 Mesures de la vague 1e (bac à sable — JVM de bureau conteneurisée, toolchain 17)
+
+- **Suite du module : 132 tests VERTS** (104 + 28 neufs) sous la
+  toolchain 17 — la garde `CompatibiliteJdk17Test` comprise (pool de
+  constantes du code compilé — le nouveau code n'introduit AUCUNE
+  référence JDK 21, confirmé par compilation sous 17).
+- **Baseline de parité re-signée** : corpus 318 → **324 fichiers**
+  (+3 main : R1, R2, modèle ; +3 test) — procédure documentée
+  `-Dparite.majBase=true --rerun-tasks`.
+- **Jar moteur : 418 705 o** (+28 703 vs vague 1d) — le code repris
+  (667 l. à l'origine) + le modèle neuf + le câblage.
+- **Scan ART pile complète** (mêmes commandes que la CI) : **6 ×
+  AUCUNE référence sensible** — moteur **162 classes / 227 méthodes
+  déclarées** (+9 classes / +6 méthodes vs vague 1d : `AnalyseRessourcesAndroid`,
+  `LayoutAnalyse`, `ClassesSynthetiques`, `GroupeSynthetique`,
+  `DeclarationProjet`, `GenreDeclaration` et compagnons), class-file
+  61:162 (bytecode 17 intégral), ServiceLoader OK — descripteur
+  `META-INF/services/jo.codeide.lsp.kotlin.api.ServiceMoteurLangageKotlin`
+  vérifié (1 fournisseur) ; le module reprises n'utilise que
+  `org.w3c.dom`/`javax.xml` (présents sur ART).
+- **Dexage d8** (build-tools 34, min-api 26, pile chaude complète,
+  mêmes commandes que la CI) : **24 772 références de méthodes /
+  3 815 728 o (3,64 Mo)** — seuils étage 0 tenus (≤ 32 768 / ≤ 4 Mo,
+  marges 7 996 méthodes / 370 Kio) ; **alerte E-K8 actualisée : budget
+  taille consommé à 91 %** (la vague ajoute 99 méthodes / 25 536 o —
+  à surveiller à chaque vague, leviers inchangés : Q-K2 ou demande
+  d'interface).
+- **Banc JDK 17** (toolchain du module) : parse froid 183,5/21,4 ms,
+  p50 4,1/23,7 ms, p95 37,9/47,7 ms, déterminisme **31 368 / 24 274
+  IDENTIQUE** (étage 0, 1c–1e), tolérance 101 troncatures / 0 lever,
+  tas au repos 3 630 Kio (bruit entre passes — §12/§14/§16 : le code
+  1e ne touche pas le chemin de parse).
+- **Provenance** : `verifier-provenance.sh` rc=0 (reprises R1/R2 +
+  fichier neuf associé au registre — inscription PRÉALABLE au commit,
+  R9.2).
+
+### 17.4 Clôture de l'étage 1
+
+Avec la vague 1e, les SIX critères de sortie de l'étage 1 (§4) sont
+**ATTEINTS** : fiches parse (27/27), session (45/45), index (31/31),
+synthétiques (reprise + câblage + 28 comportements — §17.2.4),
+latences S0 (reparse p50 18,9 ms à 3 000 l.), gabarit appareil (§15).
+La preuve CI mécanique du commit de livraison clôt la vague ; la
+fermeture FORMELLE de l'étage (journal + critères + rapport au
+propriétaire) est le commit suivant sur la même preuve. L'étage 2
+(résolution + diagnostics — 204 fiches) est le suivant : la fusion des
+groupes synthétiques avec COUPURE y est spécifiée par les fiches
+040/045/047, et la consommation de l'index des appelables par les
+diagnostics `kt.unresolved` y branche le guichet de sous-lecture (fiche
+042).

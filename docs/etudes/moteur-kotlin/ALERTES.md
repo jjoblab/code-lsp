@@ -29,6 +29,13 @@
   confié à un rôle distinct des implémenteurs. Toute reprise (voie B/C)
   des zones dont la conception est issue de ces enseignements devra en
   tenir compte dans le registre.
+  **Statut (30/10, vague 1e — factuel)** : les copies R1/R2 (zone
+  synthetics, conception D5) ont été EFFECTUÉES sur ordre de poursuite de
+  l'étage 1 reçu du propriétaire (« Go étage 1 ») sans audit préalable —
+  la réserve est consignée au registre (manifeste §3/§6), les adaptations
+  de câblage sont documentées dans les diffs du commit de livraison ;
+  la recommandation d'audit DEMEURE OUVERTE et s'exerce désormais a
+  posteriori.
 - **P-K2 — Conditions des artefacts binaires intellij-dependencies** :
   miroir de l'alerte AL1 Java — les jars `org.jetbrains:syntax-api`
   n'embarquent pas de `META-INF/LICENSE` ; licence des sources
@@ -144,21 +151,23 @@
   mécanisme — sa toolchain est 21 avec jvmTarget 17, config exacte de
   l'incident ; le scan actuel ne trouve rien, le risque est celui des
   écritures FUTURES).
-- **E-K8 — Budget dex de la pile chaude consommé à 90 % par
-  kotlin-metadata-jvm (vague 1d, 30/10/2026)** : l'adoption de
+- **E-K8 — Budget dex de la pile chaude consommé à 91 % (vague 1e, 30/10/2026
+  — actualisation)** : l'adoption de
   `org.jetbrains.kotlin:kotlin-metadata-jvm:2.2.10` (décodeur `@Metadata`,
-  ADR 0108 — artefact épinglé à la chaîne d'outils) fait passer le dex d8
-  de la pile chaude (moteur + syntax-api + lang-syntax + annotations +
+  ADR 0108 — artefact épinglé à la chaîne d'outils) avait fait passer le dex
+  d8 de la pile chaude (moteur + syntax-api + lang-syntax + annotations +
   kotlin-stdlib + kotlin-metadata-jvm, min-api 26) de 16 306 méthodes /
-  2,69 Mo à **24 673 méthodes / 3 790 192 o (3,62 Mo)** [mesuré, bac à
-  sable, d8 build-tools 34 — mêmes commandes que la CI] : les seuils
-  étage 0 (≤ 32 768 méthodes, ≤ 4 Mo) restent tenus (marges 8 095
-  méthodes / 404 Kio) mais **90 % du budget taille est consommé**. Les
-  étages 2–6 n'ajoutent que du code MOTEUR (les piles sont fixes) : à
-  surveiller à chaque vague — si la marge fond, les leviers sont
-  l'arbitrage Q-K2 (décodeur @Metadata maison, sans la bibliothèque) ou
-  une demande d'interface au propriétaire sur le budget T1. Le seuil CI
-  mesure à chaque push (aucune action requise tant qu'il est vert).
+  2,69 Mo à 24 673 / 3 790 192 o (3,62 Mo) [mesuré, bac à sable, d8
+  build-tools 34] ; la vague 1e (reprises synthétiques R1/R2 + modèle neuf
+  + câblage) le porte à **24 772 références de méthodes / 3 815 728 o
+  (3,64 Mo)** [mesuré, mêmes commandes] : les seuils étage 0 (≤ 32 768
+  méthodes, ≤ 4 Mo) restent tenus (marges 7 996 méthodes / 370 Kio) mais
+  **91 % du budget taille est consommé**. Les étages 2–6 n'ajoutent que du
+  code MOTEUR (les piles sont fixes) : à surveiller à chaque vague — si la
+  marge fond, les leviers sont l'arbitrage Q-K2 (décodeur @Metadata maison,
+  sans la bibliothèque) ou une demande d'interface au propriétaire sur le
+  budget T1. Le seuil CI mesure à chaque push (aucune action requise tant
+  qu'il est vert).
 
 ## 5. Points restés « à vérifier » (non clos par l'étude)
 

@@ -1,17 +1,20 @@
 // CodeIDE — moteur de langage Kotlin noyau (module :kotlin, étage 1 vague
 // 1b — session documents ; vague 1d — la passe nourrit réellement l'index
-// des appelables). Code NEUF jjoblab (contrat : fiches 049/042 puis
+// des appelables ; vague 1e — les racines nourrissent les classes
+// synthétiques). Code NEUF jjoblab (contrat : fiches 049/042 puis
 // 008/009/034 du cahier ; nourrissage moteur ADR 0211 : une passe par sync
 // sur fil dédié, snapshot immuable publié, sessions branchées sans
 // re-lecture).
 package jo.codeide.lsp.kotlin.session
 
+import java.io.File
 import jo.codeide.lsp.kotlin.api.ClasspathKotlin
 import jo.codeide.lsp.kotlin.api.EntreeClasspathKotlin
 import jo.codeide.lsp.kotlin.api.ServiceMoteurLangageKotlin
 import jo.codeide.lsp.kotlin.api.SessionLangageKotlin
 import jo.codeide.lsp.kotlin.index.IndexAppelablesKotlin
 import jo.codeide.lsp.kotlin.index.PasseurIndexationKotlin
+import jo.codeide.lsp.kotlin.synthetics.ClassesSynthetiques
 
 /**
  * Le moteur de langage Kotlin du NOYAU — fournisseur du SPI
@@ -34,6 +37,18 @@ import jo.codeide.lsp.kotlin.index.PasseurIndexationKotlin
  * indépendants — fiche 049) : documents, classpath et scan propres à la
  * session ; seuls l'index des appelables et la passe du moteur sont
  * PARTAGÉS entre les sessions d'un même moteur.
+ *
+ * ## Classes synthétiques (vague 1e — voie C R1/R2)
+ *
+ * Le moteur possède AUSSI les classes synthétiques Android
+ * ([ClassesSynthetiques] — R, BuildConfig, ViewBinding/DataBinding avant
+ * tout build) : [definirClasspath] y pose les racines sources au moment
+ * de la synchronisation (invalidation immédiate au changement, calcul
+ * PARESSEUX au premier consult — le coût est celui du parcours borné des
+ * ressources). Les groupes sont consultables par les requêtes à venir de
+ * l'étage 2 (fusion au moment de résoudre, avec la COUPURE : une classe
+ * générée RÉELLE dans le scan efface le groupe synthétique homonyme — la
+ * sortie du build est la source de vérité, jamais contredite).
  */
 public class MoteurLangageKotlinNoyau : ServiceMoteurLangageKotlin {
 
@@ -52,6 +67,13 @@ public class MoteurLangageKotlinNoyau : ServiceMoteurLangageKotlin {
 
     /** Le scanneur des racines mené par la passe du moteur. */
     private val scanMoteur = ScanProjetParesseux()
+
+    /**
+     * Les classes synthétiques Android du moteur (vague 1e — voie C
+     * R1/R2) : partagées comme l'index, invalidées au changement de
+     * racines, calculées paresseusement à la première consultation.
+     */
+    private val synthetiques = ClassesSynthetiques()
 
     /**
      * Le pilote des passages : nourrit l'index, publie les événements et
@@ -86,9 +108,25 @@ public class MoteurLangageKotlinNoyau : ServiceMoteurLangageKotlin {
      * branchée ne re-lect rien).
      */
     override fun definirClasspath(classpath: ClasspathKotlin): Boolean {
+        // Les racines sources nourrissent AUSSI les classes synthétiques
+        // (vague 1e) : pose synchrone BORNEE (invalidation seulement — le
+        // calcul des groupes reste paresseux, au premier consult).
+        synthetiques.definirRacines(classpath.racinesSources.map(::File))
         passeur.definirClasspath(classpath)
         return true
     }
+
+    /**
+     * Les groupes synthétiques courants (interne — étage 1 : inspection et
+     * câblage ; étage 2 : fusion dans la résolution avec la coupure par
+     * classe générée réelle).
+     *
+     * @return les groupes courants des racines posées (calcul paresseux au
+     * premier appel, borné par les garde-fous du module repris) ; vide
+     * sans racines Android conventionnelles.
+     */
+    internal fun groupesSynthetiques(): List<ClassesSynthetiques.GroupeSynthetique> =
+        synthetiques.groupes()
 
     /**
      * Le snapshot courant publié par la dernière passe (interne —
