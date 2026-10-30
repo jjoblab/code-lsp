@@ -421,3 +421,72 @@ de la v1.1.0 reste observable côté CodeIDE 0.204.0 : le sink cel-lsp
 câblé en v0.204.0 montre précisément `didChange` envoyé puis
 `publishDiagnostics: 0 diagnostics received` — la signature exacte de CE
 défaut.
+
+## 10. Exécution (31/10, suite) — I5 (suite) : la panne résiduelle « Internal error. » sur TOUTE requête, isolée et CORRIGÉE (v1.1.2)
+
+Après la v1.1.1 (§9), le retour appareil suivant (CodeIDE **0.204.1**,
+moto g06, logs `codeide-logs-2026-10-30-001905.zip`) **change de
+signature** : le client cel-lsp 4.14.1 se connecte (`connect: SUCCESS`,
+capabilities YES) mais CHAQUE requête échoue côté serveur —
+`documentHighlight: ERROR … ResponseErrorException: Internal error.`
+(dès l'ouverture, offset=0), `inlayHint: ERROR … Internal error.`,
+`completion: ERROR … Internal error.` après chaque frappe — et AUCUNE
+ligne `publishDiagnostics: N diagnostics received` : la publication
+n'arrive jamais. Ce n'est PLUS « 0 diagnostics » (§9) : c'est le serveur
+qui refuse tout.
+
+### 10.1 Cause racine (mesurée sur le fil exact de la session)
+
+Un harnais de reproduction (`ReproductionFrappeAppareilTest`, dépôt
+codeide-lsp — didOpen → documentHighlight(0) → inlayHint → didChange →
+completion, stdio, chaîne de production complète) rejoue le fil défaillant
+et capture le stderr du sous-processus : la stack trace réelle du
+« Internal error. » est un **`ServiceConfigurationError`** levé par le
+`ServiceLoader` d'`AccesJrt.ouvrirDepuisJarExterne` — sur **ART**, le
+fournisseur `jrt` du `lib/jrt-fs.jar` du JDK Termux externe **ne peut pas
+s'instancier** (il référence des internes JDK absents du runtime Android,
+`jdk.internal.jimage` notamment). Or la garde historique capturait
+`Exception` — et `ServiceConfigurationError` est un **Error** : il
+s'échappait de la voie « échec de chargement silencieux », remontait la
+construction **paresseuse** d'`EnvironnementNoms` (déclenchée par la
+PREMIÈRE requête moteur) et faisait échouer TOUTES les requêtes suivantes
+en « Internal error. » — complétion, surlignage, inlay — pendant que les
+diagnostics, servis par une voie qui interroge aussi l'environnement,
+restaient muets.
+
+**Pourquoi ni la CI ni la JVM locale ne l'avaient vu** : sur JVM, le
+fournisseur `jrt` SYSTÈME précède les fournisseurs déclarés du jar dans
+l'itération du `ServiceLoader` (ordre parent-d'abord) — le défaut du jar
+externe est masqué accidentellement. Il ne se manifeste QUE sur ART, où
+aucun fournisseur jrt système n'existe : condition que la régression
+nouvelle simule au plus près (chargeur SANS parent + fournisseur déclaré
+cassé).
+
+### 10.2 Correctif + gardes
+
+1. **`AccesJrt`** : `ouvrirDepuisJarExterne` et la sonde isolable
+   `fournisseurJrtDe` capturent désormais **`Throwable`** — le contrat
+   « null sur échec de chargement silencieux » (fiche 031) est honoré
+   même face aux `Error` ; l'échec est journalisé (JUL, WARNING, avec
+   cause) pour rester traçable en harnais. Conséquence moteur :
+   dégradation vers le **régime instantané documenté** (`AccesJrt = null`)
+   — la plateforme `java.*` n'est plus résolue par l'image jrt du JDK
+   externe, mais les entrées RÉELLES du classpath (android.jar du modèle,
+   bibliothèques du projet) continuent de servir complétion, diagnostics
+   et navigation sur le code utilisateur.
+2. **Trois régressions verrouillées** (fiche 031) : (a) sonde
+   `fournisseurJrtDe` — un chargeur sans parent portant un jrt-fs.jar dont
+   le fournisseur déclaré n'existe pas rend **null**, l'Error CONTENUE ;
+   (b) contrat de surface — `ouvrir` ne LÈVE jamais, quel que soit l'état
+   du home JDK factice ; (c) signature EXACTE du défaut appareil — le
+   moteur monté sur un JDK cassé répond quand même à la complétion (champ
+   du fichier courant servi, fiche 028).
+
+### 10.3 Chaîne de consommation (au propriétaire)
+
+Même chaîne que §9.4 : tag **v1.1.2** → CI de publication → montée du pin
+hôte `codeide-lsp-java = "1.1.2"` dans le catalogue de codeide-lsp +
+release de l'hôte (1.23.2) → bump du catalogue CodeIDE (0.204.2). Le
+harnais de reproduction est commité avec la release hôte : la régression
+du fil appareil est désormais exécutée par la CI de codeide-lsp sur la
+chaîne stdio complète.

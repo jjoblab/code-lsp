@@ -9,6 +9,8 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.spi.FileSystemProvider
 import java.util.ServiceLoader
+import java.util.logging.Level
+import java.util.logging.Logger
 
 /**
  * Accès à l'image jrt d'un JDK (étage N1, cahier fiche 031).
@@ -25,6 +27,19 @@ import java.util.ServiceLoader
  * [ouvrir] rend `null` dans le dernier cas et sur échec de chargement
  * silencieux : la sonde observable de disponibilité reste
  * `MoteurJava.isLikelyUsable`.
+ *
+ * **ART (incident appareil du 30/10 au soir, corrigé v1.1.2)** : « échec
+ * de chargement silencieux » capture `Throwable`, PAS seulement
+ * `Exception` — sur appareil, le fournisseur `jrt` du `lib/jrt-fs.jar`
+ * du JDK externe ne peut PAS s'instancier (il référence des internes
+ * JDK absents d'ART) et `ServiceLoader` le signale par
+ * `ServiceConfigurationError`, un **Error**. L'ancien `catch (Exception)`
+ * laissait l'Error s'échapper : la construction paresseuse
+ * d'`EnvironnementNoms` explosait à la PREMIÈRE requête, et le serveur
+ * répondait « Internal error. » à TOUT (complétion, surlignage, inlay,
+ * diagnostics muets) — le moteur dégrade désormais vers le régime
+ * instantané documenté (`null`), la plateforme restant couverte par les
+ * entrées réelles du classpath (android.jar du modèle).
  *
  * L'accès établit une carte **paquet → modules** en parcourant
  * `/modules/<module>/<paquet>` une seule fois à l'ouverture : les sondes
@@ -179,30 +194,108 @@ public class AccesJrt private constructor(
             return ouvrirDepuisJarExterne(home)
         }
 
+        /** Journal des échecs de fournisseur (traçage harnais — v1.1.2). */
+        private val LOGGER: Logger = Logger.getLogger(AccesJrt::class.java.name)
+
         /**
          * Voie générique ( externe ou ART ) : le fournisseur jrt est chargé
          * depuis le `lib/jrt-fs.jar` du home cible — `URLClassLoader` +
          * `ServiceLoader`, image pointée sur CE home (fiche 031 : « point
          * dur à reproduire sur Android/ART où le JDK Termux est externe à
          * l'app »).
+         *
+         * **ART (v1.1.2)** : l'échec d'instanciation du fournisseur est un
+         * `ServiceConfigurationError` (ou un `LinkageError`) — un **Error**,
+         * jamais une `Exception` : la garde capture `Throwable` pour
+         * honorer le contrat « null sur échec de chargement silencieux ».
+         * Sans elle, TOUTE requête moteur explose en « Internal error. »
+         * (la construction d'`EnvironnementNoms` est paresseuse, déclenchée
+         * par la première requête — défaut constaté sur appareil :
+         * complétion/surlignage/inlay en erreur, plus AUCUN diagnostic).
          */
         private fun ouvrirDepuisJarExterne(home: Path): AccesJrt? {
             val jrtFsJar = home.resolve("lib/jrt-fs.jar")
             if (!Files.isRegularFile(jrtFsJar)) return null
             return try {
                 val chargeur = URLClassLoader(arrayOf(jrtFsJar.toUri().toURL()))
-                val fournisseur = ServiceLoader.load(FileSystemProvider::class.java, chargeur)
-                    .firstOrNull { it.scheme == "jrt" }
+                val fournisseur = fournisseurJrtDe(chargeur)
                 if (fournisseur == null) {
                     chargeur.close()
                     return null
                 }
                 val fs = fournisseur.newFileSystem(URI("jrt:/"), mapOf("java.home" to home.toString()))
                 AccesJrt(fs, construireCartePaquets(fs), chargeur)
-            } catch (_: Exception) {
+            } catch (t: Throwable) {
+                // ART : ServiceConfigurationError / LinkageError ne sont pas
+                // des Exception — la cause est journalisée (traçable en
+                // harnais JVM), puis repli silencieux documenté.
+                LOGGER.log(
+                    Level.WARNING,
+                    "fournisseur jrt de $home indisponible — repli régime instantané",
+                    t,
+                )
                 null
             }
         }
+
+        /**
+         * Le fournisseur `jrt` d'un chargeur — la SONDE isolable du défaut
+         * appareil du 30/10 (v1.1.2) : l'itération `ServiceLoader` INSTANCIE
+         * chaque fournisseur déclaré ; sur ART le `jrt-fs.jar` du JDK externe
+         * référence des internes JDK absents du runtime (`jdk.internal.jimage`
+         * notamment) — l'instanciation lève `ServiceConfigurationError` ou
+         * `NoClassDefFoundError`, des **Error** qu'un `catch (Exception)`
+         * laissait fuir : la construction paresseuse d'`EnvironnementNoms`
+         * explosait à la PREMIÈRE requête moteur (« Internal error. » sur
+         * toute requête, diagnostics muets — CodeIDE 0.204.1, moto g06).
+         *
+         * Délègue à [premierFournisseur] — générique UNIQUEMENT pour que la
+         * régression puisse simuler ART fidèlement : sur JVM, le service
+         * `FileSystemProvider` est TOUJOURS fourni par le module `java.base`
+         * (couche boot, itéré AVANT les fournisseurs du classpath du
+         * chargeur) — le fournisseur système masque donc tout défaut du jar
+         * (vérifié expérimentalement : c'est pourquoi la CI JVM est aveugle
+         * à CE défaut). La condition ART — le fournisseur cassé est le
+         * SEUL itéré — n'est reproductible sur JVM qu'avec un service sans
+         * AUCUN module fournisseur.
+         *
+         * @param chargeur le chargeur du `lib/jrt-fs.jar` cible.
+         * @return le fournisseur jrt instancié, ou null (échec contenu).
+         */
+        internal fun fournisseurJrtDe(chargeur: ClassLoader): FileSystemProvider? =
+            premierFournisseur(FileSystemProvider::class.java, chargeur) { it.scheme == "jrt" }
+
+        /**
+         * Le premier fournisseur d'un service satisfaisant [predicat] — le
+         * cœur du correctif v1.1.2 : l'itération (qui INSTANCIE chaque
+         * fournisseur déclaré) est contenue face à **`Throwable`**, pas
+         * seulement `Exception` — un fournisseur cassé lève
+         * `ServiceConfigurationError` / `LinkageError` (des **Error**), et
+         * le contrat « null sur échec de chargement silencieux » (fiche
+         * 031) exige qu'ils soient capturés eux aussi. L'échec est
+         * journalisé (JUL) pour rester traçable en harnais.
+         *
+         * @param service le type de service demandé au `ServiceLoader`.
+         * @param chargeur le chargeur dont le classpath porte les fournisseurs.
+         * @param predicat filtre de sélection (schéma, par exemple).
+         * @return le premier fournisseur instancié satisfaisant le prédicat,
+         *   ou null (échec contenu).
+         */
+        internal fun <S : Any> premierFournisseur(
+            service: Class<S>,
+            chargeur: ClassLoader,
+            predicat: (S) -> Boolean,
+        ): S? =
+            try {
+                ServiceLoader.load(service, chargeur).firstOrNull(predicat)
+            } catch (t: Throwable) {
+                LOGGER.log(
+                    Level.WARNING,
+                    "fournisseur de ${service.name} ininstanciable — repli régime instantané",
+                    t,
+                )
+                null
+            }
 
         /**
          * Parcourt `/modules/<module>` jusqu'au niveau paquet et construit la

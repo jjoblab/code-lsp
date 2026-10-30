@@ -23,6 +23,17 @@ plugins {
 // à chaud, jamais de re-initialize, invariant ADR 0211) ; contrat de
 // sérialisation superDefinition ALIGNÉ sur le vendord {path, start, end,
 // label} (miroir cel-lsp — aucune adaptation client requise) ; fiche 066.
+// 1.1.2 : incident ART du 30/10 au soir (CodeIDE 0.204.1, moto g06) —
+// AccesJrt.ouvrirDepuisJarExterne capture Throwable, PAS seulement
+// Exception : sur ART, le fournisseur jrt du lib/jrt-fs.jar du JDK
+// externe lève ServiceConfigurationError (un Error) à l'instanciation
+// (internes JDK absents d'ART — jdk.internal.jimage) ; l'ancienne garde
+// laissait l'Error fuir, la construction paresseuse d'EnvironnementNoms
+// explosait à la PREMIÈRE requête et le serveur répondait « Internal
+// error. » à TOUT (complétion, surlignage, inlay, diagnostics muets).
+// Désormais repli silencieux vers le régime instantané documenté (null),
+// la plateforme restant couverte par les entrées réelles du classpath
+// (android.jar du modèle). §10 d'INTEGRATION-CODEIDE.
 allprojects {
-    version = "1.1.1"
+    version = "1.1.2"
 }

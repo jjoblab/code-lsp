@@ -175,7 +175,7 @@ publications traversent la sérialisation Gson et les en-têtes
   `typeHierarchyProvider`, `workspaceSymbolProvider`,
   `inlayHintProvider`, et la capability maison
   `x-codeide.completionRanking` (§8).
-- `serverInfo` : nom **`lspjava`**, version **1.1.1** — lue de la
+- `serverInfo` : nom **`lspjava`**, version **1.1.2** — lue de la
   ressource embarquée `version.properties`, générée à la construction
   depuis la version du projet (fiche 059 I7 : jamais de version fantôme).
 
@@ -220,7 +220,7 @@ Extrait de réponse (seule la capability maison est tronquée ici, voir §8) :
       "workspaceSymbolProvider": true,
       "inlayHintProvider": true
     },
-    "serverInfo": { "name": "lspjava", "version": "1.1.1" }
+    "serverInfo": { "name": "lspjava", "version": "1.1.2" }
   }
 }
 ```
@@ -347,7 +347,7 @@ Exemple d'une session complète au fil :
 
 ```json
 {"jsonrpc":"2.0","id":1,"method":"initialize","params":{"rootUri":"file:///projet/demo","capabilities":{}}}
-{"jsonrpc":"2.0","id":1,"result":{"capabilities":{ … },"serverInfo":{"name":"lspjava","version":"1.1.1"}}}
+{"jsonrpc":"2.0","id":1,"result":{"capabilities":{ … },"serverInfo":{"name":"lspjava","version":"1.1.2"}}}
 {"jsonrpc":"2.0","method":"initialized","params":{}}
 {"jsonrpc":"2.0","id":2,"method":"textDocument/hover","params":{ … }}
 {"jsonrpc":"2.0","id":2,"result":{ … }}
@@ -1140,7 +1140,10 @@ re-signature de `parite-completion.json` (les stubs de façade suivent).
   désormais **générée du dépôt** (fiche 059 I7 — la 1.0.0 était
   celle de la signature de bascule, la 1.1.0 celle de l'intégration, la
   1.1.1 celle du correctif du diagnose rapide — le corps hôte masqué par
-  erreur d'identité, §9 d'INTEGRATION-CODEIDE) ;
+  erreur d'identité, §9 — la **1.1.2 celle du correctif ART** : fournisseur
+  jrt du JDK externe ininstanciable sur appareil (ServiceConfigurationError,
+  un Error invisible à `catch (Exception)`), repli régime instantané au
+  lieu de « Internal error. » sur toute requête, §10) ;
   mise en œuvre client : `docs/BASCULE-CODEIDE.md` +
   `docs/INTEGRATION-CODEIDE.md` ; suivi post-bascule borné au §6 du
   gabarit.
