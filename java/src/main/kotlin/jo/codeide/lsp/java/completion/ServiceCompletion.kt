@@ -419,6 +419,10 @@ public class ServiceCompletion(
                         if (methode.isStatic()) continue
                         if (methode.isPrivate()) continue
                         if (methode.isFinal()) continue
+                        // Le MARQUEUR de splice parse comme une méthode
+                        // déclarée du type englobant quand le préfixe est
+                        // vide en corps de classe — jamais un candidat.
+                        if (String(methode.selector) == AnalyseurContexte.MARQUEUR) continue
                         val nom = String(methode.selector)
                         if (nom in vus) continue
                         vus.add(nom)
@@ -605,13 +609,24 @@ public class ServiceCompletion(
     // Filtrage gradué et divers
     // ------------------------------------------------------------------ //
 
-    /** Filtre les candidats par correspondance graduée au préfixe (le grade voyage sur l'item). */
+    /** Filtre les candidats par correspondance graduée au préfixe (le grade voyage sur l'item).
+     *
+     * Le MARQUEUR de splice ([AnalyseurContexte.MARQUEUR]) n'est JAMAIS un
+     * candidat légitime : quand le marqueur parse comme une DÉCLARATION
+     * (corps de classe, préfixe vide — banc S13a du 31/10/2026), il entrait
+     * dans l'inventaire des membres déclarés et fuitait dans la liste rendue
+     * (`__codeide_completion__()` visible par l'utilisateur). Il est écarté
+     * ICI, au dernier rempart avant l'arrangement — quelle que soit sa
+     * source de collecte. */
     private fun filtrer(candidats: List<ItemCompletion>, prefixe: String): List<ItemCompletion> =
-        candidats.mapNotNull { item ->
-            val grade = CorrespondanceGraduee.grade(prefixe, item.libelle)
-            if (grade == GradeCorrespondance.AUCUN) return@mapNotNull null
-            item.copy(correspondance = grade)
-        }
+        candidats.asSequence()
+            .filter { it.libelle != AnalyseurContexte.MARQUEUR }
+            .mapNotNull { item ->
+                val grade = CorrespondanceGraduee.grade(prefixe, item.libelle)
+                if (grade == GradeCorrespondance.AUCUN) return@mapNotNull null
+                item.copy(correspondance = grade)
+            }
+            .toList()
 
     /** Résout le binding d'un FQCN (passe dédiée — qualifiers statiques). */
     private fun bindingDe(fqcn: String): ReferenceBinding? {
