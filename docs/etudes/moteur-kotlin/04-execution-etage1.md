@@ -104,10 +104,14 @@ inchangée (même grammaire, même corpus).
 
 **Jar moteur : 257 572 o (251,5 Kio)** [mesuré] — 216 Kio à l'étage 0 ;
 +36 Kio pour la façade (69 → **90 classes** [mesuré par scan du jar], dont
-24 hors zone vendored — harnais + façade). Le
-dexage d8 et les seuils (≤ 32 768 méthodes / ≤ 4 Mo) sont vérifiés par la
-CI (`kotlin-art`) — la marge héritée de l'étage 0 (15 964 méthodes /
-2,62 Mo) absorbe largement la façade.
+24 hors zone vendored — harnais + façade). Le dexage d8 et les seuils
+sont vérifiés par la CI (`kotlin-art`) : **CI VERTE 9/9 sur le commit de
+livraison `a1b29c8`** (run `40988517140`, consulté le 30/10 à 01:56 UTC) —
+scan ART **4 × « AUCUNE » référence sensible** (moteur + pile spécifique :
+la façade n'ajoute AUCUN motif), dexage d8 **16 081 références de méthodes
+/ 2 768 048 o (2,64 Mo)** [mesuré par la CI — +117 méthodes / +25 380 o
+vs étage 0 : la façade], seuils étage 0 tenus (≤ 32 768 / ≤ 4 Mo, marge
+×2 sur les méthodes).
 
 **Code livré [mesuré]** : 6 fichiers main (1 040 l.) + 1 fichier de test
 (214 l.) — KDoc français détaillé partout, explicitApi Strict (le code
@@ -126,6 +130,14 @@ hors registre (code neuf libre ; aucune reprise voie C cette vague).
 | Fiches synthétiques vertes | **Bloqué propriétaire** | R1/R2 attendent l'audit P-K1 (recommandé avant l'étage 1 — toujours ouvert) |
 | Latences S0 tenues (reparse < 50 ms JVM à 3 000 l.) | **Atteint** | parse chaud p50 18,9 ms / p95 48,6 ms à 3 000 l. [mesuré] |
 | Gabarit appareil rempli (porte d'entrée) | **Différé** | Instruction propriétaire : `banc-appareil.sh` fourni plus tard — le critère reste OUVERT |
+
+**CI VERTE 9/9 sur le commit de livraison** (run `40988517140`, commit
+`a1b29c8`, consulté le 30/10 à 01:56 UTC) — build et tests JDK 21, bancs
+noyau/qualité/parité T, gates Android, provenance étendue kotlin/, et les
+trois jobs Kotlin : suite du module (fiches 010–013 — 27 tests verts),
+scan ART + dexage d8 (4 × AUCUNE, 16 081 méthodes / 2,64 Mo, seuils
+tenus), banc empreinte/latence. **La vague 1a est CLOSE sur preuve
+mécanique.**
 
 ## 5. Suite de l'étage 1 (vagues suivantes — cahier en main)
 
