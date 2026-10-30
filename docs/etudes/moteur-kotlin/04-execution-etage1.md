@@ -574,6 +574,18 @@ référence sensible + ServiceLoader descripteur vérifié, class-file
 `SHA256SUMS.txt` ; garde d'expédition exécutée : PROPRE). **La passe
 appareil attend le retour du propriétaire avec le kit v2.**
 
+**CI VERTE 9/9 sur le commit correctif `c10eb70`** (run `41011935692`,
+consulté le 30/10 à 06:12 UTC) — les trois jobs Kotlin valident le
+correctif : suite du module **73 tests verts sur la toolchain 17**
+(provisionnement foojay du runner : compilation ET exécution sous 17),
+scan ART **5 × « AUCUNE »** avec le motif `List.<SequencedCollection>`
+actif (le jar CI, compilé sous 17, est propre — la garde est chargée et
+silencieuse), dexage d8 **16 306 références de méthodes / 2 821 016 o
+(2,69 Mo)** [mesurés par la CI — −1 méthode / −40 o vs vague 1c :
+l'échange removeLast → removeAt], seuils étage 0 tenus (≤ 32 768 /
+≤ 4 Mo), banc empreinte/latence exécuté sous JDK 17. **Le correctif est
+clos sur preuve mécanique.**
+
 Note d'infrastructure (suite du §13) : les rafales HTTP 429 de Maven
 Central ont persisté ; le build local a résolu via un script d'init
 Gradle **propre au bac à sable, jamais commité** (miroir public en tête
