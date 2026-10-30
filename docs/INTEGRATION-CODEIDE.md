@@ -306,3 +306,48 @@ logs), **I6** (retrait physique du vendored après « 2 versions sans
 régression »). Le retour arrière reste 1 ligne (substitution inverse) ;
 `:lsp:java` vendord reste au build (gelé, plus consommé par AUCUN
 module).
+
+## 8. Exécution (31/10 au matin) — I4 EFFECTUÉ : le moteur neuf SERT CodeIDE
+
+**codeide-lsp v1.23.0 publiée** (le chemin fut heurté — cinq runs CI
+rouges avant le vert, chacun diagnostiqué et corrigé) :
+
+| Run | Échec | Correction |
+|---|---|---|
+| `40971065006` (ac7a953) | résolution moteur 1.1.0 introuvable en CI (mavenLocal/Google/Central sondés, PAS de Packages) | `a8ddaaf` : secret `CODEIDE_PACKAGES_PAT` exposé à la vérification Gradle |
+| `40977019903` (a8ddaaf) | spotless (imports, chaînes) | `f21e382` : corrections exactes du diff |
+| `40978171846` (f21e382) | lint `UseTomlInstead` : coordonnées moteur inline dans `lsp/host/build.gradle.kts:64-65` | `0ca7e7b` : épinglage catalogue (`lsp-java-moteur`/`lsp-java-ecj-art` vers `codeide-lsp-java = 1.1.0`, miroir du toml CodeIDE) |
+| `40979686795` (0ca7e7b) | `PariteCorpusDepotTest` : baseline du digeste (1 échec/469) — le corpus compte TOUT `.kt` du dépôt, l'adaptation hôte en avait ajouté 1 (`NavigationCible.kt`) et modifié 9 | `7bd0e0b` : régénération `-Dparite.majBase=true --rerun-tasks` RÉELLE (307 → 308 fichiers) ; grammaire SANS changement (le sweep « sans marqueur d'erreur » reste vert au même passage) |
+| `40982522303` + `40982522451` (8ba8b2e, release) | — | **VERTS** (tag + main) |
+
+Publication : release commit `8ba8b2e` (CHANGELOG « Non publié » →
+`## 1.23.0`, guide de passage `MISE-A-JOUR-CODEIDE.md` — bump, témoin,
+deltas, retour arrière) + tag `v1.23.0` → workflow **vert** (run
+`40982522258`) ; registre vérifié : `maven-metadata.xml` de `host`
+porte `1.23.0` en latest, **POM de l'hôte contrôlé portant la dépendance
+`jo.codeide.lsp.java:jo-codeide-lsp-java:1.1.0` (compile)** + lsp4j
+0.21.2 + model/kotlin/xml 1.23.0.
+
+**CodeIDE v0.203.0 poussé** (`f70ff78`, main) : catalogue
+`codeide-lsp = "1.23.0"` + `codeide-lsp-java = "1.1.0"` (pin miroir) ;
+`version.properties` 0.203.0 / 20300 ; entrée CHANGELOG complète ;
+protocole d'appareil **B1–B8** dans `docs/TESTS_MANUELS.md` (témoin
+serverInfo, capacités sans action morte, extensions expérimentales,
+E1 go-to généré, E4 cycle de vie, live-republish, fiches 004/010/039,
+garde Kotlin/XML).
+
+**Vérification locale end-to-end CONTRE LE REGISTRE** (le moteur
+mavenLocal fut écarté — `~/.m2/.../java` renommé — pour forcer la
+résolution GitHub Packages) : `:app:compileDebugKotlin` **VERT** (344
+tâches) ; `dependencyInsight` : `host:1.23.0 -> jo-codeide-lsp-java:1.1.0
++ jo-codeide-lsp-java-ecj-art:1.1.0`. Incident d'environnement local
+consigné : throttling 429 du CDN Maven Central **par user-agent JVM**
+(curl passe, Gradle non — Cloudflare HKG) ; contourné par un redirect
+local mitmproxy Central → miroir public (jetable, hors dépôts). La CI
+GitHub, sur un autre réseau, n'a JAMAIS vu ce problème.
+
+**Reste I5** (passe appareil — mains du propriétaire : APK 0.203.0 à
+installer, B1–B8 de `TESTS_MANUELS.md`, fiches 004/010/039, PV à
+consigner) **et I6** (retrait physique du vendored après « 2 versions
+sans régression » — l'habitat unique Java est EFFECTIF depuis cette
+poussée).
