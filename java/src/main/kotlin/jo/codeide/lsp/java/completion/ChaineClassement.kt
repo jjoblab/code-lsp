@@ -42,6 +42,15 @@ public enum class GenreContexte {
     /** Valeur d'attribut d'annotation de type enum : constantes de l'enum. */
     VALEUR_ANNOTATION,
 
+    /**
+     * Position de TOP LEVEL (hors de tout corps de type — la zone des
+     * imports et des déclarations de types) : les MOTS-CLÉS de déclaration
+     * de type (v1.1.6 — l'écart consigné INTEGRATION-CODEIDE §13.4 : `i|`,
+     * `im|` avant l'espace rendaient 0 item là où Android Studio propose
+     * `import`/`interface`).
+     */
+    TOP_NIVEAU,
+
     /** Contexte non classé (repli honnête : liste vide ou inventaire). */
     INCONNU,
 }
@@ -231,6 +240,15 @@ public class PeseurNature : Peseur {
         GenreContexte.CASE_LABEL, GenreContexte.VALEUR_ANNOTATION ->
             when (nature) {
                 NatureItem.CONSTANTE_ENUM -> 0
+                else -> 1
+            }
+
+        GenreContexte.TOP_NIVEAU ->
+            when (nature) {
+                // La zone de top level ne propose QUE des mots-clés de
+                // déclaration (v1.1.6) — les autres natures n'y paraissent
+                // pas, la branche n'existe que pour l'exhaustivité honnête.
+                NatureItem.MOT_CLE -> 0
                 else -> 1
             }
 

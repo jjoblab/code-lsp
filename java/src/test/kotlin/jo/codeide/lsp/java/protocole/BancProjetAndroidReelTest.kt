@@ -847,4 +847,76 @@ class BancProjetAndroidReelTest {
             "la frappe en cours rend des items (repli utile, jamais silencieux) — reçu : ${libelles.take(10)}",
         )
     }
+
+    // ---------------------------------------------------------------- //
+    // S19 — les MOTS-CLÉS de top level : `i|`, `im|` AVANT l'espace
+    // (v1.1.6 — l'écart §13.4 : la frappe du mot-clé lui-même rendait
+    // 0 item là où Android Studio propose import/interface)
+    // ---------------------------------------------------------------- //
+
+    @Test
+    @Order(20)
+    fun S19_motsClesTopLevelPendantLaFrappeDuMotCle() {
+        val suffixe = sourceMain.substringAfter("import android.os.Bundle;")
+        for (frappe in listOf("i", "im", "imp")) {
+            val source = "package com.example.monip;\n\n$frappe\n$suffixe"
+            frapper(source)
+            val libelles = completionApres(source, ";\n\n$frappe").map { it.label }
+            println("[BANC] S19 « $frappe » top level → ${libelles.size} items ${libelles.take(6)}")
+            assertTrue(
+                "import" in libelles,
+                "« $frappe| » en top level propose « import » (le popup Android Studio) — reçu : ${libelles.take(10)}",
+            )
+        }
+        // La complétion de NOM en corps de méthode n'est PAS devenue
+        // mots-clés-seuls : la locale en tête (v1.1.5 tenu).
+        val source = sourceMain.replace(
+            "titre.setText(liaison.saluer(\"monip\"));",
+            "titre.setText(liaison.saluer(\"monip\"));\n        int compteur = 0;\n        com¦",
+        ).replace("¦", "")
+        frapper(source)
+        val libelles = completionApres(source, "compteur = 0;\n        com").map { it.label }
+        println("[BANC] S19 corps de méthode com| → ${libelles.size} items ${libelles.take(6)}")
+        assertTrue(
+            "compteur" in libelles,
+            "en corps de méthode, la locale reste en tête (pas de régression v1.1.5) — reçu : ${libelles.take(10)}",
+        )
+    }
+
+    // ---------------------------------------------------------------- //
+    // S20 — l'AIDE DE SIGNATURE sur une méthode du PROJET, arguments en
+    // cours (v1.1.6 — la virgule traînante rendait RIEN : la fermeture
+    // de la liste s'insérait après les accolades englobantes)
+    // ---------------------------------------------------------------- //
+
+    @Test
+    @Order(21)
+    fun S20_signatureMethodeProjetArgumentsEnCours() {
+        // Deux arguments, le second en cours de frappe (virgule traînante)
+        // — la méthode à DEUX paramètres du Greeter du PROJET.
+        val source = sourceMain.replace(
+            "titre.setText(liaison.saluer(\"monip\"));",
+            "titre.setText(liaison.repeter(\"monip\", ",
+        )
+        frapper(source)
+        val doc = document ?: fail("document non ouvert")
+        val params = org.eclipse.lsp4j.SignatureHelpParams()
+        params.textDocument = doc
+        params.position = positionApres(source, "repeter(\"monip\", ")
+        val aide = boucle!!.client.textDocumentService.signatureHelp(params).get(60, TimeUnit.SECONDS)
+        val labels = aide?.signatures?.map { it.label } ?: emptyList()
+        println("[BANC] S20 repeter(\"monip\", → ${labels.size} signature(s) : $labels (actif=${aide?.activeParameter})")
+        assertTrue(
+            labels.isNotEmpty(),
+            "la virgule traînante rend l'aide de signature (niveau 4 réparé) — reçu : rien",
+        )
+        assertTrue(
+            labels.any { it.contains("repeter") && it.contains("int") },
+            "la signature du PROJET repeter(String, int) est servie — reçu : $labels",
+        )
+        assertTrue(
+            labels.any { it.contains(" fois") },
+            "le nom de paramètre de la SOURCE du projet paraît — reçu : $labels",
+        )
+    }
 }

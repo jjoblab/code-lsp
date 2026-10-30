@@ -89,6 +89,56 @@ public class AnalyseurContexte(
      *   « non capture par conception » de la fiche 035).
      */
     public fun analyser(chemin: String, source: String, offset: Int): ContexteCompletion {
+        // v1.1.6 (latence) : la résolution marquée porte sur la source
+        // RÉDUITE — [jo.codeide.lsp.java.outils.SourceFocuser] efface le
+        // corps de toute méthode qui ne contient pas le caret (signatures
+        // intactes : héritage et surcharges restent résolus). Le coût de
+        // frappe cesse d'être linéaire à la taille du FICHIER — sur les
+        // classes réelles (plusieurs milliers de caractères), chaque
+        // frappe résolvait l'intégralité du texte. Identité sous le seuil
+        // de 2 000 caractères : les petits fichiers (et la quasi-totalité
+        // des fixtures du cahier) prennent le chemin inchangé. La zone de
+        // top level et les initialiseurs de champs ne sont JAMAIS coupés —
+        // la classification textuelle locale reste exacte.
+        val focused = jo.codeide.lsp.java.outils.SourceFocuser.focusAndMap(source, offset)
+        val sourceReduite = focused.source()
+        val verdict = analyserCascade(chemin, sourceReduite, focused.offset())
+
+        // Repli TOP_NIVEAU (v1.1.6 — l'écart consigné INTEGRATION-CODEIDE
+        // §13.4) : la cascade n'a rien capturé ET le caret vit à profondeur
+        // d'accolades ZÉRO (hors de tout corps de type, hors
+        // littéral/commentaire) — la frappe du MOT-CLÉ lui-même (`i|`,
+        // `im|` avant l'espace) propose les mots-clés de déclaration, le
+        // popup Android Studio. Les positions spécialisées (clause
+        // `extends`, annotation, import APRÈS l'espace, nom de type après
+        // `class`) sont capturées par la classification marquée — elles
+        // n'atteignent JAMAIS ce repli ; les gardes textuelles
+        // (profondeur zéro, tête de déclaration) verrouillent le reste.
+        if (verdict.genre == GenreContexte.INCONNU) {
+            val prefixe = prefixeIdentifiant(sourceReduite, focused.offset())
+            val debutMarqueur = (focused.offset() - prefixe.length).coerceAtLeast(0)
+            if (estPositionTopNiveau(sourceReduite, debutMarqueur)) {
+                return ContexteCompletion(
+                    GenreContexte.TOP_NIVEAU,
+                    prefixe,
+                    importsFqcn = verdict.importsFqcn,
+                    paquetCourant = verdict.paquetCourant,
+                )
+            }
+        }
+        return verdict
+    }
+
+    /**
+     * Cascade des variantes de splice sur une source donnée (l'originale
+     * ou sa réduite — le début public [analyser] applique la réduction).
+     *
+     * @param chemin chemin logique du document.
+     * @param source le texte Java (réduit ou non).
+     * @param offset la position du caret dans ce texte.
+     * @return le contexte classé (genre INCONNU = non capture).
+     */
+    private fun analyserCascade(chemin: String, source: String, offset: Int): ContexteCompletion {
         val prefixe = prefixeIdentifiant(source, offset)
         val debutMarqueur = (offset - prefixe.length).coerceAtLeast(0)
         // Le suffixe identifiant APRÈS le caret est AUSSI consommé :
@@ -790,6 +840,70 @@ public class AnalyseurContexte(
     }
 
     /**
+     * Vrai si la position est en zone de TOP LEVEL (v1.1.6) : profondeur
+     * d'accolades ZÉRO du début du texte jusqu'à la position (chaînes,
+     * caractères et commentaires franchis — le caret lui-même hors
+     * littéral/commentaire), ET hors d'une TÊTE de déclaration (le nom ou
+     * la clause d'une déclaration en cours — `class Fo|`, `extends B|`,
+     * `import an|` — n'est pas une position de mot-clé : la cascade y a
+     * déjà dû capturer TYPE/IMPORT, la garde verrouille le recovery), ET
+     * pas après un point (un accès membre d'initialiseur de champ vit
+     * aussi à profondeur zéro).
+     *
+     * @param source le texte (réduit ou non — la zone de top level n'est
+     *   jamais coupée par la réduction).
+     * @param debutMarqueur le début de l'identifiant tapé.
+     * @return vrai ssi le repli TOP_NIVEAU s'applique.
+     */
+    private fun estPositionTopNiveau(source: String, debutMarqueur: Int): Boolean {
+        var profondeur = 0
+        var dansChaine = false
+        var dansCaractere = false
+        var dansLigne = false
+        var dansBloc = false
+        val borne = debutMarqueur.coerceIn(0, source.length)
+        var i = 0
+        while (i < borne) {
+            val c = source[i]
+            if (dansChaine) {
+                if (c == '"' && source[i - 1] != '\\') dansChaine = false
+            } else if (dansCaractere) {
+                if (c == '\'' && source[i - 1] != '\\') dansCaractere = false
+            } else if (dansLigne) {
+                if (c == '\n') dansLigne = false
+            } else if (dansBloc) {
+                if (c == '*' && i + 1 < borne && source[i + 1] == '/') {
+                    dansBloc = false
+                    i++ // consomme le '/' fermant
+                }
+            } else {
+                when (c) {
+                    '"' -> dansChaine = true
+                    '\'' -> dansCaractere = true
+                    '/' -> if (i + 1 < borne) {
+                        when (source[i + 1]) {
+                            '/' -> { dansLigne = true; i++ }
+                            '*' -> { dansBloc = true; i++ }
+                        }
+                    }
+                    '{' -> profondeur++
+                    '}' -> if (profondeur > 0) profondeur--
+                }
+            }
+            i++
+        }
+        if (dansChaine || dansCaractere || dansLigne || dansBloc) return false
+        if (profondeur != 0) return false
+        // Tête de déclaration en cours : le mot précédent est un mot-clé
+        // structural — la position porte un NOM ou une clause, pas un
+        // mot-clé de déclaration.
+        if (motPrecedent(source, debutMarqueur) in TETES_DECLARATION) return false
+        // Accès membre (initialiseur de champ à profondeur zéro).
+        if (apresPoint(source, debutMarqueur)) return false
+        return true
+    }
+
+    /**
      * Queue équilibrée (la 5e forme du domaine, portée ici sans le `()`
      * après point : la branche FieldReference du classificateur capture
      * l'accès membre non appelé, là où le domaine devait matérialiser un
@@ -1104,6 +1218,19 @@ public class AnalyseurContexte(
         private val MODIFICATEURS_DECLARATION: Set<String> = setOf(
             "public", "private", "protected", "static", "final", "transient",
             "volatile", "abstract", "default", "native", "synchronized", "strictfp",
+        )
+
+        /**
+         * Têtes de déclaration (garde du repli TOP_NIVEAU, v1.1.6) : quand
+         * l'un de ces mots précède immédiatement la position, le token tapé
+         * porte un NOM, une CLAUSE ou un CHEMIN DE PAQUET — jamais un
+         * mot-clé de déclaration. `new` y figure aussi (allocation en
+         * initialiseur de champ à profondeur zéro — capturée par la cascade
+         * TYPE, la garde verrouille le recovery).
+         */
+        private val TETES_DECLARATION: Set<String> = setOf(
+            "package", "import", "class", "interface", "enum", "record",
+            "extends", "implements", "permits", "new",
         )
     }
 }

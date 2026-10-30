@@ -925,3 +925,94 @@ le sujet des retours).
   restants appareil se lisent donc côté HÔTE (nourrissage du cache à
   l'ouverture, délai de la première sync) : le banc S01/S02 en est la
   sonde de parité exacte.
+
+## 14. Exécution (31/10, quatrième vague) — v1.1.6 : l'inventaire des écarts + les trois urgences de la complétion
+
+### 14.1 Ce que le retour demandait
+
+Le propriétaire (31/10, retour appareil sur 0.204.5) : « J'ai testé sur
+l'appareil, des progrès minuscules. Listé les écarts du serveur qui
+avaient été mis pour plus tard ou pas encore étudié. Le problème le plus
+urgent c'est la complétion, le moteur n'est pas intelligent du tout.
+Dépendamment où l'utilisateur est en train de taper, il doit savoir où
+il est et proposer des suggestions précises de ce que l'utilisateur veut
+faire… si en tapant l'utilisateur veut utiliser l'une des méthodes de
+ses classes, il doit voir ces méthodes dans les suggestions de complétion
+et même dans l'aide signature. Regarde attentivement comment fait
+Android Studio. Il y a toujours un retard avant que les suggestions
+arrivent. »
+
+L'inventaire demandé vit désormais à part :
+**`docs/ECARTS-SERVEUR.md`** (corrigés v1.1.6 §1, moteur §2, hôte §3 —
+la cause racine des retards appareil selon §13.5, client §4, décisions
+§5).
+
+### 14.2 Les trois correctifs moteur (v1.1.6)
+
+1. **Mots-clés de top level** (l'écart consigné §13.4, C1) : `i|`, `im|`
+   AVANT l'espace rendaient 0 item là où Android Studio propose
+   `import`/`interface`. Le genre `TOP_NIVEAU` naît en REPLI de la
+   cascade — profondeur d'accolades ZÉRO au caret (chaînes,
+   caractères et commentaires franchis), hors tête de déclaration
+   (`class Fo|`, `extends B|`, `import an|` : gardes textuelles), pas
+   après un point — et propose les mots-clés légaux hors de tout corps
+   de type : `package`, `import`, modificateurs, `class`, `interface`,
+   `enum`, `record`, ET `extends`/`implements`/`permits` (la tête d'une
+   déclaration vit à profondeur zéro). Les positions capturées par la
+   classification marquée (IMPORT, TYPE, CORPS_CLASSE…) n'atteignent
+   JAMAIS ce repli ;
+2. **Aide de signature niveau 4 : la fermeture avant l'accolade** (C2) :
+   la virgule traînante `repeter("monip", ` — méthode à DEUX paramètres
+   du Greeter du PROJET — rendait RIEN : l'ancienne queue équilibrée,
+   concaténée à la FIN du texte, plaçait le «)» APRÈS les «}»
+   englobants (`f(a, 0\n})` — syntaxe cassée, appel perdu). La nouvelle
+   `AideSignatures.refermer` referme les listes ouvertes avant le caret
+   JUSTE AVANT l'accolade du bloc englobant (`f(a, 0);` puis le `}` du
+   corps) ; sans telle accolade dans la suite (caret en fin de texte),
+   l'ancienne queue complète tient. Sont servies : les signatures des
+   méthodes du PROJET, leurs surcharges, le paramètre ACTIF exact, et
+   les noms de paramètres lus dans la SOURCE ;
+3. **Latence : la résolution marquée se RÉDUIT** (C3) : chaque frappe
+   résolvait l'unité ENTIÈRE marquée — le coût était linéaire à la
+   taille du FICHIER. `SourceFocuser` (seuil 2 000 caractères : identité
+   pour les petits fichiers et la quasi-totalité des fixtures du
+   cahier) efface désormais le corps des méthodes étrangères AVANT la
+   construction des variantes — même medicine que le niveau 3 de
+   `resoudrePourOffset` depuis N4. La sonde à chaud et l'arbre original
+   restent sur la source intégrale (leurs plages le exigent).
+
+### 14.3 Validation
+
+- `RetoursAppareilV116Test` (11 tests) : mots-clés de top level par
+  préfixe (`i|`→import/interface/implements, `im|`→import/implements,
+  `p|`→package/public), gardes (corps de méthode ≠ TOP_NIVEAU avec la
+  locale en tête, `class Fo|` hors repli, commentaire muet, tête de
+  déclaration = contrat fiche 007), signature niveau 4 (virgule
+  traînante actif=1, noms `nom`/`fois` depuis la source, chaîne ouverte
+  famille A, hors appel null) ;
+- banc projet Android réel : **22/22** (S19 mots-clés top level au fil
+  LSP sur vraies bibliothèques + non-régression du popup NOM en corps
+  de méthode ; S20 signature de méthode PROJET à la virgule traînante,
+  `repeter(java.lang.String nom, int fois)` actif=1 au protocole) — le
+  Greeter du banc gagne la méthode `repeter(String, int)` pour
+  l'éprouver ;
+- suite complète `:java:test` (gates ouvertes) : **534 tests, 0 échec,
+  0 erreur** (521 + 13 nouveaux) ;
+- `:java:benchQualite` : **recall 1,000 / top-1 1,000 / MRR 1,000,
+  p95 ≈ 37 ms, 0 saut** — la baseline SIGNÉE tient.
+
+### 14.4 Chaîne à exécuter et reste
+
+- code-lsp : trois correctifs + inventaire `docs/ECARTS-SERVEUR.md` +
+  ce §14, suite verte (§14.3). La chaîne de consommation suit le geste
+  de la v1.1.5 (§13.5) : tag annoté `v1.1.6` → workflow Publication →
+  artefacts vérifiés sur `maven.pkg.github.com/jjoblab/code-lsp` (POM
+  moteur sans ecj, `version.properties=1.1.6` embarqué, bytecode 17,
+  compagnon ecj-art) → codeide-lsp **1.23.6** (pin moteur 1.1.6 seul) →
+  CodeIDE **0.204.6** (catalogue miroir + CHANGELOG) — le PV de
+  franchissement sera consigné ici à l'exécution ;
+- reste : la passe appareil moto g06 (0.204.6) ; les écarts HÔTE de
+  l'inventaire (H1 fenêtre des 2 minutes de cache, H2 complétions
+  11–12 s post-sync, H3 churn de sessions, H4 arbre `build/generated`)
+  — la cause racine des « progrès minuscules » ressentis, à traiter
+  côté codeide-lsp/CodeIDE (ECARTS-SERVEUR §3).

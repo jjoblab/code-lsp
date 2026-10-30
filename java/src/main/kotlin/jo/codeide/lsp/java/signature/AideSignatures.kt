@@ -110,6 +110,13 @@ public object AideSignatures {
      * textes candidats (l'original n'en fait PAS partie : le chemin normal
      * l'a déjà tenté).
      *
+     * v1.1.6 (retours appareil) : la fermeture de la LISTE D'ARGUMENTS
+     * s'insère désormais AVANT la première accolade fermante d'un bloc
+     * ouvert avant le caret — l'ancienne queue concaténée à la FIN du
+     * texte plaçait le «)» APRÈS les «}» englobants (`f(a, 0\n})` —
+     * syntaxe cassée, appel perdu) : la virgule traînante
+     * `repeter("monip", ` ne rendait RIEN.
+     *
      * @param source le texte vivant.
      * @param caret la position du caret.
      * @return les variantes réparées, dans l'ordre d'essai.
@@ -124,7 +131,7 @@ public object AideSignatures {
                 // Famille A : refermer le littéral OUVERT au caret.
                 val fermeture = if (etat.dansChaine) "\"" else "'"
                 val base = StringBuilder(source).insert(caret, fermeture).toString()
-                variantes.add(equilibrer(base))
+                variantes.add(refermer(base, caret))
             }
 
             etat.identifiantPartiel != null -> {
@@ -132,7 +139,7 @@ public object AideSignatures {
                 val debut = etat.identifiantPartiel ?: 0
                 for (litteral in LITTERAUX_SECOURS) {
                     val base = source.substring(0, debut) + litteral + source.substring(caret)
-                    variantes.add(equilibrer(base))
+                    variantes.add(refermer(base, debut + litteral.length))
                 }
             }
 
@@ -140,7 +147,7 @@ public object AideSignatures {
                 // Familles B/F : apposer un littéral de secours au caret.
                 for (litteral in LITTERAUX_SECOURS) {
                     val base = StringBuilder(source).insert(caret, litteral).toString()
-                    variantes.add(equilibrer(base))
+                    variantes.add(refermer(base, caret + litteral.length))
                 }
             }
         }
@@ -148,65 +155,138 @@ public object AideSignatures {
     }
 
     /**
-     * Queue équilibrée d'un texte réparé : referme les délimiteurs encore
-     * ouverts (hors littéraux) — miroir textuel de la queue équilibrée du
-     * splice (étage N2, AnalyseurContexte), adapté au niveau 4 : les
-     * listes d'arguments (`(`, `[`) se referment d'abord (l'appel devient
-     * complet), un `;` termine l'INSTRUCTION avant la première accolade de
-     * corps (sinon la fermeture du corps avalerait l'instruction en cours),
-     * puis les accolades ouvertes se referment du plus interne au plus
-     * externe. Un texte sans accolade ouverte se termine simplement par
-     * `;` — la queue rend toujours du Java syntactiquement fermé.
+     * Referme un texte réparé autour du point d'insertion (v1.1.6 —
+     * restructuration de l'ancienne queue équilibrée concaténée à la fin).
+     *
+     * Règle : les listes (`(`, `[`) ouvertes AVANT le caret se referment
+     * À L'INTÉRIEUR du bloc englobant — l'insertion se fait juste AVANT la
+     * première accolade fermante qui referme un bloc ouvert avant le caret
+     * (`f(a, 0);` puis le `}` du corps — l'appel devient une instruction
+     * COMPLÈTE du bloc). Le `;` termine l'instruction ; les accolades
+     * restent ouvertes pour que la suite du texte les referme à leur
+     * place. Sans telle accolade dans la suite (caret en fin de fichier,
+     * queue classique), la fermeture complète est concaténée à la fin —
+     * l'ancien comportement : listes refermées, `;` avant la première
+     * accolade fermante, accolades refermées du plus interne au plus
+     * externe.
+     *
+     * @param texte le texte candidat (littéral déjà inséré).
+     * @param insertion la position juste APRÈS le littéral inséré (le
+     *   « caret » du texte candidat).
+     * @return le texte refermé.
      */
-    private fun equilibrer(texte: String): String {
-        val pile = ArrayDeque<Char>()
+    private fun refermer(texte: String, insertion: Int): String {
+        // Phase 1 — pile des ouvrants AVANT l'insertion (littéraux franchis).
+        // Chaque élément porte son ORIGINE : ouvert avant le caret (true) ou
+        // dans la suite (false) — seules les listes d'AVANT le caret exigent
+        // la fermeture avant l'accolade du bloc englobant.
+        val pileAvant = ArrayDeque<Pair<Char, Boolean>>()
         var dansChaine = false
         var dansCaractere = false
         var echappe = false
-        for (c in texte) {
+        val borneAvant = insertion.coerceIn(0, texte.length)
+        var i = 0
+        while (i < borneAvant) {
+            val c = texte[i]
             if (echappe) {
                 echappe = false
-                continue
-            }
-            if (c == '\\') {
+            } else if (c == '\\') {
                 echappe = true
-                continue
-            }
-            if (dansChaine) {
+            } else if (dansChaine) {
                 if (c == '"') dansChaine = false
-                continue
-            }
-            if (dansCaractere) {
+            } else if (dansCaractere) {
                 if (c == '\'') dansCaractere = false
-                continue
+            } else {
+                when (c) {
+                    '"' -> dansChaine = true
+                    '\'' -> dansCaractere = true
+                    '(', '[', '{' -> pileAvant.addLast(c to true)
+                    ')' -> if (pileAvant.isNotEmpty() && pileAvant.last().first == '(') pileAvant.removeLast()
+                    ']' -> if (pileAvant.isNotEmpty() && pileAvant.last().first == '[') pileAvant.removeLast()
+                    '}' -> if (pileAvant.isNotEmpty() && pileAvant.last().first == '{') pileAvant.removeLast()
+                }
             }
-            when (c) {
-                '"' -> dansChaine = true
-                '\'' -> dansCaractere = true
-                '(', '[', '{' -> pile.addLast(c)
-                ')' -> if (pile.isNotEmpty() && pile.last() == '(') pile.removeLast()
-                ']' -> if (pile.isNotEmpty() && pile.last() == '[') pile.removeLast()
-                '}' -> if (pile.isNotEmpty() && pile.last() == '{') pile.removeLast()
-            }
+            i++
         }
-        val fermetures = buildString {
-            var instructionTerminee = pile.isEmpty() || pile.last() != '{'
-            while (pile.isNotEmpty()) {
-                when (val ouvrant = pile.removeLast()) {
-                    '{' -> {
-                        if (!instructionTerminee) {
-                            append(';')
-                            instructionTerminee = true
-                        }
-                        append('}')
+        // Listes ouvertes avant le caret encore non refermées.
+        var listesOuvertes = pileAvant.count { it.second && (it.first == '(' || it.first == '[') }
+
+        // Phase 2 — recherche du point de COUPE : la première accolade
+        // fermante rencontrée alors que des listes ouvertes avant le caret
+        // restent non refermées. C'est l'accolade qui referme le bloc
+        // englobant (ouvrante d'avant le caret) : la fermeture de l'appel
+        // doit précéder — sinon le «)» atterrirait après le «}» (v1.1.6).
+        val pile = ArrayDeque(pileAvant)
+        var coupe = -1
+        while (i < texte.length) {
+            val c = texte[i]
+            if (echappe) {
+                echappe = false
+            } else if (dansChaine) {
+                if (c == '"') dansChaine = false
+            } else if (dansCaractere) {
+                if (c == '\'') dansCaractere = false
+            } else {
+                when (c) {
+                    '"' -> dansChaine = true
+                    '\'' -> dansCaractere = true
+                    '(', '[', '{' -> pile.addLast(c to false)
+                    ')' -> if (pile.isNotEmpty() && pile.last().first == '(') {
+                        if (pile.removeLast().second) listesOuvertes--
                     }
+                    ']' -> if (pile.isNotEmpty() && pile.last().first == '[') {
+                        if (pile.removeLast().second) listesOuvertes--
+                    }
+                    '}' -> {
+                        if (listesOuvertes > 0) {
+                            coupe = i
+                            break
+                        }
+                        if (pile.isNotEmpty() && pile.last().first == '{') pile.removeLast()
+                    }
+                }
+            }
+            i++
+        }
+
+        // Pas de coupe : fermeture complète concaténée à la fin (l'ancienne
+        // queue — caret en fin de texte, toutes les listes refermées d'un
+        // coup, `;` avant la première accolade fermante).
+        if (coupe < 0) {
+            val fermetures = buildString {
+                var instructionTerminee = pile.isEmpty() || pile.last().first != '{'
+                while (pile.isNotEmpty()) {
+                    when (val ouvrant = pile.removeLast().first) {
+                        '{' -> {
+                            if (!instructionTerminee) {
+                                append(';')
+                                instructionTerminee = true
+                            }
+                            append('}')
+                        }
+                        '(' -> append(')')
+                        else -> append(']')
+                    }
+                }
+                if (!instructionTerminee) append(';')
+            }
+            return texte + fermetures
+        }
+
+        // Coupe trouvée : refermer les listes restantes JUSTE AVANT
+        // l'accolade du bloc englobant, l'instruction terminée par «;» —
+        // les accolades ouvertes restent à la charge du texte suivant.
+        val fermante = buildString {
+            while (pile.isNotEmpty()) {
+                when (val ouvrant = pile.removeLast().first) {
+                    '{' -> break // le bloc englobant : refermé par le texte
                     '(' -> append(')')
                     else -> append(']')
                 }
             }
-            if (!instructionTerminee) append(';')
+            append(';')
         }
-        return texte + fermetures
+        return texte.substring(0, coupe) + fermante + texte.substring(coupe)
     }
 
     /**

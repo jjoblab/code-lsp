@@ -144,6 +144,7 @@ public class ServiceCompletion(
             GenreContexte.NOM_DECLARATION -> nomsDeDeclaration(contexte)
             GenreContexte.CASE_LABEL -> constantesDEnum(contexte.typeAttendu)
             GenreContexte.VALEUR_ANNOTATION -> constantesDEnum(contexte.typeAttendu)
+            GenreContexte.TOP_NIVEAU -> motsClesTopNiveau()
             GenreContexte.INCONNU -> emptyList()
         }
     }
@@ -503,6 +504,18 @@ public class ServiceCompletion(
         return mots
     }
 
+    /**
+     * Mots-clés de déclaration en position de TOP LEVEL (v1.1.6 — l'écart
+     * consigné INTEGRATION-CODEIDE §13.4) : la frappe du MOT-CLÉ lui-même
+     * (`i|`, `im|`, `import|` avant l'espace) propose les mots-clés légaux
+     * hors de tout corps de type, exactement le popup d'Android Studio —
+     * les positions spécialisées (clause `extends`, annotation, import
+     * APRÈS l'espace) restent capturées par la classification marquée et
+     * n'atteignent JAMAIS cette collecte.
+     */
+    private fun motsClesTopNiveau(): List<ItemCompletion> =
+        MOTS_CLES_TOP_NIVEAU.map { ItemCompletion(it, NatureItem.MOT_CLE) }
+
     /** Constantes d'un enum (fiche 007 : labels de switch, valeurs d'annotation — kind ENUM). */
     private fun constantesDEnum(type: TypeBinding?): List<ItemCompletion> {
         val reference = type as? ReferenceBinding ?: return emptyList()
@@ -653,5 +666,22 @@ public class ServiceCompletion(
     private companion object {
         /** Borne de la traversée du classpath par préfixe (le plafond d'affichage est en aval). */
         private const val LIMITE_COLLECTE: Int = 800
+
+        /**
+         * Mots-clés légaux en position de TOP LEVEL (hors de tout corps de
+         * type) — déclarations de types, modificateurs de déclaration de
+         * type ET mots-clés de tête de déclaration (`extends`,
+         * `implements`, `permits` : la tête d'une déclaration vit à
+         * profondeur d'accolades zéro — `class Foo e|` doit proposer
+         * `extends`). `non-sealed` n'est pas un identifiant simple : absent.
+         * Les modificateurs de MEMBRES (transient, volatile, synchronized,
+         * native) y sont illégaux : absents.
+         */
+        private val MOTS_CLES_TOP_NIVEAU: List<String> = listOf(
+            "package", "import", "public", "private", "protected",
+            "static", "final", "abstract", "strictfp", "sealed",
+            "class", "interface", "enum", "record",
+            "extends", "implements", "permits",
+        )
     }
 }

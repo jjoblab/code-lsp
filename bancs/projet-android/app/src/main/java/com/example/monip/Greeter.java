@@ -8,6 +8,10 @@ public class Greeter {
         return politesse + " " + nom + " !";
     }
 
+    public String repeter(String nom, int fois) {
+        return nom.repeat(fois);
+    }
+
     public String getPolitesse() {
         return politesse;
     }

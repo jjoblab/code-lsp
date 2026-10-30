@@ -82,5 +82,5 @@ plugins {
 // (1,000/1,000/1,000, p95 36,7 ms), benchUsages 1,000/43 ms. §13
 // d'INTEGRATION-CODEIDE.
 allprojects {
-    version = "1.1.5"
+    version = "1.1.6"
 }
