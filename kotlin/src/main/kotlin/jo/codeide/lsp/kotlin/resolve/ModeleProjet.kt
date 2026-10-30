@@ -107,6 +107,14 @@ internal enum class GenreMembreProjet {
 
     /** `val`/`var` membre (paramètre de constructeur `val`/`var` compris). */
     PROPRIETE,
+
+    /**
+     * Un TYPE IMBRIQUÉ déclaré dans le corps du conteneur (vague 2c —
+     * fiche 029 : l'imbriquée de niveau 2 est extraite comme DÉCLARATION
+     * MEMBRE du conteneur, `Aquarium.Bac` résout par le sélecteur `Bac`
+     * sur le récepteur typé `Aquarium`).
+     */
+    TYPE_IMBRIQUE,
 }
 
 /**
@@ -231,6 +239,7 @@ internal class ModeleProjet private constructor(
     private val appelables: Map<String, List<AppelableProjet>>,
     private val extensions: Map<String, List<AppelableProjet>>,
     private val paquetsConnus: Set<String>,
+    private val imbriques: Map<String, List<TypeProjet>>,
     internal val extensionsNonResolues: Boolean,
 ) {
 
@@ -247,6 +256,16 @@ internal class ModeleProjet private constructor(
      * @return le type ; `null` si le modèle n'en connaît aucun.
      */
     internal fun type(fqcn: String): TypeProjet? = types[fqcn]
+
+    /**
+     * Les types IMBRIQUÉS déclarés dans le corps du type portant ce FQCN
+     * (vague 2c — fiche 029 : la consultation imbriquée du modèle, miroir
+     * des classes `$` du classpath).
+     *
+     * @param fqcnParent le FQCN pointé du conteneur ;
+     * @return les imbriquées DIRECTES du conteneur ; liste vide si aucune.
+     */
+    internal fun imbriquesDu(fqcnParent: String): List<TypeProjet> = imbriques[fqcnParent].orEmpty()
 
     /**
      * Rend le type du projet portant ce nom SIMPLE : le package préféré
@@ -352,12 +371,25 @@ internal class ModeleProjet private constructor(
                 extensions.getOrPut(cible.fqcn) { mutableListOf() }.add(extension)
             }
             val paquets = types.keys.map(::extrairePaquet).toSet()
+            // L'index des IMBRIQUÉES par conteneur (vague 2c — fiche 029) :
+            // chaque type dont le PRÉFIXE pointé est lui-même un type connu
+            // est une imbriquée directe de ce conteneur.
+            val indexImbriques = LinkedHashMap<String, MutableList<TypeProjet>>()
+            for ((fqcn, type) in types) {
+                val point = fqcn.lastIndexOf('.')
+                if (point <= 0) continue
+                val parent = fqcn.substring(0, point)
+                if (parent in types) {
+                    indexImbriques.getOrPut(parent) { mutableListOf() }.add(type)
+                }
+            }
             return ModeleProjet(
                 types = types,
                 parNomSimple = parNomSimple,
                 appelables = appelables,
                 extensions = extensions,
                 paquetsConnus = paquets,
+                imbriques = indexImbriques,
                 extensionsNonResolues = nonResolues,
             )
         }
@@ -375,7 +407,7 @@ internal class ModeleProjet private constructor(
 
         /** Le modèle VIDE (aucune contribution — projet sans sources). */
         internal val VIDE: ModeleProjet =
-            ModeleProjet(emptyMap(), emptyMap(), emptyMap(), emptyMap(), emptySet(), false)
+            ModeleProjet(emptyMap(), emptyMap(), emptyMap(), emptyMap(), emptySet(), emptyMap(), false)
 
         /**
          * Extrait la contribution d'un fichier KOTLIN parsé (le scan des
@@ -397,15 +429,21 @@ internal class ModeleProjet private constructor(
             val appelables = mutableListOf<AppelableProjet>()
             val extensions = mutableListOf<AppelableProjet>()
             for (enfant in arbre.noeud.enfants) {
-                collecterDeclaration(enfant, paquet, uri, types, appelables, extensions)
+                collecterDeclaration(enfant, paquet, chemin = emptyList(), uri, types, appelables, extensions)
             }
             return ContributionFichier(uri, paquet, types, appelables, extensions)
         }
 
-        /** Collecte une déclaration (récursif pour les membres et types imbriqués). */
+        /**
+         * Collecte une déclaration (récursif pour les membres et types
+         * imbriqués) — le [chemin] porte les noms des types ENGLOBANTS
+         * (vide au niveau supérieur) : une imbriquée vit au FQCN pointé
+         * `paquet.Conteneur.Imbriquee` (vague 2c — fiche 029).
+         */
         private fun collecterDeclaration(
             noeud: NoeudArbre,
             paquet: String,
+            chemin: List<String>,
             uri: String,
             types: MutableList<TypeProjet>,
             appelables: MutableList<AppelableProjet>,
@@ -414,10 +452,10 @@ internal class ModeleProjet private constructor(
             when (noeud.genre) {
                 KtNodeTypes.CLASS, KtNodeTypes.OBJECT_DECLARATION -> {
                     val nom = nomDeDeclaration(noeud) ?: return
-                    types.add(typeKotlin(noeud, nom, paquet, uri))
+                    types.add(typeKotlin(noeud, nom, paquet, chemin, uri))
                     val corps = noeud.enfants.firstOrNull { it.genre == KtNodeTypes.CLASS_BODY } ?: return
                     for (membre in corps.enfants) {
-                        collecterDeclaration(membre, paquet, uri, types, appelables, extensions)
+                        collecterDeclaration(membre, paquet, chemin + nom, uri, types, appelables, extensions)
                     }
                 }
                 KtNodeTypes.FUN -> {
@@ -439,8 +477,19 @@ internal class ModeleProjet private constructor(
             }
         }
 
-        /** Construit le [TypeProjet] d'une déclaration de type Kotlin (nœud). */
-        private fun typeKotlin(noeud: NoeudArbre, nom: String, paquet: String, uri: String): TypeProjet {
+        /**
+         * Construit le [TypeProjet] d'une déclaration de type Kotlin (nœud) —
+         * les types IMBRIQUÉS du corps entrent AUSSI comme membres
+         * TYPE_IMBRIQUE du conteneur (vague 2c — fiche 029 : `Aquarium.Bac`
+         * résout par le sélecteur `Bac` sur le récepteur `Aquarium`).
+         */
+        private fun typeKotlin(
+            noeud: NoeudArbre,
+            nom: String,
+            paquet: String,
+            chemin: List<String>,
+            uri: String,
+        ): TypeProjet {
             val genre = when {
                 noeud.genre == KtNodeTypes.OBJECT_DECLARATION -> GenreTypeProjet.OBJET
                 porteurModificateur(noeud, KtTokens.ENUM_MODIFIER) -> GenreTypeProjet.ENUM
@@ -486,6 +535,14 @@ internal class ModeleProjet private constructor(
                             val n = nomDeDeclaration(membre) ?: continue
                             membres.add(MembreProjet(n, GenreMembreProjet.PROPRIETE, typeEcritPropriete(membre)))
                         }
+                        KtNodeTypes.CLASS, KtNodeTypes.OBJECT_DECLARATION -> {
+                            // Un type IMBRIQUÉ du corps est un MEMBRE du
+                            // conteneur (vague 2c — fiche 029) : le
+                            // sélecteur `Bac` sur un récepteur `Aquarium`
+                            // résout, et le typage rend l'imbriquée.
+                            val n = nomDeDeclaration(membre) ?: continue
+                            membres.add(MembreProjet(n, GenreMembreProjet.TYPE_IMBRIQUE, null))
+                        }
                         else -> Unit
                     }
                 }
@@ -503,7 +560,9 @@ internal class ModeleProjet private constructor(
 
             var type = TypeProjet(
                 uri = uri,
-                fqcn = if (paquet.isEmpty()) nom else "$paquet.$nom",
+                fqcn = (if (paquet.isEmpty()) chemin else listOf(paquet) + chemin).let {
+                    if (it.isEmpty()) nom else it.joinToString(".") + "." + nom
+                },
                 nomSimple = nom,
                 genre = genre,
                 supertypesEcrits = supertypesEcrits(noeud),
@@ -530,8 +589,12 @@ internal class ModeleProjet private constructor(
             return enfants.filter { it.genre == genre }
         }
 
-        /** Les noms de types ÉCRITS dans la clause de supertypes (`Base` pour `: Base()`). */
-        private fun supertypesEcrits(noeud: NoeudArbre): List<String> {
+        /**
+         * Les noms de types ÉCRITS dans la clause de supertypes (`Base` pour
+         * `: Base()`) — INTERNE : la passe sémantique s'en sert aussi pour
+         * les OBJETS ANONYMES (vague 2c — la pile des this, fiche 028).
+         */
+        internal fun supertypesEcrits(noeud: NoeudArbre): List<String> {
             val clause = noeud.enfantsDe(KtNodeTypes.SUPER_TYPE_LIST).firstOrNull()
                 ?: return emptyList()
             val noms = mutableListOf<String>()

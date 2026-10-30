@@ -260,11 +260,72 @@ internal class SessionLangageKotlinDocuments(
         if (imports.any { nomEffectifImport(it) == nom }) return emptyList()
         val jokers = imports.filter { it.estJoker() }.mapNotNull { it.nomQualifie() }.toSet()
 
+        // Déjà résolu par la RÉSOLUTION elle-même (vague 2c — fiche 044 :
+        // un membre HÉRITÉ ne propose AUCUN import — même prédicat que le
+        // diagnostic ADR 0216, sinon l'ampoule proposerai un import absurde
+        // pour un appel déjà résolu).
+        val univers = construireUnivers(document, uri, guichet.vue, guichet.vueJvm)
+        if (univers != null) {
+            val region = regionContenantDocument(document.arbre.noeud, deplacement)
+            val liaison = jo.codeide.lsp.kotlin.resolve.MarcheTypee.Liaison(
+                arbre = document.arbre, univers = univers, region = region,
+            )
+            val pile = jo.codeide.lsp.kotlin.resolve.Couches.aPosition(document.arbre, univers, liaison, deplacement)
+            val declares = nomsDeclaresDuDocument(document)
+            if (univers.resoudreNomNu(nom, declares, liaison, pile) != jo.codeide.lsp.kotlin.resolve.UniversPreuves.Verdict.SIGNALABLE &&
+                univers.resoudreNomType(nom, pile) != jo.codeide.lsp.kotlin.resolve.UniversPreuves.Verdict.SIGNALABLE
+            ) {
+                return emptyList()
+            }
+        }
+
         return guichet.vueJvm.fqcnParNomSimple(nom)
             .filterNot { fqcn ->
                 val paquet = fqcn.substringBeforeLast('.', "")
                 paquet in jokers
             }
+    }
+
+    /** La plus profonde déclaration FUN/PROPERTY couvrant la position (ou `null`). */
+    private fun regionContenantDocument(
+        racine: jo.codeide.lsp.kotlin.parse.NoeudArbre,
+        deplacement: Int,
+    ): jo.codeide.lsp.kotlin.parse.NoeudArbre? {
+        var trouve: jo.codeide.lsp.kotlin.parse.NoeudArbre? = null
+        fun marcher(noeud: jo.codeide.lsp.kotlin.parse.NoeudArbre) {
+            if (deplacement < noeud.debut || deplacement > noeud.fin) return
+            if (noeud.genre == org.jetbrains.kotlin.kmp.parser.KtNodeTypes.FUN ||
+                noeud.genre == org.jetbrains.kotlin.kmp.parser.KtNodeTypes.PROPERTY
+            ) {
+                trouve = noeud
+            }
+            noeud.enfants.forEach(::marcher)
+        }
+        marcher(racine)
+        return trouve
+    }
+
+    /** Les noms DÉCLARÉS du document (la garde documentaire, fiche 017). */
+    private fun nomsDeclaresDuDocument(document: DocumentOuvert): Set<String> {
+        val noms = mutableSetOf<String>()
+        fun collecter(noeud: jo.codeide.lsp.kotlin.parse.NoeudArbre, dansPrimaire: Boolean) {
+            val parametreNuDuPrimaire = dansPrimaire &&
+                noeud.genre == org.jetbrains.kotlin.kmp.parser.KtNodeTypes.VALUE_PARAMETER &&
+                noeud.jetonsPropres.none {
+                    it.genre == org.jetbrains.kotlin.kmp.lexer.KtTokens.VAL_KEYWORD ||
+                        it.genre == org.jetbrains.kotlin.kmp.lexer.KtTokens.VAR_KEYWORD
+                }
+            if (noeud.genre in jo.codeide.lsp.kotlin.resolve.UniversPreuves.GENRES_DECLARATION && !parametreNuDuPrimaire) {
+                noeud.jetonsPropres
+                    .firstOrNull { it.genre == org.jetbrains.kotlin.kmp.lexer.KtTokens.IDENTIFIER }?.texte
+                    ?.let { noms.add(it) }
+            }
+            for (enfant in noeud.enfants) {
+                collecter(enfant, dansPrimaire || enfant.genre == org.jetbrains.kotlin.kmp.parser.KtNodeTypes.PRIMARY_CONSTRUCTOR)
+            }
+        }
+        collecter(document.arbre.noeud, dansPrimaire = false)
+        return noms
     }
 
     /** La plus profonde REFERENCE_EXPRESSION couvrant la position (ou `null`). */
@@ -305,17 +366,54 @@ internal class SessionLangageKotlinDocuments(
 
     /**
      * Rend le survol (S2) au point demandé — chaîne conservatrice : document
-     * courant, autres documents ouverts, scan des racines (fiche 049).
+     * courant, autres documents ouverts, scan des racines (fiche 049) ;
+     * vague 2c (fiche 040) : à défaut, la résolution des membres HÉRITÉS de
+     * bibliothèque (vue JVM — `val layoutInflater: LayoutInflater` avec
+     * propriétaire). L'univers se construit HORS verrou de lecture (miroir
+     * de la passe de diagnostics).
      */
     override fun survol(uri: String, deplacement: Int): SurvolKotlin? {
+        val document =
+            verrou.read {
+                if (fermee) return@read null
+                documents[uri]
+            } ?: return null
+        val autres = verrou.read {
+            if (fermee) return@read emptyList()
+            documents.entries.filter { it.key != uri }.map { it.value }
+        }
+        val guichet = indexSiPret()
+        val univers = construireUnivers(document, uri, guichet?.vue, guichet?.vueJvm)
         return verrou.read {
             if (fermee) return@read null
-            val document = documents[uri] ?: return@read null
-            val autres = documents.entries
-                .filter { it.key != uri }
-                .map { it.value }
-            SurvolDocuments.survol(document, autres, scanPublie, deplacement)
+            SurvolDocuments.survol(document, autres, scanPublie, deplacement, univers)
         }
+    }
+
+    /**
+     * Construit l'univers des preuves d'un document (vague 2c — survol et
+     * quick-fix d'import consultent la même matière que la passe de
+     * diagnostics : modèle du document + contributions, index, vue JVM).
+     */
+    private fun construireUnivers(
+        document: DocumentOuvert,
+        uri: String,
+        index: jo.codeide.lsp.kotlin.index.VueAppelables?,
+        vueJvm: jo.codeide.lsp.kotlin.resolve.VueJvmMembres?,
+    ): jo.codeide.lsp.kotlin.resolve.UniversPreuves? {
+        if (index == null) return null
+        val batisseur = jo.codeide.lsp.kotlin.resolve.ModeleProjet.Batisseur()
+        batisseur.ajouter(jo.codeide.lsp.kotlin.resolve.ModeleProjet.contributionKotlin(document.arbre, uri = ""))
+        contributionsAuConsult(uri).forEach(batisseur::ajouter)
+        return jo.codeide.lsp.kotlin.resolve.UniversPreuves(
+            arbre = document.arbre,
+            paquet = document.arbre.directivePackage()?.nomQualifie().orEmpty(),
+            modele = batisseur.figer(),
+            index = index,
+            etatScan = etatScanAuConsult(),
+            script = uri.endsWith(".kts"),
+            vueJvm = vueJvm,
+        )
     }
 
     // ------------------------------------------------------------------
@@ -413,7 +511,22 @@ internal class SessionLangageKotlinDocuments(
      * racines posées (projet vide — connaissance complète).
      */
     internal fun contributionsAuConsult(uriExclue: String): List<jo.codeide.lsp.kotlin.resolve.ContributionFichier> {
-        return scanneur.snapshotAuConsult()?.contributionsHors(uriExclue).orEmpty()
+        // Les documents OUVERTS priment leurs doublons du scan (vague 2c —
+        // fiche 044 : le frère OUVERT VIVANT, l'arbre frais JAMAIS le disque
+        // périmé) : leurs contributions vives d'abord, le scan filtré de
+        // leurs URI ensuite (le document COURANT est ajouté séparément par
+        // la passe, uri `""`).
+        val ouvertes = verrou.read {
+            if (fermee) return@read emptyList()
+            documents.entries
+                .filter { it.key != uriExclue }
+                .map { (uri, document) ->
+                    jo.codeide.lsp.kotlin.resolve.ModeleProjet.contributionKotlin(document.arbre, uri)
+                }
+        }
+        val scan = scanneur.snapshotAuConsult()?.contributionsHors(uriExclue).orEmpty()
+        val urisOuvertes = ouvertes.map { it.uri }.toSet()
+        return ouvertes + scan.filter { it.uri !in urisOuvertes }
     }
 
     /**

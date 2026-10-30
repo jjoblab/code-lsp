@@ -9,6 +9,7 @@ import jo.codeide.lsp.kotlin.index.VueAppelables
 import jo.codeide.lsp.kotlin.parse.NoeudArbre
 import jo.codeide.lsp.kotlin.parse.kt.KtFichier
 import jo.codeide.lsp.kotlin.resolve.ContributionFichier
+import jo.codeide.lsp.kotlin.resolve.Couches
 import jo.codeide.lsp.kotlin.resolve.EtatScan
 import jo.codeide.lsp.kotlin.resolve.MarcheTypee
 import jo.codeide.lsp.kotlin.resolve.ModeleProjet
@@ -80,7 +81,11 @@ internal object CompletionMembres {
         )
         val region = regionContenant(arbre.noeud, deplacement)
         val liaison = MarcheTypee.Liaison(arbre = arbre, univers = univers, region = region)
-        val typeRecepteur = TypageBorne.typeDeLexpression(recepteur, univers, liaison)
+        // La PILE DES THIS au caret (vague 2c — fiches 028/040 : `this.` type
+        // la couche profonde, les membres implicites hérités `layoutInflater`
+        // type le récepteur, les lambdas d'application portent le leur).
+        val pile = Couches.aPosition(arbre, univers, liaison, deplacement)
+        val typeRecepteur = TypageBorne.typeDeLexpression(recepteur, univers, liaison, pile)
             ?: return emptyList()
         return univers.propositionsMembres(typeRecepteur).map(::PropositionKotlin)
     }

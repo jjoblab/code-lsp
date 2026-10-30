@@ -242,14 +242,23 @@ internal object LecteurDeclarationsJava {
 
                 jeton == "@" -> {
                     if (curseur.suitMotCleType()) {
-                        lireType(curseur, paquet, chemin, uri, types)?.let(types::add)
+                        lireType(curseur, paquet, chemin, uri, types)?.let { type ->
+                            types.add(type)
+                            // L'imbriquée est AUSSI une DÉCLARATION MEMBRE du
+                            // conteneur (vague 2c — fiche 029 : la voie du
+                            // sélecteur `Aquarium.Bac` résout par `Bac`).
+                            membres.add(MembreProjet(type.nomSimple, GenreMembreProjet.TYPE_IMBRIQUE, null))
+                        }
                     } else {
                         curseur.avancer()
                         curseur.sauterAnnotations()
                     }
                 }
 
-                jeton in MOTS_CLE_TYPE -> lireType(curseur, paquet, chemin, uri, types)?.let(types::add)
+                jeton in MOTS_CLE_TYPE -> lireType(curseur, paquet, chemin, uri, types)?.let { type ->
+                    types.add(type)
+                    membres.add(MembreProjet(type.nomSimple, GenreMembreProjet.TYPE_IMBRIQUE, null))
+                }
 
                 jeton in MODIFICATEURS -> curseur.avancer()
 
@@ -272,8 +281,11 @@ internal object LecteurDeclarationsJava {
             return
         }
 
-        // Le TYPE du membre (éventuellement qualifié/générique/tableau).
-        lireNomType(curseur)
+        // Le TYPE du membre (éventuellement qualifié/générique/tableau) —
+        // le nom SIMPLE tête est retenu comme type écrit (vague 2c : le
+        // typage d'un sélecteur sur récepteur Java projet s'en sert,
+        // `bac.capacite` type `Int`).
+        val typeEcrit = nomKotlinDeTypeJava(lireNomType(curseur))
         while (curseur.aUnSuivant() && (curseur.courant() == "." || curseur.courant() == "<" || curseur.courant() == "[")) {
             when (curseur.courant()) {
                 "." -> {
@@ -308,12 +320,14 @@ internal object LecteurDeclarationsJava {
                     curseur.avancer()
                 }
                 if (membres != null && nom != nomClasse) {
-                    membres.add(MembreProjet(nom, GenreMembreProjet.FONCTION, null))
+                    membres.add(MembreProjet(nom, GenreMembreProjet.FONCTION, typeEcrit))
                     // Propriété synthétique d'accesseur (ADR 0219) :
-                    // `getTitre()` → `titre` ; `estValide()` → `valide`.
+                    // `getTitre()` → `titre` ; `estValide()` → `valide` ;
+                    // `setStyle(...)` → `style` (vague 2c — le SETTER
+                    // aussi, l'affectation `style = 1` résout par lui).
                     val propriete = proprieteSynthetique(nom)
-                    if (propriete != null) {
-                        membres.add(MembreProjet(propriete, GenreMembreProjet.PROPRIETE, null))
+                    if (propriete != null && membres.none { it.nom == propriete }) {
+                        membres.add(MembreProjet(propriete, GenreMembreProjet.PROPRIETE, typeEcrit))
                     }
                 }
             }
@@ -330,10 +344,24 @@ internal object LecteurDeclarationsJava {
                 }
                 if (curseur.aUnSuivant() && curseur.courant() == ";") curseur.avancer()
                 if (membres != null && nom != nomClasse) {
-                    membres.add(MembreProjet(nom, GenreMembreProjet.PROPRIETE, null))
+                    membres.add(MembreProjet(nom, GenreMembreProjet.PROPRIETE, typeEcrit))
                 }
             }
             else -> Unit // forme inattendue : le tour suivant avance
+        }
+    }
+
+    /**
+     * Le nom de type KOTLIN d'un type Java écrit (vague 2c — le typage des
+     * membres Java : `int` → `Int`, `String` → `String` ; `null` si absent).
+     */
+    private fun nomKotlinDeTypeJava(nomJava: String?): String? {
+        if (nomJava == null) return null
+        return when (nomJava) {
+            "int" -> "Int"; "long" -> "Long"; "short" -> "Short"; "byte" -> "Byte"
+            "double" -> "Double"; "float" -> "Float"; "char" -> "Char"; "boolean" -> "Boolean"
+            "void" -> "Unit"
+            else -> nomJava
         }
     }
 
@@ -350,6 +378,14 @@ internal object LecteurDeclarationsJava {
                 return if (reste.length > 1 && reste[0].isUpperCase() && reste[1].isUpperCase()) reste
                 else reste.replaceFirstChar { it.lowercaseChar() }
             }
+            nomMethode.length > 3 && nomMethode.startsWith("set") -> {
+                // Vague 2c : le SETTER synthétise AUSSI sa propriété
+                // (`setTitle` → `title`) — l'AFFECTATION nue y résout
+                // (ADR 0219, miroir de la vue JVM).
+                val reste = nomMethode.substring(3)
+                return if (reste.length > 1 && reste[1].isUpperCase()) reste
+                else reste.replaceFirstChar { it.lowercaseChar() }
+            }
             else -> return null
         }
     }
@@ -363,10 +399,11 @@ internal object LecteurDeclarationsJava {
         return nom
     }
 
-    /** Le FQCN d'un type Java (package + chemin d'englobants + nom). */
+    /** Le FQCN d'un type Java (package + chemin d'englobants + nom — le SÉPARATEUR compte, fiche 029 : `Aquarium.Bac`). */
     private fun fqcn(paquet: String, chemin: List<String>, nom: String): String {
         val base = if (paquet.isEmpty()) "" else "$paquet."
-        return base + chemin.joinToString(".") + nom
+        val englobants = if (chemin.isEmpty()) "" else chemin.joinToString(".") + "."
+        return base + englobants + nom
     }
 
     /** Un identifiant Java : lettres, chiffres, `_`, `$` (ni mot-clé). */

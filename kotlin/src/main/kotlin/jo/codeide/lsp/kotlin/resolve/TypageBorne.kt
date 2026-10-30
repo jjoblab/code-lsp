@@ -43,11 +43,17 @@ internal object TypageBorne {
     // ------------------------------------------------------------------
 
     /**
-     * Le type borné d'une EXPRESSION du document (fiche 046).
+     * Le type borné d'une EXPRESSION du document (fiche 046 ; vague 2c —
+     * la PILE DES THIS type `this`, les membres IMPLICITES hérités
+     * `layoutInflater`/`compte`, les références de classe IMPORTÉES
+     * `Peinture`, les RETOURS de membres de bibliothèque et les objets
+     * ANONYMES).
      *
      * @param noeud l'expression à typer ;
      * @param univers l'univers des preuves (modèle + imports + index) ;
      * @param liaison la liaison nom → type écrit des portées ;
+     * @param pile la pile des this de la position (vague 2c — vide au
+     * niveau du document) ;
      * @return le type ; `null` si l'expression n'est pas typable à cet
      * étage (le sélecteur reste muet, D3).
      */
@@ -55,6 +61,7 @@ internal object TypageBorne {
         noeud: NoeudArbre,
         univers: UniversPreuves,
         liaison: MarcheTypee.Liaison,
+        pile: PileThis = PileThis.VIDE,
     ): TypeValeur? {
         return when (noeud.genre) {
             KtNodeTypes.REFERENCE_EXPRESSION -> {
@@ -93,10 +100,41 @@ internal object TypageBorne {
                 liaison(nom, noeud.debut)?.let { ecrit ->
                     univers.resoudreTypeEcrit(ecrit)?.let { return it }
                 }
+                // Un type IMBRIQUÉ d'un SUPERTYPE en nom simple (vague 2c
+                // — fiche 028 : `Resultats` nu type `Base$Resultats`).
+                pile.membre(nom)?.takeIf { it.genre == GenreMembreHerite.TYPE_IMBRIQUE }
+                    ?.typeImbrique?.let { return it }
+                // Un MEMBRE HÉRITÉ du récepteur implicite (vague 2c —
+                // fiches 028/040 : `compte` type `Int`, `layoutInflater`
+                // type `LayoutInflater` par le descripteur du lien).
+                pile.membre(nom)?.let { membre ->
+                    membre.typeImbrique?.let { return it }
+                    membre.typeEcrit?.let { ecrit ->
+                        univers.resoudreTypeEcrit(ecrit)?.let { return it }
+                    }
+                    membre.lienJvm?.let { lien ->
+                        univers.vueJvm?.typeDuMembre(lien, nom)?.let { return TypeValeur.Jvm(it) }
+                    }
+                }
                 // Un type du PROJET en position d'expression (objet,
                 // accès statique : `Calculatrice.somme(…)`).
                 univers.typeProjetEcrit(nom)?.let { return TypeValeur.Projet(it) }
+                // Une classe IMPORTÉE ou par DÉFAUT (vague 2c — fiche 028 :
+                // `Peinture` type `exo.peint.Peinture`, le récepteur de
+                // `Peinture.Capitaine.ROND` et de `Peinture().apply { }`).
+                univers.typeImporteOuDefaut(nom)?.let { return it }
                 null
+            }
+            // `this` : le type de la couche la plus PROFONDE de la pile
+            // (vague 2c — fiche 040 : `this.` dans une Activity propose
+            // les membres hérités de la chaîne).
+            KtNodeTypes.THIS_EXPRESSION -> pile.typeInterne
+            // Un OBJET ANONYME : le type de son premier supertype RÉSOLU
+            // (vague 2c — fiche 028 : `object : Autre() { … }` type Autre).
+            KtNodeTypes.OBJECT_LITERAL -> {
+                val declaration = noeud.enfants.firstOrNull { it.genre == KtNodeTypes.OBJECT_DECLARATION }
+                val supertype = ModeleProjet.supertypesEcrits(declaration ?: noeud).firstOrNull()
+                supertype?.let { univers.supertypeResolu(it) }
             }
             KtNodeTypes.CALL_EXPRESSION -> {
                 val nom = noeud.enfants
@@ -105,6 +143,9 @@ internal object TypageBorne {
                 if (nom.isEmpty()) return null
                 // Un constructeur du projet : le type construit.
                 univers.typeProjetEcrit(nom)?.let { return TypeValeur.Projet(it) }
+                // Un constructeur d'une classe IMPORTÉE ou par DÉFAUT
+                // (vague 2c — `Peinture()` type la bibliothèque).
+                univers.typeImporteOuDefaut(nom)?.let { return it }
                 // Le RETOUR écrit d'une fonction du projet.
                 univers.modele.appelables(nom, univers.paquet)
                     .firstNotNullOfOrNull { it.typeRetourNomme }
@@ -114,8 +155,7 @@ internal object TypageBorne {
             KtNodeTypes.DOT_QUALIFIED_EXPRESSION, KtNodeTypes.SAFE_ACCESS_EXPRESSION -> {
                 val recepteur = noeud.enfants.firstOrNull() ?: return null
                 val selecteur = noeud.enfants.lastOrNull() ?: return null
-                val typeRecepteur = typeDeLexpression(recepteur, univers, liaison) ?: return null
-                if (typeRecepteur !is TypeValeur.Projet) return null
+                val typeRecepteur = typeDeLexpression(recepteur, univers, liaison, pile) ?: return null
                 val nomMembre = when (selecteur.genre) {
                     KtNodeTypes.REFERENCE_EXPRESSION -> selecteur.texteCanonique
                     KtNodeTypes.CALL_EXPRESSION ->
@@ -124,7 +164,40 @@ internal object TypageBorne {
                     else -> ""
                 }
                 if (nomMembre.isEmpty()) return null
-                univers.resoudreTypeEcrit(typeRecepteur.type.membre(nomMembre)?.typeRetourNomme)
+                when (typeRecepteur) {
+                    is TypeValeur.Projet -> {
+                        // Une IMBRIQUÉE du modèle d'abord (vague 2c —
+                        // `Aquarium.Bac` type l'imbriquée).
+                        univers.modele.imbriquesDu(typeRecepteur.type.fqcn)
+                            .firstOrNull { it.nomSimple == nomMembre }
+                            ?.let { return TypeValeur.Projet(it) }
+                        // Un membre DÉCLARÉ (le socle 2a), puis un membre
+                        // HÉRITÉ de la clôture (vague 2c — `this.layoutInflater`
+                        // type LayoutInflater par le descripteur du lien).
+                        univers.resoudreTypeEcrit(typeRecepteur.type.membre(nomMembre)?.typeRetourNomme)
+                            ?: univers.clotureDe(typeRecepteur.type)?.membre(nomMembre)?.let { membre ->
+                                membre.typeImbrique
+                                    ?: membre.typeEcrit?.let { ecrit -> univers.resoudreTypeEcrit(ecrit) }
+                                    ?: membre.lienJvm?.let { lien ->
+                                        univers.vueJvm?.typeDuMembre(lien, nomMembre)
+                                            ?.let { TypeValeur.Jvm(it) }
+                                    }
+                            }
+                    }
+                    is TypeValeur.Jvm -> {
+                        // Le RETOUR/CHAMP d'un membre de bibliothèque (vague
+                        // 2c — `layoutInflater.inflate(…)` : le getter type
+                        // LayoutInflater, sa méthode type View) puis
+                        // l'IMBRIQUÉE `$` (`Peinture.Capitaine` type
+                        // `Peinture$Capitaine`).
+                        val mape = univers.mapeJvm(typeRecepteur.fqcn)
+                        univers.vueJvm?.typeDuMembre(mape, nomMembre)?.let { return TypeValeur.Jvm(it) }
+                        univers.vueJvm?.possedeImbrique(mape, nomMembre)
+                            ?.takeIf { it }
+                            ?.let { return TypeValeur.Jvm("${typeRecepteur.fqcn}\$$nomMembre") }
+                        null
+                    }
+                }
             }
             // Les LITTÉRAUX : la famille décide (chaîne, entier, flottant,
             // booléen, caractère — fiche 046 : le littréla type son récepteur).

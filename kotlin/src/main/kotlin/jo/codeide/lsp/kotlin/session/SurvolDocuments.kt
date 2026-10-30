@@ -15,6 +15,12 @@ import jo.codeide.lsp.kotlin.parse.kt.KtDeclaration
 import jo.codeide.lsp.kotlin.parse.kt.KtFichier
 import jo.codeide.lsp.kotlin.parse.kt.KtFonction
 import jo.codeide.lsp.kotlin.parse.kt.KtPropriete
+import jo.codeide.lsp.kotlin.resolve.Couches
+import jo.codeide.lsp.kotlin.resolve.MarcheTypee
+import jo.codeide.lsp.kotlin.resolve.MembreChaineJvm
+import jo.codeide.lsp.kotlin.resolve.TypeValeur
+import jo.codeide.lsp.kotlin.resolve.TypageBorne
+import jo.codeide.lsp.kotlin.resolve.UniversPreuves
 import org.jetbrains.kotlin.kmp.lexer.KtTokens
 import org.jetbrains.kotlin.kmp.parser.KtNodeTypes
 
@@ -55,6 +61,7 @@ internal object SurvolDocuments {
         autres: List<DocumentOuvert>,
         scan: ScanSources?,
         deplacement: Int,
+        univers: UniversPreuves? = null,
     ): SurvolKotlin? {
         val identifiant = jetonIdentifierA(cible.arbre.noeud, deplacement) ?: return null
         val nom = identifiant.texte
@@ -77,8 +84,131 @@ internal object SurvolDocuments {
         }
 
         // 3. Déclarations externes du scan (L1).
-        val externe = scan?.declaration(nom) ?: return null
-        return SurvolKotlin(signature = externe.signature, documentation = externe.documentation)
+        val externe = scan?.declaration(nom)
+        if (externe != null) {
+            return SurvolKotlin(signature = externe.signature, documentation = externe.documentation)
+        }
+
+        // 4. Résolution des membres HÉRITÉS de bibliothèque (vague 2c —
+        // fiche 040 : le survol IMPLICITE `layoutInflater` rend `val
+        // layoutInflater: LayoutInflater` avec son propriétaire déclarant,
+        // le survol QUALIFIÉ `this.layoutInflater` rend le même — miroir
+        // Android Studio).
+        return univers?.let { survolMembreHerite(cible, it, identifiant, nom) }
+    }
+
+    /**
+     * Le survol d'un membre HÉRITÉ de bibliothèque (vague 2c — fiche 040)
+     * : l'identifiant désigné est un SÉLECTEUR sur récepteur typé
+     * (`this.layoutInflater`, `layoutInflater.inflate`) ou un NOM NU de
+     * membre implicite (`layoutInflater` dans une Activity) — la vue JVM
+     * rend la signature dépouillée du descripteur et le PROPRIÉTAIRE
+     * déclarant.
+     *
+     * @param cible le document ouvert visé ;
+     * @param univers l'univers des preuves (modèle + vue JVM) ;
+     * @param identifiant le jeton désigné ;
+     * @param nom le nom du membre.
+     * @return le survol ; `null` si la référence ne résout pas à un membre
+     * de bibliothèque (silence honnête D3).
+     */
+    private fun survolMembreHerite(
+        cible: DocumentOuvert,
+        univers: UniversPreuves,
+        identifiant: JetonBrut,
+        nom: String,
+    ): SurvolKotlin? {
+        val vue = univers.vueJvm ?: return null
+        val region = regionContenant(cible.arbre.noeud, identifiant.debut)
+        val liaison = MarcheTypee.Liaison(arbre = cible.arbre, univers = univers, region = region)
+        val pile = Couches.aPosition(cible.arbre, univers, liaison, identifiant.debut)
+
+        // La référence désignée : SÉLECTEUR d'une expression qualifiée (le
+        // récepteur AVANT elle) ou NOM NU implicite.
+        val qualifiee = qualifieeCouvrante(cible.arbre.noeud, identifiant.debut)
+        val recepteur: NoeudArbre? = qualifiee?.enfants?.firstOrNull()
+        val typeRecepteur: TypeValeur? = if (
+            recepteur != null && recepteur.fin <= identifiant.debut
+        ) {
+            TypageBorne.typeDeLexpression(recepteur, univers, liaison, pile)
+        } else {
+            // Nom NU : le récepteur implicite — la pile rend le membre.
+            val membre = pile.membre(nom) ?: return null
+            val lien = membre.lienJvm ?: return null
+            val chaine = vue.membreChaine(univers.mapeJvm(lien), nom) ?: return null
+            return renduMembreJvm(chaine.proprietaire, chaine, nom)
+        }
+
+        val fqcn = when (typeRecepteur) {
+            is TypeValeur.Jvm -> typeRecepteur.fqcn
+            is TypeValeur.Projet -> {
+                // Récepteur PROJET : le membre peut vivre sur un maillon JVM
+                // de la clôture (`this.layoutInflater` dans une Activity
+                // projet — le lien porte le propriétaire déclarant).
+                val membre = univers.clotureDe(typeRecepteur.type)?.membre(nom) ?: return null
+                val lien = membre.lienJvm ?: return null
+                val chaine = vue.membreChaine(univers.mapeJvm(lien), nom) ?: return null
+                return renduMembreJvm(chaine.proprietaire, chaine, nom)
+            }
+            null -> return null
+        }
+        val chaine = vue.membreChaine(univers.mapeJvm(fqcn), nom) ?: return null
+        return renduMembreJvm(chaine.proprietaire, chaine, nom)
+    }
+
+    /**
+     * Le rendu d'un membre JVM (vague 2c — fiche 040) : `val x: T`,
+     * `var x: T` (getter+setter/setter seul) ou `fun x(A, B): R`, suivi du
+     * PROPRIÉTAIRE déclarant entre parenthèses.
+     */
+    private fun renduMembreJvm(proprietaire: String, chaine: MembreChaineJvm, nom: String): SurvolKotlin? {
+        val signature = chaine.proprieteDerivee?.let { derivee ->
+            val genre = if (derivee.estVar) "var" else "val"
+            "$genre $nom: ${typeSimple(derivee.typeFqcn)}"
+        } ?: chaine.signatures.firstOrNull()?.let { signature ->
+            if (signature.estChamp) {
+                "var $nom: ${typeSimple(signature.retour)}"
+            } else {
+                val parametres = signature.parametres?.joinToString(", ") { typeSimple(it) }.orEmpty()
+                val retour = signature.retour?.let { typeSimple(it) } ?: "Unit"
+                "fun $nom($parametres): $retour"
+            }
+        } ?: return null
+        return SurvolKotlin(signature = "$signature ($proprietaire)", documentation = null)
+    }
+
+    /** Le nom SIMPLE d'affichage d'un FQCN (`android.view.LayoutInflater` → `LayoutInflater`). */
+    private fun typeSimple(fqcn: String?): String =
+        fqcn?.substringAfterLast('.')?.substringAfterLast('$')?.ifEmpty { fqcn } ?: "?"
+
+    /** La plus profonde expression qualifiée couvrant la position (ou `null`). */
+    private fun qualifieeCouvrante(racine: NoeudArbre, deplacement: Int): NoeudArbre? {
+        var trouve: NoeudArbre? = null
+        fun marcher(noeud: NoeudArbre) {
+            if (deplacement < noeud.debut || deplacement > noeud.fin) return
+            if (noeud.genre == KtNodeTypes.DOT_QUALIFIED_EXPRESSION ||
+                noeud.genre == KtNodeTypes.SAFE_ACCESS_EXPRESSION
+            ) {
+                trouve = noeud
+            }
+            noeud.enfants.forEach(::marcher)
+        }
+        marcher(racine)
+        return trouve
+    }
+
+    /** La plus profonde déclaration FUN/PROPERTY couvrant la position (ou `null`). */
+    private fun regionContenant(racine: NoeudArbre, deplacement: Int): NoeudArbre? {
+        var trouve: NoeudArbre? = null
+        fun marcher(noeud: NoeudArbre) {
+            if (deplacement < noeud.debut || deplacement > noeud.fin) return
+            if (noeud.genre == KtNodeTypes.FUN || noeud.genre == KtNodeTypes.PROPERTY) {
+                trouve = noeud
+            }
+            noeud.enfants.forEach(::marcher)
+        }
+        marcher(racine)
+        return trouve
     }
 
     // ------------------------------------------------------------------

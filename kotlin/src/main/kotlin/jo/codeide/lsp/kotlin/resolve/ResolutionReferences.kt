@@ -57,6 +57,62 @@ internal class UniversPreuves(
     /** Les imports du document (calculés une fois). */
     private val imports: List<KtDirectiveImport> = arbre.imports()
 
+    /** Le cache des CLÔTURES d'héritage par FQCN projet (vague 2c). */
+    private val clotures = HashMap<String, ClotureHeritage?>()
+
+    /**
+     * La CLÔTURE D'HÉRITAGE d'un type du projet (vague 2c — fiches
+     * 044/028/040) : mémoïsée par FQCN ; `null` quand la chaîne ne se
+     * ferme pas (univers ouvert, D3).
+     *
+     * @param type le type du projet à clore ;
+     * @return la clôture (membres déclarés + hérités de la chaîne mixte
+     * projet/classpath) ; `null` si ouverte.
+     */
+    internal fun clotureDe(type: TypeProjet): ClotureHeritage? {
+        synchronized(clotures) {
+            if (clotures.containsKey(type.fqcn)) return clotures[type.fqcn]
+            val cloture = Clotures.clotureDuType(this, type)
+            clotures[type.fqcn] = cloture
+            return cloture
+        }
+    }
+
+    /**
+     * Le FQCN JVM d'un type Kotlin écrit (les MAPPÉS — `kotlin.String` se
+     * lit `java.lang.String` dans les entrées ; identité sinon).
+     */
+    internal fun mapeJvm(fqcn: String): String = MAPPES_JVM[fqcn] ?: fqcn
+
+    /**
+     * Résout un SUPERTYPE ÉCRIT (vague 2c — la clôture mixte) : le modèle
+     * du projet D'ABORD (même package, puis nom globalement unique), puis
+     * les imports EXACTS (le FQCN écrit — un type du projet y prime, sinon
+     * le lien classpath), puis le catalogue KP8. AUCUNE résolution devinée
+     * par nom simple du classpath (ADR 0223) : un supertype introuvable
+     * par ces voies rend `null` — la chaîne est OUVERTE (muet, D3).
+     *
+     * @param nomEcrit le nom écrit dans la clause (`Base`, `Activity`) ;
+     * @return le maillon résolu (projet ou bibliothèque) ; `null` sinon.
+     */
+    internal fun supertypeResolu(nomEcrit: String): TypeValeur? {
+        // 1. Le modèle du projet (package courant d'abord, unique ensuite).
+        modele.typeParNomSimple(nomEcrit, paquet)?.let { return TypeValeur.Projet(it) }
+
+        // 2. Les imports EXACTS : le nom effectif (alias compris).
+        for (directive in imports) {
+            if (directive.estJoker()) continue
+            if (directive.nomEffectifImport() != nomEcrit) continue
+            val chemin = directive.nomQualifie() ?: continue
+            modele.type(chemin)?.let { return TypeValeur.Projet(it) }
+            return TypeValeur.Jvm(chemin)
+        }
+
+        // 3. Le catalogue KP8 (les types bien connus des paquets par défaut).
+        NOMS_FQCN_DEFAUT[nomEcrit]?.let { return TypeValeur.Jvm(it) }
+        return null
+    }
+
     /**
      * Le verdict d'une résolution de nom.
      */
@@ -97,16 +153,24 @@ internal class UniversPreuves(
      * package courant (types + appelables projet) → paquets par défaut
      * (catalogue de types KP8 + appelables de l'index).
      *
+     * La vague 2c y insère la PILE DES THIS (fiches 044/028/040) : les
+     * MEMBRES HÉRITÉS des couches englobantes (clôture mixte
+     * projet/classpath — la voie 2-ter d'ADR 0216) précèdent les imports,
+     * miroir de la portée des membres de la spécification.
+     *
      * @param nom le nom nu cherché ;
      * @param nomsDeclares les noms déclarés du document (garde fiche 017) ;
      * @param liaison la liaison nom → type ÉCRIT des portées locales
      * (paramètres, locales, membres — rend `null` sans liaison) ;
+     * @param pile la pile des this de la position (vague 2c — vide au
+     * niveau du document).
      * @return le verdict (RESOLU / MUET / SIGNALABLE).
      */
     internal fun resoudreNomNu(
         nom: String,
         nomsDeclares: Set<String>,
         liaison: MarcheTypee.Liaison,
+        pile: PileThis = PileThis.VIDE,
     ): Verdict {
         // 1. La garde du document : un nom DÉCLARÉ n'importe où n'est jamais
         //    signalé (fiche 017 — déclaration en cours de frappe comprise).
@@ -115,6 +179,11 @@ internal class UniversPreuves(
         // 2. Les portées locales typées (paramètres, locales, membres) : la
         //    liaison rend le type écrit — sa simple existence résout.
         if (liaison(nom) != null) return Verdict.RESOLU
+
+        // 2-ter. Les MEMBRES HÉRITÉS des couches englobantes (vague 2c —
+        //    ADR 0216 : `setContentView(…)` nu dans une classe qui étend
+        //    `Activity` résout par la clôture de la chaîne).
+        if (pile.contientMembre(nom)) return Verdict.RESOLU
 
         // 3. Un type du projet en position d'expression (objet, accès
         //    statique : `Calculatrice.somme(…)`).
@@ -178,9 +247,19 @@ internal class UniversPreuves(
         if (nom.isEmpty()) return null
 
         // Un nom QUALIFIÉ (round-trip de la liaison typée — `kotlin.String`
-        // rendu par l'initialisateur d'une propriété) : FQCN direct.
+        // rendu par l'initialisateur d'une propriété ; type écrit QUALIFIÉ
+        // `Aquarium.Bac` — vague 2c, fiche 029) : FQCN direct du modèle,
+        // puis le CHEMIN de segments (projet imbriqué, import + `$`
+        // classpath, classe de packages), puis le FQCN brut en repli muet.
         if ('.' in nom) {
             modele.type(nom)?.let { return TypeValeur.Projet(it) }
+            val segments = nom.split('.')
+            if (segments.size > 1 && segments.all { it.isNotEmpty() }) {
+                cheminClasse(segments)?.let { chemin ->
+                    modele.type(chemin)?.let { return TypeValeur.Projet(it) }
+                    return TypeValeur.Jvm(chemin)
+                }
+            }
             return TypeValeur.Jvm(nom)
         }
 
@@ -229,18 +308,25 @@ internal class UniversPreuves(
 
     /**
      * Résout un nom de TYPE (position `USER_TYPE` ou appel de constructeur) :
-     * le verdict dit si l'absence est prouvable.
+     * le verdict dit si l'absence est prouvable. La vague 2c y insère les
+     * TYPES IMBRIQUÉS des SUPERTYPES par nom simple (fiche 028 : hériter
+     * met les imbriqués en portée — `Resultats` nu de `Base$Resultats`).
      *
      * @param nom le nom simple écrit ;
-     * @return RESOLU (projet/import/défaut/alias), MUET (univers ouvert) ou
-     * SIGNALABLE (type introuvable partout — garde KP8 de la fiche 046).
+     * @param pile la pile des this de la position (vague 2c) ;
+     * @return RESOLU (projet/import/défaut/alias/hérité), MUET (univers
+     * ouvert) ou SIGNALABLE (type introuvable partout).
      */
-    internal fun resoudreNomType(nom: String): Verdict {
+    internal fun resoudreNomType(nom: String, pile: PileThis = PileThis.VIDE): Verdict {
         // Le projet (document primé, package courant, nom globalement unique).
         if (modele.typeParNomSimple(nom, paquet) != null) return Verdict.RESOLU
 
         // Les imports exacts : le nom effectif (alias compris) résout.
         if (imports.any { it.nomEffectif() == nom }) return Verdict.RESOLU
+
+        // Les IMBRIQUÉS des couches englobantes (vague 2c — fiche 028 :
+        // la clôture porte les imbriquées des supertypes).
+        if (pile.contientMembre(nom)) return Verdict.RESOLU
 
         // Le catalogue KP8 (types des paquets par défaut).
         if (nom in CATALOGUE_TYPES_DEFAUT) return Verdict.RESOLU
@@ -299,9 +385,12 @@ internal class UniversPreuves(
         if (modele.extensionsNonResolues) return Verdict.MUET
 
         // La vue JVM : le jeu complet de la chaîne (déclarés + dérivés +
-        // implicites) — guichet muet ou maillon manquant = silence.
+        // implicites) — guichet muet ou maillon manquant = silence ; les
+        // IMBRIQUÉES `$` du récepteur résolvent aussi (vague 2c — fiche
+        // 028 : `Peinture.Capitaine.ROND` traverse `Peinture$Capitaine`).
         val jeu = vueJvm?.jeuComplet(MAPPES_JVM[fqcn] ?: fqcn) ?: return Verdict.MUET
         if (jeu.contient(nom)) return Verdict.RESOLU
+        if (vueJvm.possedeImbrique(MAPPES_JVM[fqcn] ?: fqcn, nom)) return Verdict.RESOLU
 
         // Les implicites de Any/Object (le socle commun de tout récepteur).
         if (nom in MEMBRES_IMPLICITS) return Verdict.RESOLU
@@ -325,7 +414,10 @@ internal class UniversPreuves(
 
     /**
      * Vérifie un SÉLECTEUR sur un récepteur typé du PROJET (vague 2a —
-     * ADR 0223 : le jeu de membres complet décide).
+     * ADR 0223 ; vague 2c — la CLÔTURE d'héritage : un récepteur à clause
+     * écrite dont la chaîne SE FERME porte un jeu de membres complet —
+     * déclarés + hérités de la chaîne mixte projet/classpath — l'absence
+     * s'y PROUVE, fiches 044/028 ; une chaîne OUVERTE reste muette, D3).
      *
      * @param recepteur le type du projet du récepteur ;
      * @param nom le nom du sélecteur ;
@@ -333,9 +425,6 @@ internal class UniversPreuves(
      * SIGNALABLE (ABSENCE PROUVÉE — émission).
      */
     internal fun verifierSelecteurProjet(recepteur: TypeProjet, nom: String): Verdict {
-        // Héritage écrit ou enum : l'univers des membres est ouvert (D3).
-        if (!recepteur.absenceFiable) return Verdict.MUET
-
         // Scan partiel : le modèle du projet n'est pas complet.
         if (etatScan == EtatScan.PARTIEL) return Verdict.MUET
 
@@ -343,8 +432,20 @@ internal class UniversPreuves(
         // viser CE récepteur : l'univers est ouvert.
         if (modele.extensionsNonResolues) return Verdict.MUET
 
-        // Les membres déclarés et synthétisés.
-        if (recepteur.membre(nom) != null) return Verdict.RESOLU
+        // Le jeu de membres : DÉCLARÉS seuls sans clause écrite (le socle
+        // 2a — absence-fiable), CLÔTURE complète avec une clause écrite
+        // dont la chaîne se ferme (vague 2c) — MUET si la chaîne est
+        // ouverte (enum, supertype introuvable, maillon illisible).
+        val cloture: ClotureHeritage? =
+            if (recepteur.absenceFiable) {
+                ClotureHeritage(
+                    recepteur.membres.associate { m -> m.nom to MembreHerite(m.nom, genreHerite(m.genre), m.typeRetourNomme, null, null, recepteur.fqcn) },
+                )
+            } else {
+                clotureDe(recepteur)
+            }
+        if (cloture == null) return Verdict.MUET
+        if (cloture.contient(nom)) return Verdict.RESOLU
 
         // Les implicites de Any/Object (le socle commun de tout récepteur).
         if (nom in MEMBRES_IMPLICITS) return Verdict.RESOLU
@@ -391,7 +492,9 @@ internal class UniversPreuves(
     /**
      * Les propositions de COMPLÉTION MEMBRE d'un récepteur TYPÉ (fiche
      * 022 — `copy` proposé après `p.` ; fiche 046 — récepteurs de
-     * bibliothèque, smart casts et attentes de lambda en 2b) : membres
+     * bibliothèque, smart casts et attentes de lambda en 2b ; vague 2c —
+     * fiches 044/040 : les membres HÉRITÉS de la clôture s'offrent aussi,
+     * `this.` dans une Activity propose `layoutInflater`) : membres
      * déclarés et synthétisés (ou jeu JVM complet — chaîne de supertypes,
      * propriétés dérivées) + implicites + extensions connues, en ordre de
      * rencontre.
@@ -402,8 +505,16 @@ internal class UniversPreuves(
     internal fun propositionsMembres(recepteur: TypeValeur): List<String> {
         val propositions = LinkedHashSet<String>()
         if (recepteur is TypeValeur.Projet) {
-            for (membre in recepteur.type.membres) {
-                propositions.add(membre.nom)
+            // La clôture d'abord : les DÉCLARÉS puis les HÉRITÉS de la
+            // chaîne mixte (vague 2c) — une chaîne ouverte retombe sur les
+            // déclarés seuls (honnête, jamais faux).
+            val cloture = if (recepteur.type.absenceFiable) null else clotureDe(recepteur.type)
+            if (cloture != null) {
+                propositions.addAll(cloture.membres.keys)
+            } else {
+                for (membre in recepteur.type.membres) {
+                    propositions.add(membre.nom)
+                }
             }
             if (recepteur.type.genre == GenreTypeProjet.ENUM) {
                 propositions.addAll(recepteur.type.entreesEnum)
@@ -422,8 +533,10 @@ internal class UniversPreuves(
         val fqcn = (recepteur as TypeValeur.Jvm).fqcn
         // Le jeu JVM complet de la chaîne (déclarés + dérivés + implicites)
         // — une chaîne illisible rend la complétion VIDE d'entrées (les
-        // EXTENSIONS de l'index se proposent encore, D3).
+        // EXTENSIONS de l'index se proposent encore, D3) ; les IMBRIQUÉES
+        // `$` s'offrent aussi (vague 2c).
         vueJvm?.jeuComplet(MAPPES_JVM[fqcn] ?: fqcn)?.let { propositions.addAll(it.noms) }
+        vueJvm?.let { propositions.addAll(it.imbriquesDe(MAPPES_JVM[fqcn] ?: fqcn)) }
         propositions.addAll(MEMBRES_IMPLICITS)
         if (index != null) {
             for (extension in index.extensionsSur(fqcn)) {
@@ -431,6 +544,108 @@ internal class UniversPreuves(
             }
         }
         return propositions.toList()
+    }
+
+    /**
+     * Résout un CHEMIN DE SEGMENTS en classe (vague 2c — fiches 044 E4/
+     * E4bis, 028/029 : les types QUALIFIÉS et les FQN d'expression) :
+     * (a) le chemin complet comme FQCN ABSOLU du projet
+     * (`com.ex.app.Aquarium.Bac` importé tel quel) ; (b) le premier
+     * segment par le MODÈLE (package courant, nom unique) puis les
+     * suivants comme IMBRIQUÉES du modèle (`Aquarium.Bac` — FQCN pointé) ;
+     * (c) le premier segment par IMPORT exact puis les suivants comme
+     * IMBRIQUÉES `$` du classpath (`Conteneur.Fabrique` →
+     * `exo.conteneur.Conteneur$Fabrique`) ; (d) le chemin complet comme
+     * classe CLASSPATH (`android.os.Bundle` — les segments amont y sont
+     * des PACKAGES, jamais vérifiés).
+     *
+     * @param segments les segments écrites (`[android, os, Bundle]`) ;
+     * @return le FQCN RÉSOLU (forme interne : pointée pour le projet, `$`
+     * pour l'imbriquée classpath) ; `null` si le chemin ne résout pas.
+     */
+    internal fun cheminClasse(segments: List<String>): String? {
+        if (segments.isEmpty()) return null
+
+        // (a) Le chemin ABSOLU du projet.
+        val absolu = segments.joinToString(".")
+        modele.type(absolu)?.let { return it.fqcn }
+
+        // (b) Le premier segment dans le MODÈLE, les suivants en imbriquées
+        // du modèle (FQCN pointé — `Aquarium.Bac.Couloir` imbriquée de
+        // niveau 3, fiche 029 : l'extraction RÉCURSIVE bornée s'y lit).
+        modele.typeParNomSimple(segments.first(), paquet)?.let { racine ->
+            var actuel = racine
+            for (i in 1 until segments.size) {
+                actuel = modele.imbriquesDu(actuel.fqcn)
+                    .firstOrNull { it.nomSimple == segments[i] } ?: return null
+            }
+            return actuel.fqcn
+        }
+
+        // (c) Le premier segment par IMPORT exact, les suivants en
+        // IMBRIQUÉES du modèle (projet) ou `$` du classpath.
+        for (directive in imports) {
+            if (directive.estJoker()) continue
+            val chemin = directive.nomQualifie() ?: continue
+            if (directive.nomEffectifImport() != segments.first()) continue
+
+            // Racine PROJET : les marches se suivent dans le modèle.
+            modele.type(chemin)?.let { racine ->
+                var actuel = racine
+                for (i in 1 until segments.size) {
+                    actuel = modele.imbriquesDu(actuel.fqcn)
+                        .firstOrNull { it.nomSimple == segments[i] } ?: return null
+                }
+                return actuel.fqcn
+            }
+
+            // Racine CLASSPATH : la tête doit exister, chaque marche `$`
+            // se vérifie (vue JVM — une classe inconnue rend le chemin
+            // non résolu).
+            val vue = vueJvm ?: return null
+            var parent = mapeJvm(chemin)
+            if (!vue.possedeClasse(parent)) return null
+            for (i in 1 until segments.size) {
+                if (!vue.possedeImbrique(parent, segments[i])) return null
+                parent = "$parent\$${segments[i]}"
+            }
+            return parent
+        }
+
+        // (d) Le chemin complet comme classe CLASSPATH (les amont sont des
+        // packages — `android.os.Bundle`, fiche 044 E4).
+        val vueJvmLocale = vueJvm ?: return null
+        if (vueJvmLocale.possedeClasse(absolu)) return absolu
+        return null
+    }
+
+    /**
+     * Le type d'un NOM DE TYPE en position d'EXPRESSION (vague 2c — le
+     * typage des références de classe : `Peinture` importé type
+     * `exo.peint.Peinture`, `String` type `kotlin.String`) : le modèle
+     * d'abord, puis les imports EXACTS, puis le catalogue KP8.
+     *
+     * @param nom le nom écrit (`Peinture`, `String`) ;
+     * @return le type ; `null` si le nom n'y désigne aucune classe.
+     */
+    internal fun typeImporteOuDefaut(nom: String): TypeValeur? {
+        modele.typeParNomSimple(nom, paquet)?.let { return TypeValeur.Projet(it) }
+        for (directive in imports) {
+            if (directive.estJoker()) continue
+            if (directive.nomEffectifImport() != nom) continue
+            val chemin = directive.nomQualifie() ?: continue
+            modele.type(chemin)?.let { return TypeValeur.Projet(it) }
+            return TypeValeur.Jvm(chemin)
+        }
+        NOMS_FQCN_DEFAUT[nom]?.let { return TypeValeur.Jvm(it) }
+        return null
+    }
+
+    /** Le genre de clôture d'un genre de membre projet. */
+    private fun genreHerite(genre: GenreMembreProjet): GenreMembreHerite = when (genre) {
+        GenreMembreProjet.FONCTION -> GenreMembreHerite.FONCTION
+        GenreMembreProjet.PROPRIETE -> GenreMembreHerite.PROPRIETE
+        GenreMembreProjet.TYPE_IMBRIQUE -> GenreMembreHerite.TYPE_IMBRIQUE
     }
 
     /** Le package importé est-il un package du PROJET (énumérable) ? */

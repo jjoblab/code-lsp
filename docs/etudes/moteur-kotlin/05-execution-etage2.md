@@ -7,10 +7,11 @@
 > run `41024404548` — `04-execution-etage1.md` §17.4). Le présent document
 > est le journal d'exécution de l'étage (méthode : miroir des rapports
 > précédents — chiffres étiquetés [mesuré] / [estimé], écarts signalés).
-> **Vague 2a : le socle de résolution — modèle de symboles projet (scan
-> Kotlin ET Java), hiérarchie de portées, `kt.unresolved` avec la garde par
-> déclaration (fiche 017), preuve d'absence sur les types du projet (fiche
-> 022) et journal « explain » (fiche 006).**
+> **Vague 2c : les membres hérités — clôture des supertypes (mixte
+> projet/classpath, la voie 2-ter d'ADR 0216), pile des this (objets
+> anonymes, `apply`), chaîne profondeur 7+ du monde Views (ADR 0219),
+> imbriquées projet/classpath, chemins FQN, zones de construction —
+> fiches 044/028/032/040/029.**
 >
 > Gouvernance inchangée : branche `etude/moteur-kotlin` seule ; zones NOYAU
 > anciennes (`resolve/`, `diagnostics/`) en lecture interdite R9.1 —
@@ -52,6 +53,21 @@
 > verts toolchain 17, scan ART 6 × AUCUNE, dex 25 152 méthodes /
 > 3 936 216 o (identiques au bac à sable, seuils tenus — E-K8 à 94 %) ;
 > la vague 2c (membres hérités) est la suivante (§6.4).**
+>
+> **Mise à jour (30/10, vague 2c) — LES MEMBRES HÉRITÉS SONT LIVRÉS (44
+> comportements — fiches 044/028/032/040/029) : la CLÔTURE DES SUPERTYPES
+> (fermeture mixte — maillons projet relus récursivement, maillons
+> classpath par le jeu JVM de la chaîne binaire, IMBRIQUÉES `$` comprises ;
+> une chaîne non fermée reste muette D3), la PILE DES THIS (l'objet anonyme
+> d'abord puis les classes englobantes, la lambda traînante d'un
+> `apply`/`also`/`run` sur récepteur typé), les chemins FQN en expression
+> (racine + feuille faillibles, milieu muet) et en type (dernier segment
+> seul), les ZONES DE CONSTRUCTION (paramètres nus du primaire, `field`),
+> la dérivation ADR 0219 CONSCIENTE des descripteurs (getter à paramètre ne
+> synthétise rien), le TERMINAL CONNU `java.lang.Enum`, le SURVOL des
+> membres hérités avec propriétaire déclarant (`val layoutInflater:
+> LayoutInflater` sur `android.app.Activity`) et la complétion membre
+> étendue à la clôture ; 103/204 comportements diagnostics verts.**
 
 ## 1. Périmètre de l'étage (plan §4 — cahier en main)
 
@@ -70,7 +86,7 @@
 
 | Critère | État | Preuve |
 |---|---|---|
-| 204 comportements diagnostics verts (23 fiches du domaine) | EN COURS — 59/204 | Vague 2a (§5) : fiches 017 (8/8) + 022 (8/8) + 006 (4/4) ; vague 2b (§6) : fiche 046 (39/39) |
+| 204 comportements diagnostics verts (23 fiches du domaine) | EN COURS — 103/204 | Vague 2a (§5) : fiches 017 (8/8) + 022 (8/8) + 006 (4/4) ; vague 2b (§6) : fiche 046 (39/39) ; vague 2c (§7) : fiches 044 (13/13) + 028 (12/12) + 032 (3/3) + 040 (11/11) + 029 (5/5) |
 | Zéro faux positif corpus quatre mondes | OUVERT | — |
 | Banc fidélité baseline signée | OUVERT | — |
 
@@ -80,7 +96,7 @@
 |---|---|---|---:|
 | **2a** | Socle de résolution : modèle de symboles projet (scan Kotlin ET Java), hiérarchie de portées + imports + défauts KP8, `kt.unresolved` (noms nus et sélecteurs qualifiés sur récepteurs PROJET typés), garde par déclaration, journal explain, `kt.missingReturn` (cas positif requis par la fiche 017), germe de complétion membre (requis par la fiche 022) | 017 + 022 + 006 | 20 |
 | **2b** | Familles sémantiques K4 : typage borné (littéraux, types écrits, initialiseurs, retours), smart casts positionnels, lambdas par attente, `kt.typeMismatch`/`kt.argumentCount`/`kt.unsafeNullable`/`kt.unreachable`/`kt.valReassign`, gardes KP8/ADR 0203, `importsCandidats` ; vue JVM des membres du classpath (récepteurs classpath typés — ADR 0223) | 046 | 39 |
-| **2c** | Membres hérités : clôture des supertypes (clauses écrites + port de fichiers, projet et classpath mixtes), chaîne profondeur 7 du monde Views, frère projet ouvert vivant, récepteur implicite hérité, objets anonymes (pile des this) | 044 + 028 + 032 + 040 + 029 | 44 |
+| **2c** | Membres hérités : clôture des supertypes (clauses écrites + port de fichiers, projet et classpath mixtes), chaîne profondeur 7 du monde Views, frère projet ouvert vivant, récepteur implicite hérité, objets anonymes (pile des this) — **LIVRÉE (§7)** | 044 + 028 + 032 + 040 + 029 | 44 |
 | **2d** | Classpath côté Kotlin : compagnons (anonymes/nommés), objets du classpath (`INSTANCE`), typealias de bibliothèque, extensions à récepteur paramètre de type (`let`/`also`…), appelables builtin (`arrayOf`…) | 023 + 024 + 026 + 033 + 037 | 25 |
 | **2e** | KMP (expect/actual, deux racines), sources générées (`build/generated`), troncation du scan réfléchie dans l'univers, motifs Compose (stdlib réel), scripts `.gradle.kts` (muets sans modèle Gradle) | 030 + 031 + 035 + 036 + 025 + 027 | 32 |
 | **2f** | Correctifs texte (accès non sûr, conversions), membres manquants (quick-fix P1-C), consommation des synthétiques + fusion AVEC COUPURE, multi-langue Java↔Kotlin, récepteurs implicites `with` | 016 + 020 + 047 | 44 |
@@ -356,3 +372,167 @@ comportements de la fiche 046 verts, 59/204 au critère §2. La vague 2c
 (membres hérités : clôture des supertypes, chaîne profondeur 7 du monde
 Views, frère projet ouvert vivant — fiches 044/028/032/040/029, 44
 comportements) est la suivante.
+
+## 7. Vague 2c — les membres hérités (30/10, fiches 044/028/032/040/029)
+
+### 7.1 Périmètre exécuté
+
+Code NEUF intégral (zones `resolve/` et `diagnostics/` anciennes jamais
+consultées R9.1 ; tests sources des cinq fiches consultés R9.1/R9.5 pour
+les FIXTURES, jamais copiés — les supertypes binaires vivent sur des JARS
+DE FIXTURE : des class-files minimaux mais RÉELS, descripteurs compris,
+posés comme ENTRÉES du classpath, AUCUNE vue factice) :
+
+- **CLÔTURE DES SUPERTYPES** (`resolve/ClotureHeritage.kt` — la voie 2-ter
+  d'ADR 0216, fiches 044/028) : la fermeture transitive d'un type du
+  projet — ses membres DÉCLARÉS puis chaque clause ÉCRITE résolue par le
+  MODÈLE (package courant, nom unique), les IMPORTS EXACTS (un type projet
+  y prime) et le catalogue KP8 ; les maillons PROJET se relisent
+  récursivement (garde de cycle, borne 24 — le frère FERMÉ du scan comme
+  le frère OUVERT VIVANT), les maillons CLASSPATH par le JEU JVM de la
+  chaîne binaire + leurs IMBRIQUÉES `$` (`Resultats` nu hérité de
+  `Base$Resultats`). AUCUNE résolution devinée par nom simple du classpath
+  (ADR 0223) : un maillon introuvable, un enum, un marqueur `Enum`/`Record`
+  Java ou un maillon illisible laisse l'univers OUVERT — `verifierSelecteur`
+  prouve désormais l'absence sur un récepteur à clause écrite quand la
+  chaîne SE FERME, muet sinon (jamais un faux positif) ;
+- **LA PILE DES THIS** (fiches 028/040) : chaque classe nommée et chaque
+  OBJET ANONYME empile sa COUCHE (type interne + clôture) dans la marche
+  sémantique — la consultation va du PROFOND vers l'externe (`filtrer()` du
+  this anonyme, `soumettre()` du this externe) ; la lambda traînante d'un
+  `apply`/`also`/`run` sur récepteur TYPÉ porte le récepteur en this
+  implicite (`Peinture().apply { style = 1 }` — le setter synthétique
+  résout) ; `this` TYPE (`this.` propose `layoutInflater`) ; `Couches.
+  aPosition` reconstruit la pile au CARET pour la complétion, le survol et
+  le quick-fix d'import (miroir de la marche) ;
+- **LES ZONES DE CONSTRUCTION** (fiche 028) : les paramètres NUS du
+  primaire (sans `val`/`var`) ne vivent que dans les initialisateurs, les
+  `init` et la clause du super — dans un CORPS DE MÉTHODE ils sont
+  SIGNALÉS (miroir kotlinc — la garde documentaire P1 les exclut, la
+  liaison ne les lie plus) ; `field` et le paramètre des accesseurs custom
+  sont en portée ;
+- **LES CHEMINS FQN** (fiches 044 E4/E4bis, 028/029) : `cheminClasse`
+  résout un chemin de segments — FQCN absolu du projet, premier segment au
+  MODÈLE puis marches IMBRIQUÉES pointées (`Aquarium.Bac.Couloir`),
+  premier segment par IMPORT puis marches `$` classpath
+  (`Conteneur.Fabrique` → `exo.conteneur.Conteneur$Fabrique`), chemin
+  complet en CLASSE CLASSPATH (`android.os.Bundle`) ; en TYPE, le chemin
+  résolu rend tous les segments muets, sinon UN SEUL faillible — le
+  DERNIER ; en EXPRESSION, un chemin à racine non valeur résolu rend tout
+  muet (`exo.paq.ClassePublique()` sans import), introuvable signale la
+  RACINE et (chemin de classe ≥ 3 segments, feuille appelée) la FEUILLE —
+  le MILIEU (paquet) toujours muet ;
+- **TYPES IMBRIQUÉS DES SOURCES** (fiche 029) : niveau 2 et 3 extraits en
+  récursif borné — FQCN pointé `paquet.Conteneur.Imbriquee` (correctif du
+  séparateur oublié du lecteur Java, bug LATENT 2a jamais exposé : les
+  imbriquées Java lisaient `paquet.ConteneurImbriquee`), chaque imbriquée
+  AUSSI membre TYPE_IMBRIQUE de son conteneur (le sélecteur `Bac` sur
+  `Aquarium` résout, le typage rend l'imbriquée) ; les types de membres
+  Java (retours/champs, primitifs mappés) nourrissent le typage
+  (`bac.capacite` type `Int`) ;
+- **VUE JVM ÉTENDUE** (fiches 032/040/028) : les DESCRIPTEURS sont lus
+  (`DescripteursJvm` — primitifs → FQCN Kotlin, tableaux muets D3), la
+  dérivation ADR 0219 devient CONSCIENTE des signatures (un getter à
+  PARAMÈTRE ne synthétise RIEN — `getDrawable(I)` n'est pas `drawable` ;
+  setter à un paramètre → propriété VAR), `java.lang.Enum` est un TERMINAL
+  CONNU (la superclasse binaire de tout enum vit dans le JDK, jamais dans
+  les entrées — socle conservateur : la chaîne d'un enum SE FERME,
+  `entries`/`values`/`valueOf` muets, un membre réellement absent SIGNALÉ),
+  les IMBRIQUÉES `$` se consultent (`Peinture.Capitaine.ROND` traverse
+  `Peinture$Capitaine`), `membreChaine` rend le PROPRIÉTAIRE déclarant et
+  les signatures dépouillées, `typeDuMembre` tape les retours (les
+  surcharges divergentes restent muettes) ;
+- **SURVOL ET COMPLÉTION DES MEMBRES HÉRITÉS** (fiche 040) : le survol
+  IMPLICITE (`layoutInflater`) et QUALIFIÉ (`this.layoutInflater`) rendent
+  `val layoutInflater: LayoutInflater (android.app.Activity)` — dépouillé
+  du descripteur, propriétaire déclarant compris (miroir Android Studio) ;
+  `fun getString(Int): String (android.content.Context)` ; la complétion
+  membre étendue à la CLÔTURE (`this.` propose `layoutInflater` et
+  `packageName` du maillon profond, les imbriquées comprises) ; le TYPAGE
+  enchaîne (`layoutInflater.inflate(…)` type le récepteur par le RETOUR du
+  getter) ;
+- **LE FRÈRE OUVERT VIVANT** (fiche 044) : `contributionsAuConsult` fait
+  primer les documents OUVERTS sur leurs doublons du scan (l'arbre VIF,
+  jamais le disque périmé — miroir de la décision 2a pour le document
+  courant) ; `importsCandidats` consulte le MÊME prédicat que le
+  diagnostic (un membre hérité ne propose AUCUN import).
+
+### 7.2 Décisions d'exécution consignées (pas dans le plan initial)
+
+1. **La racine FQN et la zone de construction** : la voie FQN
+   (`marcherCheminFqn`) consulte `resoudreNomNu` SANS la zone — un
+   paramètre nu du primaire (`contexte.toString()` dans le `init`) y est
+   maintenant explicitement écarté (retour à la marche standard par
+   sélecteur), sinon la racine eût été signalée deux fois.
+2. **La feuille FQN n'est faillible qu'en forme de CLASSE qualifiée** : un
+   chemin à feuille appelée n'émète la feuille que pour ≥ 3 segments
+   (`exo.paq.Introuvable()` — miroir kotlinc du cahier) ; un sélecteur de
+   MÉTHODE sur récepteur inconnu à 2 segments (`zz.methode()`) reste au
+   récepteur seul — direction conservatrice, l'oracle 2g mesurera.
+3. **`super` porte un REFERENCE_EXPRESSION** (découverte E4) : le parseur
+   enveloppe le mot-clé d'une référence — la marche l'écarte désormais
+   explicitement (jamais un nom nu).
+4. **`java.lang.Enum` terminal connu** : la superclasse binaire des enums
+   vit dans le JDK, jamais dans les entrées — sans ce terminal, TOUT enum
+   classpath eût eu une chaîne ouverte (muet, sûr mais sourd) ; ses membres
+   implicits (`name`, `ordinal`, `compareTo`…) y sont sur-approximés
+   (conservateur).
+5. **Les marqueurs `Enum`/`Record` du lecteur Java ouvrent la clôture**
+   (fiche 029 : `CouleurJava.ROUGE` muet) — leurs membres implicites ne
+   vivent dans AUCUNE source ; le correctif du SÉPARATEUR d'englobants du
+   lecteur Java (`paquet.Conteneur.Imbriquee`, bug latent 2a jamais exposé
+   par les fiches précédentes) a été découvert par la fixture 029.
+6. **`apply`/`also`/`run` par leur NOM** (heuristique documentée —
+   classement cahier « heuristique ») : la couche ne fait qu'AJOUTER du
+   muet (sur-résolution sûre), jamais une émission ; `let`/`with` (scopes
+   à paramètre) restent 2d/2f.
+7. **Le survol JVM passe par l'univers** : `session.survol` construit
+   l'univers HORS verrou de lecture (miroir de la passe de diagnostics) —
+   la chaîne conservatrice S2 (document → ouverts → scan) reste PREMIÈRE,
+   la résolution des membres hérités n'intervient qu'à DÉFAUT.
+
+### 7.3 Mesures de la vague 2c (bac à sable — JVM de bureau conteneurisée, toolchain 17)
+
+- **Suite du module : 235 tests VERTS** (191 + 44) sous la toolchain 17 —
+  fiches 044 (13/13), 028 (12/12), 032 (3/3), 040 (11/11), 029 (5/5),
+  l'intégralité des vagues précédentes inchangée (010-013, 049/042/041,
+  002-005/008/009/034, synthétiques, garde JDK 17, 017/022/006, 046).
+- **Baseline de parité re-signée** : corpus 340 → **346 fichiers**
+  (+1 main : `ClotureHeritage.kt` ; +5 tests : les cinq fiches) —
+  procédure documentée `-Dparite.majBase=true --rerun-tasks`.
+- **Jar moteur : 620 562 o** (+55 334 vs vague 2b) — la clôture, la pile
+  des this, les descripteurs et les cinq fiches.
+- **Scan ART pile complète** (mêmes commandes que la CI) : **6 × AUCUNE
+  référence sensible** — moteur **224 classes / 273 méthodes déclarées**
+  (+16 classes / +6 méthodes vs vague 2b), class-file 61:224 intégral,
+  ServiceLoader OK — descripteur vérifié (1 fournisseur).
+- **Dexage d8** (build-tools 34, min-api 26, pile chaude complète) :
+  **25 273 références de méthodes / 3 980 148 o (3,80 Mo)** — seuils étage
+  0 tenus (marges 7 495 méthodes / 209 Kio) ; **alerte E-K8 actualisée :
+  budget taille consommé à 95 %** (la vague ajoute 121 méthodes /
+  43 932 o — l'arbitrage Q-K1 du propriétaire devient PRESSANT avant les
+  vagues 2d-2g).
+- **Banc JDK 17** (toolchain du module) : parse froid 210,5/22,2 ms, p50
+  6,9/22,7 ms, p95 30,8/49,9 ms — reparse p50 22,7 ms à 3 000 l. (< 50 ms,
+  latences S0 tenues), déterminisme **31 368 / 24 274 et 5 448 / 4 210
+  IDENTIQUES** (étage 0, 1c–2c), marqueurs d'erreur 0, tas au repos
+  3 701 Kio.
+- **Provenance** : `verifier-provenance.sh` rc=0 (aucune reprise nouvelle —
+  la vague est du code NEUF intégral, `resolve/ClotureHeritage.kt` est
+  écrit cahier en main).
+
+### 7.4 Clôture de la vague 2c
+
+La preuve CI du commit de livraison est attendue (les neuf tâches —
+build/tests JDK 21, bancs noyau/qualité/parité T, gates Android,
+provenance et les trois jobs Kotlin) ; le présent paragraphe se CLORE sur
+le numéro de run à la consultation. **LES MEMBRES HÉRITÉS SONT
+LIVRÉS** : la clôture mixte des supertypes, la pile des this (objets
+anonymes et `apply`), la chaîne profondeur 7+ du monde Views, les
+imbriquées projet et classpath, les chemins FQN, les zones de construction,
+la dérivation consciente des descripteurs, le survol et la complétion des
+membres hérités ; 44/44 comportements des fiches 044/028/032/040/029
+verts, **103/204** au critère §2. La vague 2d (classpath côté Kotlin :
+compagnons, objets `INSTANCE`, typealias de bibliothèque, extensions à
+récepteur paramètre de type, appelables builtin — fiches 023/024/026/033/
+037, 25 comportements) est la suivante.

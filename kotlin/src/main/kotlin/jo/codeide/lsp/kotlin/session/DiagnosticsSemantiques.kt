@@ -15,13 +15,22 @@ import jo.codeide.lsp.kotlin.index.VueAppelables
 import jo.codeide.lsp.kotlin.parse.NoeudArbre
 import jo.codeide.lsp.kotlin.parse.kt.KtFichier
 import jo.codeide.lsp.kotlin.parse.kt.PlageTexte
+import jo.codeide.lsp.kotlin.resolve.ClotureHeritage
+import jo.codeide.lsp.kotlin.resolve.Clotures
 import jo.codeide.lsp.kotlin.resolve.ContributionFichier
+import jo.codeide.lsp.kotlin.resolve.Couches
+import jo.codeide.lsp.kotlin.resolve.CoucheThis
 import jo.codeide.lsp.kotlin.resolve.EtatScan
 import jo.codeide.lsp.kotlin.resolve.ExplicationsNonResolus
 import jo.codeide.lsp.kotlin.resolve.FormeReference
+import jo.codeide.lsp.kotlin.resolve.GenreMembreHerite
+import jo.codeide.lsp.kotlin.resolve.GenreMembreProjet
 import jo.codeide.lsp.kotlin.resolve.IssueSelection
 import jo.codeide.lsp.kotlin.resolve.MarcheTypee
+import jo.codeide.lsp.kotlin.resolve.MembreHerite
+import jo.codeide.lsp.kotlin.resolve.MembreProjet
 import jo.codeide.lsp.kotlin.resolve.ModeleProjet
+import jo.codeide.lsp.kotlin.resolve.PileThis
 import jo.codeide.lsp.kotlin.resolve.TypeValeur
 import jo.codeide.lsp.kotlin.resolve.TypageBorne
 import jo.codeide.lsp.kotlin.resolve.TypeProjet
@@ -120,7 +129,13 @@ internal object DiagnosticsSemantiques {
 
         val diagnostics = mutableListOf<DiagnosticKotlin>()
         for (declaration in arbre.declarations()) {
-            visiterDeclaration(declaration.noeud, contextes, diagnostics, heritageOuvert = false)
+            visiterDeclaration(
+                declaration.noeud, contextes, diagnostics,
+                pile = PileThis.VIDE,
+                chemin = emptyList(),
+                nomsZone = emptySet(),
+                enteteBrisee = false,
+            )
         }
         return diagnostics
     }
@@ -134,11 +149,21 @@ internal object DiagnosticsSemantiques {
      * une déclaration de type visite son EN-TÊTE (types de la clause et du
      * constructeur primaire) puis ses MEMBRES récursivement.
      *
+     * La vague 2c y construit la PILE DES THIS (fiches 044/028/040) : une
+     * classe NOMMÉE empile sa couche (le type du modèle + sa CLÔTURE
+     * d'héritage — mixte projet/classpath), un OBJET ANONYME empile la
+     * sienne (supertypes résolus + membres du corps) ; la ZONE DE
+     * CONSTRUCTION porte les paramètres NUS du primaire (initialisateurs,
+     * init — PAS les méthodes, fiche 028 : `contexte` hors zone est
+     * SIGNALÉ, miroir kotlinc).
+     *
      * @param noeud la déclaration visitée ;
      * @param contextes les contextes de la passe ;
      * @param diagnostics l'accumulateur des émissions ;
-     * @param heritageOuvert une déclaration englobante porte-t-elle une
-     * clause de supertype écrite ou est-elle un enum (noms nus muets) ;
+     * @param pile la pile des this des couches ENGLOBANTES ;
+     * @param chemin les noms des types englobants (FQCN pointé du modèle) ;
+     * @param nomsZone les noms en portée dans la ZONE DE CONSTRUCTION
+     * courante (paramètres nus du primaire de la classe englobante) ;
      * @param enteteBrisee l'en-tête de la classe englobante est-elle brisée
      * (absence muette dans les membres — fiche 017).
      */
@@ -146,22 +171,55 @@ internal object DiagnosticsSemantiques {
         noeud: NoeudArbre,
         contextes: Contextes,
         diagnostics: MutableList<DiagnosticKotlin>,
-        heritageOuvert: Boolean,
-        enteteBrisee: Boolean = false,
+        pile: PileThis,
+        chemin: List<String>,
+        nomsZone: Set<String>,
+        enteteBrisee: Boolean,
     ) {
         when (noeud.genre) {
             KtNodeTypes.CLASS, KtNodeTypes.OBJECT_DECLARATION -> {
+                val nom = nomDeDeclaration(noeud)
                 val corps = noeud.enfants.firstOrNull { it.genre == KtNodeTypes.CLASS_BODY }
                 val enteteSaine = entetePropre(noeud, corps)
                 if (enteteSaine) {
-                    visiterZone(noeud, corps, contextes, diagnostics)
+                    visiterZone(noeud, corps, contextes, diagnostics, pile, nomsZone)
                 }
-                val clauseEcrit = noeud.enfants.any { it.genre == KtNodeTypes.SUPER_TYPE_LIST }
-                val estEnum = porteurModificateur(noeud, KtTokens.ENUM_MODIFIER)
-                val ouvert = heritageOuvert || clauseEcrit || estEnum
+
+                // La COUCHE de la déclaration : nommée (modèle + clôture)
+                // ou anonyme (supertypes résolus + membres du corps) — les
+                // constructeurs PARTAGÉS de [Couches] (miroir de la pile par
+                // position de la complétion/survol).
+                val couche = if (nom != null) {
+                    Couches.nommee(contextes.univers, chemin, nom)
+                } else {
+                    Couches.anonyme(contextes.univers, noeud)
+                }
+                val pileInterne = if (nom != null || noeud.genre == KtNodeTypes.OBJECT_DECLARATION) {
+                    pile.empiler(couche)
+                } else {
+                    pile
+                }
+
+                // La ZONE DE CONSTRUCTION de la classe : les paramètres NUS
+                // du primaire (sans val/var — les val/var sont des MEMBRES,
+                // gardés par la déclaration documentaire) y sont en portée
+                // (initialisateurs, init, entrées d'enum) — PAS dans les
+                // méthodes (fiche 028).
+                val zone = if (nom != null) parametresPrimaireNus(noeud) else emptySet()
+
                 if (corps != null) {
                     for (membre in corps.enfants) {
-                        visiterDeclaration(membre, contextes, diagnostics, ouvert, !enteteSaine)
+                        val zoneMembre = when (membre.genre) {
+                            KtNodeTypes.FUN -> emptySet()
+                            else -> zone
+                        }
+                        visiterDeclaration(
+                            membre, contextes, diagnostics,
+                            pileInterne,
+                            if (nom != null) chemin + nom else chemin,
+                            zoneMembre,
+                            !enteteSaine,
+                        )
                     }
                 }
             }
@@ -170,27 +228,50 @@ internal object DiagnosticsSemantiques {
                 // si le sous-arbre est propre (les déclarations cassées ne
                 // diagnostiquent RIEN — leurs noms restent des gardes).
                 if (sousArbrePropre(noeud)) {
-                    visiterRegion(noeud, contextes, diagnostics, heritageOuvert, enteteBrisee)
+                    visiterRegion(noeud, contextes, diagnostics, pile, nomsZone, enteteBrisee)
                 }
             }
         }
     }
 
     /**
+     * Les noms des paramètres NUS du constructeur PRIMAIRE (sans `val`/
+     * `var` — fiche 028 : ils ne vivent que dans la ZONE DE CONSTRUCTION).
+     */
+    private fun parametresPrimaireNus(noeud: NoeudArbre): Set<String> {
+        val primaire = noeud.enfants.firstOrNull { it.genre == KtNodeTypes.PRIMARY_CONSTRUCTOR }
+        val liste = primaire?.enfants?.firstOrNull { it.genre == KtNodeTypes.VALUE_PARAMETER_LIST }
+            ?: noeud.enfants.firstOrNull { it.genre == KtNodeTypes.VALUE_PARAMETER_LIST }
+            ?: return emptySet()
+        val noms = mutableSetOf<String>()
+        for (parametre in liste.enfants.filter { it.genre == KtNodeTypes.VALUE_PARAMETER }) {
+            val estMembre = parametre.jetonsPropres.any {
+                it.genre == KtTokens.VAL_KEYWORD || it.genre == KtTokens.VAR_KEYWORD
+            }
+            if (estMembre) continue
+            nomDeDeclaration(parametre)?.let { noms.add(it) }
+        }
+        return noms
+    }
+
+    /**
      * Visite l'EN-TÊTE d'une déclaration de type saine : le nœud SANS son
      * corps (les types de la clause de supertypes et du constructeur primaire
-     * sont vérifiés — ce sont des positions de types à part entière).
+     * sont vérifiés — ce sont des positions de types à part entière ; la
+     * clause d'appel du super voit la ZONE DE CONSTRUCTION, fiche 028).
      */
     private fun visiterZone(
         noeud: NoeudArbre,
         corps: NoeudArbre?,
         contextes: Contextes,
         diagnostics: MutableList<DiagnosticKotlin>,
+        pile: PileThis,
+        nomsZone: Set<String>,
     ) {
         val liaison = contextes.liaisonDuDocument()
         for (enfant in noeud.enfants) {
             if (enfant === corps) continue
-            marcher(enfant, contextes, diagnostics, liaison, heritageOuvert = false, enteteBrisee = false)
+            marcher(enfant, contextes, diagnostics, liaison, pile, nomsZone, enteteBrisee = false)
         }
     }
 
@@ -199,14 +280,15 @@ internal object DiagnosticsSemantiques {
         noeud: NoeudArbre,
         contextes: Contextes,
         diagnostics: MutableList<DiagnosticKotlin>,
-        heritageOuvert: Boolean,
+        pile: PileThis,
+        nomsZone: Set<String>,
         enteteBrisee: Boolean,
     ) {
         if (noeud.genre == KtNodeTypes.FUN) {
             verifierRetourManquant(noeud, diagnostics)
         }
         val liaison = contextes.liaisonLocale(noeud)
-        marcher(noeud, contextes, diagnostics, liaison, heritageOuvert, enteteBrisee)
+        marcher(noeud, contextes, diagnostics, liaison, pile, nomsZone, enteteBrisee)
         // La passe TYPÉE de la famille K4 (fiche 046 — vague 2b) : les cinq
         // familles sémantiques sur la région propre.
         DiagnosticsTypage.verifier(noeud, contextes.univers, liaison, diagnostics)
@@ -287,6 +369,11 @@ internal object DiagnosticsSemantiques {
             .any { liste -> liste.enfants.any { it.genre == modificateur } }
     }
 
+    /** Le nom d'un nœud déclaration (premier IDENTIFIER propre — aide 2c). */
+    private fun nomDeDeclaration(noeud: NoeudArbre): String? {
+        return noeud.jetonsPropres.firstOrNull { it.genre == KtTokens.IDENTIFIER }?.texte
+    }
+
     /** Les directives package/import portent-elles une erreur de syntaxe ? */
     private fun directivesPortentErreur(racine: NoeudArbre): Boolean {
         return portentErreur(racine, KtNodeTypes.PACKAGE_DIRECTIVE) ||
@@ -305,8 +392,17 @@ internal object DiagnosticsSemantiques {
     /** Collecte les noms DÉCLARÉS du document (gardes : data synthétisés compris). */
     private fun collecterNomsDeclares(arbre: KtFichier): Set<String> {
         val noms = mutableSetOf<String>()
-        fun collecter(noeud: NoeudArbre) {
-            if (noeud.genre in UniversPreuves.GENRES_DECLARATION) {
+        fun collecter(noeud: NoeudArbre, dansPrimaire: Boolean) {
+            // Un PARAMÈTRE NU du constructeur PRIMAIRE (sans `val`/`var`)
+            // n'est PAS un nom déclaré du document : il ne vit que dans la
+            // ZONE DE CONSTRUCTION (fiche 028 — `contexte` hors zone est
+            // SIGNALÉ, miroir kotlinc) ; les `val`/`var` restent des
+            // MEMBRES (garde documentaire inchangée).
+            val parametreNuDuPrimaire = dansPrimaire && noeud.genre == KtNodeTypes.VALUE_PARAMETER &&
+                noeud.jetonsPropres.none {
+                    it.genre == KtTokens.VAL_KEYWORD || it.genre == KtTokens.VAR_KEYWORD
+                }
+            if (noeud.genre in UniversPreuves.GENRES_DECLARATION && !parametreNuDuPrimaire) {
                 noeud.jetonsPropres
                     .firstOrNull { it.genre == KtTokens.IDENTIFIER }?.texte
                     ?.let { noms.add(it) }
@@ -330,9 +426,11 @@ internal object DiagnosticsSemantiques {
                 }
                 for (rang in 1..proprietes) noms.add("component$rang")
             }
-            noeud.enfants.forEach(::collecter)
+            for (enfant in noeud.enfants) {
+                collecter(enfant, dansPrimaire || enfant.genre == KtNodeTypes.PRIMARY_CONSTRUCTOR)
+            }
         }
-        collecter(arbre.noeud)
+        collecter(arbre.noeud, dansPrimaire = false)
         return noms
     }
 
@@ -348,13 +446,20 @@ internal object DiagnosticsSemantiques {
 
     /**
      * La MARCHE des références d'une zone : vérifie chaque référence (nom
-     * nu, sélecteur qualifié, type écrit) et rend les arguments, lambdas et
-     * expressions imbriquées à la marche.
+     * nu, sélecteur qualifié, type écrit, CHEMIN FQN) et rend les arguments,
+     * lambdas et expressions imbriquées à la marche.
+     *
+     * La vague 2c y tisse la PILE DES THIS : les OBJETS ANONYMES empilent
+     * leur couche (le this implicite le plus profond d'abord), les lambdas
+     * traînantes d'un `apply`/`also`/`run` sur récepteur TYPÉ portent le
+     * récepteur en this implicite (fiche 028), et la ZONE DE CONSTRUCTION
+     * (`field` des accesseurs, paramètres nus du primaire) garde ses noms.
      *
      * @param noeud le nœud visité ;
      * @param liaison la liaison nom → type écrit des portées locales ;
-     * @param heritageOuvert l'univers des membres de la classe englobante
-     * est ouvert (noms nus muets — fiche 022) ;
+     * @param pile la pile des this de la position ;
+     * @param nomsZone les noms de la ZONE DE CONSTRUCTION courante
+     * (paramètres nus du primaire, `field` des accesseurs) ;
      * @param enteteBrisee l'en-tête de la classe englobante est brisée
      * (absence muette — fiche 017).
      */
@@ -363,55 +468,121 @@ internal object DiagnosticsSemantiques {
         contextes: Contextes,
         diagnostics: MutableList<DiagnosticKotlin>,
         liaison: MarcheTypee.Liaison,
-        heritageOuvert: Boolean,
+        pile: PileThis,
+        nomsZone: Set<String>,
         enteteBrisee: Boolean,
     ) {
         when (noeud.genre) {
             KtNodeTypes.USER_TYPE -> {
-                // Un type QUALIFIÉ (`a.b.C`) : les segments restent muets
-                // (un seul segment faillible — fiche 044, vague 2c). Le type
-                // SIMPLE porte la vérification ; ses ARGUMENTS marchent —
-                // la RÉFÉRENCE du nom ne re-marche PAS en nom nu (elle est
-                // une position de TYPE, jamais un usage : l'émission y
-                // serait DOUBLÉE).
                 if (noeud.enfants.none { it.genre == KtNodeTypes.USER_TYPE }) {
+                    // Le type SIMPLE porte la vérification ; ses ARGUMENTS
+                    // marchent — la RÉFÉRENCE du nom ne re-marche PAS en nom
+                    // nu (elle est une position de TYPE, jamais un usage :
+                    // l'émission y serait DOUBLÉE).
                     noeud.enfants
                         .firstOrNull { it.genre == KtNodeTypes.REFERENCE_EXPRESSION }
-                        ?.let { verifierNomType(it, contextes, diagnostics, enteteBrisee) }
+                        ?.let { verifierNomType(it, contextes, diagnostics, pile, enteteBrisee) }
+                    noeud.enfants
+                        .filter { it.genre != KtNodeTypes.REFERENCE_EXPRESSION }
+                        .forEach { marcher(it, contextes, diagnostics, liaison, pile, nomsZone, enteteBrisee) }
+                } else {
+                    // Un type QUALIFIÉ (`android.os.Bundle`, `Aquarium.Bac`,
+                    // `Conteneur.Fabrique` — vague 2c, fiches 044/028/029) :
+                    // le CHEMIN COMPLET décide. S'il résout (projet imbriqué,
+                    // import + `$` classpath, classe de packages), tous les
+                    // segments restent MUETS ; sinon UN SEUL segment est
+                    // faillible — le DERNIER (le nom de classe) — les
+                    // segments amont sont des PAQUETS potentiels, jamais
+                    // signalés (E4/E4bis).
+                    verifierTypeQualifie(noeud, contextes, diagnostics, pile, enteteBrisee)
+                    noeud.enfants
+                        .filter { it.genre == KtNodeTypes.TYPE_ARGUMENT_LIST }
+                        .forEach { marcher(it, contextes, diagnostics, liaison, pile, nomsZone, enteteBrisee) }
                 }
-                noeud.enfants
-                    .filter { it.genre != KtNodeTypes.REFERENCE_EXPRESSION }
-                    .forEach { marcher(it, contextes, diagnostics, liaison, heritageOuvert, enteteBrisee) }
             }
             KtNodeTypes.DOT_QUALIFIED_EXPRESSION, KtNodeTypes.SAFE_ACCESS_EXPRESSION -> {
                 val recepteur = noeud.enfants.firstOrNull()
                 val selecteur = noeud.enfants.lastOrNull()
                 if (recepteur != null && selecteur != null && recepteur !== selecteur) {
+                    // Le CHEMIN FQN d'identifiants nus (vague 2c — fiche 028 :
+                    // `exo.paq.ClassePublique()` sans import, `Aquarium.Bac()`)
+                    // : si la RACINE ne résout PAS comme valeur et que le
+                    // chemin complet RÉSOUT comme classe, TOUT est muet ; s'il
+                    // ne résout pas, la racine ET la feuille appelée sont
+                    // signalées, le MILIEU (paquet) muet — miroir kotlinc.
+                    if (noeud.genre == KtNodeTypes.DOT_QUALIFIED_EXPRESSION &&
+                        marcherCheminFqn(noeud, recepteur, selecteur, contextes, diagnostics, liaison, pile, nomsZone, enteteBrisee)
+                    ) {
+                        return
+                    }
                     // Le RÉCEPTEUR marche d'abord (nom nu candidat), le
                     // sélecteur est vérifié par le type complet du récepteur.
-                    marcher(recepteur, contextes, diagnostics, liaison, heritageOuvert, enteteBrisee)
-                    verifierSelecteur(recepteur, selecteur, contextes, diagnostics, liaison, enteteBrisee)
+                    marcher(recepteur, contextes, diagnostics, liaison, pile, nomsZone, enteteBrisee)
+                    verifierSelecteur(recepteur, selecteur, contextes, diagnostics, liaison, pile, enteteBrisee)
                     // Les ARGUMENTS et lambdas de l'appel sélecteur marchent
-                    // (la callee elle-même ne re-marche pas).
+                    // (la callee elle-même ne re-marche pas) ; la lambda
+                    // traînante d'un `apply`/`also`/`run` sur récepteur typé
+                    // porte le RÉCEPTEUR en this implicite (fiche 028).
                     if (selecteur.genre == KtNodeTypes.CALL_EXPRESSION) {
+                        val nomSelecteur = selecteur.enfants
+                            .firstOrNull { it.genre == KtNodeTypes.REFERENCE_EXPRESSION }
+                            ?.texteCanonique.orEmpty()
+                        val pileLambda = if (nomSelecteur in Couches.FONCTIONS_APPLIQUANTES) {
+                            TypageBorne.typeDeLexpression(recepteur, contextes.univers, liaison, pile)
+                                ?.let { pile.empiler(Couches.deType(contextes.univers, it)) }
+                        } else {
+                            null
+                        }
                         selecteur.enfants
                             .filter { it.genre != KtNodeTypes.REFERENCE_EXPRESSION }
-                            .forEach { marcher(it, contextes, diagnostics, liaison, heritageOuvert, enteteBrisee) }
+                            .forEach {
+                                marcher(
+                                    it, contextes, diagnostics, liaison,
+                                    pileLambda ?: pile, nomsZone, enteteBrisee,
+                                )
+                            }
                     }
                 }
+            }
+            KtNodeTypes.OBJECT_LITERAL, KtNodeTypes.OBJECT_DECLARATION -> {
+                // La PILE DES THIS (vague 2c — fiche 028) : un objet ANONYME
+                // en position d'EXPRESSION empile sa couche (ses supertypes
+                // résolus + les membres de son corps) pour la marche de son
+                // corps ; sa clause de supertypes marche dans la pile
+                // EXTERNE (les arguments du super y sont évalués).
+                if (noeud.genre == KtNodeTypes.OBJECT_LITERAL || nomDeDeclaration(noeud) == null) {
+                    val couche = Couches.anonyme(contextes.univers, noeud)
+                    val pileInterne = pile.empiler(couche)
+                    for (enfant in noeud.enfants) {
+                        if (enfant.genre == KtNodeTypes.SUPER_TYPE_LIST) {
+                            marcher(enfant, contextes, diagnostics, liaison, pile, nomsZone, enteteBrisee)
+                        } else {
+                            marcher(enfant, contextes, diagnostics, liaison, pileInterne, nomsZone, enteteBrisee)
+                        }
+                    }
+                } else {
+                    noeud.enfants.forEach { marcher(it, contextes, diagnostics, liaison, pile, nomsZone, enteteBrisee) }
+                }
+            }
+            KtNodeTypes.PROPERTY_ACCESSOR -> {
+                // Un accesseur CUSTOM : `field` y est en portée (fiche 028 —
+                // `set(valeur) { field = valeur + 1 }`) ; son paramètre est
+                // une DÉCLARATION (garde documentaire).
+                val zoneAccesseur = nomsZone + "field"
+                noeud.enfants.forEach { marcher(it, contextes, diagnostics, liaison, pile, zoneAccesseur, enteteBrisee) }
             }
             KtNodeTypes.CALL_EXPRESSION -> {
                 // Un appel NU : la callee est un nom nu candidat, les
                 // arguments et lambdas marchent.
                 noeud.enfants
                     .firstOrNull { it.genre == KtNodeTypes.REFERENCE_EXPRESSION }
-                    ?.let { verifierNomNu(it, contextes, diagnostics, liaison, heritageOuvert, enteteBrisee) }
+                    ?.let { verifierNomNu(it, contextes, diagnostics, liaison, pile, nomsZone, enteteBrisee) }
                 noeud.enfants
                     .filter { it.genre != KtNodeTypes.REFERENCE_EXPRESSION }
-                    .forEach { marcher(it, contextes, diagnostics, liaison, heritageOuvert, enteteBrisee) }
+                    .forEach { marcher(it, contextes, diagnostics, liaison, pile, nomsZone, enteteBrisee) }
             }
             KtNodeTypes.REFERENCE_EXPRESSION -> {
-                verifierNomNu(noeud, contextes, diagnostics, liaison, heritageOuvert, enteteBrisee)
+                verifierNomNu(noeud, contextes, diagnostics, liaison, pile, nomsZone, enteteBrisee)
             }
             KtNodeTypes.VALUE_ARGUMENT -> {
                 // Un argument NOMMÉ (`copy(x = 1)`) : le nom de l'argument
@@ -419,13 +590,200 @@ internal object DiagnosticsSemantiques {
                 // la VALEUR marche seule.
                 noeud.enfants
                     .filter { it.genre != KtNodeTypes.VALUE_ARGUMENT_NAME }
-                    .forEach { marcher(it, contextes, diagnostics, liaison, heritageOuvert, enteteBrisee) }
+                    .forEach { marcher(it, contextes, diagnostics, liaison, pile, nomsZone, enteteBrisee) }
             }
             else -> {
-                noeud.enfants.forEach { marcher(it, contextes, diagnostics, liaison, heritageOuvert, enteteBrisee) }
+                noeud.enfants.forEach { marcher(it, contextes, diagnostics, liaison, pile, nomsZone, enteteBrisee) }
             }
         }
     }
+
+    /**
+     * Marche un CHEMIN FQN d'identifiants nus (vague 2c — fiche 028) :
+     * `exo.paq.ClassePublique()`, `Aquarium.Bac()`. La racine ne résout
+     * pas comme VALEUR (nom nu SIGNALABLE) : si le chemin complet résout
+     * comme CLASSE, tous les segments sont muets (seuls les ARGUMENTS de
+     * l'appel feuille marchent) ; sinon la RACINE et la FEUILLE APPELÉE
+     * sont émis, le MILIEU (paquet potentiel) muet.
+     *
+     * @return `true` si la marche est CONSOMMÉE par le chemin (l'appelant
+     * ne re-marche PAS le récepteur) ; `false` pour la marche standard.
+     */
+    private fun marcherCheminFqn(
+        noeud: NoeudArbre,
+        recepteur: NoeudArbre,
+        selecteur: NoeudArbre,
+        contextes: Contextes,
+        diagnostics: MutableList<DiagnosticKotlin>,
+        liaison: MarcheTypee.Liaison,
+        pile: PileThis,
+        nomsZone: Set<String>,
+        enteteBrisee: Boolean,
+    ): Boolean {
+        val segments = chaineIdentifiants(noeud) ?: return false
+        if (segments.size < 2) return false
+
+        // La RACINE doit être un nom nu NON résolu (SIGNALABLE) : une racine
+        // valeur (locale, paramètre, classe, import) ou un nom de la ZONE DE
+        // CONSTRUCTION (paramètre nu du primaire — fiche 028 : le sélecteur
+        // d'une valeur en zone relève de la marche standard) relève de la
+        // marche standard par sélecteur.
+        val racine = segments.first()
+        if (racine in nomsZone) return false
+        if (contextes.univers.resoudreNomNu(racine, contextes.nomsDeclares, liaison, pile) !=
+            UniversPreuves.Verdict.SIGNALABLE
+        ) {
+            return false
+        }
+
+        // Les ARGUMENTS de l'appel feuille marchent dans tous les cas.
+        val arguments: List<NoeudArbre> = if (selecteur.genre == KtNodeTypes.CALL_EXPRESSION) {
+            selecteur.enfants.filter { it.genre != KtNodeTypes.REFERENCE_EXPRESSION }
+        } else {
+            emptyList()
+        }
+
+        // Le chemin complet RÉSOUT : tout est muet (fiche 028 — « expression
+        // complétée sans import »).
+        if (contextes.univers.cheminClasse(segments) != null) {
+            arguments.forEach { marcher(it, contextes, diagnostics, liaison, pile, nomsZone, enteteBrisee) }
+            return true
+        }
+
+        // Le chemin ne résout pas : la RACINE (récepteur inconnu — miroir
+        // kotlinc « unresolved: exo ») est émise ; la FEUILLE APPELÉE ne
+        // l'est que pour un chemin de CLASSE QUALIFIÉE (≥ 3 segments :
+        // paquet.paquet.Classe — fiche 028) — un sélecteur de MÉTHODE sur
+        // récepteur inconnel (2 segments : `contexte.toString()`) reste au
+        // récepteur seul ; le MILIEU (paquet) reste toujours muet.
+        if (contextes.univers.nomsNusProuvables && !contextes.univers.script) {
+            if (segments.size >= 3 && selecteur.genre == KtNodeTypes.CALL_EXPRESSION) {
+                selecteur.enfants
+                    .firstOrNull { it.genre == KtNodeTypes.REFERENCE_EXPRESSION }
+                    ?.let { feuille ->
+                        emettreNonResolu(
+                            reference = feuille,
+                            nom = feuille.texteCanonique,
+                            forme = FormeReference.NOM_NU,
+                            issue = IssueSelection.INCONNU,
+                            recepteur = null,
+                            contextes = contextes,
+                            diagnostics = diagnostics,
+                        )
+                    }
+            }
+            noeudReferenceRacine(noeud)?.let { racineNode ->
+                emettreNonResolu(
+                    reference = racineNode,
+                    nom = racine,
+                    forme = FormeReference.NOM_NU,
+                    issue = IssueSelection.INCONNU,
+                    recepteur = null,
+                    contextes = contextes,
+                    diagnostics = diagnostics,
+                )
+            }
+        }
+        arguments.forEach { marcher(it, contextes, diagnostics, liaison, pile, nomsZone, enteteBrisee) }
+        return true
+    }
+
+    /**
+     * Les SEGMENTS d'une chaîne qualifiée d'IDENTIFIANTS NUS (`exo.paq.X()`)
+     * — `null` si la chaîne contient autre chose qu'une référence nue (un
+     * appel au MILIEU, un littéral, un `this`) : ce n'est pas un chemin FQN.
+     */
+    private fun chaineIdentifiants(noeud: NoeudArbre): List<String>? {
+        val segments = mutableListOf<String>()
+        var courant: NoeudArbre = noeud
+        while (courant.genre == KtNodeTypes.DOT_QUALIFIED_EXPRESSION) {
+            val recepteur = courant.enfants.firstOrNull() ?: return null
+            val selecteur = courant.enfants.lastOrNull() ?: return null
+            if (recepteur === selecteur) return null
+            when (selecteur.genre) {
+                KtNodeTypes.REFERENCE_EXPRESSION -> segments.add(0, selecteur.texteCanonique)
+                KtNodeTypes.CALL_EXPRESSION -> {
+                    // La feuille APPELÉE : sa callee doit être une référence
+                    // nue ; le reste de la chaîne continue à gauche.
+                    val callee = selecteur.enfants.firstOrNull { it.genre == KtNodeTypes.REFERENCE_EXPRESSION }
+                        ?: return null
+                    if (selecteur.enfants.count { it.genre == KtNodeTypes.REFERENCE_EXPRESSION } > 1) return null
+                    segments.add(0, callee.texteCanonique)
+                }
+                else -> return null
+            }
+            if (recepteur.genre == KtNodeTypes.REFERENCE_EXPRESSION) {
+                segments.add(0, recepteur.texteCanonique)
+                return segments
+            }
+            courant = recepteur
+        }
+        return null
+    }
+
+    /** Le nœud RÉFÉRENCE racine d'une chaîne qualifiée (le plus à gauche). */
+    private fun noeudReferenceRacine(noeud: NoeudArbre): NoeudArbre? {
+        var courant: NoeudArbre = noeud
+        while (courant.genre == KtNodeTypes.DOT_QUALIFIED_EXPRESSION) {
+            val recepteur = courant.enfants.firstOrNull() ?: return null
+            if (recepteur.genre == KtNodeTypes.REFERENCE_EXPRESSION) return recepteur
+            if (recepteur.genre != KtNodeTypes.DOT_QUALIFIED_EXPRESSION) return null
+            courant = recepteur
+        }
+        return null
+    }
+
+    /**
+     * Vérifie un TYPE QUALIFIÉ (vague 2c — fiches 044 E4/E4bis, 028/029) :
+     * le CHEMIN COMPLET des segments (`android.os.Bundle`, `Aquarium.Bac`,
+     * `Conteneur.Fabrique`) résout (projet, import + `$` classpath, classe
+     * de packages) → MUET ; sinon UN SEUL segment faillible : le DERNIER.
+     */
+    private fun verifierTypeQualifie(
+        noeud: NoeudArbre,
+        contextes: Contextes,
+        diagnostics: MutableList<DiagnosticKotlin>,
+        pile: PileThis,
+        enteteBrisee: Boolean,
+    ) {
+        if (contextes.directivesBruisees || enteteBrisee) return
+        val segments = segmentsTypeQualifie(noeud)
+        if (segments.isEmpty()) return
+        if (contextes.univers.cheminClasse(segments) != null) return
+        if (!contextes.univers.nomsNusProuvables) return
+        // Le DERNIER segment seul est faillible (le nom de classe) : les
+        // segments amont sont des PAQUETS potentiels (E4bis).
+        val feuille = noeud.enfants.lastOrNull { it.genre == KtNodeTypes.REFERENCE_EXPRESSION }
+            ?: return
+        val nom = feuille.texteCanonique
+        if (nom.isEmpty()) return
+        emettreNonResolu(
+            reference = feuille,
+            nom = nom,
+            forme = FormeReference.NOM_NU,
+            issue = IssueSelection.INCONNU,
+            recepteur = null,
+            contextes = contextes,
+            diagnostics = diagnostics,
+        )
+    }
+
+    /** Les SEGMENTS d'un USER_TYPE qualifié (gauche → droite). */
+    private fun segmentsTypeQualifie(noeud: NoeudArbre): List<String> {
+        val segments = mutableListOf<String>()
+        var courant: NoeudArbre = noeud
+        while (true) {
+            val nom = courant.enfants
+                .lastOrNull { it.genre == KtNodeTypes.REFERENCE_EXPRESSION }
+                ?.texteCanonique
+            if (nom.isNullOrEmpty()) return emptyList()
+            segments.add(0, nom)
+            val interne = courant.enfants.firstOrNull { it.genre == KtNodeTypes.USER_TYPE } ?: break
+            courant = interne
+        }
+        return segments
+    }
+
 
     /** Vérifie un NOM NU (référence d'expression ou callee d'appel nu). */
     private fun verifierNomNu(
@@ -433,13 +791,24 @@ internal object DiagnosticsSemantiques {
         contextes: Contextes,
         diagnostics: MutableList<DiagnosticKotlin>,
         liaison: MarcheTypee.Liaison,
-        heritageOuvert: Boolean,
+        pile: PileThis,
+        nomsZone: Set<String>,
         enteteBrisee: Boolean,
     ) {
         val nom = reference.texteCanonique
         if (nom.isEmpty()) return
-        if (contextes.directivesBruisees || enteteBrisee || heritageOuvert) return
-        val verdict = contextes.univers.resoudreNomNu(nom, contextes.nomsDeclares, liaison)
+        // Le mot-clé `super` (le parseur l'enveloppe d'un REFERENCE_EXPRESSION
+        // dans SUPER_EXPRESSION — vague 2c, fiche 044 E4) : jamais un nom nu.
+        if (nom == "super") return
+        if (contextes.directivesBruisees || enteteBrisee) return
+        // Une couche ENGLOBANTE ouverte ou opaque bloque la preuve des noms
+        // nus (vague 2c — la clôture ne se clôt pas : chaîne non fermée,
+        // enum, couche illisible — jamais un faux positif).
+        if (pile.bloqueNomsNus) return
+        // La ZONE DE CONSTRUCTION (paramètres nus du primaire, `field` des
+        // accesseurs — fiche 028).
+        if (nom in nomsZone) return
+        val verdict = contextes.univers.resoudreNomNu(nom, contextes.nomsDeclares, liaison, pile)
         if (verdict != UniversPreuves.Verdict.SIGNALABLE) return
         emettreNonResolu(
             reference = reference,
@@ -457,12 +826,13 @@ internal object DiagnosticsSemantiques {
         reference: NoeudArbre,
         contextes: Contextes,
         diagnostics: MutableList<DiagnosticKotlin>,
+        pile: PileThis,
         enteteBrisee: Boolean,
     ) {
         val nom = reference.texteCanonique
         if (nom.isEmpty()) return
         if (contextes.directivesBruisees || enteteBrisee) return
-        val verdict = contextes.univers.resoudreNomType(nom)
+        val verdict = contextes.univers.resoudreNomType(nom, pile)
         if (verdict != UniversPreuves.Verdict.SIGNALABLE) return
         emettreNonResolu(
             reference = reference,
@@ -482,6 +852,7 @@ internal object DiagnosticsSemantiques {
         contextes: Contextes,
         diagnostics: MutableList<DiagnosticKotlin>,
         liaison: MarcheTypee.Liaison,
+        pile: PileThis,
         enteteBrisee: Boolean,
     ) {
         if (contextes.directivesBruisees || enteteBrisee) return
@@ -496,8 +867,9 @@ internal object DiagnosticsSemantiques {
 
         // Le type du récepteur (ADR 0223 : la sélection par types complets
         // — un récepteur PROJET ou de BIBLIOTHÈQUE lisible dans la vue JVM
-        // (vague 2b), sinon le sélecteur reste muet).
-        val typeRecepteur = TypageBorne.typeDeLexpression(recepteur, contextes.univers, liaison)
+        // (vague 2b), sinon le sélecteur reste muet). La vague 2c y passe
+        // la PILE DES THIS (`this.layoutInflater`, membres implicites).
+        val typeRecepteur = TypageBorne.typeDeLexpression(recepteur, contextes.univers, liaison, pile)
             ?: return
         val verdict = contextes.univers.verifierSelecteur(typeRecepteur, nom)
         if (verdict != UniversPreuves.Verdict.SIGNALABLE) return

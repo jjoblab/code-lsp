@@ -13,6 +13,16 @@
 > périmètre de l'étage (le mode profond K2, ADR 0103, est la seule voie
 > d'extension).
 >
+> **Vague 2c (fiches 044/028/032/040/029 — 44 comportements)** : la
+> CLÔTURE DES SUPERTYPES (mixte projet/classpath — la voie 2-ter d'ADR
+> 0216), la PILE DES THIS (objets anonymes, `apply`/`also`/`run`), les
+> types IMBRIQUÉS (projet niveau 2/3, classpath `$`, héritées par nom
+> simple), les CHEMINS FQN (expression et type qualifié — E4/E4bis), les
+> ZONES DE CONSTRUCTION (paramètres nus du primaire, `field`), la
+> dérivation ADR 0219 CONSCIENTE des descripteurs, le TERMINAL CONNU
+> `java.lang.Enum`, le SURVOL des membres hérités avec propriétaire et la
+> complétion membre étendue à la clôture.
+>
 > **Vague 2b (fiche 046 — 39 comportements)** : la VUE JVM DES MEMBRES du
 > classpath (lecteur maison, décision Q-K1 à minima), les smart casts
 > POSITIONNELS, les lambdas par ATTENTE, `kt.typeMismatch`/
@@ -25,12 +35,12 @@
 |---|---|---|---|
 | P1 | Les DÉCLARATIONS LOCALES (paramètres, `val`/`var` locaux) précèdent tout : la garde documentaire de la fiche 017 les rend résolues n'importe où dans le document (sous-rapport assumé : une locale postérieure résout aussi) | ✅ | `resolve/ResolutionReferences.resoudreNomNu` (garde) — vague 2a |
 | P2 | Les MEMBRES de la classe englobante sont en portée sans sélecteur | ✅ (via la garde documentaire — les noms de membres sont des noms déclarés) | vague 2a |
-| P3 | Les membres HÉRITÉS (clauses écrites) : résolus par la fermeture mixte projet/classpath | 🌙 à la vague 2a (muets : l'univers est ouvert), ✅ en 2c | fiches 044/028/040 |
+| P3 | Les membres HÉRITÉS (clauses écrites) : résolus par la FERMETURE MIXTE projet/classpath — la clôture ferme la chaîne (maillons projet relus récursivement, maillons classpath par le jeu JVM de la chaîne binaire, IMBRIQUÉES `$` comprises) ; une chaîne NON FERMÉE (supertype introuvable, enum, maillon illisible) laisse l'univers OUVERT | ✅ 2c (fiches 044/028/040) ; 🌙 chaîne non fermée (muet, D3) | `Clotures` + `UniversPreuves.clotureDe` — vague 2c |
 | P4 | Le PACKAGE courant : ses types et appelables de premier niveau sont en portée sans import | ✅ | `ModeleProjet.appelables(paquet)` — vague 2a |
 | P5 | L'import EXACT (`import a.b.Nom`) met `Nom` en portée ; l'ALIAS (`as`) le remplace | ✅ | `resoudreNomNu`/`resoudreNomType` (nom effectif) — vague 2a |
 | P6 | L'import JOKER (`import a.b.*`) met TOUS les membres du package en portée | 🌙 | seuls les packages ÉNUMÉRABLES (projet) et les appelables/alias connus de l'index résolvent ; un package classpath non énumérable MUET les preuves de noms nus (aucune vue JVM des APPELABLES de joker — la vue 2b couvre les MEMBRES, pas l'énumération des packages) |
 | P7 | Les imports PAR DÉFAUT (`kotlin.*`, `kotlin.collections/text/io/ranges/sequences/annotation/comparisons`, `kotlin.jvm`, `java.lang`) : en portée sans import écrit | ✅ (types par le CATALOGUE KP8, appelables/alias par l'index — voie 6 ADR 0203) | `CATALOGUE_TYPES_DEFAUT`, `PAQUETS_DEFAUT` — vague 2a |
-| P8 | Les récepteurs IMPLICITES (`with`/`apply` emboîtés, scopes de lambda, pile des `this` des objets anonymes) | 🌙 en 2a, ✅ en 2f (fiche 047) / 2c (vague 4) | — |
+| P8 | Les récepteurs IMPLICITES : la PILE DES THIS (l'objet anonyme d'abord, puis les classes englobantes — les membres déclarés du corps et les clôtures des supertypes) et la lambda traînante d'un `apply`/`also`/`run` sur récepteur TYPÉ (le récepteur devient `this`) | ✅ 2c (fiches 028/040 — `Couches`/`PileThis`) ; 🌙 `with`/scopes de lambda à paramètre → 2f (fiche 047) | `Couches.aPosition`, marche sémantique |
 | P9 | `expect`/`actual` : `expect` d'abord | ⛔→2e | fiches 030/031 |
 | P10 | Les compagnons (anonymes « Companion », nommés) : membres accessibles par le nom de la classe | ⛔→2d | fiche 024 |
 | P11 | Les TYPEALIAS : carte dédiée (projet et bibliothèque) | 🌙 projet ✅ (modèle), bibliothèque ✅ via `aliasTopParNom` (fiche 037 en 2d) | vague 2a |
@@ -45,7 +55,7 @@
 | A2 | Les membres IMPLICITES de `Any`/`Object` (`equals`, `hashCode`, `toString`, `getClass`, `wait`, `notify`, `notifyAll`, `clone`, `finalize`) : jamais prouvables absents | ✅ | `MEMBRES_IMPLICITS` — vague 2a |
 | A3 | Data class : `copy`/`componentN` synthétisés (lus du `MODIFIER_LIST` `data` et des paramètres `val`/`var`) | ✅ | `avecSynthesesData` — fiche 022 |
 | A4 | Enum : membres implicites (`values`, `valueOf`, `entries`, `name`, `ordinal`, `Comparable`) — JAMAIS prouvables absents | ✅ (enum → non absence-fiable) | fiche 022 |
-| A5 | Héritage ÉCRIT (classe ou interface, Kotlin ou Java `extends`/`implements`) : aucun membre hérité n'est prouvable absent | ✅ | `TypeProjet.absenceFiable` — fiches 022 |
+| A5 | Héritage ÉCRIT (classe ou interface, Kotlin ou Java `extends`/`implements`) : le jeu de membres complet vient de la CLÔTURE (2c) — l'absence se prouve quand la chaîne SE FERME ; une chaîne non fermée garde le silence | ✅ (2c — fiches 022/044/028) | `Clotures.clotureDuType` + `verifierSelecteurProjet` — vagues 2a/2c |
 | A6 | La contrainte d'un PARAMÈTRE DE TYPE (`class B<T extends C>`) n'est PAS un supertype | ✅ | `LecteurDeclarationsJava` (génériques sautés balancés) — fiche 022 |
 | A7 | Les EXTENSIONS du projet sur le récepteur résolvent (récepteur écrit résolu par package à l'assemblage) | ✅ | `ModeleProjet.Batisseur.figer` — fiche 022 |
 | A8 | Les extensions du CLASSPATH sur le récepteur (FQCN) résolvent — l'index doit être PORTANT | ✅ | `VueAppelables.extensionsSur` — fiches 022/006 |
@@ -54,6 +64,7 @@
 | A11 | Une extension à récepteur NON RÉSOLU (alias/qualifié) ouvre l'univers : MUET toutes les preuves de sélecteurs | ✅ | `ModeleProjet.extensionsNonResolues` — vague 2a (garde de sonorité) |
 | A12 | Sélecteurs sur récepteurs CLASSPATH (String, TextView…) : vue JVM des membres | ✅ | `VueJvmMembres.jeuComplet` (chaîne de supertypes des ENTRÉES, propriétés dérivées ADR 0219, implicites ; `java.lang.Object` terminal connu) — fiche 046, vague 2b | 
 | A12b | Les types MAPPÉS numériques/booléens (`kotlin.Int`…) : leurs membres Kotlin (plus, inv…) ne vivent pas dans le bytecode des classes encadrantes | 🌙 (sélecteurs MUETS — jamais un faux positif ; `kotlin.String` et `kotlin.Any` restent absence-fiables, `get` couvert par la lecture directe des méthodes) | `MAPPES_NON_FIABLES` — vague 2b |
+| A18 | Les CHEMINS DE CLASSE qualifiés (vague 2c — fiches 044 E4/E4bis, 028/029) : en TYPE, le chemin complet décide (`android.os.Bundle`, `Aquarium.Bac`, `Conteneur.Fabrique` → `Conteneur$Fabrique`) — UN SEUL segment faillible, le DERNIER ; en EXPRESSION, un chemin d'identifiants nus à racine non valeur qui RÉSOUT rend tous les segments muets, un chemin INTROUVABLE signale la RACINE et (chemin de classe ≥ 3 segments, feuille appelée) la FEUILLE — le MILIEU (paquet) toujours muet | ✅ 2c | `UniversPreuves.cheminClasse` + `marcherCheminFqn`/`verifierTypeQualifie` |
 | A13 | La résolution par arité (surcharge) : nom + arité sur candidates prouvées | ✅ (appels NUS aux fonctions de premier niveau et constructeurs primaires du projet ; défauts/`vararg`/arguments nommés et sélecteurs qualifiés MUETS) | `DiagnosticsTypage.verifierArite` (témoins PROPRES, fiche 017) — fiche 046, vague 2b |
 | A14 | Le typage borné : types ÉCRITS, initialiseurs typés (marche typée), retours écrits, constructeurs, LITTÉRAUX (familles) | ✅ (socle 2a + littéraux/`TypeValeur` 2b) | `resolve/MarcheTypee` + `resolve/TypageBorne` — vagues 2a/2b |
 | A15 | Smart casts POSITIONNELS (if/garde/&&/when, ombrage, `||` annule) | ✅ | `TypageBorne.raffinementAuPoint` — fiche 046, vague 2b |
@@ -82,6 +93,8 @@
 | S4 | Les sources GÉNÉRÉES sous `build/` (KSP/Hilt/Room/DataBinding) | ⛔→2e | fiche 035 |
 | S5 | La troncation du scan (borne de collecte) réfléchie dans l'état | ✅ (complet/partiel) — fiche 036 affine en 2e |
 
+| S6 | Les types IMBRIQUÉS des sources (vague 2c — fiche 029) : niveau 2 et niveau 3 extraits en récursif BORNÉ — FQCN pointé `paquet.Conteneur.Imbriquee`, chaque imbriquée AUSSI membre TYPE_IMBRIQUE de son conteneur ; les marqueurs `Enum`/`Record` du lecteur Java laissent la clôture OUVERTE | ✅ 2c | `ModeleProjet` (chemin d'englobants + `imbriquesDu`), `LecteurDeclarationsJava` |
+| S7 | Le FRÈRE OUVERT VIVANT prime son doublon du scan (vague 2c — fiche 044 : la clôture lit l'arbre VIF, jamais le disque périmé) ; le document courant primait déjà (2a) | ✅ 2c | `SessionLangageKotlinDocuments.contributionsAuConsult` |
 ## 5. Journal « explain » (fiche 006)
 
 | # | Règle | Statut |
@@ -132,6 +145,31 @@
 - **La complétion reste un GERME** (libellés nus, ordre de rencontre) : le
   pipeline complet (contextuelle, classement, multi-langue) est l'étage 3
   (ADR 0113).
+- **La clôture d'héritage est FERMÉE ou MUETTE (vague 2c)** : les supertypes
+  écrits se résolvent par le MODÈLE (package courant, nom unique), les
+  IMPORTS EXACTS et le catalogue KP8 — JAMAIS par nom simple du classpath
+  (ADR 0223 : aucune résolution devinée) ; un maillon introuvable, un enum,
+  un marqueur `Enum`/`Record` Java ou un maillon JVM illisible des entrées
+  laisse l'univers OUVERT (les preuves d'absence s'y taisent, jamais un
+  faux positif). Les imbriquées des SUPERTYPES entrent à la clôture par
+  leur nom simple (`Resultats` de `Base$Resultats`), miroir de la règle
+  kotlinc ; `java.lang.Enum` est un TERMINAL CONNU (socle conservateur des
+  récepteurs d'enum — ses membres implicits y sont sur-approximés).
+- **La dérivation ADR 0219 lit les DESCRIPTEURS (vague 2c)** : un getter à
+  PARAMÈTRE ne synthétise RIEN (`getDrawable(I)` n'est pas `drawable`) ; un
+  getter nu dérive une propriété VAL, un setter à un paramètre une VAR ; le
+  typage et le survol des membres hérités suivent le descripteur (retour du
+  getter, paramètre du setter), les surcharges au retour DIVERGENT restent
+  muettes (jamais faux).
+- **La pile des this est bornée aux couches LISIBLES** : les lambdas
+  traînantes d'`apply`/`also`/`run` sur récepteur typé portent le récepteur
+  en `this` (heuristique documentée — la couche n'ajoute que du muet) ;
+  `with` et les scopes à paramètre restent 2f ; les ZONES DE CONSTRUCTION
+  (paramètres NUS du primaire, `field` des accesseurs) gardent leurs noms,
+  les méthodes NON (miroir kotlinc — un paramètre nu y est SIGNALÉ).
+- **Les chemins FQN sont conservateurs** : en expression, la racine non
+  valeur et la feuille appelée (chemin ≥ 3 segments) seules sont faillibles ;
+  en type, le DERNIER segment seul ; les milieux (paquets) jamais.
 - **La fidélité compilateur par frappe est hors périmètre** (preuve au
   spike S1 — ADR 0103) ; le banc de fidélité (étage 2g) mesure et PUBLIE
   le sous-rapport par famille.

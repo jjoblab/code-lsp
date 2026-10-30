@@ -96,7 +96,9 @@ internal object MarcheTypee {
          * valeur ou propriété (type écrit, sinon initialiseur typé par la
          * marche). Quand [locaux] est faux, les sous-arbres de FONCTION ne
          * sont pas descendus (les locales d'une fonction n'existent que dans
-         * sa région).
+         * sa région). Les paramètres NUS du constructeur PRIMAIRE (sans
+         * `val`/`var` — vague 2c, fiche 028) ne LIENT PAS : ils ne vivent
+         * que dans la zone de construction, leur typage relève du modèle.
          */
         private fun chercher(
             noeud: NoeudArbre,
@@ -104,12 +106,16 @@ internal object MarcheTypee {
             locaux: Boolean,
             collectes: MutableList<Candidat>,
             hors: NoeudArbre? = null,
+            dansPrimaire: Boolean = false,
         ) {
             if (noeud === hors) return
             when (noeud.genre) {
                 KtNodeTypes.VALUE_PARAMETER -> {
                     val n = noeud.jetonsPropres.firstOrNull { it.genre == KtTokens.IDENTIFIER }?.texte
-                    if (n == nom) {
+                    val nuDuPrimaire = dansPrimaire && noeud.jetonsPropres.none {
+                        it.genre == KtTokens.VAL_KEYWORD || it.genre == KtTokens.VAR_KEYWORD
+                    }
+                    if (n == nom && !nuDuPrimaire) {
                         noeud.enfants.firstOrNull { it.genre == KtNodeTypes.TYPE_REFERENCE }
                             ?.let { reference ->
                                 nomTypeEcritDeReference(reference)?.let { collectes.add(Candidat(noeud.fin, it)) }
@@ -142,7 +148,10 @@ internal object MarcheTypee {
             }
             if (noeud.genre != KtNodeTypes.FUN || locaux) {
                 for (enfant in noeud.enfants) {
-                    chercher(enfant, nom, locaux, collectes, hors)
+                    chercher(
+                        enfant, nom, locaux, collectes, hors,
+                        dansPrimaire || enfant.genre == KtNodeTypes.PRIMARY_CONSTRUCTOR,
+                    )
                 }
             }
         }
