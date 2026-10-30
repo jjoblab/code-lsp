@@ -677,3 +677,13 @@ gabarit appareil rempli (porte d'entrée) » de l'étage 1 est **ATTESTÉ**
 P-K1). Recommandation consignée (§6) : passes appareil répétées
 (thermique, min/médiane/max) pour le suivi longitudinal — pas un
 bloqueur, le déterminisme étant déjà attesté par les compteurs.
+
+**CI VERTE 9/9 sur le commit de consignation `c19e3e0`** (run
+`41015175742`, consulté le 30/10 à 06:40 UTC) — le dépôt porte la passe :
+build et tests JDK 21, bancs noyau/qualité/parité T, gates Android,
+provenance, et les trois jobs Kotlin (suite du module sur la toolchain 17,
+scan ART + dexage d8, banc empreinte/latence) — aucune ligne de code
+moteur modifiée par la consignation (documents et sortie brute seulement,
+l'état de code vérifié §14 est inchangé). **La passe appareil est CLOSE
+sur preuve mécanique — la porte d'entrée de l'étage 1 est franchie ; la
+vague 1d (classpath + index appelables, reprises R4/R5) est la suivante.**
