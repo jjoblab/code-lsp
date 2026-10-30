@@ -490,3 +490,65 @@ release de l'hôte (1.23.2) → bump du catalogue CodeIDE (0.204.2). Le
 harnais de reproduction est commité avec la release hôte : la régression
 du fil appareil est désormais exécutée par la CI de codeide-lsp sur la
 chaîne stdio complète.
+
+### 10.4 Exécution (31/10, fin) — la chaîne est FRANCHIE
+
+- **v1.1.2 publiée** (commit `0bc56ee`, tag poussé) : CI de publication
+  **verte** (run `41008294645`) ; registre vérifié — jar moteur 786 963 o
+  avec `version.properties=1.1.2`, compagnon ecj-art 3 288 188 o,
+  `maven-metadata.xml` latest=1.1.2 ; CI branche verte aussi
+  (`41008294696`).
+- **Régression prouvée verrouillante** : la sonde `fournisseurJrtDe`
+  ré-écrite avec `catch (Exception)` (état v1.1.1) fait ÉCHOUER la
+  régression (a) — le verrou tient. Quatre tests nouveaux (simulation
+  ART fidèle par service factice sans module fournisseur + masquage JVM
+  documenté + contrat de non-jet + moteur répondant sans plateforme) :
+  `:java:test` 482 verts, dépôt entier 644 verts.
+- **Pourquoi la simulation utilise un service factice** : vérifié
+  expérimentalement — sur JVM, le fournisseur `jrt` de `java.base`
+  (couche boot) est TOUJOURS itéré AVANT les fournisseurs du classpath
+  du chargeur, même sans parent : le défaut du jar externe est
+  structurellement masqué sur JVM. La condition ART (fournisseur cassé
+  SEUL itéré) exige un service sans AUCUN module fournisseur — d'où la
+  sonde générique `premierFournisseur` (le cœur du correctif, testable
+  fidèlement) et le test de masquage qui documente l'aveuglement de la
+  CI JVM.
+- **codeide-lsp 1.23.2 publiée** (release `16405f4`, pin
+  `codeide-lsp-java = "1.1.2"`, CHANGELOG + guide `MISE-A-JOUR-CODEIDE.md`
+  §1.23.2) : publication des 8 modules **verte** — POM de l'hôte
+  contrôlé portant `jo-codeide-lsp-java:1.1.2` (compile) +
+  `ecj-art:1.1.2` (runtime), metadata latest=1.23.2. Deux correctifs de
+  conformité CI absorbés ensuite sur main (motif 1.23.0) : spotless
+  (`a228bc3`, imports + ligne vide du test de reproduction) puis detekt
+  (`4468925`, exemption `LongMethod` justifiée — le fil appareil se lit
+  d'un bloc) puis baseline du digeste du corpus régénérée APRÈS les
+  changements de contenu (`10120f6`, 309 fichiers, sweep vert) ; le tag
+  v1.23.2 déplacé sur l'état final, CI verte main + tag
+  (`41015186438`/`41015186392`), garde 409 du workflow de publication
+  (re-tag inoffensif, documenté) — les artefacts étant identiques (les
+  sources de test ne sont pas embarquées).
+- **La régression du fil appareil validée contre le REGISTRE** :
+  `ReproductionFrappeAppareilTest` ré-exécutée avec le moteur mavenLocal
+  ÉCARTÉ (résolution GitHub Packages 1.1.2, `--rerun-tasks`) : VERTE —
+  le fil exact de la session défaillante (didOpen → documentHighlight(0)
+  → inlayHint → didChange → completion → pousserSync → re-frappe) ne
+  produit plus AUCUN « Internal error. ».
+- **CodeIDE 0.204.2 poussé** (`a670132`, main) : catalogue
+  `codeide-lsp = "1.23.2"` + `codeide-lsp-java = "1.1.2"` (pin miroir),
+  `version.properties` 0.204.2 / 20402, entrée CHANGELOG complète. CI
+  verte (`41015970688`). Validation locale CONTRE LE REGISTRE :
+  `:app:compileDebugKotlin` VERT (344 tâches) ; chaîne de dépendance
+  confirmée `host:1.23.2 → jo-codeide-lsp-java:1.1.2 + ecj-art:1.1.2`.
+- **Incident d'environnement local consigné** (bac à sable recyclé entre
+  les sessions, hors dépôts) : JDK système redevenu JRE (démon Gradle
+  basculé sur le JDK adoptium foojay persistant), SDK Android absent
+  (re-provisionné par `scripts/setup-env.sh` de CodeIDE — idempotent),
+  miroir 429 Central re-écrit (huaweicloud en tête de chaque liste, le
+  portal de plugins redirigeant vers Central étant aborté par le 429) ;
+  la CI GitHub, sur un autre réseau, n'a jamais vu ces problèmes.
+
+Reste au propriétaire : installer l'APK 0.204.2 sur le moto g06 et
+rejouer la passe appareil — attendu : les requêtes RÉPONDENT (plus de
+`ResponseErrorException: Internal error.`), la frappe d'une erreur
+republie des diagnostics N > 0 ; écart résiduel possible sur la
+complétion `java.*` pure (régime instantané).
