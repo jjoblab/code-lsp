@@ -151,8 +151,9 @@
   mécanisme — sa toolchain est 21 avec jvmTarget 17, config exacte de
   l'incident ; le scan actuel ne trouve rien, le risque est celui des
   écritures FUTURES).
-- **E-K8 — Budget dex de la pile chaude consommé à 93 % (vague 2a, 30/10/2026
-  — actualisation)** : l'adoption de
+- **E-K8 — Budget dex de la pile chaude (ARBITRÉ le 31/10/2026 : budget
+  taille ÉLEVÉ à 6 Mo par le propriétaire — voir l'entrée d'arbitrage
+  ci-dessous ; historique vague 2a, 30/10/2026 — actualisation)** : l'adoption de
   `org.jetbrains.kotlin:kotlin-metadata-jvm:2.2.10` (décodeur `@Metadata`,
   ADR 0108 — artefact épinglé à la chaîne d'outils) avait fait passer le dex
   d8 de la pile chaude (moteur + syntax-api + lang-syntax + annotations +
@@ -172,6 +173,22 @@
   l'analyseur `:index` public exigerait la mesure préalable de SON coût
   dex, Q-K1). Le seuil CI mesure à chaque push (aucune action requise tant
   qu'il est vert).
+- **E-K8 — ARBITRAGE DU PROPRIÉTAIRE (31/10/2026) : le budget T1 est ÉLEVÉ
+  4 Mo → 6 Mo** — levier « demande d'interface au propriétaire sur le
+  budget T1 » actionné à la demande expresse du propriétaire avant
+  l'engagement des vagues 2d-2g (« Élève le budget (E-k8) », 31/10/2026) ;
+  le seuil CI taille passe à ≤ 6 Mo (le seuil méthodes RESTE ≤ 32 768 —
+  moitié du mur 64K, marge structurelle du format dex, jamais négociable).
+  À la clôture 2c la pile chaude mesurait 25 273 méthodes /
+  3 980 148 o, soit 95 % de l'ANCIEN budget taille et 77 % du seuil
+  méthodes : le nouveau budget rend **63 %** consommés côté taille — la
+  marge couvre le reste de l'étage 2 (vagues 2d-2f ≈ +0,1-0,3 Mo de code
+  moteur attendu, miroir des vagues 2a-2c : +0,06/+0,05/+0,04 Mo) et
+  laisse de la place pour les étages 3-6. L'alerte reste OUVERTE en mode
+  surveillance : chaque clôture de vague actualise le pourcentage (le
+  seuil CI échoue toujours au-delà de 6 Mo) ; les leviers alternatifs
+  (Q-K2 décodeur maison, Q-K1) restent consignés si le budget devait
+  fondre à nouveau.
 
 ## 5. Points restés « à vérifier » (non clos par l'étude)
 

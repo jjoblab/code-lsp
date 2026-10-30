@@ -264,8 +264,13 @@ jobs:
           print(f"  références de méthodes (method_ids) : {methodes}")
           print(f"  taille classes.dex                  : {taille} octets ({taille/1024/1024:.2f} Mo)")
           assert methodes <= 32768, f"ÉCHEC seuil : {methodes} références de méthodes > 32768 (moitié du mur 64K)"
-          assert taille <= 4*1024*1024, f"ÉCHEC seuil : {taille} octets > 4 Mo (budget T1 APK, cibles §4)"
-          print("OK : seuils étage 0 tenus (≤ 32 768 méthodes, ≤ 4 Mo).")
+          # Budget T1 APK ÉLEVÉ par décision du propriétaire (31/10/2026,
+          # alerte E-K8 : 95 % du budget 4 Mo consommés à la clôture 2c,
+          # vagues 2d-2g + étages 3-6 restants) : 4 Mo → 6 Mo. Le seuil
+          # méthodes reste 32 768 (moitié du mur 64K — marge structurelle,
+          # jamais négociable : dépasser 65 536 casse le format dex).
+          assert taille <= 6*1024*1024, f"ÉCHEC seuil : {taille} octets > 6 Mo (budget T1 APK élevé par le propriétaire le 31/10/2026 — E-K8)"
+          print("OK : seuils étage 0 tenus (≤ 32 768 méthodes, ≤ 6 Mo — budget T1 élevé par le propriétaire 31/10/2026, E-K8).")
           PY
 
   kotlin-banc:

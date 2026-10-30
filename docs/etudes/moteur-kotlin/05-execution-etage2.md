@@ -117,7 +117,7 @@ CI 9 tâques verte + section du présent journal + commit/push.
 | # | Action | Référence | Bloque |
 |---|---|---|---|
 | 1 | Audit de similarité GPL (P-K1) — la copie R1/R2 est effectuée (vague 1e), l'audit recommandé (rôle distinct des implémenteurs) s'exerce a posteriori | manifeste §3/§6, ALERTES §2 | plus rien de dur — le propriétaire en reste juge |
-| 2 | Arbitrages Q-K1 (CIDX vs index dédié) / Q-K2 (décodage @Metadata maison) | DEMANDES-INTERFACE, ADR 0108 | le câblage classpath final ; la marge dex (E-K8 : 93 % du budget taille) |
+| 2 | Arbitrages Q-K1 (CIDX vs index dédié) / Q-K2 (décodage @Metadata maison) — PARTIELLEMENT ARBITRÉ : le budget T1 a été ÉLEVÉ 4 Mo → 6 Mo par le propriétaire le 31/10/2026 (E-K8, ALERTES §4 — l'urgence Q-K1/Q-K2 est levée, les arbitrages restent ouverts pour la structure) | DEMANDES-INTERFACE, ADR 0108, ALERTES §4 | le câblage classpath final ; la marge dex (E-K8 : 63 % du NOUVEAU budget taille) |
 | 3 | Conditions binaires intellij-dependencies (P-K2) | ADR 0120, NOTICE | la PUBLICATION du pack langue |
 | 4 | Lecture du second manifeste | synthèse §6.4 | rien |
 | 5 | Passe appareil couvrant l'étage 1 (kit enrichi de `kotlin-metadata-jvm`) — recommandation consignée, OPTIONNELLE | `04-execution-etage1.md` §16/§6 | rien (les latences S0 restent tenues en JVM) |
