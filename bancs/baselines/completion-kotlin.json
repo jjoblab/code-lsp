@@ -1,0 +1,16 @@
+{
+  "note": "Baseline du banc de qualité de complétion KOTLIN (étage 3 — ADR 0119 option 1 / ADR 0113, miroir ADR 0016 Java — signée par le commit qui la porte ; re-baseline par PR dédiée uniquement). 'naif' = chaîne alphabétique seule (statu quo sans design 3c) ; 'livree' = chaîne standard (correspondance graduée → nature par contexte → liftShorter → alphabétique). Le régime membre ne filtre pas par préfixe côté serveur (frontière RPC ADR 0118) : la naïve y rend l'espace entier en ordre alphabétique. Tolérance latence : p95 ≤ max(50 ms, baseline × 1,5).",
+  "corpus": "completion-kotlin v1 (16 positions)",
+  "signee": "2026-10-31",
+  "livree": {
+    "recall": 1.000,
+    "top1": 1.000,
+    "mrr": 1.000,
+    "p95_ms": 7.53
+  },
+  "naif": {
+    "recall": 1.000,
+    "top1": 0.375,
+    "mrr": 0.486
+  }
+}

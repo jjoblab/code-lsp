@@ -164,6 +164,7 @@
 60f21cc2be14dc749e52d70f6b29e3257945ec607493a8a06dce6eb753c7ebbe  java/src/test/kotlin/jo/codeide/lsp/java/completion/Fiche053ImportCompletionIntegrationTest.kt
 631981f22187fc9136af69482e62d47d4f4a1ad94f499dd627e6468f3c0429ac  index/src/test/kotlin/jo/codeide/lsp/index/AnalyseurClassFileDifferentielTest.kt
 64624c3e74a6a2146c0a8ae0d5b0a0af1f024fa25782043a47ec57b46d2926ae  java/src/main/kotlin/jo/codeide/lsp/java/protocole/AuxiliairesProtocole.kt
+6570d3d81a18e2565378889217472facca22952ebf8761a1f4147b247e964a3f  kotlin/src/bench/kotlin/jo/codeide/lsp/kotlin/banc/BancQualiteCompletion.kt
 658a50e58d50c80a71794cad5ffa263847111213980ebf48a1693eeac9d39596  kotlin/src/test/kotlin/jo/codeide/lsp/kotlin/session/Fiche037ReproductionTypealiasClasspathTest.kt
 664d574456ab9f540291950b93f0bb853a7cf47a92acee492a1e3ebf61d636dc  kotlin/src/test/kotlin/jo/codeide/lsp/kotlin/classpath/Fiche002DecodeurMetadonneesTest.kt
 6883747b75e61cfdf42cd2859bd0e9f720a6296af21a7a00bfb08f931976b1a3  java/src/main/kotlin/jo/codeide/lsp/java/gabarits/GabaritsPostfixes.kt
@@ -238,6 +239,7 @@
 9a93a8e3dec91d57d1d3c376a5338e4a983066dd36f4ec5b3f0c12ecd935b0ed  index/src/main/kotlin/jo/codeide/lsp/index/EtatIndex.kt
 9b58e078c006814a46f918f00d3e26948b494bc3b6085913653015240c699f9f  index/src/test/kotlin/jo/codeide/lsp/index/AnalyseurClassFileTest.kt
 9bf29ef603a9f2e465cb95c5cce4fbff7c1a6fa473545bef67682bbda22d98c7  index/src/main/kotlin/jo/codeide/lsp/index/LecteurSegment.kt
+9bf9a6667bfb587aeb6737e03b47afd28a9dcbbd298351d9a283a22c7aa72527  kotlin/src/bench/kotlin/jo/codeide/lsp/kotlin/banc/CorpusQualiteCompletion.kt
 9c7e35268c95b7a6fc59621c81e952355bab17865d366532b1764eb1b2d2a992  kotlin/src/test/resources/fidelite/monde-coroutines.kt
 9d26358a1b19fbb12e3d9fe07cdfe24527bcbff793fc881c324b21231032b2ea  spike-kotlin/src/test/kotlin/spikekotlin/CheminJars.kt
 9d5856f6e90f9ca20f990f3680df9c15344605ac29e38c99ba3c55a215afe47f  ecj-art/src/main/kotlin/jo/codeide/lsp/ecjart/compat/VersionJava.kt

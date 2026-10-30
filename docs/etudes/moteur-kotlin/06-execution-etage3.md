@@ -110,6 +110,22 @@
 > le scope reste signalé, le membre du scope HORS du lambda est signalé,
 > un nom inconnu dans le corps d'une destructuration reste signalé : le
 > silence n'est jamais de la complaisance (§8).**
+>
+> **Mise à jour (31/10, vague 3e — CLÔTURE DE L'ÉTAGE 3) — LE BANC COMMUN
+> JAVA EST LIVRÉ ET L'ÉTAGE EST CLOS SUR PREUVE MÉCANIQUE : le corpus
+> VERSIONNÉ `completion-kotlin v1` (16 positions étiquetées — les 7 genres
+> du pipeline couverts, 5 divergences désignées, succession de frappe pour
+> le contrat gel ; stdlib du runtime SEULE, projet corpus sur disque), le
+> banc `:kotlin:benchQualite` (chaîne LIVRÉE vs NAÏVE alphabétique sur le
+> MÊME corpus, métriques IDENTIQUES à `:java:benchQualite` : recall /
+> top-1 / MRR / p95 / sauts), la baseline SIGNÉE
+> `bancs/baselines/completion-kotlin.json` (livree 1.000/1.000/1.000,
+> p95 7,53 ms ; naif 1.000/0.375/0.486 — **+62,5 pts top-1, +51,4 pts
+> MRR**, la gate +5 points d'ADR 0113 dépassée ×12), la CI BLOQUANTE
+> (job `kotlin-banc-qualite`, le 10e) — et le RECALAGE N° 2 de l'effort
+> (§9.4) : les cinq critères de sortie §2 sont ATTESTÉS, dont le « zéro
+> saut de liste » (0 saut sur la succession) et le p95 (7,53 ms ≪ borne
+> 50 ms — la JVM reste la limite basse de la cible appareil < 100 ms).**
 
 ## 1. Périmètre de l'étage (plan §4 — cahier en main)
 
@@ -127,10 +143,10 @@
 | Critère | État | Preuve |
 |---|---|---|
 | 44 fiches vertes (fiches 038 + 039 + 043 + 045 du domaine complétion) | **44/44** (fiche 045 — §5 ; fiche 043 — §6 ; fiches 038/039 — §8) | `Fiche045SessionLangageKotlinK3Test` : 21 ; `Fiche043SessionLangageKotlinCompletionContextuelleTest` : 14 ; `Fiche038ReproductionVague5Test` : 8 ; `Fiche039ReproductionViewBindingTest` : 1 |
-| Banc : recall ≥ baseline | À atteindre (banc livré en 3e) | — |
-| Banc : top-1/MRR +5 pts vs naïf | Chaîne LIVRÉE (3c, §7) — la MESURE attend le banc (3e) | `ClassementCompletionTest` : 12 tests du mécanisme |
-| Banc : p95 ≤ baseline (JVM = limite basse ; cible appareil < 100 ms) | À atteindre (banc livré en 3e) | — |
-| Zéro saut de liste (contrat gel) | À atteindre (gel 3c, banc 3e) | — |
+| Banc : recall ≥ baseline | **ATTEINT** (3e, §9) — livrée 1.000 = baseline signée 1.000 (= naïf 1.000 : l'espace candidat est le même, seule la CHAÎNE diffère) | `:kotlin:benchQualite` vert ; `bancs/baselines/completion-kotlin.json` |
+| Banc : top-1/MRR +5 pts vs naïf | **ATTEINT (DÉPASSÉ ×12)** (3e, §9) — livrée 1.000/1.000 vs naïf 0.375/0.486 : **+62,5 pts top-1, +51,4 pts MRR** | `:kotlin:benchQualite` vert ; 5 divergences désignées + 5 positions membre (espace non filtré, frontière RPC) |
+| Banc : p95 ≤ baseline (JVM = limite basse ; cible appareil < 100 ms) | **ATTEINT** (3e, §9) — 7,53 ms (première signature : borne absolue 50 ms, miroir Java ; marge ×6,6) | `:kotlin:benchQualite` vert (80 échantillons, 2 échauffements) |
+| Zéro saut de liste (contrat gel) | **ATTEINT** (3e, §9) — 0 saut sur la succession (gel 3c tenu) | `:kotlin:benchQualite` vert (succession 4 frappes, clé de gel partagée) |
 
 ## 3. Plan de vagues (cahier en main — l'ordre suit le plan de migration ADR 0113 : parité d'abord, classement ensuite, banc à la clôture)
 
@@ -405,3 +421,200 @@ section du présent journal + commit/push.
   touchée), marqueurs d'erreur 0, tas 3 845 Kio.
 - **Provenance** : `verifier-provenance.sh` rc=0 (aucune reprise — code
   NEUF intégral, zones noyau anciennes jamais consultées R9.1).
+
+## 9. Vague 3e — la clôture : banc commun Java, recalage n° 2 (31/10)
+
+### 9.1 Périmètre exécuté
+
+| # | Item | État | Détail |
+|---|---|---|---|
+| 1 | Corpus VERSIONNÉ | **Fait** | `banc/CorpusQualiteCompletion.kt` : `completion-kotlin v1` — 16 positions étiquetées couvrant les 7 genres du pipeline (MEMBRE ×5 — extension stdlib réelle, accès sûr `?.`, héritage projet par le scan, fonction propre, divergence de nature ; NOM ×4 — locale dominante, propriété implicite, type classpath par préfixe, mot-clé témoin du repli ; IMPORT ×3 — sous-paquet, paquet-dominant à préfixe vide, liftShorter ; ARGUMENTS_NOMMES ; CONSTANTES_ENUM ×2 — préfixé et vide ; ATTRIBUTS_ANNOTATION), 5 divergences désignées ★ (la naïve les perd par le MÉCANISME isolé), succession de frappe à 4 frappes (clé de gel partagée délibérément) ; stdlib du runtime SEULE (ancre de classe `Intrinsics`, épinglée 2.2.10 par la chaîne d'outils — le banc tourne partout, CI comprise, sans SDK), projet corpus Widget/Outil sur DISQUE (résolu par le scan des racines, comme une vraie frappe) ; **UNE URI PAR POSITION** (la clé de gel document+genre+ancre ne peut JAMAIS être partagée entre positions de mesure) |
+| 2 | Banc de qualité | **Fait** | `banc/BancQualiteCompletion.kt` + tâche `:kotlin:benchQualite` : chaîne LIVRÉE (`MoteurLangageKotlinNoyau()` standard) vs NAÏVE (`ChaineClassementKotlin(listOf(PeseurAlphabetiqueKotlin()))`) sur le MÊME corpus, métriques IDENTIQUES à `:java:benchQualite` (recall / top-1 / MRR / p95 / sauts) ; montage par le CHEMIN DE PRODUCTION D6 (moteur nourricier par le constructeur public, session branchée, guichet attendu par sondage borné — l'association de compilations KGP `bench → main` donne au banc le sondeur `indexSiPret`, le miroir exact du monteur de la fiche 045 : JAMAIS un raccourci synchrone qui n'existerait pas côté hôte) ; p95 sur 2 échauffements + 5 passes mesurées (la mesure couvre l'ouverture ET l'arrangement — le coût d'une frappe) ; JVM bornée `-Xmx2g -XX:+UseSerialGC` sur la toolchain 17 (exigence appareil, miroir `:kotlin:bench`) |
+| 3 | Baseline SIGNÉE | **Fait** | `bancs/baselines/completion-kotlin.json` — `livree` recall 1.000 / top1 1.000 / mrr 1.000 / p95 7,53 ms ; `naif` 1.000 / 0.375 / 0.486 ; tolérance latence p95 ≤ max(50 ms, baseline × 1,5) ; re-signature par PR dédiée (`-Presigner`) ; le commit qui la porte est la signature |
+| 4 | CI BLOQUANTE | **Fait** | Job `kotlin-banc-qualite` (le 10ᵉ de `ci.yml`, miroir de `banc-qualite` Java) : la tâche ÉCHOUE sur régression de baseline, sur gate de valeur (+5 pts), sur saut de liste, sur dépassement p95 et sur les contrôles de santé |
+| 5 | Contrôles de santé | **Fait** | (a) DÉTERMINISME des genres : les 16 verdicts doivent égaler les genres attendus (un verdict qui change d'un run à l'autre est un bug, pas une mesure) ; (b) **STABILITÉ SOUS GEL** (propre au Kotlin, motivée par la frontière RPC) : la chaîne livrée re-mesurée sur la MÊME session (gels constitués) doit rendre des rangs IDENTIQUES — un rang qui bouge dénonce une contamination de gel entre positions (clé d'ancre partagée) ; (c) preuve de valeur : livrée ≥ naïf sur recall, +5 pts top-1/MRR |
+| 6 | Recalage n° 2 de l'effort | **Fait** | §9.4 — la première donnée de CLASSEMENT y est mesurée (la dominante inconnue du recalage n° 1) |
+
+### 9.2 Décisions d'exécution consignées
+
+1. **UNE URI PAR POSITION (la collision d'ancres est réelle, elle a été
+   VÉCUE)** : la première rédaction du corpus mettait toutes les
+   positions dans des variantes d'un MÊME document — deux positions
+   membre dont les fonctions porteuses avaient des noms de MÊME
+   LONGUEUR (`membreHeritage`/`membreFonction`, récepteurs `v`/`x`)
+   partageaient l'OFFSET d'ancre du sélecteur, donc la CLÉ de gel : le
+   gel constitué par la première (`v.ide¦` → têtes
+   `[identifiant, zCount, …]`) gélait le gagnant de la seconde
+   (`x.zAdd` au rang 3 au lieu de 0 — les survivants reprennent LEUR
+   rang). L'écart était STABLE entre les passes, donc invisible au seul
+   contrôle de stabilité : l'URI par position rend la collision
+   structurellement IMPOSSIBLE (la clé intègre le document), la passe
+   de stabilité reste en garde mécanique. La succession de frappe, elle,
+   partage SA clé délibérément — c'est le contrat qu'elle mesure.
+2. **La divergence IMPORT se joue à préfixe VIDE** : la collecte filtre
+   par préfixe SENSIBLE À LA CASSE (`Annotation` n'est pas collecté au
+   préfixe `annotation`) et les BUILTINS `Any`/`Annotation`/`String`
+   n'existent pas comme ENTRÉES de classe du jar (ils vivent dans les
+   `.kotlin_builtins` — vérifié : zéro `kotlin/Any.class`,
+   `kotlin/Annotation.class` ; les types directs servis sont les ~96
+   entrées `*.class`). Le niveau `kotlin` à préfixe vide (22 paquets +
+   96 types) est donc le seul endroit où paquet-avant-type s'isole :
+   livrée rend `io` (paquet, 2 lettres, liftShorter après la nature),
+   naïf rend `ArrayIntrinsicsKt` et enterre les paquets (`io` au rang
+   112).
+3. **La naïve perd TOUTES les positions membre — c'est la MESURE, pas un
+   artefact** : le régime membre ne FILTRE pas par préfixe côté serveur
+   (frontière RPC ADR 0118 : le client re-filtre à chaque frappe), la
+   chaîne naïve rend donc l'espace ENTIER en ordre alphabétique — `trim`
+   au rang 106 derrière `byteInputStream` (l'espace des extensions
+   stdlib sur String dépasse la centaine), `zCount` au rang 11 derrière
+   `clone`. Le banc Java n'a pas ce phénomène (sa collecte filtre avant
+   arrangement) : la différence est STRUCTURELLE et documentée dans le
+   corpus, jamais contournée — elle mesure précisément la valeur de la
+   correspondance graduée sur l'espace complet.
+4. **La borne p95 absolue est le miroir exact du banc Java (50 ms)** :
+   mesuré 7,53 ms (marge ×6,6) ; la cible §4 reste « < 100 ms sur
+   APPAREIL », la JVM en est la limite basse — la mesure couvre
+   l'ouverture du document ET l'arrangement (le coût d'une frappe), 2
+   échauffements + 5 passes de 16 positions (80 échantillons).
+5. **L'association de compilations `bench → main` est le seul moyen
+   honnête d'attendre le nourrissage** : le SPI public n'expose pas de
+   guichet d'attente (la publication du snapshot est asynchrone par
+   design, ADR 0211 — le moteur rend AVANT la fin de la passe). Le banc
+   mesure le chemin de production (sondage borné du guichet
+   `indexSiPret`, miroir du monteur de la fiche 045), pas un montage
+   synchrone qui n'existerait pas côté hôte ; l'association KGP donne au
+   banc la visibilité `internal` du sondeur, SANS toucher au code du
+   moteur (aucune ligne main modifiée — le jar reste au octet près
+   celui de la 3d).
+6. **La baseline de parité suit le corpus (382 → 384)** : les deux
+   fichiers de banc entrent au corpus de parité de la fiche 010 —
+   re-signature par le protocole habituel
+   (`-Dparite.majBase=true --rerun-tasks`), aucune mesure de la baseline
+   fidélité/complétion n'en dépend.
+
+### 9.3 Preuves du bac à sable (avant poussée)
+
+- **Banc de qualité** : **VERT** — livrée recall **1.000** / top-1
+  **1.000** / MRR **1.000** ; naïf 1.000 / **0.375** / **0.486** →
+  **+62,5 pts top-1, +51,4 pts MRR** (gate +5 points d'ADR 0113
+  dépassée ×12) ; **p95 7,53 ms** (min 0,37 / max ~26, 80 échantillons,
+  borne 50 ms) ; **sauts 0** (succession 4 frappes) ; genres 16/16
+  DÉTERMINISTES ; stabilité sous gel IDENTIQUE (re-mesure sur la même
+  session : rangs égaux).
+- **Baseline signée** : `bancs/baselines/completion-kotlin.json`
+  (corpus `completion-kotlin v1`, 16 positions ; le commit = signature).
+- **Suite** : **393 tests VERTS** sur la toolchain 17 — INCHANGÉS (la
+  3e n'ajoute AUCUN test : le banc est une `JavaExec` de vérification,
+  pas une fiche) ; baseline de parité RE-SIGNÉE **382 → 384 fichiers**
+  (les 2 fichiers de banc).
+- **Jar moteur** : 754 695 o — **INCHANGÉ au octet près vs 3d** (la
+  vague ne touche AUCUN code main : le banc vit dans le source set
+  `bench`).
+- **Scan ART pile complète** : 6 × « AUCUNE », rc=0 (moteur 268 classes /
+  296 méthodes déclarées — borne basse ; ServiceLoader OK descripteur
+  vérifié).
+- **Dexage d8** (build-tools 34 local, min-api 26) : **25 636 références
+  de méthodes (78 % du plafond 32 768) / 4 090 064 o = 3,90 Mo (65 % du
+  budget 6 Mo)** — IDENTIQUES à la 3d (aucun code main touché ; E-K8
+  inchangée).
+- **Banc JDK 17** (bac à sable, 2 cœurs) : froid 190,6/22,5 ms,
+  p50 4,8/23,0 ms, p95 40,0/53,1 ms, productions 5 448/31 368 et jetons
+  4 210/24 274 — déterminisme IDENTIQUE, marqueurs d'erreur 0, tas
+  3 694 Kio.
+- **Provenance** : `verifier-provenance.sh` rc=0 (aucune reprise — code
+  NEUF intégral, zones noyau anciennes jamais consultées R9.1).
+
+### 9.4 Clôture de la vague 3e, de l'ÉTAGE 3 — et recalage n° 2 de l'effort
+
+**CI VERTE 9/9 sur les QUATRE commits de livraison 3a→3d, PREMIÈRE
+TENTATIVE** (runs `41127294348`, `41129037195`, `41130310022`,
+`41136152557` — consultés le 31/10 via l'API GitHub Actions ; la 3e
+ajoute le 10ᵉ job `kotlin-banc-qualite`, attesté au run du commit de
+clôture).
+
+**LES CINQ CRITÈRES DE SORTIE DE L'ÉTAGE 3 (§2) SONT ATTESTÉS** :
+
+1. **44/44 comportements complétion verts** (fiches 045/043/038/039 —
+   §5, §6, §8) ;
+2. **Banc : recall ≥ baseline** — livrée 1.000, baseline signée 1.000 ;
+3. **Banc : top-1/MRR +5 pts vs naïf** — +62,5 / +51,4 pts (ADR 0113
+   VALIDÉ, la gate est dépassée ×12) ;
+4. **Banc : p95 ≤ baseline** — 7,53 ms (première signature : borne
+   absolue 50 ms, miroir Java ; JVM = limite basse de la cible appareil
+   < 100 ms) ;
+5. **Zéro saut de liste** — 0 saut sur la succession (le gel 3c tient le
+   contrat pendant l'affinement du préfixe).
+
+**L'ÉTAGE 3 EST CLOS sur preuve mécanique** : le pipeline de complétion
+(classification du caret, régimes nom/membre/import, annuaire paresseux
+des types du classpath, mots-clés toujours), la complétion
+contextuelle v1 (arguments nommés, constantes d'enum, attributs
+d'annotation — bornes D3 et replis honnêtes), la chaîne de classement
+en naissance (correspondance graduée, peseurs dimension par dimension
+paresseux, nature dépendante du contexte, liftShorter, gel des têtes,
+trim honnête — injectable, comparée), les récepteurs de portée (pile
+des scopes, member-extensions, destructuration, builtins Map,
+ViewBinding K5) — et la QUALITÉ de tout cela est désormais une DONNÉE
+CHIFFRÉE comparée à chaque build, sur banc COMMUN avec Java. L'étage 4
+(navigation + rename — 38 fiches, rappel usages = oracle) est le
+suivant.
+
+#### Le recalage n° 2 de l'effort (miroir `RECALAGE-1.md`)
+
+Promis par le recalage n° 1 (« recalage n° 2 à la clôture de l'étage 3
+— la première donnée de CLASSEMENT y sera mesurée », `05-execution-
+etage2.md` §11.4) — exécuté à SA porte cette fois.
+
+**Ce que l'étage 3 a coûté** [mesuré — commandes : `git log
+--oneline 8ff747c..HEAD`, `git diff --shortstat 8ff747c..HEAD`, compte
+des tests des journaux §5–§9] :
+
+| Grandeur | Valeur | Détail |
+|---|---:|---|
+| Commits de l'étage | 5 | 3a→3e : livraisons + clôture (borne : clôture étage 2 `8ff747c`) |
+| Fichiers touchés | 32 | +6 113 / −238 lignes (main, tests, banc, CI, journaux) |
+| `kotlin/` main | 19 fichiers, +2 742 / −223 | pipeline, contextuelle, classement, récepteurs |
+| `kotlin/` test | 6 fichiers, +1 817 / −13 | fiches 045/043/038/039 + 12 tests du mécanisme 3c |
+| `kotlin/` bench | 2 fichiers, +837 | corpus versionné (456 l.) + banc de qualité (381 l.) — la 3e |
+| Tests du module | 337 → **393** | +56 pour 44 comportements et 12 tests d'ingénierie (≈ 1,1 test/comportement — 21 + 14 + 9 fiches + 12 mécanisme) |
+| CI première tentative | **4/4** commits de livraison | runs `41127294348` / `41129037195` / `41130310022` / `41136152557` |
+| Tempo [mesuré-agent] | 31/10 03:11 → ~08:00 (UTC+8) | 5 vagues en ~5 h de séance continue |
+
+**Comparaison à l'estimation** : la fourchette de l'étage 3 était
+**30–48 j-h [estimé]** (synthèse §4). Le rythme agent n'est PAS
+transposable au jour-homme humain (miroir `RECALAGE-1.md` §3.4) :
+l'étage a été couvert en ~5 h de séance continue, à ≈ **135 lignes par
+comportement** (≈ 6 100 l. / 44 comport. — main, tests, banc ET journaux
+compris). La donnée utile pour l'abaque : le coût marginal est resté
+STABLE et la CI est passée en PREMIÈRE TENTATIVE sur les QUATRE
+commits de livraison (l'étage 2 : 6/7) — aucune refonte, aucun retour
+arrière, la clôture 3e elle-même n'a exigé AUCUNE retouche du code
+livré en 3a–3d (le jar est inchangé au octet près).
+
+**La première donnée de CLASSEMENT** [mesuré] — la dominante inconnue
+du recalage n° 1 : la vague 3c (le design — chaîne, peseurs, gel) a
+coûté **1 fichier main (581 l.) + 1 fichier de tests (326 l., 12 tests)**,
+soit ~15 % du volume de l'étage ; les vagues de PARITÉ (3a/3b/3d —
+fiches 045/043/038/039) en ont coûté ~70 %. La mesure du banc donne au
+design sa preuve de valeur : **+62,5 pts top-1 / +51,4 pts MRR** contre
+la naïve alphabétique, p95 7,53 ms, zéro saut — pour un coût qui
+restera MARGINAL dans les étages suivants (la chaîne est LIVRÉE, les
+étages 4–6 la CONSUMENT : les propositions de navigation et de confort
+se classent par elle). Le « retard majeur » de complétion Kotlin est
+désormais une donnée pilotable : corpus, baseline et CI sont en place,
+toute dérive est un échec de build.
+
+**Re-projection** [estimé] : les étages restants (4 navigation/rename,
+5 confort, 6 serveur LSP, T transverse) restent à l'abaque de la
+synthèse §4 — **68–108 j-h** cumulés. Aucune donnée ne motive une
+révision : le signal du recalage n° 1 (stabilité du socle) est
+CONFIRMÉ (aucune refonte en étage 3, CI 4/4 première tentative), et la
+dominante classement s'est révélée MOINS COÛTEUSE que postulé (design
+transposé de l'ADR 0012 Java déjà éprouvé — la vague 3c est la plus
+petite de l'étage). La navigation (étage 4) reste la dernière dominante
+inconnue (occurrences, usages inter-documents, rename borné) ;
+**recommandation : recalage n° 3 à la clôture de l'étage 4** si son
+exécution révèle un écart au rythme observé — sinon l'abaque tient
+jusqu'à la clôture du programme (les 2 recalages promis au plan T sont
+faits : n° 1 à l'étage 2 §11.4, n° 2 ici).

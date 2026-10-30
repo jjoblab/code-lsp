@@ -266,3 +266,42 @@ tasks.register<JavaExec>("bench") {
     // reproductibles, miroir :java:bench / :index:bench).
     jvmArgs("-Xmx2g", "-XX:+UseSerialGC")
 }
+
+// ---------------------------------------------------------------------------
+// ÉTAGE 3 VAGUE 3e — banc de QUALITÉ de complétion (critère de sortie,
+// ADR 0119 option 1 / ADR 0113 : miroir de :java:benchQualite).
+// ---------------------------------------------------------------------------
+// La compilation « bench » est ASSOCIÉE à « main » (chemins amis KGP) : le
+// banc voit les membres INTERNAL du moteur — le SONDAGE du guichet de
+// nourrissage (indexSiPret, le miroir exact du monteur de la fiche 045 :
+// le banc mesure le CHEMIN DE PRODUCTION, moteur nourricier + session
+// branchée + attente bornée de la publication, pas un raccourci synchrone
+// qui n'existerait pas côté hôte).
+kotlin.target.compilations.configureEach {
+    if (name == "bench") {
+        associateWith(kotlin.target.compilations.getByName("main"))
+    }
+}
+
+// Banc de QUALITÉ (étage 3 — critère de sortie, ADR 0119 option 1) :
+// recall/top-1/MRR + p95 + zéro saut sur corpus versionné, comparés à la
+// baseline JSON signée (bancs/baselines/completion-kotlin.json) — la
+// tâche ÉCHOUE sur régression (CI bloquante) ; la chaîne livrée doit
+// battre la naïve alphabétique de ≥ 5 points top-1/MRR (miroir ADR
+// 0012/0016 Java). Re-signature : PR dédiée avec -Presigner.
+tasks.register<JavaExec>("benchQualite") {
+    group = "verification"
+    description = "Banc de qualité de complétion Kotlin (étage 3 — recall/top-1/MRR vs baseline signée) — échoue sur régression."
+    mainClass.set("jo.codeide.lsp.kotlin.banc.BancQualiteCompletionKt")
+    classpath = bancSourceSet.runtimeClasspath
+    // JDK 17 — EXIGENCE APPAREIL (miroir de :kotlin:bench : les nombres du
+    // bac à sable se mesurent dans les CONDITIONS de l'appareil).
+    javaLauncher.set(
+        javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(VERSION_JDK)) },
+    )
+    jvmArgs("-Xmx2g", "-XX:+UseSerialGC")
+    systemProperty("banc.baseline", rootProject.file("bancs/baselines/completion-kotlin.json").absolutePath)
+    if (project.hasProperty("resigner")) {
+        args("--resigner")
+    }
+}
