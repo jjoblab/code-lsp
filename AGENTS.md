@@ -89,3 +89,27 @@ complètent les ADR (`docs/adr/`) — en cas de doute, l'ADR prime.
    exacte (capabilities, extensions expérimentales), API in-process du
    moteur — la référence avant toute modification de comportement visible
    du client.
+
+## Références externes — liste blanche (décision propriétaire, 31/10/2026)
+
+- **Nommables** (code, KDoc, ADR, commits, rapports, documentation) :
+  **IntelliJ Platform**, **Android Studio**, le **plugin Kotlin de l'IDE**
+  (mode K2, Analysis API), le **plugin Android**, **Android Lint** — comme
+  *références de comportement* en lecture seule —, le **compilateur Kotlin
+  K2** (oracle), **kotlin-metadata-jvm**, la **grammaire KMP vendorée**,
+  **lsp4j**, et les artefacts déjà inscrits au registre de provenance.
+- **Aucun autre projet tiers ne doit être mentionné, nulle part.** Si un
+  comportement s'inspire d'un projet hors liste, on décrit le comportement
+  et la décision **pour eux-mêmes**, sans le nommer.
+- **Corpus de mesure** (exception) : les dépôts inscrits au registre de
+  provenance en qualité de **données de corpus** (cibles de test, jamais
+  committées) sont nommables avec leur rôle — voir
+  `docs/PROVENANCE-REPRISE-KOTLIN.md` §Corpus et
+  `bancs/corpus-android-kotlin/LISEZMOI.md`.
+- **Aucune copie de code** d'IntelliJ/Android Studio/plugin Kotlin :
+  comportements et designs seulement (lecture seule, réécriture
+  clean-room) ; toute reprise littérale, même de `testData`, passe par le
+  registre + `NOTICE` (Apache-2.0 : attribution + modifications).
+- Commits : le préfixe du domaine Kotlin est `lsp-kotlin(scope):` (miroir
+  de `lsp-java(scope):` ci-dessus), en français, une décision ou capacité
+  par commit autant que possible.
