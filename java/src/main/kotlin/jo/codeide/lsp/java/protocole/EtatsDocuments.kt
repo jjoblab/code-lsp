@@ -1,6 +1,8 @@
 package jo.codeide.lsp.java.protocole
 
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.withLock
 
 /**
  * Le magasin des documents ouverts du serveur (étage N8) : le miroir
@@ -49,7 +51,13 @@ public class EtatsDocuments {
 
     /** Le document vivant : l'instantané courant et son verrou d'époque. */
     private class DocumentVivant {
+        /** Verrou du périmètre DOCUMENT (V-F2 — ADR 0029 phase 2). */
+        val verrou = ReentrantLock()
+
+        @Volatile
         var instantane: Instantane? = null
+
+        @Volatile
         var epoque: Long = 0
     }
 
@@ -68,11 +76,11 @@ public class EtatsDocuments {
      */
     public fun ouvrir(uri: String, texte: String, version: Long): Instantane {
         val vivant = documents.computeIfAbsent(uri) { DocumentVivant() }
-        synchronized(vivant) {
+        return vivant.verrou.withLock {
             vivant.epoque += 1
             val instantane = Instantane(uri, version, texte, vivant.epoque)
             vivant.instantane = instantane
-            return instantane
+            instantane
         }
     }
 
@@ -90,11 +98,11 @@ public class EtatsDocuments {
      */
     public fun changer(uri: String, texte: String, version: Long): Instantane? {
         val vivant = documents[uri] ?: return null
-        synchronized(vivant) {
+        return vivant.verrou.withLock {
             vivant.epoque += 1
             val instantane = Instantane(uri, version, texte, vivant.epoque)
             vivant.instantane = instantane
-            return instantane
+            instantane
         }
     }
 
@@ -115,14 +123,15 @@ public class EtatsDocuments {
      */
     public fun sauver(uri: String, version: Long?): Instantane? {
         val vivant = documents[uri] ?: return null
-        synchronized(vivant) {
-            val courant = vivant.instantane ?: return null
+        return vivant.verrou.withLock {
+            val courant = vivant.instantane ?: return@withLock null
             if (version != null && version != courant.version) {
                 val recale = courant.copy(version = version)
                 vivant.instantane = recale
-                return recale
+                recale
+            } else {
+                courant
             }
-            return courant
         }
     }
 
@@ -135,7 +144,7 @@ public class EtatsDocuments {
      */
     public fun fermer(uri: String) {
         documents.remove(uri)?.let { vivant ->
-            synchronized(vivant) {
+            vivant.verrou.withLock {
                 vivant.epoque += 1
                 vivant.instantane = null
             }

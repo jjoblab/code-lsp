@@ -1,6 +1,7 @@
 package jo.codeide.lsp.java.projetandroid
 
 import java.nio.file.Path
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
 import jo.codeide.lsp.java.classpath.TypesSynthetiques
 
@@ -58,7 +59,7 @@ public class ClassesLegereAndroid(
     private val compteur = AtomicLong(0)
 
     /** Octets déjà fabriqués, par FQCN (fabrication paresseuse, une fois). */
-    private val octetsParFqcn = HashMap<String, ByteArray>()
+    private val octetsParFqcn = ConcurrentHashMap<String, ByteArray>()
 
     /** Les types énumérés (annuaire), paresseux. */
     @Volatile

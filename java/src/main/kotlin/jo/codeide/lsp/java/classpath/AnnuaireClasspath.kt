@@ -5,6 +5,8 @@ import org.eclipse.jdt.internal.compiler.classfmt.ClassFileReader
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.withLock
 
 /**
  * Genre binaire d'un type tel que lu dans un fichier de classe (étage N2 —
@@ -116,12 +118,17 @@ public class AnnuaireClasspath(
 
     /** Structure d'un paquet : types directs par nom simple. */
     private class Paquet {
-        val types = mutableMapOf<String, Origine>()
+        val types = java.util.concurrent.ConcurrentHashMap<String, Origine>()
     }
 
     /** Carte paquet → types directs (sources + jars, puis jrt à la demande). */
     private val paquets = ConcurrentHashMap<String, Paquet>()
 
+    /**
+     * Verrou des constructions paresseuses de l'annuaire (V-F2 — périmètre
+     * FEUILLE : jamais imbriqué vers un verrou de module ou d'orchestration).
+     */
+    private val verrouConstruction = ReentrantLock()
     /** Segments jrt déjà fusionnés dans la carte des segments. */
     @Volatile
     private var segmentsJrtFusionnes: Boolean = false
@@ -183,7 +190,7 @@ public class AnnuaireClasspath(
         // surface publique seule (les internes ne fuient jamais).
         val jrt = accesJrt
         if (jrt != null && estSurfacePubliqueJdk(paquet) && jrt.estPaquet(paquet)) {
-            synchronized(this) {
+            verrouConstruction.withLock {
                 if (structure.types.isEmpty()) {
                     for (nom in jrt.nomsClassesDuPaquet(paquet)) {
                         if (nom.contains('$')) continue
@@ -419,7 +426,7 @@ public class AnnuaireClasspath(
     /** Phase 1 : sources + synthétiques + jars + segments jrt (une fois). */
     private fun garantirPhasesUnEtDeux() {
         if (paquets.isEmpty() || !segmentsJrtFusionnes) {
-            synchronized(this) {
+            verrouConstruction.withLock {
                 if (paquets.isEmpty()) {
                     construireSources()
                     construireSynthetiques()
@@ -435,7 +442,7 @@ public class AnnuaireClasspath(
     /** Phase 3 : index par préfixe (une fois, traverse l'image jrt). */
     private fun garantirIndex() {
         if (indexConstruit) return
-        synchronized(this) {
+        verrouConstruction.withLock {
             if (indexConstruit) return
             garantirPhasesUnEtDeux()
             // La traversée jrt intégrale remplace le listing par paquet —

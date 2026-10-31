@@ -1,19 +1,23 @@
 package jo.codeide.lsp.java.concurrence
 
 import java.util.concurrent.Callable
+import java.util.concurrent.CancellationException
 import java.util.concurrent.Future
 import java.util.concurrent.FutureTask
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.withLock
 
 /**
- * Ordonnanceur du moteur (étage N1, cahier fiche 048).
+ * Ordonnanceur du moteur (étage N1, cahier fiche 048 — **amendé V-F2**).
  *
- * Un **worker unique** sérialise réellement les tâches soumises : le moteur
- * ecj et ses caches ne sont pas sûrs en exécution simultanée, et le contrat
- * du cahier exige qu'aucune paire de tâches ne se chevauche (le maximum
- * d'exécutions en vol constaté vaut exactement 1). Deux files distinctes
- * traversent ce même worker :
+ * **Pool plafonné (V-F2 — ADR 0029 phase 2, ADR 0010 schéma B « workers
+ * plafonnés 2–3 »)** : l'ordonnanceur n'est plus un worker unique mais un
+ * PETIT pool (2 par défaut, propriété
+ * `jo.codeide.lsp.java.ordonnanceur.workers`, borné 1..3 — un appareil
+ * monocœur peut revenir au comportement d'avant V-F2 avec `=1`). Deux
+ * files traversent les mêmes workers :
  *
  *  - **tâches interactives** (complétion, hover, diagnostics de frappe) :
  *    soumises avec une clé de FICHIER ; la plus récente **supersède** les
@@ -23,23 +27,37 @@ import java.util.concurrent.atomic.AtomicReference
  *  - **tâches d'analyse** (indexation, diagnostics de fond) : durables,
  *    jamais supersedées par une plus récente.
  *
- * Sur un appareil monocœur, le worker unique est aussi le plafond de charge
- * raisonnable (ADR 0010, schéma B — workers plafonnés).
+ * **Contrat (fiche 048 amendée)** : les tâches interactives d'un MÊME
+ * fichier ne se chevauchent JAMAIS (une clé en cours d'exécution bloque
+ * la prise de la suivante — le worker la laisse en file et sert une autre
+ * tâche) ; les tâches de fichiers DISTINCTS (et les analyses) PEUVENT
+ * courir en parallèle, dans la limite du plafond de workers — le maximum
+ * d'exécutions en vol est au plus [workers]. L'ancienne garantie
+ * « exactement 1 en vol » reste obtenue en posant le plafond à 1.
  *
- * @param nom nom de l'ordonnanceur (nom du thread worker).
+ * @param nom nom de l'ordonnanceur (préfixe des threads workers).
+ * @param workers le plafond de workers (borné 1..3 ; défaut : propriété
+ *   `jo.codeide.lsp.java.ordonnanceur.workers`, sinon 2).
  */
 public class OrdonnanceurMoteur(
     nom: String,
+    workers: Int = WORKERS_PAR_PROPRIETE,
 ) : AutoCloseable {
 
-    /** Verrou de la file interne + condition de réveil du worker. */
-    private val verrou = Object()
+    /** Verrou de la file interne + condition de réveil des workers. */
+    private val verrou = ReentrantLock()
+
+    /** Condition de réveil (nouvelle tâche, clé libérée, arrêt). */
+    private val aTravailler = verrou.newCondition()
 
     /** Interactives en attente par fichier : seule la plus récente survit. */
     private val interactivesEnAttente = HashMap<String, Tache>()
 
-    /** File FIFO des tâtes prêtes à courir (ordres de soumission respectés). */
+    /** File FIFO des tâches prêtes à courir (ordres de soumission respectés). */
     private val pretes = ArrayList<Tache>()
+
+    /** Clés de fichiers dont une tâche EST en cours d'exécution (jamais deux). */
+    private val clesEnCours = HashSet<String>()
 
     /** Compteur des supersessions effectives (surface observable, fiche 048). */
     private val supersessions = AtomicInteger(0)
@@ -50,33 +68,40 @@ public class OrdonnanceurMoteur(
     /** Première défaillance rapportée (pattern de diagnostic du cahier). */
     private val premiereDefaillance = AtomicReference<Throwable?>(null)
 
-    /** Exécutions en vol (garde du contrat : max constaté == 1). */
+    /** Exécutions en vol (garde du contrat : max constaté == plafond). */
     private val enVol = AtomicInteger(0)
+
+    /** Le plafond de workers effectif (borné 1..3). */
+    private val plafond: Int = workers.coerceIn(1, 3)
 
     @Volatile
     private var arrete: Boolean = false
 
-    /** Le worker unique (thread démon, démarre à la naissance). */
-    private val worker: Thread = Thread(::boucleWorker, "ordonnanceur-$nom").apply {
-        isDaemon = true
-        start()
+    /** Les workers (threads démons, démarrent à la naissance). */
+    private val workersThreads: List<Thread> = (1..plafond).map { indice ->
+        Thread({ boucleWorker() }, "ordonnanceur-$nom-$indice").apply {
+            isDaemon = true
+            start()
+        }
     }
 
     /**
      * Soumet une tâche INTERACTIVE liée à un fichier.
      *
-     * La soumission supersède immédiatement toute interactive du même
+     * La soumission supersede immédiatement toute interactive du même
      * fichier **encore en attente** (sa future se solde par
-     * `CancellationException`) ; la tâche en cours d'exécution sur le worker
-     * n'est jamais interrompue.
+     * `CancellationException`) ; la tâche en cours d'exécution sur un
+     * worker n'est jamais interrompue — et la suivante du même fichier
+     * attend qu'elle soit terminée (contrat « jamais deux du même fichier
+     * en vol », fiche 048 amendée V-F2).
      *
      * @param fichier clé de supersession (chemin du document).
-     * @param fournisseur le calcul à exécuter sur le worker.
+     * @param fournisseur le calcul à exécuter sur un worker.
      * @return la future de la tâche (complétée, supersedée ou en échec).
      */
     public fun soumettreInteractif(fichier: String, fournisseur: Callable<Unit>): Future<Unit> {
         val tache = Tache(fichier, fournisseur)
-        synchronized(verrou) {
+        verrou.withLock {
             if (arrete) {
                 tache.future.cancel(false)
             } else {
@@ -87,7 +112,7 @@ public class OrdonnanceurMoteur(
                 }
                 interactivesEnAttente[fichier] = tache
                 pretes.add(tache)
-                verrou.notifyAll()
+                aTravailler.signalAll()
             }
         }
         return tache.future
@@ -96,21 +121,28 @@ public class OrdonnanceurMoteur(
     /**
      * Soumet une tâche d'ANALYSE (durable, jamais supersedée).
      *
-     * @param fournisseur le calcul à exécuter sur le worker.
+     * @param fournisseur le calcul à exécuter sur un worker.
      * @return la future de la tâche.
      */
     public fun soumettreAnalyse(fournisseur: Callable<Unit>): Future<Unit> {
         val tache = Tache(null, fournisseur)
-        synchronized(verrou) {
+        verrou.withLock {
             if (arrete) {
                 tache.future.cancel(false)
             } else {
                 pretes.add(tache)
-                verrou.notifyAll()
+                aTravailler.signalAll()
             }
         }
         return tache.future
     }
+
+    /**
+     * Le PLAFOND de workers de cet ordonnanceur (sonde — V-F2).
+     *
+     * @return le nombre de workers démarrés (1..3).
+     */
+    public fun workers(): Int = plafond
 
     /**
      * Nombre de supersessions effectives depuis la naissance.
@@ -121,11 +153,11 @@ public class OrdonnanceurMoteur(
     public fun supersededCount(): Int = supersessions.get()
 
     /**
-     * Arrête l'ordonnanceur : idempotent (le second appel ne lève pas), le
-     * worker se termine, les tâches en attente sont annulées.
+     * Arrête l'ordonnanceur : idempotent (le second appel ne lève pas),
+     * les workers se terminent, les tâches en attente sont annulées.
      */
     public fun shutdown() {
-        synchronized(verrou) {
+        verrou.withLock {
             if (arrete) return
             arrete = true
             for ((_, tache) in interactivesEnAttente) {
@@ -136,7 +168,7 @@ public class OrdonnanceurMoteur(
                 tache.superseder()
             }
             pretes.clear()
-            verrou.notifyAll()
+            aTravailler.signalAll()
         }
     }
 
@@ -145,35 +177,60 @@ public class OrdonnanceurMoteur(
         shutdown()
     }
 
-    /** Boucle du worker : prend la plus ancienne tâche prête, l'exécute, recommence. */
+    /**
+     * Boucle d'un worker : prend la plus ancienne tâche PRENABLE (dont la
+     * clé de fichier n'est pas déjà en cours sur un autre worker — jamais
+     * deux tâches du même fichier en vol), l'exécute, recommence.
+     */
     private fun boucleWorker() {
         while (true) {
-            val tache = synchronized(verrou) {
-                while (pretes.isEmpty() && !arrete) {
-                    verrou.wait()
-                }
-                if (pretes.isEmpty()) null else pretes.removeAt(0)
-            } ?: return
-            if (tache.cle != null) {
-                synchronized(verrou) {
-                    if (interactivesEnAttente[tache.cle] === tache) {
-                        interactivesEnAttente.remove(tache.cle)
+            var tache: Tache? = null
+            verrou.withLock {
+                while (tache == null && !arrete) {
+                    val prenable = pretes.withIndex().firstOrNull { (_, t) ->
+                        t.cle == null || t.cle !in clesEnCours
+                    }
+                    if (prenable != null) {
+                        val (indice, t) = prenable
+                        pretes.removeAt(indice)
+                        if (t.cle != null && interactivesEnAttente[t.cle] === t) {
+                            interactivesEnAttente.remove(t.cle)
+                        }
+                        if (t.cle != null) {
+                            clesEnCours.add(t.cle)
+                        }
+                        tache = t
+                    } else {
+                        aTravailler.await()
                     }
                 }
             }
-            if (tache.estAnnulee()) {
-                // Supersedée entre la prise et l'exécution : rien à courir.
+            val prise = tache ?: return // arrêté
+            if (prise.estAnnulee()) {
+                // Supersedée entre la prise et l'exécution : rien à courir,
+                // mais la clé doit être libérée pour les suivantes.
+                libererCle(prise)
                 continue
             }
             enVol.incrementAndGet()
             try {
-                tache.future.run()
-                if (!tache.future.isCancelled) {
+                prise.future.run()
+                if (!prise.future.isCancelled) {
                     completions.incrementAndGet()
                 }
             } finally {
                 enVol.decrementAndGet()
+                libererCle(prise)
             }
+        }
+    }
+
+    /** Libère la clé de fichier d'une tâche terminée et réveille les workers. */
+    private fun libererCle(tache: Tache) {
+        if (tache.cle == null) return
+        verrou.withLock {
+            clesEnCours.remove(tache.cle)
+            aTravailler.signalAll()
         }
     }
 
@@ -189,6 +246,8 @@ public class OrdonnanceurMoteur(
             Callable {
                 try {
                     fournisseur.call()
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (t: Throwable) {
                     premiereDefaillance.compareAndSet(null, t)
                     throw t
@@ -200,5 +259,16 @@ public class OrdonnanceurMoteur(
 
         /** Marque la tâche annulée ; vrai ssi l'annulation a pris (pas encore courue). */
         fun superseder(): Boolean = future.cancel(false)
+    }
+
+    public companion object {
+        /**
+         * Plafond lu à l'initialisation : propriété système
+         * `jo.codeide.lsp.java.ordonnanceur.workers` (bornée 1..3), défaut 2
+         * — le « workers plafonnés 2–3 » de l'ADR 0010 schéma B, exécuté par
+         * V-F2. `1` rétablit le worker unique d'avant V-F2.
+         */
+        private val WORKERS_PAR_PROPRIETE: Int =
+            System.getProperty("jo.codeide.lsp.java.ordonnanceur.workers")?.toIntOrNull()?.coerceIn(1, 3) ?: 2
     }
 }

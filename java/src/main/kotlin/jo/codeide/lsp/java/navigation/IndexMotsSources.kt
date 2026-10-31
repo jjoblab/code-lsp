@@ -4,7 +4,9 @@ import jo.codeide.lsp.java.outils.LexeurJava
 import jo.codeide.lsp.java.outils.NatureJeton
 import java.nio.file.Files
 import java.nio.file.Path
+import java.util.concurrent.locks.ReentrantLock
 import java.util.regex.Pattern
+import kotlin.concurrent.withLock
 
 /**
  * Index de MOTS des sources du projet (étage N4 — ADR 0014/0008) : le
@@ -32,8 +34,12 @@ import java.util.regex.Pattern
  */
 public class IndexMotsSources(private val racines: List<Path>) {
 
-    /** Verrou de construction (une seule construction à la fois). */
-    private val verrou = Any()
+    /**
+     * Verrou de construction (une seule construction à la fois) — périmètre
+     * FEUILLE (V-F2 — ADR 0029 phase 2) : verrou nommé, jamais imbriqué
+     * vers un verrou de module ou d'orchestration.
+     */
+    private val verrou = ReentrantLock()
 
     /** Vrai ssi l'index est construit (lecture sans verrou — indicatif). */
     @Volatile
@@ -61,7 +67,7 @@ public class IndexMotsSources(private val racines: List<Path>) {
      *
      * @return le nombre de constructions froides effectuées.
      */
-    public fun constructions(): Int = synchronized(verrou) { nbConstructions }
+    public fun constructions(): Int = verrou.withLock { nbConstructions }
 
     /**
      * Les fichiers sources des racines (énumération de la construction
@@ -72,7 +78,7 @@ public class IndexMotsSources(private val racines: List<Path>) {
      */
     public fun fichiers(): List<Path> {
         assurerConstruit()
-        return synchronized(verrou) { fichiersConnus }
+        return verrou.withLock { fichiersConnus }
     }
 
     /**
@@ -84,7 +90,7 @@ public class IndexMotsSources(private val racines: List<Path>) {
      */
     public fun fichiersPour(mot: String): List<Path> {
         assurerConstruit()
-        synchronized(verrou) {
+        verrou.withLock {
             val candidats = motsVersFichiers[mot]?.toList() ?: return emptyList()
             val resultat = ArrayList<Path>(candidats.size)
             for (fichier in candidats) {
@@ -106,7 +112,7 @@ public class IndexMotsSources(private val racines: List<Path>) {
      * découverts, fichiers disparus oubliés).
      */
     public fun invalider() {
-        synchronized(verrou) {
+        verrou.withLock {
             construit = false
             motsVersFichiers = emptyMap()
             motsParFichier = emptyMap()
@@ -118,7 +124,7 @@ public class IndexMotsSources(private val racines: List<Path>) {
     /** Construit l'index si nécessaire (l'appelant NE détient PAS le verrou). */
     private fun assurerConstruit() {
         if (construit) return
-        synchronized(verrou) {
+        verrou.withLock {
             if (construit) return
             val fichiers = ArrayList<Path>()
             for (racine in racines) {

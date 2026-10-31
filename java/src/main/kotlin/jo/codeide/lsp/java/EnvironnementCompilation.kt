@@ -5,6 +5,8 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.withLock
 
 /**
  * Environnement de compilation (étage N1, fiches 034/047) — nom neutre :
@@ -127,7 +129,7 @@ public class EnvironnementCompilation(
      *
      * @return les racines vivantes (photographie ordonnée, dédoublonnée).
      */
-    public fun racinesSources(): List<Path> = synchronized(verrou) {
+    public fun racinesSources(): List<Path> = verrou.withLock {
         val resultat = LinkedHashSet<Path>()
         contextes[""]?.let { resultat.addAll(it.racines) }
         for (cle in ordreModules) {
@@ -145,7 +147,7 @@ public class EnvironnementCompilation(
      *
      * @return les racines du contexte défaut (photographie).
      */
-    public fun racinesDefaut(): List<Path> = synchronized(verrou) {
+    public fun racinesDefaut(): List<Path> = verrou.withLock {
         contextes[""]?.racines ?: emptyList()
     }
 
@@ -156,7 +158,7 @@ public class EnvironnementCompilation(
      *
      * @return les jars du contexte défaut (photographie).
      */
-    public fun jarsDefaut(): List<Path> = synchronized(verrou) {
+    public fun jarsDefaut(): List<Path> = verrou.withLock {
         contextes[""]?.jars ?: emptyList()
     }
 
@@ -176,8 +178,14 @@ public class EnvironnementCompilation(
      */
     private val auditeursEpoque = mutableListOf<(String) -> Unit>()
 
-    /** Verrou de l'orchestration (contextes + moteurs + observateurs). */
-    private val verrou = Any()
+    /**
+     * Verrou de l'orchestration (contextes + moteurs + observateurs) —
+     * PÉRIMÈTRE orchestration (V-F2, ADR 0010 schéma B) : il est TOUJOURS
+     * le verrou le plus EXTERNE (jamais pris alors qu'un verrou de module
+     * ou de service est détenu) ; les dispositions de moteurs qu'il
+     * ordonne prennent le verrou de compilation DU module en dessous.
+     */
+    private val verrou = ReentrantLock()
 
     /** Routeur fichier → module, relu à CHAQUE requête (fiche 047). */
     public var routeurFichierModule: ((String) -> String?)? = null
@@ -240,7 +248,7 @@ public class EnvironnementCompilation(
      * @param module la clé du module (`:app`) ; null ou vide = contexte défaut.
      * @return le moteur du module.
      */
-    public fun moteur(module: String? = null): MoteurJava = synchronized(verrou) {
+    public fun moteur(module: String? = null): MoteurJava = verrou.withLock {
         val cle = normaliser(module)
         moteurs[cle]?.let { return it }
         val contexte = contextes[cle] ?: ContexteModule(emptyList(), emptyList(), null, null)
@@ -311,7 +319,7 @@ public class EnvironnementCompilation(
                 if (coupures >= BORNE_COUPURES) throw e
                 continue
             }
-            val courante = synchronized(verrou) { generations[prise.cle] ?: 0L }
+            val courante = verrou.withLock { generations[prise.cle] ?: 0L }
             if (courante == prise.generation) return resultat
             relances += 1
             if (relances >= BORNE_RELANCES) return resultat
@@ -331,7 +339,7 @@ public class EnvironnementCompilation(
             null
         }
         val cle = normaliser(module)
-        return synchronized(verrou) {
+        return verrou.withLock {
             val moteur = moteurs[cle] ?: run {
                 val contexte = contextes[cle] ?: ContexteModule(emptyList(), emptyList(), null, null)
                 val nouveau = creerMoteur(contexte)
@@ -353,7 +361,7 @@ public class EnvironnementCompilation(
      * @param jars les jars du classpath du module.
      */
     public fun remplacerContexteModule(module: String?, racines: List<Path>, jars: List<Path> = emptyList()) {
-        synchronized(verrou) {
+        verrou.withLock {
             val cle = normaliser(module)
             val ancien = contextes[cle]
             val niveau = ancien?.niveauDemande
@@ -372,7 +380,7 @@ public class EnvironnementCompilation(
      * @param niveau le niveau Java demandé (null = retour au défaut).
      */
     public fun remplacerContexteModule(module: String?, racines: List<Path>, jars: List<Path> = emptyList(), niveau: String?) {
-        synchronized(verrou) {
+        verrou.withLock {
             val cle = normaliser(module)
             val ancien = contextes[cle]
             appliquerRemplacement(cle, racines, jars, niveau, ancien?.projetAndroid, ancien)
@@ -401,7 +409,7 @@ public class EnvironnementCompilation(
         niveau: String?,
         projetAndroid: jo.codeide.lsp.java.projetandroid.ContratAndroidMoteur?,
     ) {
-        synchronized(verrou) {
+        verrou.withLock {
             val cle = normaliser(module)
             val ancien = contextes[cle]
             appliquerRemplacement(cle, racines, jars, niveau ?: ancien?.niveauDemande, projetAndroid, ancien)
@@ -416,7 +424,7 @@ public class EnvironnementCompilation(
      * @param index l'index (null détache).
      */
     public fun setIndexNoms(index: IndexNoms?) {
-        synchronized(verrou) {
+        verrou.withLock {
             if (index === indexNoms) return
             indexNoms = index
             invaliderToutesEpoques()
@@ -434,7 +442,7 @@ public class EnvironnementCompilation(
      * @param auditeur le callback (clé de module normalisée).
      */
     public fun ajouterAuditeurContexte(auditeur: (String) -> Unit) {
-        synchronized(verrou) {
+        verrou.withLock {
             auditeurs.add(auditeur)
         }
     }
@@ -449,7 +457,7 @@ public class EnvironnementCompilation(
      * @param auditeur le callback (clé de module normalisée).
      */
     public fun ajouterAuditeurEpoque(auditeur: (String) -> Unit) {
-        synchronized(verrou) {
+        verrou.withLock {
             auditeursEpoque.add(auditeur)
         }
     }
@@ -478,7 +486,7 @@ public class EnvironnementCompilation(
      *
      * @param module la clé du module ; null ou vide = défaut.
      */
-    public fun generationDe(module: String?): Long = synchronized(verrou) {
+    public fun generationDe(module: String?): Long = verrou.withLock {
         generations[normaliser(module)] ?: 0L
     }
 
@@ -493,7 +501,7 @@ public class EnvironnementCompilation(
      *
      * @param module la clé du module ; null ou vide = défaut.
      */
-    public fun moteurInitialise(module: String?): Boolean = synchronized(verrou) {
+    public fun moteurInitialise(module: String?): Boolean = verrou.withLock {
         normaliser(module) in moteurs
     }
 
@@ -519,7 +527,7 @@ public class EnvironnementCompilation(
      *
      * @return les moteurs vivants (photographie ordonnée).
      */
-    public fun moteursVivants(): List<MoteurJava> = synchronized(verrou) {
+    public fun moteursVivants(): List<MoteurJava> = verrou.withLock {
         val resultat = mutableListOf<MoteurJava>()
         moteurs[""]?.let { resultat.add(it) }
         for (cle in ordreModules) {
@@ -541,7 +549,7 @@ public class EnvironnementCompilation(
      * aucune ne swappera après la libération).
      */
     public fun dispose() {
-        synchronized(verrou) {
+        verrou.withLock {
             invaliderToutesEpoques()
             for ((_, moteur) in moteurs) {
                 moteur.dispose()
@@ -606,8 +614,8 @@ public class EnvironnementCompilation(
         reconstructionsEnCours.incrementAndGet()
         filReconstruction.execute {
             try {
-                val contexte = synchronized(verrou) { contextes[cle] } ?: return@execute
-                if (synchronized(verrou) { generations[cle] ?: 0L } != generation) return@execute
+                val contexte = verrou.withLock { contextes[cle] } ?: return@execute
+                if (verrou.withLock { generations[cle] ?: 0L } != generation) return@execute
                 val moteur = try {
                     creerMoteur(contexte)
                 } catch (_: Exception) {
@@ -622,7 +630,7 @@ public class EnvironnementCompilation(
                     // est plus fraîche que l'ancien moteur.
                 }
                 var aRetirer: MoteurJava? = null
-                synchronized(verrou) {
+                verrou.withLock {
                     if (generations[cle] == generation && moteurs[cle] === sortant) {
                         // SWAP ATOMIQUE : le neuf devient l'époque vivante.
                         moteurs[cle] = moteur
@@ -635,7 +643,7 @@ public class EnvironnementCompilation(
                     // (coupure fine des calculs en vol) puis dispose — le
                     // moniteur du moteur attend les calculs non ponctués.
                     retire.retirer()
-                    for (auditeur in synchronized(verrou) { auditeursEpoque.toList() }) {
+                    for (auditeur in verrou.withLock { auditeursEpoque.toList() }) {
                         runCatching { auditeur(cle) }
                     }
                 } else {

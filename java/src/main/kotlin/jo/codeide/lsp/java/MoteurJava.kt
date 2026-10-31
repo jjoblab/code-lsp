@@ -56,19 +56,39 @@ import org.eclipse.jdt.internal.compiler.classfmt.ClassFileReader
 import org.eclipse.jdt.internal.compiler.env.ICompilationUnit
 import org.eclipse.jdt.internal.compiler.lookup.ReferenceBinding
 import java.nio.file.Path
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.withLock
 
 /**
  * Moteur Java par module (étage N1) — nom NEUTRE : cette classe ne dérive
  * d'aucune classe ecj/JDT, elle ORCHESTRE le pont ecj, les caches et le
  * routage de classpath (convention de nommage du dépôt, AGENTS.md).
  *
- * Un moteur = SON verrou (le moniteur de l'instance), SES caches, SON
- * environnement de noms — l'isolation lot E du cahier (fiche 034) : un
- * module bloqué n'arrête jamais l'autre. Toutes les entrées publiques sont
- * sérialisées sur le moniteur du moteur : la cohérence sous concurrence
- * (fiche 012 — MAIN_OK rend toujours 0 erreur, MAIN_ERR toujours au moins
- * une, quel que soit l'entrelacement) est garantie par construction ; la
- * granularité fichier arrivera avec les vagues de concurrence (ADR 0010).
+ * Un moteur = SES verrous de périmètre, SES caches, SON environnement de
+ * noms — l'isolation lot E du cahier (fiche 034) : un module bloqué
+ * n'arrête jamais l'autre. **Vagues de concurrence (V-F2 — ADR 0029
+ * phase 2, exécution de l'ADR 0010 schéma B)** : le moniteur d'instance
+ * historique est remplacé par des verrous nommés par PÉRIMÈTRE, avec un
+ * ordre global documenté (jamais d'inversion) :
+ *
+ *  1. **orchestration** (l'instance d'[EnvironnementCompilation]) ;
+ *  2. **compilation** ([verrouCompilation] — le périmètre MODULE : tout ce
+ *     qui touche le pont ecj, l'environnement de noms ou un arbre résolu) ;
+ *  3. **services** ([verrouServices] — les inits paresseuses, courtes) ;
+ *  4. **feuilles** (index de mots, annuaire de classpath, caches de parse
+ *     et de présence — verrous internes, jamais imbriqués vers le haut).
+ *
+ * La cohérence sous concurrence (fiche 012 — MAIN_OK rend toujours 0
+ * erreur, MAIN_ERR toujours au moins une, quel que soit l'entrelacement)
+ * reste garantie par construction : tout ce qui RESOUT passe par
+ * [verrouCompilation] ; les chemins qui n'y touchent pas (mémo de
+ * diagnose, compteurs, sondes paresseuses, balayage lexical d'usages)
+ * s'exécutent SANS lui — c'est le gain « lectures parallèles de fichiers
+ * distincts » : un hit de mémo ne se met jamais derrière une résolution
+ * en vol d'un autre fichier, et un balayage d'usages ne tient pas le
+ * périmètre compilation pendant ses lectures disque.
  *
  * Sur le plan des régimes : `isLikelyUsable()` distingue le régime plein
  * (plateforme résoluble — jrt OU jar du classpath porteur, v1.1.4) du
@@ -118,7 +138,13 @@ public class MoteurJava(
     /** Chaîne de classement de complétion de remplacement (banc ADR 0016). */
     private var chaineCompletion: jo.codeide.lsp.java.completion.ChaineClassement? = null
 
-    /** Environnement de noms (paresseux — le premier usage paie jrt/jars). */
+    /**
+     * Environnement de noms (paresseux — le premier usage paie jrt/jars).
+     * VOLATILE (V-F2) : la sonde de régime [regimePlein] la lit SANS verrou
+     * à chaud ; l'écriture (init sous [verrouCompilation], remise à null
+     * par [dispose]) publie une référence pleinement construite.
+     */
+    @Volatile
     private var environnement: EnvironnementNoms? = null
 
     /**
@@ -189,6 +215,34 @@ public class MoteurJava(
     /** Cache de parse LRU (fiche 025). */
     private val cacheParse = CacheParse()
 
+    /**
+     * Verrou du périmètre COMPILATION (V-F2 — ADR 0029 phase 2, ADR 0010
+     * schéma B) : protège le pont ecj, l'environnement de noms, leurs
+     * inits paresseuses ([environnementNoms]/[pontEcj] — à n'appeler QUE
+     * en le détenant) et TOUTE résolution ou lecture d'arbre résolu du
+     * module. Il remplace le moniteur d'instance historique : il n'est
+     * plus publiquement saisissable, il porte un nom, et les chemins qui
+     * n'en ont pas besoin (mémo, compteurs, balayages) ne le prennent
+     * pas. Réentrant : les lambdas des services ([resolveUnit],
+     * [diagnose]) y retournent librement.
+     *
+     * ORDRE GLOBAL (documenté, jamais inversé) : orchestration →
+     * compilation (ce verrou) → services → feuilles. [dispose] et
+     * [retirer] le prennent : la drainage des calculs en vol est
+     * préservée (un retrait attend la fin des résolutions non ponctuées).
+     */
+    private val verrouCompilation = ReentrantLock()
+
+    /**
+     * Verrou du périmètre SERVICES (V-F2) : les initialisations
+     * paresseuses des services (complétion, navigation, usages,
+     * renommage…), courtes et sans travail ecj — il permet aux entrées
+     * NON verrouillées (p. ex. [references], qui balaye hors verrou)
+     * d'initialiser leur service sans course. Feuille relative au
+     * périmètre compilation : jamais l'inverse.
+     */
+    private val verrouServices = ReentrantLock()
+
     /** Service de complétion & classement (étage N2), paresseux. */
     private var serviceCompletion: ServiceCompletion? = null
 
@@ -216,20 +270,24 @@ public class MoteurJava(
     /** Service de code actions v2 (étage N6 — ADR 0013), paresseux. */
     private var serviceActionsCode: jo.codeide.lsp.java.actionscode.ServiceActionsCode? = null
 
-    /** États rapides par chemin (fiche 014/015). */
-    private val etatsRapides = HashMap<String, DiagnoseRapide.Etat>()
+    /**
+     * États rapides par chemin (fiche 014/015) — périmètre DOCUMENT :
+     * carte concurrente (V-F2), les instantanés [DiagnoseRapide.Etat] sont
+     * IMMUABLES, un hit de mémo se lit donc sans le verrou de compilation.
+     */
+    private val etatsRapides = ConcurrentHashMap<String, DiagnoseRapide.Etat>()
 
     /** Compteur des diagnostiques COMPLETS (surface observable, fiche 014). */
-    private var compteurFullDiagnose = 0
+    private val compteurFullDiagnose = AtomicInteger(0)
 
     /** Compteur des diagnostiques RAPIDES et mémos (fiche 014). */
-    private var compteurFastDiagnose = 0
+    private val compteurFastDiagnose = AtomicInteger(0)
 
     /** Compteur des services de résolution par arbre FOCALISÉ (fiche 015). */
-    private var compteurFastResolve = 0
+    private val compteurFastResolve = AtomicInteger(0)
 
     /** Compteur des services par l'arbre RÉEL du cache de parse (fiche 015). */
-    private var compteurCachedResolve = 0
+    private val compteurCachedResolve = AtomicInteger(0)
 
     public companion object {
         /**
@@ -278,7 +336,7 @@ public class MoteurJava(
      *
      * @return vrai ssi la plateforme est résoluble (régime plein).
      */
-    public fun isLikelyUsable(): Boolean = synchronized(this) { environnementNoms().plateformeResolvable() }
+    public fun isLikelyUsable(): Boolean = regimePlein()
 
     /** Niveau Java EFFECTIF du moteur (hérité ou posé par module). */
     public fun complianceDemandee(): String = compliance
@@ -300,7 +358,7 @@ public class MoteurJava(
      * contrat est actif et le drapeau de repli n'est pas posé) — R/BuildConfig
      * (et Binding à partir de V-B3) résolvent SANS build.
      */
-    public fun aClassesLegereAndroid(): Boolean = synchronized(this) { fabriqueLegere != null }
+    public fun aClassesLegereAndroid(): Boolean = fabriqueLegere != null
 
     /**
      * Déclarations Kotlin publiques du module (V-B3 — ADR 0022),
@@ -321,20 +379,20 @@ public class MoteurJava(
      * tests d'observer la fabrique VIVANTE du moteur (navigation ressource,
      * cibles XML). `null` si le contrat est inactif ou le repli posé.
      */
-    public fun classesLegereAndroid(): jo.codeide.lsp.java.projetandroid.ClassesLegereAndroid? = synchronized(this) { fabriqueLegere }
+    public fun classesLegereAndroid(): jo.codeide.lsp.java.projetandroid.ClassesLegereAndroid? = fabriqueLegere
 
     /**
      * Les déclarations Kotlin exposées (V-B3 — ADR 0022), ou null si le
      * repli est posé — sonde d'observation pour l'hôte et les tests.
      */
-    public fun declarationsKotlin(): jo.codeide.lsp.java.projetandroid.DeclarationsKotlin? = synchronized(this) { declarationsKotlin }
+    public fun declarationsKotlin(): jo.codeide.lsp.java.projetandroid.DeclarationsKotlin? = declarationsKotlin
 
     /**
      * La GÉNÉRATION du référentiel de ressources (V-B — sonde de fraîcheur) :
      * croît à chaque MAJ ciblée d'un XML (didChange) — les tests et l'hôte
      * y vérifient qu'un rafraîchissement a bien eu lieu.
      */
-    public fun generationRessources(): Long = synchronized(this) { fabriqueLegere?.generation() ?: 0L }
+    public fun generationRessources(): Long = fabriqueLegere?.generation() ?: 0L
 
     /**
      * MAJ CIBLÉE d'une ressource XML (V-B — ADR 0020 : « MAJ incrémentale sur
@@ -349,7 +407,7 @@ public class MoteurJava(
      * @param cheminXml le chemin du fichier XML de ressource modifié.
      */
     public fun rafraichirFichierXml(cheminXml: Path) {
-        synchronized(this) {
+        verrouCompilation.withLock {
             fabriqueLegere?.rafraichirFichierXml(cheminXml)
             etatsRapides.clear()
         }
@@ -406,34 +464,46 @@ public class MoteurJava(
      * @param source le texte Java complet.
      * @return la liste de diagnostics (triée par offset croissant) ; JAMAIS nulle.
      */
-    public fun diagnose(chemin: String, source: String): List<Diagnostic> = synchronized(this) {
-        // Mémo : republish post-debounce (fiche 014, memeSource) — servi
-        // uniquement si AUCUNE dépendance disque n'a changé (P8, ci-dessus).
-        val etat = etatsRapides[chemin]
-        if (etat?.source == source && etat.dependancesInchangees()) {
-            compteurFastDiagnose++
-            return etat.diagnostics
+    public fun diagnose(chemin: String, source: String): List<Diagnostic> {
+        // Périmètre DOCUMENT (V-F2) : le MÉMO se lit SANS le verrou de
+        // compilation — un hit (frappe identique, dépendances disque
+        // inchangées) ne se met JAMAIS derrière une résolution en vol
+        // d'un autre fichier du module. Les instantanés d'état sont
+        // immuables : la lecture est une photographie cohérente.
+        val memo = etatsRapides[chemin]
+        if (memo?.source == source && memo.dependancesInchangees()) {
+            compteurFastDiagnose.incrementAndGet()
+            return memo.diagnostics
         }
-        if (!isLikelyUsableInterne()) {
-            compteurFullDiagnose++
-            val diagnostics = RegimeInstantane.diagnosticsSyntaxe(pontEcj(), unite(chemin, source))
-            etatsRapides[chemin] = DiagnoseRapide.Etat(source, diagnostics, emptyList(), null, null)
-            return diagnostics
+        return verrouCompilation.withLock {
+            // Double contrôle : une diagnose concurrente a pu remplir le
+            // mémo entre la lecture sans verrou et la prise du verrou.
+            val etat = etatsRapides[chemin]
+            if (etat?.source == source && etat.dependancesInchangees()) {
+                compteurFastDiagnose.incrementAndGet()
+                return@withLock etat.diagnostics
+            }
+            if (!isLikelyUsableInterne()) {
+                compteurFullDiagnose.incrementAndGet()
+                val diagnostics = RegimeInstantane.diagnosticsSyntaxe(pontEcj(), unite(chemin, source))
+                etatsRapides[chemin] = DiagnoseRapide.Etat(source, diagnostics, emptyList(), null, null)
+                return@withLock diagnostics
+            }
+            // Diagnose rapide : frappe confinée dans un seul corps (fiche 014).
+            // Kill-switch : la propriété système coupe aussi le fast-path.
+            val hote = if (FAST_DIAGNOSE_DISABLED || DESACTIVE_PAR_PROPRIETE) {
+                null
+            } else {
+                DiagnoseRapide.preuveDeConfinement(etat, source)
+            }
+            if (hote != null) {
+                compteurFastDiagnose.incrementAndGet()
+                return@withLock diagnostiquerRapide(chemin, source, etat!!, hote)
+            }
+            // Diagnose complet.
+            compteurFullDiagnose.incrementAndGet()
+            diagnostiquerComplet(chemin, source)
         }
-        // Diagnose rapide : frappe confinée dans un seul corps (fiche 014).
-        // Kill-switch : la propriété système coupe aussi le fast-path.
-        val hote = if (FAST_DIAGNOSE_DISABLED || DESACTIVE_PAR_PROPRIETE) {
-            null
-        } else {
-            DiagnoseRapide.preuveDeConfinement(etat, source)
-        }
-        if (hote != null) {
-            compteurFastDiagnose++
-            return diagnostiquerRapide(chemin, source, etat!!, hote)
-        }
-        // Diagnose complet.
-        compteurFullDiagnose++
-        return diagnostiquerComplet(chemin, source)
     }
 
     /**
@@ -444,7 +514,7 @@ public class MoteurJava(
      * @param source le texte Java complet.
      * @return les diagnostics de syntaxe (jamais nuls).
      */
-    public fun diagnoseSyntax(chemin: String, source: String): List<Diagnostic> = synchronized(this) {
+    public fun diagnoseSyntax(chemin: String, source: String): List<Diagnostic> = verrouCompilation.withLock {
         RegimeInstantane.diagnosticsSyntaxe(pontEcj(), unite(chemin, source))
     }
 
@@ -630,7 +700,7 @@ public class MoteurJava(
      *   dégradée par un put sans codegen).
      * @return l'unité résolue, ou null en régime instantané (pas de plateforme).
      */
-    public fun resolveUnit(chemin: String, source: String, genererCode: Boolean): UniteResolue? = synchronized(this) {
+    public fun resolveUnit(chemin: String, source: String, genererCode: Boolean): UniteResolue? = verrouCompilation.withLock {
         if (!isLikelyUsableInterne()) return null
         val existante = cacheParse.obtenir(chemin, source)
         if (existante != null) {
@@ -654,12 +724,16 @@ public class MoteurJava(
      * @return le texte de hover, ou null (aucun nœud résolu à l'offset —
      *   réponse honnête, jamais un contenu périmé).
      */
-    public fun hoverAt(chemin: String, source: String, offset: Int): String? = synchronized(this) {
-        if (!isLikelyUsableInterne()) return null
+    public fun hoverAt(chemin: String, source: String, offset: Int): String? {
+        // Périmètre MODULE (V-F2) : prologue : sonde de régime sans verrou à chaud,
+        // puis chaîne à trois niveaux SANS tenir le verrou — les arbres du
+        // mémo et du cache de parse se lisent sans lui (bindings
+        // matérialisés), la résolution fraîche le reprend individuellement.
+        if (!regimePlein()) return null
         val cible = resoudrePourOffset(chemin, source, offset) ?: return null
         // Clôtures markdown (fiche 021 — contrat historique du hover
         // texte : «```java\n…\n```») ; JAMAIS la documentation.
-        LectureAst.hover(cible.arbre, cible.position)?.let { "```java\n$it\n```" }
+        return LectureAst.hover(cible.arbre, cible.position)?.let { "```java\n$it\n```" }
     }
 
     /**
@@ -673,10 +747,11 @@ public class MoteurJava(
      * @param offset la position interrogée.
      * @return le survol structuré, ou null (aucun nœud résolu à l'offset).
      */
-    public fun survolRiche(chemin: String, source: String, offset: Int): SurvolRiche? = synchronized(this) {
-        if (!isLikelyUsableInterne()) return null
+    public fun survolRiche(chemin: String, source: String, offset: Int): SurvolRiche? {
+        // Périmètre MODULE (V-F2) : prologue : sonde de régime sans verrou à chaud, lecture libre.
+        if (!regimePlein()) return null
         val cible = resoudrePourOffset(chemin, source, offset) ?: return null
-        ServiceSurvolRiche.survol(cible.arbre, cible.sourceArbre, cible.position)
+        return ServiceSurvolRiche.survol(cible.arbre, cible.sourceArbre, cible.position)
     }
 
     /**
@@ -698,8 +773,11 @@ public class MoteurJava(
      * @return les cibles (liste NON NULL, vide honnête — fiche 049 :
      *   document inconnu ou curseur hors symbole).
      */
-    public fun definition(chemin: String, source: String, offset: Int): List<CibleNavigation> = synchronized(this) {
-        if (!isLikelyUsableInterne()) return emptyList()
+    public fun definition(chemin: String, source: String, offset: Int): List<CibleNavigation> {
+        // Périmètre MODULE (V-F2) : prologue : sonde de régime sans verrou à chaud, lecture libre —
+        // les résolutions éventuelles (autres fichiers, hiérarchies) se
+        // verrouillent seules par leurs lambdas.
+        if (!regimePlein()) return emptyList()
         val cible = resoudrePourOffset(chemin, source, offset) ?: return emptyList()
         val cibles = serviceNavigation().definition(chemin, cible.arbre, cible.sourceArbre, cible.position)
         return cibles.map { c -> remapperCourante(c, cible.remap) }
@@ -716,8 +794,9 @@ public class MoteurJava(
      * @param offset la position du caret.
      * @return les cibles (0 ou 1 — remappées en coordonnées originales).
      */
-    public fun typeDefinition(chemin: String, source: String, offset: Int): List<CibleNavigation> = synchronized(this) {
-        if (!isLikelyUsableInterne()) return emptyList()
+    public fun typeDefinition(chemin: String, source: String, offset: Int): List<CibleNavigation> {
+        // Périmètre MODULE (V-F2) : prologue : sonde de régime sans verrou à chaud, lecture libre.
+        if (!regimePlein()) return emptyList()
         val cible = resoudrePourOffset(chemin, source, offset) ?: return emptyList()
         val cibles = serviceNavigation().typeDefinition(chemin, cible.arbre, cible.sourceArbre, cible.position)
         return cibles.map { c -> remapperCourante(c, cible.remap) }
@@ -734,8 +813,9 @@ public class MoteurJava(
      * @param offset la position du caret.
      * @return les cibles (vide si aucune descendance directe).
      */
-    public fun implementation(chemin: String, source: String, offset: Int): List<CibleNavigation> = synchronized(this) {
-        if (!isLikelyUsableInterne()) return emptyList()
+    public fun implementation(chemin: String, source: String, offset: Int): List<CibleNavigation> {
+        // Périmètre MODULE (V-F2) : prologue : sonde de régime sans verrou à chaud, balayage libre.
+        if (!regimePlein()) return emptyList()
         val cible = resoudrePourOffset(chemin, source, offset) ?: return emptyList()
         return serviceNavigation().implementation(chemin, cible.arbre, cible.sourceArbre, cible.position)
     }
@@ -751,8 +831,9 @@ public class MoteurJava(
      * @param offset la position du caret.
      * @return les cibles internes (chemin + plage + libellé picker).
      */
-    public fun superDefinition(chemin: String, source: String, offset: Int): List<CibleSuper> = synchronized(this) {
-        if (!isLikelyUsableInterne()) return emptyList()
+    public fun superDefinition(chemin: String, source: String, offset: Int): List<CibleSuper> {
+        // Périmètre MODULE (V-F2) : prologue : sonde de régime sans verrou à chaud, lecture libre.
+        if (!regimePlein()) return emptyList()
         val cible = resoudrePourOffset(chemin, source, offset) ?: return emptyList()
         return serviceNavigation().superDefinition(chemin, cible.arbre, cible.sourceArbre, cible.position)
     }
@@ -769,8 +850,9 @@ public class MoteurJava(
      * @return le FQN, ou null (caret sans binding, type de base, source
      *   vide, offset hors bornes).
      */
-    public fun fqcnAt(chemin: String, source: String, offset: Int, cibleType: Boolean = false): String? = synchronized(this) {
-        if (!isLikelyUsableInterne()) return null
+    public fun fqcnAt(chemin: String, source: String, offset: Int, cibleType: Boolean = false): String? {
+        // Périmètre MODULE (V-F2) : prologue : sonde de régime sans verrou à chaud, lecture libre.
+        if (!regimePlein()) return null
         if (source.isEmpty()) return null
         if (offset < 0 || offset > source.length) return null
         val cible = resoudrePourOffset(chemin, source, offset) ?: return null
@@ -784,7 +866,7 @@ public class MoteurJava(
      * @param fqcn le FQCN testé (null/vide → faux).
      * @return vrai pour un jar, l'image jrt ou un stub intrinsèque.
      */
-    public fun isBinaryType(fqcn: String?): Boolean = synchronized(this) {
+    public fun isBinaryType(fqcn: String?): Boolean = verrouCompilation.withLock {
         if (fqcn.isNullOrEmpty()) return false
         if (!isLikelyUsableInterne()) return false
         return serviceDecompilation().estTypeBinaire(fqcn)
@@ -799,7 +881,7 @@ public class MoteurJava(
      * @param fqcn le FQCN (null/vide → null, sans exiger de JDK).
      * @return le texte Java, ou null (FQCN inconnu).
      */
-    public fun decompiledSource(fqcn: String?): String? = synchronized(this) {
+    public fun decompiledSource(fqcn: String?): String? = verrouCompilation.withLock {
         if (fqcn.isNullOrEmpty()) return null
         return serviceDecompilation().sourceDecompilee(fqcn)
     }
@@ -820,8 +902,10 @@ public class MoteurJava(
      * @param offsets les positions interrogées.
      * @return une chaîne par offset (null = position invalide).
      */
-    public fun chainesSelection(chemin: String, source: String, offsets: List<Int>): List<ChaineSelection?> = synchronized(this) {
-        if (!isLikelyUsableInterne()) return offsets.map { null }
+    public fun chainesSelection(chemin: String, source: String, offsets: List<Int>): List<ChaineSelection?> {
+        // Périmètre MODULE (V-F2) : prologue : sonde de régime sans verrou à chaud — les résolutions
+        // internes du service se verrouillent seules.
+        if (!regimePlein()) return offsets.map { null }
         return serviceSelection().chainesSelection(chemin, source, offsets)
     }
 
@@ -838,8 +922,9 @@ public class MoteurJava(
      * @return la plage cible, ou null (déclencheur hors liste, caractère
      *   différent à l'offset).
      */
-    public fun plageFormattable(chemin: String, source: String, offset: Int, declencheur: Char): Plage? = synchronized(this) {
-        if (!isLikelyUsableInterne()) return null
+    public fun plageFormattable(chemin: String, source: String, offset: Int, declencheur: Char): Plage? {
+        // Périmètre MODULE (V-F2) : prologue : sonde de régime sans verrou à chaud.
+        if (!regimePlein()) return null
         return serviceSelection().plageFormattable(chemin, source, offset, declencheur)
     }
 
@@ -861,8 +946,14 @@ public class MoteurJava(
         source: String,
         offset: Int,
         inclureDeclaration: Boolean = true,
-    ): List<Usage> = synchronized(this) {
-        if (!isLikelyUsableInterne()) return emptyList()
+    ): List<Usage> {
+        // Périmètre MODULE (V-F2) : seule la SONDE de régime (init de
+        // l'environnement) prend le verrou de compilation ; le BALAYAGE
+        // (index de mots + lectures disque) s'exécute SANS lui, chaque
+        // résolution de candidat le reprenant individuellement (lambda
+        // [resolveUnit], réentrante) — un hover d'un autre fichier ne se
+        // met jamais derrière un balayage d'usages.
+        if (!regimePlein()) return emptyList()
         return serviceUsages().references(chemin, source, offset, inclureDeclaration)
     }
 
@@ -878,8 +969,10 @@ public class MoteurJava(
      * @param offset la position du caret.
      * @return les usages exhaustifs (même forme que [references]).
      */
-    public fun referencesParBalayageComplet(chemin: String, source: String, offset: Int): List<Usage> = synchronized(this) {
-        if (!isLikelyUsableInterne()) return emptyList()
+    public fun referencesParBalayageComplet(chemin: String, source: String, offset: Int): List<Usage> {
+        // Périmètre MODULE (V-F2) : prologue : sonde de régime sans verrou à chaud, balayage libre —
+        // voir [references].
+        if (!regimePlein()) return emptyList()
         return serviceUsages().referencesParBalayageComplet(chemin, source, offset)
     }
 
@@ -895,8 +988,9 @@ public class MoteurJava(
      * @param offset la position du caret.
      * @return les surbrillances (vide honnête).
      */
-    public fun surbrillances(chemin: String, source: String, offset: Int): List<Surbrillance> = synchronized(this) {
-        if (!isLikelyUsableInterne()) return emptyList()
+    public fun surbrillances(chemin: String, source: String, offset: Int): List<Surbrillance> {
+        // Périmètre MODULE (V-F2) : prologue : sonde de régime sans verrou à chaud, lecture libre.
+        if (!regimePlein()) return emptyList()
         return serviceUsages().surbrillances(chemin, source, offset)
     }
 
@@ -907,7 +1001,7 @@ public class MoteurJava(
      *
      * @return le nombre de constructions de l'index.
      */
-    public fun constructionsIndexMots(): Int = synchronized(this) { indexMotsSources().constructions() }
+    public fun constructionsIndexMots(): Int = indexMotsSources().constructions()
 
     // ------------------------------------------------------------------ //
     // Renommage par phases (étage N5 — cahier fiches 026 et 061)
@@ -926,8 +1020,10 @@ public class MoteurJava(
      * @param offset la position du caret.
      * @return la cible, ou null (caret hors identifiant renommable).
      */
-    public fun cibleRenommageA(chemin: String, source: String, offset: Int): CibleRenommage? = synchronized(this) {
-        if (!isLikelyUsableInterne()) return null
+    public fun cibleRenommageA(chemin: String, source: String, offset: Int): CibleRenommage? {
+        // Périmètre MODULE (V-F2) : prologue : sonde de régime sans verrou à chaud — les résolutions
+        // du moteur de renommage se verrouillent seules.
+        if (!regimePlein()) return null
         return moteurRenommage().cibleA(chemin, source, offset)
     }
 
@@ -951,8 +1047,11 @@ public class MoteurJava(
         source: String,
         offset: Int,
         suivreOverrides: Boolean = false,
-    ): Map<String, List<OccurrenceRenommage>> = synchronized(this) {
-        if (!isLikelyUsableInterne()) return emptyMap()
+    ): Map<String, List<OccurrenceRenommage>> {
+        // Périmètre MODULE (V-F2) : prologue : sonde de régime sans verrou à chaud, balayage libre —
+        // voir [references] (le renommage balaye les racines de la même
+        // manière, ses résolutions par fichier se verrouillent seules).
+        if (!regimePlein()) return emptyMap()
         return moteurRenommage().renommageProjet(chemin, source, offset, suivreOverrides)
     }
 
@@ -973,8 +1072,10 @@ public class MoteurJava(
         chemin: String,
         source: String,
         offset: Int,
-    ): Map<String, List<OccurrenceRenommage>> = synchronized(this) {
-        if (!isLikelyUsableInterne()) return emptyMap()
+    ): Map<String, List<OccurrenceRenommage>> {
+        // Périmètre MODULE (V-F2) : prologue : sonde de régime sans verrou à chaud, balayage libre —
+        // voir [references].
+        if (!regimePlein()) return emptyMap()
         return moteurRenommage().renommageProjetParBalayageComplet(chemin, source, offset)
     }
 
@@ -998,7 +1099,7 @@ public class MoteurJava(
         offset: Int,
         nouveauNom: String,
         suivreOverrides: Boolean = false,
-    ): List<ConflitRenommage> = synchronized(this) {
+    ): List<ConflitRenommage> = verrouCompilation.withLock {
         if (!isLikelyUsableInterne()) return emptyList()
         return moteurRenommage().conflits(chemin, source, offset, nouveauNom, suivreOverrides)
     }
@@ -1050,8 +1151,10 @@ public class MoteurJava(
         chemin: String,
         source: String,
         diagnostics: List<Diagnostic>,
-    ): List<jo.codeide.lsp.java.actionscode.ActionCode> = synchronized(this) {
-        serviceActionsCode().actions(chemin, source, diagnostics)
+    ): List<jo.codeide.lsp.java.actionscode.ActionCode> {
+        // Périmètre TEXTE (V-F2) : service SANS moteur — aucune prise du
+        // verrou de compilation (l'index des noms est sûr par conception).
+        return serviceActionsCode().actions(chemin, source, diagnostics)
     }
 
     /**
@@ -1067,8 +1170,9 @@ public class MoteurJava(
         chemin: String,
         source: String,
         diagnostic: Diagnostic,
-    ): List<jo.codeide.lsp.java.actionscode.ActionCode> = synchronized(this) {
-        serviceActionsCode().actions(chemin, source, diagnostic)
+    ): List<jo.codeide.lsp.java.actionscode.ActionCode> {
+        // Périmètre TEXTE (V-F2) : voir [actionsCode].
+        return serviceActionsCode().actions(chemin, source, diagnostic)
     }
 
     /**
@@ -1083,10 +1187,12 @@ public class MoteurJava(
      * @param source le texte Java complet.
      * @return les indices de l'unité (vide en régime instantané).
      */
-    public fun inlayHints(chemin: String, source: String): List<IndiceInlay> = synchronized(this) {
-        if (!isLikelyUsableInterne()) return emptyList()
+    public fun inlayHints(chemin: String, source: String): List<IndiceInlay> {
+        // Périmètre MODULE (V-F2) : prologue : sonde de régime sans verrou à chaud — la résolution se
+        // verrouille seule, la lecture des indices est libre.
+        if (!regimePlein()) return emptyList()
         val unite = resolveUnit(chemin, source, genererCode = false) ?: return emptyList()
-        ServiceInlay.indices(unite.arbre, source)
+        return ServiceInlay.indices(unite.arbre, source)
     }
 
     /**
@@ -1104,8 +1210,10 @@ public class MoteurJava(
      * @param offset la position du caret.
      * @return l'aide de signature, ou null si aucun appel ne couvre l'offset.
      */
-    public fun signatureHelp(chemin: String, source: String, offset: Int): AideSignature? = synchronized(this) {
-        if (!isLikelyUsableInterne()) return null
+    public fun signatureHelp(chemin: String, source: String, offset: Int): AideSignature? {
+        // Périmètre MODULE (V-F2) : prologue : sonde de régime sans verrou à chaud, lecture libre —
+        // les variantes réparées du niveau 4 reprennent le verrou par passe.
+        if (!regimePlein()) return null
         val cible = resoudrePourOffset(chemin, source, offset)
         if (cible != null) {
             val aide = AideSignatures.aide(cible.arbre, cible.sourceArbre, cible.position)
@@ -1114,7 +1222,7 @@ public class MoteurJava(
         // Niveau 4 (fiche 023) : texte vivant cassé — variantes réparées,
         // la première qui résout un appel couvrant le caret gagne.
         for (variante in AideSignatures.variantesReparees(source, offset)) {
-            val reponse = pontEcj().resoudre(unite(chemin, variante), false)
+            val reponse = verrouCompilation.withLock { pontEcj().resoudre(unite(chemin, variante), false) }
             val aide = reponse.arbre?.let { AideSignatures.aide(it, variante, offset) }
             if (aide != null && aide.signatures.isNotEmpty()) return aide
         }
@@ -1133,8 +1241,8 @@ public class MoteurJava(
      * @param offset la position du caret.
      * @return les items de complétion.
      */
-    public fun complete(chemin: String, source: String?, offset: Int): List<ItemCompletion> = synchronized(this) {
-        completer(chemin, source, offset).items
+    public fun complete(chemin: String, source: String?, offset: Int): List<ItemCompletion> {
+        return completer(chemin, source, offset).items
     }
 
     /**
@@ -1153,13 +1261,21 @@ public class MoteurJava(
      * @param offset la position du caret.
      * @return la réponse (items + total disponible + genre) — jamais nulle.
      */
-    public fun completer(chemin: String, source: String?, offset: Int): ReponseCompletion = synchronized(this) {
+    public fun completer(chemin: String, source: String?, offset: Int): ReponseCompletion {
+        // Périmètre MODULE (V-F2) : la complétion CHAUDE (sonde à chaud sur
+        // l'arbre du cache) ne prend PAS le verrou de compilation — c'est
+        // le chemin de frappe : il ne se met jamais derrière la diagnose
+        // d'un autre fichier. Seuls la sonde de régime (init de
+        // l'environnement) et les chemins FROIDS (résolution marquée,
+        // complétion instantanée) le reprennent, par leurs lambdas.
         if (source.isNullOrEmpty()) return ReponseCompletion(emptyList(), 0, jo.codeide.lsp.java.completion.GenreContexte.INCONNU)
-        if (!isLikelyUsableInterne()) {
-            val items = RegimeInstantane.completionInstantanee(pontEcj(), unite(chemin, source), source, offset)
+        if (!regimePlein()) {
+            val items = verrouCompilation.withLock {
+                RegimeInstantane.completionInstantanee(pontEcj(), unite(chemin, source), source, offset)
+            }
             return ReponseCompletion(items, items.size, jo.codeide.lsp.java.completion.GenreContexte.NOM)
         }
-        serviceCompletion().completer(chemin, source, offset)
+        return serviceCompletion().completer(chemin, source, offset)
     }
 
     /**
@@ -1173,19 +1289,19 @@ public class MoteurJava(
     private fun resoudrePourOffset(chemin: String, source: String, offset: Int): CibleLecture? {
         val etat = etatsRapides[chemin]
         if (etat?.arbreFocalise != null && etat.source == source && etat.corpsHote != null && etat.corpsHote!!.contient(offset)) {
-            compteurFastResolve++
+            compteurFastResolve.incrementAndGet()
             return CibleLecture(etat.arbreFocalise!!.arbre, offset, etat.arbreFocalise!!.source) { p -> p }
         }
         val entree = cacheParse.obtenir(chemin, source)
         if (entree != null) {
-            compteurCachedResolve++
+            compteurCachedResolve.incrementAndGet()
             val position = entree.focused?.mapAvant(offset) ?: offset
             val sourceArbre = entree.focused?.source() ?: source
             val remap: (Int) -> Int = entree.focused?.let { f -> { p -> f.mapBack(p) } } ?: { p -> p }
             return CibleLecture(entree.unite.arbre, position, sourceArbre, remap)
         }
         val focused = SourceFocuser.focusAndMap(source, offset)
-        val reponse = pontEcj().resoudre(unite(chemin, focused.source()), genererCode = false)
+        val reponse = verrouCompilation.withLock { pontEcj().resoudre(unite(chemin, focused.source()), genererCode = false) }
         val uniteResolue = UniteResolue(reponse.arbre, chemin, focused.source(), genererCode = false)
         cacheParse.ranger(
             chemin,
@@ -1319,10 +1435,12 @@ public class MoteurJava(
      * @param source le texte Java complet.
      * @return la proposition, ou null (régime instantané / imparsable).
      */
-    public fun organiserImports(chemin: String, source: String): PropositionImports? = synchronized(this) {
-        if (!isLikelyUsableInterne()) return null
+    public fun organiserImports(chemin: String, source: String): PropositionImports? {
+        // Périmètre MODULE (V-F2) : prologue : sonde de régime sans verrou à chaud — la résolution se
+        // verrouille seule, l'organisation est une lecture d'arbre.
+        if (!regimePlein()) return null
         val arbre = resolveUnit(chemin, source, genererCode = false)?.arbre ?: return null
-        OrganisateurImports.organiser(arbre, source)
+        return OrganisateurImports.organiser(arbre, source)
     }
 
     /**
@@ -1335,9 +1453,10 @@ public class MoteurJava(
      * @param offset la position interrogée.
      * @return la cible, ou null.
      */
-    public fun typeAuCaret(chemin: String, source: String, offset: Int): CibleTypeHierarchie? = synchronized(this) {
-        if (!isLikelyUsableInterne()) return null
-        serviceHierarchies().typeAuCaret(chemin, source, offset)
+    public fun typeAuCaret(chemin: String, source: String, offset: Int): CibleTypeHierarchie? {
+        // Périmètre MODULE (V-F2) : prologue : sonde de régime sans verrou à chaud, balayage libre.
+        if (!regimePlein()) return null
+        return serviceHierarchies().typeAuCaret(chemin, source, offset)
     }
 
     /**
@@ -1349,9 +1468,10 @@ public class MoteurJava(
      * @param offset la position interrogée (nom déclaré du type).
      * @return les supertypes directs (binaires écartés).
      */
-    public fun supertypesDirects(chemin: String, source: String, offset: Int): List<CibleTypeHierarchie> = synchronized(this) {
-        if (!isLikelyUsableInterne()) return emptyList()
-        serviceHierarchies().supertypesDirects(chemin, source, offset)
+    public fun supertypesDirects(chemin: String, source: String, offset: Int): List<CibleTypeHierarchie> {
+        // Périmètre MODULE (V-F2) : prologue : sonde de régime sans verrou à chaud.
+        if (!regimePlein()) return emptyList()
+        return serviceHierarchies().supertypesDirects(chemin, source, offset)
     }
 
     /**
@@ -1363,9 +1483,10 @@ public class MoteurJava(
      * @param offset la position interrogée (nom déclaré du type).
      * @return les sous-types localisés.
      */
-    public fun sousTypes(chemin: String, source: String, offset: Int): List<CibleTypeHierarchie> = synchronized(this) {
-        if (!isLikelyUsableInterne()) return emptyList()
-        serviceHierarchies().sousTypes(chemin, source, offset)
+    public fun sousTypes(chemin: String, source: String, offset: Int): List<CibleTypeHierarchie> {
+        // Périmètre MODULE (V-F2) : prologue : sonde de régime sans verrou à chaud, balayage libre.
+        if (!regimePlein()) return emptyList()
+        return serviceHierarchies().sousTypes(chemin, source, offset)
     }
 
     /**
@@ -1377,9 +1498,10 @@ public class MoteurJava(
      * @param offset la position interrogée.
      * @return la cible, ou null.
      */
-    public fun methodeAuCaret(chemin: String, source: String, offset: Int): CibleMethodeHierarchie? = synchronized(this) {
-        if (!isLikelyUsableInterne()) return null
-        serviceHierarchies().methodeAuCaret(chemin, source, offset)
+    public fun methodeAuCaret(chemin: String, source: String, offset: Int): CibleMethodeHierarchie? {
+        // Périmètre MODULE (V-F2) : prologue : sonde de régime sans verrou à chaud.
+        if (!regimePlein()) return null
+        return serviceHierarchies().methodeAuCaret(chemin, source, offset)
     }
 
     /**
@@ -1391,9 +1513,10 @@ public class MoteurJava(
      * @param offset la position interrogée (nom déclaré de la méthode).
      * @return les appelants entrants (vide sans méthode au caret).
      */
-    public fun appelsEntrants(chemin: String, source: String, offset: Int): List<AppelantEntrant> = synchronized(this) {
-        if (!isLikelyUsableInterne()) return emptyList()
-        serviceHierarchies().appelsEntrants(chemin, source, offset)
+    public fun appelsEntrants(chemin: String, source: String, offset: Int): List<AppelantEntrant> {
+        // Périmètre MODULE (V-F2) : prologue : sonde de régime sans verrou à chaud, balayage libre.
+        if (!regimePlein()) return emptyList()
+        return serviceHierarchies().appelsEntrants(chemin, source, offset)
     }
 
     /**
@@ -1405,9 +1528,10 @@ public class MoteurJava(
      * @param offset la position interrogée (nom déclaré de la méthode).
      * @return les cibles sortantes avec leurs sites.
      */
-    public fun appelsSortants(chemin: String, source: String, offset: Int): List<CibleSortante> = synchronized(this) {
-        if (!isLikelyUsableInterne()) return emptyList()
-        serviceHierarchies().appelsSortants(chemin, source, offset)
+    public fun appelsSortants(chemin: String, source: String, offset: Int): List<CibleSortante> {
+        // Périmètre MODULE (V-F2) : prologue : sonde de régime sans verrou à chaud.
+        if (!regimePlein()) return emptyList()
+        return serviceHierarchies().appelsSortants(chemin, source, offset)
     }
 
     // ------------------------------------------------------------------ //
@@ -1421,9 +1545,11 @@ public class MoteurJava(
      * @param chemin le chemin du document édité.
      */
     public fun invalidateParseCache(chemin: String) {
-        synchronized(this) {
-            cacheParse.invalider(chemin)
-        }
+        // Périmètre FEUILLE (V-F2) : le cache de parse porte son propre
+        // verrou interne (méthodes @Synchronized) — pas de verrou de
+        // compilation ici (didChange ne se met jamais derrière une
+        // résolution en vol).
+        cacheParse.invalider(chemin)
     }
 
     /**
@@ -1434,10 +1560,10 @@ public class MoteurJava(
      * paresseuse, à la prochaine requête d'usages).
      */
     public fun invalidateSourcePresence() {
-        synchronized(this) {
+        verrouCompilation.withLock {
             environnementNoms().cachePresence.invalider()
-            indexMotsSources?.invalider()
         }
+        indexMotsSourcesPresent()?.invalider()
     }
 
     /**
@@ -1446,7 +1572,7 @@ public class MoteurJava(
      * les entrées suivantes construisent des arbres distincts.
      */
     public fun dispose() {
-        synchronized(this) {
+        verrouCompilation.withLock {
             cacheParse.vider()
             etatsRapides.clear()
             environnement?.dispose()
@@ -1456,124 +1582,134 @@ public class MoteurJava(
     }
 
     /** Nombre d'entrées du cache de parse (sonde des tests du cahier). */
-    public fun parseCacheSize(): Int = synchronized(this) { cacheParse.taille() }
+    public fun parseCacheSize(): Int = cacheParse.taille()
 
     /** Nombre de diagnostiques COMPLETS depuis la naissance (fiche 014). */
     public val fullDiagnoseCount: Int
-        get() = synchronized(this) { compteurFullDiagnose }
+        get() = compteurFullDiagnose.get()
 
     /** Nombre de diagnostiques RAPIDES et mémos depuis la naissance (fiche 014). */
     public val fastDiagnoseHits: Int
-        get() = synchronized(this) { compteurFastDiagnose }
+        get() = compteurFastDiagnose.get()
 
     /** Nombre de services par l'arbre FOCALISÉ depuis la naissance (fiche 015). */
     public val fastResolveHits: Int
-        get() = synchronized(this) { compteurFastResolve }
+        get() = compteurFastResolve.get()
 
     /** Nombre de services par l'arbre RÉEL du cache de parse (fiche 015). */
     public val cachedResolveHits: Int
-        get() = synchronized(this) { compteurCachedResolve }
+        get() = compteurCachedResolve.get()
 
     // ------------------------------------------------------------------ //
     // Internes
     // ------------------------------------------------------------------ //
 
-    /** Sonde interne de plateforme (sous verrou). */
+    /**
+     * Sonde de régime PLEIN sans verrou à chaud (V-F2) : la référence
+     * [environnement] est volatile — une fois l'environnement construit, la
+     * sonde ne prend AUCUN verrou (`plateformeResolvable` ne lit que des
+     * états sûrs : phases de l'annuaire sous leur verrou, jrt immuable) ;
+     * seuls le PREMIER appel (construction) et un environnement en cours
+     * de libération reprennent le verrou de compilation. C'est la clef du
+     * chemin de frappe : le prologue de complétion/hover ne se met jamais
+     * derrière une résolution en vol.
+     */
+    private fun regimePlein(): Boolean {
+        val env = environnement
+        if (env != null) {
+            return try {
+                env.plateformeResolvable()
+            } catch (_: Exception) {
+                // Environnement en cours de libération : décision sous verrou
+                // (reconstruction paresseuse ou repli honnête instantané).
+                verrouCompilation.withLock {
+                    runCatching { environnementNoms().plateformeResolvable() }.getOrDefault(false)
+                }
+            }
+        }
+        return verrouCompilation.withLock {
+            runCatching { environnementNoms().plateformeResolvable() }.getOrDefault(false)
+        }
+    }
+
+    /** Sonde interne de plateforme (sous verrou de compilation). */
     private fun isLikelyUsableInterne(): Boolean = environnementNoms().plateformeResolvable()
 
     /** Service de hiérarchies (paresseux — racines + résolution + annuaire). */
-    private fun serviceHierarchies(): ServiceHierarchies {
-        serviceHierarchies?.let { return it }
-        val nouveau = ServiceHierarchies(
+    private fun serviceHierarchies(): ServiceHierarchies = verrouServices.withLock {
+        serviceHierarchies ?: ServiceHierarchies(
             racines = racines,
             resoudre = { chemin, source -> resolveUnit(chemin, source, genererCode = false)?.arbre },
-            localiser = { fqcn -> runCatching { environnementNoms().trouverFqcn(fqcn) }.getOrNull() },
+            localiser = { fqcn -> verrouCompilation.withLock { runCatching { environnementNoms().trouverFqcn(fqcn) }.getOrNull() } },
             enumererFichiers = { indexMotsSources().fichiers() },
-        )
-        serviceHierarchies = nouveau
-        return nouveau
+        ).also { serviceHierarchies = it }
     }
 
     /** Index de mots des sources (paresseux — construction froide unique). */
-    private fun indexMotsSources(): IndexMotsSources {
-        indexMotsSources?.let { return it }
-        val index = IndexMotsSources(racines)
-        indexMotsSources = index
-        return index
+    private fun indexMotsSources(): IndexMotsSources = verrouServices.withLock {
+        indexMotsSources ?: IndexMotsSources(racines).also { indexMotsSources = it }
     }
 
+    /** L'index de mots S'IL existe déjà (sans forcer sa construction). */
+    private fun indexMotsSourcesPresent(): IndexMotsSources? = verrouServices.withLock { indexMotsSources }
+
     /** Routeur de navigation (paresseux — résolution + annuaire + hiérarchies). */
-    private fun serviceNavigation(): ServiceNavigation {
-        serviceNavigation?.let { return it }
-        val service = ServiceNavigation(
+    private fun serviceNavigation(): ServiceNavigation = verrouServices.withLock {
+        serviceNavigation ?: ServiceNavigation(
             resoudre = { chemin, source -> resolveUnit(chemin, source, genererCode = false)?.arbre },
-            localiser = { fqcn -> runCatching { environnementNoms().trouverFqcn(fqcn) }.getOrNull() },
+            localiser = { fqcn -> verrouCompilation.withLock { runCatching { environnementNoms().trouverFqcn(fqcn) }.getOrNull() } },
             sousTypesDeFqn = { fqn -> serviceHierarchies().sousTypesDeFqn(fqn) },
             cibleChampSynthetique = { fqcnDeclarant, champ ->
                 fabriqueLegere?.cibleChamp(fqcnDeclarant, champ)
             },
-        )
-        serviceNavigation = service
-        return service
+        ).also { serviceNavigation = it }
     }
 
     /** Service de décompilation (paresseux — environnement + home JDK). */
-    private fun serviceDecompilation(): ServiceDecompilation {
-        serviceDecompilation?.let { return it }
-        val service = ServiceDecompilation(
+    private fun serviceDecompilation(): ServiceDecompilation = verrouServices.withLock {
+        serviceDecompilation ?: ServiceDecompilation(
             environnement = { environnementNoms() },
             jdkHomeExplicite = jdkHome,
-        )
-        serviceDecompilation = service
-        return service
+        ).also { serviceDecompilation = it }
     }
 
     /** Service de sélection (paresseux — résolution de la source complète). */
-    private fun serviceSelection(): ServiceSelection {
-        serviceSelection?.let { return it }
-        val service = ServiceSelection(
+    private fun serviceSelection(): ServiceSelection = verrouServices.withLock {
+        serviceSelection ?: ServiceSelection(
             resoudre = { chemin, source -> resolveUnit(chemin, source, genererCode = false)?.arbre },
-        )
-        serviceSelection = service
-        return service
+        ).also { serviceSelection = it }
     }
 
     /** Exécuteur de requêtes d'usages (paresseux — index + résolution). */
-    private fun serviceUsages(): ServiceUsages {
-        serviceUsages?.let { return it }
-        val service = ServiceUsages(
+    private fun serviceUsages(): ServiceUsages = verrouServices.withLock {
+        serviceUsages ?: ServiceUsages(
             racines = racines,
             indexMots = indexMotsSources(),
             resoudre = { chemin, source -> resolveUnit(chemin, source, genererCode = false)?.arbre },
             estCoupe = { jetonEpoque.isCancelled() },
-        )
-        serviceUsages = service
-        return service
+        ).also { serviceUsages = it }
     }
 
     /** Moteur de renommage par phases (paresseux — index + résolution + diagnose + annuaire). */
-    private fun moteurRenommage(): MoteurRenommage {
-        moteurRenommage?.let { return it }
-        val moteur = MoteurRenommage(
+    private fun moteurRenommage(): MoteurRenommage = verrouServices.withLock {
+        moteurRenommage ?: MoteurRenommage(
             racines = racines,
             indexMots = indexMotsSources(),
             resoudre = { chemin, source -> resolveUnit(chemin, source, genererCode = false)?.arbre },
             diagnostiquer = { chemin, source -> diagnose(chemin, source) },
             localiser = { fqcn ->
-                (runCatching { environnementNoms().trouverFqcn(fqcn) }.getOrNull()
-                    as? jo.codeide.lsp.java.classpath.EnvironnementNoms.Localisation.Source)?.fichier
+                verrouCompilation.withLock {
+                    (runCatching { environnementNoms().trouverFqcn(fqcn) }.getOrNull()
+                        as? jo.codeide.lsp.java.classpath.EnvironnementNoms.Localisation.Source)?.fichier
+                }
             },
-        )
-        moteurRenommage = moteur
-        return moteur
+        ).also { moteurRenommage = it }
     }
 
     /** Service de code actions v2 (paresseux — correcteurs texte + index des noms). */
-    private fun serviceActionsCode(): jo.codeide.lsp.java.actionscode.ServiceActionsCode {
-        serviceActionsCode?.let { return it }
-        val service = jo.codeide.lsp.java.actionscode.ServiceActionsCode(moteur = this)
-        serviceActionsCode = service
-        return service
+    private fun serviceActionsCode(): jo.codeide.lsp.java.actionscode.ServiceActionsCode = verrouServices.withLock {
+        serviceActionsCode ?: jo.codeide.lsp.java.actionscode.ServiceActionsCode(moteur = this)
+            .also { serviceActionsCode = it }
     }
 
     /**
@@ -1588,7 +1724,7 @@ public class MoteurJava(
         return cible.copy(plage = Plage(remap(cible.plage.debutOffset), remap(cible.plage.finOffset)))
     }
 
-    /** Environnement de noms paresseux (jrt + jars ouverts au premier usage). */
+    /** Environnement de noms paresseux (jrt + jars ouverts au premier usage) — à n'appeler QUE sous [verrouCompilation]. */
     private fun environnementNoms(): EnvironnementNoms {
         environnement?.let { return it }
         val fournisseurs = listOfNotNull(fabriqueLegere, declarationsKotlin)
@@ -1597,7 +1733,7 @@ public class MoteurJava(
         return env
     }
 
-    /** Pont ecj paresseux. */
+    /** Pont ecj paresseux — à n'appeler QUE sous [verrouCompilation]. */
     private fun pontEcj(): PontEcj {
         pont?.let { return it }
         val pont = PontEcj(environnementNoms(), compliance)
@@ -1606,17 +1742,14 @@ public class MoteurJava(
     }
 
     /** Service de complétion paresseux (étage N2). */
-    private fun serviceCompletion(): ServiceCompletion {
-        serviceCompletion?.let { return it }
-        val service = ServiceCompletion(
-            pontFournisseur = { pontEcj() },
-            environnementFournisseur = { environnementNoms() },
+    private fun serviceCompletion(): ServiceCompletion = verrouServices.withLock {
+        serviceCompletion ?: ServiceCompletion(
+            pontFournisseur = { verrouCompilation.withLock { pontEcj() } },
+            environnementFournisseur = { verrouCompilation.withLock { environnementNoms() } },
             arbreOriginal = { chemin, source -> arbreOriginal(chemin, source) },
             chainePersonnalisee = chaineCompletion,
             estCoupe = { jetonEpoque.isCancelled() },
-        )
-        serviceCompletion = service
-        return service
+        ).also { serviceCompletion = it }
     }
 
     /**
@@ -1626,7 +1759,9 @@ public class MoteurJava(
     private fun arbreOriginal(chemin: String, source: String): org.eclipse.jdt.internal.compiler.ast.CompilationUnitDeclaration? {
         val existante = cacheParse.obtenir(chemin, source)
         if (existante != null) return existante.unite.arbre
-        val reponse = pontEcj().resoudre(unite(chemin, source), genererCode = false)
+        // Périmètre MODULE (V-F2) : le HIT est sans verrou (chemin chaud de
+        // la complétion) ; seul le MISS reprend le verrou de compilation.
+        val reponse = verrouCompilation.withLock { pontEcj().resoudre(unite(chemin, source), genererCode = false) }
         val uniteResolue = UniteResolue(reponse.arbre, chemin, source, genererCode = false)
         cacheParse.ranger(chemin, source, uniteResolue, genererCode = false, focused = null)
         return reponse.arbre
@@ -1688,14 +1823,14 @@ public class MoteurJava(
          * @param fqcn nom entièrement qualifié en points.
          * @return la localisation, ou null si introuvable.
          */
-        public fun find(fqcn: String): EnvironnementNoms.Localisation? = synchronized(this@MoteurJava) {
+        public fun find(fqcn: String): EnvironnementNoms.Localisation? = verrouCompilation.withLock {
             environnementNoms().trouverFqcn(fqcn)
         }
 
         /**
          * Sonde de source binaire remplie (fiche 004 : `hasBinarySource`).
          */
-        public fun hasBinarySource(): Boolean = synchronized(this@MoteurJava) {
+        public fun hasBinarySource(): Boolean = verrouCompilation.withLock {
             environnementNoms().aSourceBinaire()
         }
     }

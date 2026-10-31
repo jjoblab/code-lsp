@@ -2,7 +2,10 @@ package jo.codeide.lsp.java.projetandroid
 
 import java.nio.file.Files
 import java.nio.file.Path
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.locks.ReentrantLock
 import jo.codeide.lsp.java.classpath.TypesSynthetiques
+import kotlin.concurrent.withLock
 
 /**
  * Déclarations Kotlin publiques exposées au Java (vague V-B3 — ADR 0022,
@@ -54,7 +57,13 @@ public class DeclarationsKotlin(
     private var scanne: Map<String, Declaration>? = null
 
     /** Les octets fabriqués par FQCN. */
-    private val octetsParFqcn = HashMap<String, ByteArray>()
+    private val octetsParFqcn = ConcurrentHashMap<String, ByteArray>()
+
+    /**
+     * Verrou du scan lexical (V-F2 — périmètre FEUILLE : construction
+     * paresseuse une fois, jamais imbriquée vers un verrou de module).
+     */
+    private val verrouScan = ReentrantLock()
 
     // ------------------------------------------------------------------ //
     // Contract TypesSynthetiques
@@ -115,10 +124,10 @@ public class DeclarationsKotlin(
     // Scan lexical
     // ------------------------------------------------------------------ //
 
-    /** Le scan complet (une fois, synchronisé). */
+    /** Le scan complet (une fois, sous verrou de scan). */
     private fun scanner(): Map<String, Declaration> {
         scanne?.let { return it }
-        synchronized(this) {
+        verrouScan.withLock {
             scanne?.let { return it }
             val resultat = HashMap<String, Declaration>()
             for (racine in racines) {

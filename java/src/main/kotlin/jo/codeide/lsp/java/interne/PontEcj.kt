@@ -44,6 +44,12 @@ import java.util.Locale
  *    inutilisée + membre privé inutilisé — les corps ENTIERS sont visibles,
  *    aucun fallacieux (fiche 056 étendue).
  *
+ * **Concurrence (V-F2 — ADR 0029 phase 2)** : les trois tables sont des
+ * cartes IMMUABLES ; les `CompilerOptions` et l'usine de problèmes sont
+ * construits FRAIS à chaque passe — le pont ne détient AUCUN état mutable
+ * partagé entre passes (les résolutions concurrentes de modules distincts
+ * ne partagent que la lecture des tables).
+ *
  * @param environnement le routage des noms (sources → jars → jrt → stubs).
  * @param compliance niveau Java (« 8 », « 17 », « 21 »…).
  */
@@ -53,33 +59,30 @@ public class PontEcj(
 ) {
 
     /**
-     * Options du compilateur (construites une fois, réutilisées par passe).
+     * Tables d'options IMMUABLES du pont (V-F2 : plus aucun `CompilerOptions`
+     * partagé — construit frais à chaque passe, aucun état mutable commun) :
      *
-     * Trois tables :
-     *  - [options] — la table STRICTE (familles « unused » éteintes) :
+     *  - [tableStricte] — la table STRICTE (familles « unused » éteintes) :
      *    le domaine des passes à corps MASQUÉS (diagnose rapide, fiche
      *    014 : un import utilisé par un corps masqué ne doit JAMAIS
      *    devenir fallacieusement « unused ») ;
-     *  - [optionsRapides] — la table du diagnose RAPIDE : la locale
+     *  - [tableRapide] — la table du diagnose RAPIDE : la locale
      *    inutilisée EST analysée sur le corps hôte (intact — aucun
      *    fallacieux possible, les usages d'une locale vivent dans SA
      *    méthode) ; l'import et le membre privé restent éteints (le
      *    masquage des autres corps casserait leur analyse d'usages) ;
-     *  - [optionsAnalytiques] — la table du diagnose COMPLET (étage N8,
+     *  - [tableAnalytique] — la table du diagnose COMPLET (étage N8,
      *    cahier fiche 056 : l'import inutilisé est un VRAI signal —
      *    avertissement + tag Unnecessary côté protocole ; les corps
      *    entiers sont analysés, aucun fallacieux).
      */
-    private val options: CompilerOptions = CompilerOptions(optionsEcj(compliance, analytique = false))
+    private val tableStricte: Map<String, String> = optionsEcj(compliance, analytique = false)
 
-    /** Options du diagnose rapide (locale inutilisée seule — corps hôte intact). */
-    private val optionsRapides: CompilerOptions = CompilerOptions(optionsEcj(compliance, analytique = false, rapide = true))
+    /** Table du diagnose rapide (locale inutilisée seule — corps hôte intact). */
+    private val tableRapide: Map<String, String> = optionsEcj(compliance, analytique = false, rapide = true)
 
-    /** Options analytiques du diagnose complet (fiche 056 — import inutilisé). */
-    private val optionsAnalytiques: CompilerOptions = CompilerOptions(optionsEcj(compliance, analytique = true))
-
-    /** Usine de problèmes en Locale.ROOT — messages reproductibles (fiche 013). */
-    private val usineProblemes = DefaultProblemFactory(Locale.ROOT)
+    /** Table analytique du diagnose complet (fiche 056 — import inutilisé). */
+    private val tableAnalytique: Map<String, String> = optionsEcj(compliance, analytique = true)
 
     /**
      * Résout une unité de compilation complète : parse, construction des
@@ -106,16 +109,16 @@ public class PontEcj(
     ): ReponseEcj {
         val reponse = ReponseEcj()
         val table = when {
-            analytique -> optionsAnalytiques
-            rapide -> optionsRapides
-            else -> options
+            analytique -> tableAnalytique
+            rapide -> tableRapide
+            else -> tableStricte
         }
         val compilateur = org.eclipse.jdt.internal.compiler.Compiler(
             environnement,
             DefaultErrorHandlingPolicies.proceedWithAllProblems(),
-            table,
+            CompilerOptions(table),
             reponse,
-            usineProblemes,
+            DefaultProblemFactory(Locale.ROOT),
         )
         // Le requestor (reponse) reçoit le CompilationResult pendant la passe ;
         // l'arbre vivant n'est rendu que par la valeur de retour.
@@ -135,6 +138,7 @@ public class PontEcj(
      */
     public fun parserComplet(unite: ICompilationUnit): ReponseEcj {
         val reponse = ReponseEcj()
+        val options = CompilerOptions(tableStricte)
         val parser = nouveauParser()
         val resultat = CompilationResult(unite, 0, 1, options.maxProblemsPerUnit)
         val arbre = parser.parse(unite, resultat)
@@ -154,6 +158,7 @@ public class PontEcj(
      */
     public fun parserDiet(unite: ICompilationUnit): ReponseEcj {
         val reponse = ReponseEcj()
+        val options = CompilerOptions(tableStricte)
         val parser = nouveauParser()
         val resultat = CompilationResult(unite, 0, 1, options.maxProblemsPerUnit)
         val arbre = parser.dietParse(unite, resultat)
@@ -167,8 +172,8 @@ public class PontEcj(
         org.eclipse.jdt.internal.compiler.parser.Parser(
             ProblemReporter(
                 DefaultErrorHandlingPolicies.proceedWithAllProblems(),
-                options,
-                usineProblemes,
+                CompilerOptions(tableStricte),
+                DefaultProblemFactory(Locale.ROOT),
             ),
             false,
         )
