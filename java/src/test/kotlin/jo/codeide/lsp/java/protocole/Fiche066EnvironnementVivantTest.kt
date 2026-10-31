@@ -262,6 +262,12 @@ class Fiche066EnvironnementVivantTest {
         Files.createDirectories(sourcesNeuves.resolve("neuf"))
         Files.writeString(sourcesNeuves.resolve("neuf/Neuf.java"), sourceNeuf)
         env.remplacerContexteModule(":app", listOf(sourcesApp, sourcesCore, sourcesNeuves))
+        // V-F1 (amendement) : la reconstruction du moteur est ASYNCHRONE
+        // (double-tampon — l'ancien sert pendant la construction du neuf) ;
+        // la fiche attend le SWAP pour que la complétion « Neuf » observe
+        // DÉTERMINISTEMENT l'époque neuve (pendant la fenêtre, l'ancien
+        // moteur sert légitimement — il ne connaît pas la racine neuve).
+        assertTrue(env.attendreReconstructions(), "la reconstruction post-sync draine")
 
         // La session n'a JAMAIS été re-construite : l'état du cycle est
         // resté INITIALIZED et un second initialize est REJETÉ (-32600).
@@ -307,6 +313,9 @@ class Fiche066EnvironnementVivantTest {
         }
         env.remplacerContexteModule(":app", listOf(sourcesNeuves, sourcesCore, sourcesApp))
         env.remplacerContexteModule(":app", listOf(sourcesApp, sourcesCore, sourcesNeuves))
+        // V-F1 (amendement) : drainage des reconstructions avant les
+        // requêtes — déterminisme de l'époque observée.
+        assertTrue(env.attendreReconstructions(), "les reconstructions post-syncs drainent")
 
         // La session est TOUJOURS la même et répond : la résolution du
         // frère (test 1) SURVIT aux syncs redondantes et effectives.

@@ -1,7 +1,10 @@
 package jo.codeide.lsp.java
 
+import jo.codeide.lsp.java.concurrence.EpoqueRetiree
 import java.nio.file.Files
 import java.nio.file.Path
+import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * Environnement de compilation (étage N1, fiches 034/047) — nom neutre :
@@ -29,6 +32,36 @@ import java.nio.file.Path
  * documenté, fiche 034) ; les racines posées doivent EXISTER sur disque
  * (garde `isDirectory`).
  *
+ * ## Double-tampon et époques (vague V-F1 — ADR 0029 phase 1)
+ *
+ * Le déficit corrigé ici (G-030 / H2) : avant V-F1, un remplacement effectif
+ * disposait l'ancien moteur SUR LE CHAMP, et la requête suivante payait la
+ * reconstruction froide de l'environnement de noms (jrt + jars — mesuré
+ * 11–12 s côté appareil) DANS son propre fil : l'appareil « se figeait » aux
+ * premières frappes post-sync. Depuis V-F1 :
+ *
+ *  - **double-tampon** : à un remplacement effectif AVEC moteur vivant,
+ *    l'ancien moteur CONTINUE DE SERVIR pendant qu'un fil démon construit le
+ *    neuf (moteur + réchauffement de l'environnement — voir [rechauffer]) ;
+ *    le SWAP est atomique (sous le verrou d'orchestration) ; l'ancien est
+ *    alors RETIRÉ : son jeton d'époque est annulé (les points de contrôle
+ *    d'annulation fine coupent les collectes et balayages en cours), puis
+ *    disposé (le moniteur du moteur attend naturellement la fin des calculs
+ *    en vol) ;
+ *  - **époques** : chaque remplacement effectif incrémente la GÉNÉRATION du
+ *    module (l'époque copy-on-write des documents N8, étendue à
+ *    l'environnement). Le protocole [calculerFraiche] capture le couple
+ *    (moteur, génération) ATOMIQUEMENT, calcule, puis ne LIVRE que si
+ *    l'époque n'a pas tourné — sinon il REJOUE le calcul sur l'époque
+ *    courante (« 0 réponse périmée », rejeu des requêtes coupées). Servi par
+ *    l'ancien moteur PENDANT la construction : légitime par construction
+ *    (c'est l'époque vivante jusqu'au swap) ;
+ *  - **repli documenté** : la propriété système
+ *    `jo.codeide.lsp.java.doubletampon.disabled=true` rétablit le
+ *    comportement d'avant V-F1 (dispose immédiat et synchrone à la sync) ;
+ *    le protocole d'époque reste actif dans les DEUX régimes (la génération
+ *    avance dans tous les cas).
+ *
  * **Contrat Android (V-B — ADR 0020, décision D2)** : chaque contexte peut
  * porter un [jo.codeide.lsp.java.projetandroid.ContratAndroidMoteur] (posé
  * par la sync hôte — il PRIME) ; sinon le moteur dérive le sien DU DISQUE
@@ -37,10 +70,10 @@ import java.nio.file.Path
  * `jo.codeide.lsp.java.projetandroid.derivation.disabled`.
  *
  * @param jdkHome home JDK explicite (null = runtime courant ; sans
- *   `lib/modules` ni fournisseur jrt instanciable = pas de jrt — le régime
- *   reste PLEIN dès qu'un jar de contexte porte la plateforme, v1.1.4).
+ * `lib/modules` ni fournisseur jrt instanciable = pas de jrt — le régime
+ * reste PLEIN dès qu'un jar de contexte porte la plateforme, v1.1.4).
  * @param complianceDefaut niveau Java par défaut (défaut constructeur « 17 »,
- *   transmis par héritage aux modules sans niveau posé).
+ * transmis par héritage aux modules sans niveau posé).
  */
 public class EnvironnementCompilation(
     private val jdkHome: Path? = null,
@@ -55,11 +88,30 @@ public class EnvironnementCompilation(
         val projetAndroid: jo.codeide.lsp.java.projetandroid.ContratAndroidMoteur?,
     )
 
+    /**
+     * Prise d'époque (V-F1) : le couple (moteur vivant, génération) capturé
+     * ATOMIQUEMENT sous le verrou — l'unité du protocole [calculerFraiche].
+     *
+     * @property cle la clé de module normalisée ("" = défaut).
+     * @property moteur le moteur VIVANT de l'époque capturée (jamais null —
+     *   construit paresseusement à la prise si le module n'en avait pas).
+     * @property generation la génération du module au moment de la capture.
+     */
+    private class Prise(val cle: String, val moteur: MoteurJava, val generation: Long)
+
     /** Contextes par module (clé normalisée ; "" = défaut). */
     private val contextes = HashMap<String, ContexteModule>()
 
     /** Moteurs vivants par module (clé normalisée ; "" = défaut). */
     private val moteurs = LinkedHashMap<String, MoteurJava>()
+
+    /**
+     * Génération (époque) par module (V-F1) : incrémentée à CHAQUE
+     * remplacement effectif, attachement d'index et libération — une
+     * réponse calculée contre une génération révolue n'est jamais livrée
+     * ([calculerFraiche] la rejoue sur l'époque courante).
+     */
+    private val generations = HashMap<String, Long>()
 
     /** Ordre d'insertion des modules (pour [moteursVivants] après le défaut). */
     private val ordreModules = mutableListOf<String>()
@@ -114,11 +166,63 @@ public class EnvironnementCompilation(
     /** Auditeurs de contexte notifiés aux remplacements effectifs. */
     private val auditeurs = mutableListOf<(String) -> Unit>()
 
+    /**
+     * Auditeurs d'ÉPOQUE (V-F1) : notifiés APRÈS chaque swap de
+     * double-tampon effectif — le moteur neuf est déjà vivant et sert ;
+     * l'auditeur type (le serveur) y redemande la publication des
+     * documents ouverts pour que les diagnostics des tampons suivent
+     * l'époque. NON notifié quand la reconstruction a été dépassée par
+     * une sync plus récente (aucun swap n'a eu lieu).
+     */
+    private val auditeursEpoque = mutableListOf<(String) -> Unit>()
+
     /** Verrou de l'orchestration (contextes + moteurs + observateurs). */
     private val verrou = Any()
 
     /** Routeur fichier → module, relu à CHAQUE requête (fiche 047). */
     public var routeurFichierModule: ((String) -> String?)? = null
+
+    /**
+     * Le fil unique des reconstructions de double-tampon (V-F1) : DÉMON,
+     * paresseux — il n'existe que si une sync a déjà remplacé un moteur
+     * vivant. Un seul fil (miroir du plafond de charge raisonnable de
+     * l'ADR 0010 sur ART) : les syncs rapides successives s'y SÉRIALISENT,
+     * chacune vérifiant sa génération avant de swapper.
+     */
+    private val filReconstruction by lazy {
+        Executors.newSingleThreadExecutor { runnable ->
+            Thread(runnable, "lspjava-double-tampon").apply { isDaemon = true }
+        }
+    }
+
+    /**
+     * Réchauffeur du moteur neuf (V-F1 — injectable pour les bancs) :
+     * joué sur le fil de reconstruction AVANT le swap, il paie le coût
+     * froid de l'environnement de noms PENDANT QUE L'ANCIEN SERT. Défaut :
+     * ouvrir l'environnement + sonder la plateforme (jrt/jars — le reste
+     * de l'annuaire reste paresseux, premier usage complétion).
+     */
+    internal var rechauffeur: (MoteurJava) -> Unit = { moteur ->
+        runCatching { moteur.isLikelyUsable() }
+    }
+
+    /**
+     * Surcharge de REPLI par instance (V-F1 — réservée aux bancs : la
+     * production règle le repli par la propriété système
+     * `jo.codeide.lsp.java.doubletampon.disabled`, lue une fois) : vrai
+     * rétablit le comportement d'avant V-F1 pour CET environnement
+     * (dispose immédiat et synchrone à chaque remplacement effectif),
+     * null laisse la propriété décider. Le protocole d'époque reste actif
+     * dans les deux régimes.
+     */
+    internal var doubleTamponForceDesactive: Boolean? = null
+
+    /**
+     * Reconstructions de double-tampon en cours (V-F1 — sonde d'état) :
+     * incrémenté à la soumission, décrémenté en fin de tâche ; les bancs
+     * et l'hôte y observent la fenêtre de construction.
+     */
+    private val reconstructionsEnCours = AtomicInteger(0)
 
     init {
         contextes[""] = ContexteModule(emptyList(), emptyList(), null, null)
@@ -127,6 +231,11 @@ public class EnvironnementCompilation(
     /**
      * Rend le moteur d'un module (construction paresseuse, instance
      * canonique par module tant qu'aucun remplacement effectif n'a eu lieu).
+     *
+     * **Sous double-tampon (V-F1)** : pendant la fenêtre de reconstruction,
+     * cette méthode rend l'ANCIEN moteur — il sert légitimement jusqu'au
+     * swap (l'époque vivante). Le moteur neuf ne devient observable ICI
+     * qu'après le swap ; [attendreReconstructions] borne l'attente.
      *
      * @param module la clé du module (`:app`) ; null ou vide = contexte défaut.
      * @return le moteur du module.
@@ -158,6 +267,80 @@ public class EnvironnementCompilation(
             null
         }
         return moteur(module)
+    }
+
+    /**
+     * Le protocole de calcul FRAIS d'époque (V-F1 — « 0 réponse périmée ») :
+     * l'extension aux ENVIRONNEMENTS du design copy-on-write des documents
+     * (N8). Capture le couple (moteur, génération) ATOMIQUEMENT, exécute le
+     * calcul sur ce moteur, puis ne livre le résultat que si l'époque du
+     * module n'a pas tourné pendant le calcul — sinon REJEU sur l'époque
+     * courante.
+     *
+     * Trois honnêtetés bornent le rejeu :
+     *  - un calcul COUPÉ par l'annulation fine ([EpoqueRetiree] — le moteur
+     *    a été retiré par un swap) est RELANCÉ jusqu'à
+     *    [BORNE_COUPURES] fois : la coupure ne produit aucun résultat
+     *    livrable ; au-delà (syncs en rafale soutenue), l'exception
+     *    traverse — le client voit une erreur franche plutôt qu'un
+     *    résultat périmé, et la frappe suivante rejoue ;
+     *  - un calcul TERMINÉ mais périmé est relancé jusqu'à
+     *    [BORNE_RELANCES] fois, puis le DERNIER résultat est livré (même
+     *    clause que les documents : une réponse cohérente avec un état très
+     *    récent vaut mieux qu'aucune réponse — le client relance de toute
+     *    façon) ;
+     *  - pendant la FENÊTRE de reconstruction, l'ancien moteur sert :
+     *    c'est l'époque VIVANTE (par conception, « 0 figage ») — les
+     *    réponses de cette fenêtre ne sont pas périmées.
+     *
+     * @param chemin le chemin du document interrogé (routé par
+     * [routeurFichierModule], relu à chaque tentative).
+     * @param calcul le calcul pur (moteur → résultat) : rejouable sans
+     * effet de bord observable côté client.
+     * @return le résultat FRAIS de l'époque courante.
+     */
+    public fun <T> calculerFraiche(chemin: String, calcul: (MoteurJava) -> T): T {
+        var relances = 0
+        var coupures = 0
+        while (true) {
+            val prise = prisePour(chemin)
+            val resultat = try {
+                calcul(prise.moteur)
+            } catch (e: EpoqueRetiree) {
+                coupures += 1
+                if (coupures >= BORNE_COUPURES) throw e
+                continue
+            }
+            val courante = synchronized(verrou) { generations[prise.cle] ?: 0L }
+            if (courante == prise.generation) return resultat
+            relances += 1
+            if (relances >= BORNE_RELANCES) return resultat
+        }
+    }
+
+    /**
+     * La prise d'époque (V-F1) : route le document, puis capture le couple
+     * (moteur vivant, génération) SOUS LE VERROU — l'atomicité de la
+     * capture est la garantie que le moteur servi et la génération lue
+     * appartiennent à la MÊME époque.
+     */
+    private fun prisePour(chemin: String): Prise {
+        val module = try {
+            routeurFichierModule?.invoke(chemin)
+        } catch (_: Exception) {
+            null
+        }
+        val cle = normaliser(module)
+        return synchronized(verrou) {
+            val moteur = moteurs[cle] ?: run {
+                val contexte = contextes[cle] ?: ContexteModule(emptyList(), emptyList(), null, null)
+                val nouveau = creerMoteur(contexte)
+                moteurs[cle] = nouveau
+                if (cle != "" && cle !in ordreModules) ordreModules.add(cle)
+                nouveau
+            }
+            Prise(cle, moteur, generations[cle] ?: 0L)
+        }
     }
 
     /**
@@ -236,6 +419,7 @@ public class EnvironnementCompilation(
         synchronized(verrou) {
             if (index === indexNoms) return
             indexNoms = index
+            invaliderToutesEpoques()
             for ((_, moteur) in moteurs) {
                 moteur.dispose()
             }
@@ -254,6 +438,54 @@ public class EnvironnementCompilation(
             auditeurs.add(auditeur)
         }
     }
+
+    /**
+     * Enregistre un auditeur d'ÉPOQUE (V-F1) : notifié après chaque swap de
+     * double-tampon EFFECTIF — le moteur neuf est déjà vivant et sert.
+     * L'auditeur type (le serveur) y redemande la publication des documents
+     * ouverts : les diagnostics suivent l'époque au lieu d'attendre la
+     * frappe suivante.
+     *
+     * @param auditeur le callback (clé de module normalisée).
+     */
+    public fun ajouterAuditeurEpoque(auditeur: (String) -> Unit) {
+        synchronized(verrou) {
+            auditeursEpoque.add(auditeur)
+        }
+    }
+
+    /**
+     * Attend la DRAINAGE des reconstructions de double-tampon en cours
+     * (V-F1 — sonde d'attente pour l'hôte et les bancs : après une sync,
+     * borne le moment où le moteur neuf est vivant).
+     *
+     * @param dureeMaxMs la borne d'attente en millisecondes.
+     * @return vrai ssi toutes les reconstructions sont drainées.
+     */
+    public fun attendreReconstructions(dureeMaxMs: Long = 60_000): Boolean {
+        val echeance = System.nanoTime() + dureeMaxMs * 1_000_000
+        while (reconstructionsEnCours.get() > 0) {
+            if (System.nanoTime() >= echeance) return false
+            Thread.sleep(5)
+        }
+        return true
+    }
+
+    /**
+     * La GÉNÉRATION courante d'un module (V-F1 — sonde d'époque pour les
+     * bancs et l'hôte) : croît à chaque remplacement effectif ; deux prises
+     * de même génération servent la même époque.
+     *
+     * @param module la clé du module ; null ou vide = défaut.
+     */
+    public fun generationDe(module: String?): Long = synchronized(verrou) {
+        generations[normaliser(module)] ?: 0L
+    }
+
+    /**
+     * Nombre de reconstructions de double-tampon EN COURS (V-F1 — sonde).
+     */
+    public fun reconstructionsEnCours(): Int = reconstructionsEnCours.get()
 
     /**
      * Garde de construction paresseuse par module (fiche 047) : faux avant
@@ -304,10 +536,13 @@ public class EnvironnementCompilation(
     /**
      * Libère l'environnement : tous les moteurs vivants sont disposés et
      * oubliés (les prochains accès construisent des moteurs distincts),
-     * le routeur et les contextes sont conservés.
+     * le routeur et les contextes sont conservés. Les reconstructions de
+     * double-tampon en cours sont invalidées (leurs générations tournent —
+     * aucune ne swappera après la libération).
      */
     public fun dispose() {
         synchronized(verrou) {
+            invaliderToutesEpoques()
             for ((_, moteur) in moteurs) {
                 moteur.dispose()
             }
@@ -339,9 +574,85 @@ public class EnvironnementCompilation(
         if (cle != "" && cle !in ordreModules) {
             ordreModules.add(cle)
         }
-        moteurs.remove(cle)?.dispose()
+        // V-F1 : l'époque du module TOURNE (toute réponse en vol sur
+        // l'ancienne génération sera rejouée).
+        generations.merge(cle, 1L, Long::plus)
+        val sortant = moteurs[cle]
+        if (doubleTamponForceDesactive ?: DOUBLE_TAMPON_DESACTIVE || sortant == null) {
+            // Repli documenté (propriété système) ou premier moteur du
+            // module : comportement d'avant V-F1 — dispose immédiat et
+            // synchrone (la requête suivante paie la reconstruction).
+            moteurs.remove(cle)?.dispose()
+        } else {
+            // V-F1 — double-tampon : l'ancien continue de SERVIR pendant
+            // que le fil de reconstruction construit et réchauffe le neuf ;
+            // le swap est atomique, l'ancien est retiré APRÈS.
+            soumettreReconstruction(cle, sortant, generations[cle] ?: 0L)
+        }
         for (auditeur in auditeurs.toList()) {
             auditeur(cle)
+        }
+    }
+
+    /**
+     * Soumet la reconstruction en tâche de fond (V-F1 — appelé SOUS verrou,
+     * la génération capturée est celle du remplacement en cours).
+     *
+     * La tâche vérifie sa génération AVANT de construire et AVANT de
+     * swapper : une sync plus récente (ou une libération) la dépasse sans
+     * effet — le moteur construit pour rien est disposé, JAMAIS swappé.
+     */
+    private fun soumettreReconstruction(cle: String, sortant: MoteurJava, generation: Long) {
+        reconstructionsEnCours.incrementAndGet()
+        filReconstruction.execute {
+            try {
+                val contexte = synchronized(verrou) { contextes[cle] } ?: return@execute
+                if (synchronized(verrou) { generations[cle] ?: 0L } != generation) return@execute
+                val moteur = try {
+                    creerMoteur(contexte)
+                } catch (_: Exception) {
+                    return@execute // construction fautive : l'ancien continue de servir
+                }
+                try {
+                    rechauffeur(moteur)
+                } catch (_: Exception) {
+                    // réchauffement fautif : le moteur reste utilisable
+                    // (l'environnement se reconstruit paresseusement au
+                    // premier usage) — on swap quand même : l'époque neuve
+                    // est plus fraîche que l'ancien moteur.
+                }
+                var aRetirer: MoteurJava? = null
+                synchronized(verrou) {
+                    if (generations[cle] == generation && moteurs[cle] === sortant) {
+                        // SWAP ATOMIQUE : le neuf devient l'époque vivante.
+                        moteurs[cle] = moteur
+                        aRetirer = sortant
+                    }
+                }
+                val retire = aRetirer
+                if (retire != null) {
+                    // HORS verrou : le retrait pose le jeton d'époque annulé
+                    // (coupure fine des calculs en vol) puis dispose — le
+                    // moniteur du moteur attend les calculs non ponctués.
+                    retire.retirer()
+                    for (auditeur in synchronized(verrou) { auditeursEpoque.toList() }) {
+                        runCatching { auditeur(cle) }
+                    }
+                } else {
+                    // Reconstruction dépassée (sync plus récente ou
+                    // libération) : le neuf construit pour rien est jeté.
+                    moteur.dispose()
+                }
+            } finally {
+                reconstructionsEnCours.decrementAndGet()
+            }
+        }
+    }
+
+    /** Fait tourner TOUTES les époques (invalidation globale — V-F1). */
+    private fun invaliderToutesEpoques() {
+        for (cle in contextes.keys) {
+            generations.merge(cle, 1L, Long::plus)
         }
     }
 
@@ -378,6 +689,23 @@ public class EnvironnementCompilation(
         /** Kill-switch de la dérivation disque (repli documenté ADR 0020). */
         private val DERIVATION_ANDROID_DESACTIVEE: Boolean =
             System.getProperty("jo.codeide.lsp.java.projetandroid.derivation.disabled") == "true"
+
+        /**
+         * Kill-switch du double-tampon (V-F1 — ADR 0029 phase 1, repli
+         * documenté) : `jo.codeide.lsp.java.doubletampon.disabled` = vrai
+         * rétablit le comportement d'avant V-F1 — dispose immédiat et
+         * synchrone à chaque remplacement effectif (la requête suivante
+         * paie la reconstruction froide). Le protocole d'époque
+         * ([calculerFraiche]) reste actif dans les DEUX régimes.
+         */
+        private val DOUBLE_TAMPON_DESACTIVE: Boolean =
+            System.getProperty("jo.codeide.lsp.java.doubletampon.disabled") == "true"
+
+        /** Bornes de rejeu du calcul frais d'époque (V-F1 — « 0 réponse périmée »). */
+        private const val BORNE_RELANCES: Int = 3
+
+        /** Bornes de rejeu après coupure fine (V-F1 — annulation fine). */
+        private const val BORNE_COUPURES: Int = 8
     }
 
     /** Normalise une clé de module (null/vide → défaut). */

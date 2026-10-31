@@ -2,6 +2,7 @@ package jo.codeide.lsp.java.completion
 
 import jo.codeide.lsp.java.classpath.EnvironnementNoms
 import jo.codeide.lsp.java.classpath.GenreType
+import jo.codeide.lsp.java.concurrence.EpoqueRetiree
 import jo.codeide.lsp.java.interne.ItemCompletion
 import jo.codeide.lsp.java.interne.LectureAst
 import jo.codeide.lsp.java.interne.NatureItem
@@ -59,12 +60,19 @@ public class ReponseCompletion(
  * @param chainePersonnalisee chaîne de classement de remplacement (BANC
  *   de qualité ADR 0016 : la baseline « naïve » est une chaîne
  *   alphabétique seule — null = chaîne standard D8 de l'étage).
+ * @param estCoupe point de contrôle d'annulation fine (V-F1 — ADR 0029
+ *   phase 1) : consulté aux bornes des boucles de COLLECTE (hiérarchies de
+ *   membres, traversée de l'annuaire par préfixe) ; vrai ⇒ la collecte est
+ *   coupée par [EpoqueRetiree] — le moteur vient d'être retiré par un swap
+ *   de double-tampon et le résultat ne serait de toute façon pas livré.
+ *   Défaut `{ false }` : jamais coupé (services construits hors moteur).
  */
 public class ServiceCompletion(
     private val pontFournisseur: () -> PontEcj,
     private val environnementFournisseur: () -> EnvironnementNoms,
     private val arbreOriginal: (String, String) -> CompilationUnitDeclaration?,
     private val chainePersonnalisee: ChaineClassement? = null,
+    private val estCoupe: () -> Boolean = { false },
 ) {
 
     /** Chaîne de classement (statistique désactivée par défaut ; banc : remplaçable). */
@@ -103,11 +111,28 @@ public class ServiceCompletion(
             // additionalTextEdits côté LSP, le geste Android Studio.
             val avecImports = items.map { ajouterEditionImport(it, contexte, source) }
             ReponseCompletion(avecImports, reponse.totalDisponible, contexte.genre)
+        } catch (e: EpoqueRetiree) {
+            // V-F1 (annulation fine) : la coupure d'époque TRAVERSE la
+            // frontière du service — elle n'est pas un échec interne mais un
+            // signal de rejeu pour le protocole d'époque de l'appelant ;
+            // l'avaler ici reviendrait à livrer une liste VIDE (pire qu'une
+            // réponse périmée) sur un moteur retiré.
+            throw e
         } catch (_: Exception) {
-            // Aucune levée ne franchit la frontière du service (fiche 035) :
-            // un échec interne rend une liste vide honnête.
+            // Aucune autre levée ne franchit la frontière du service (fiche
+            // 035) : un échec interne rend une liste vide honnête.
             ReponseCompletion(emptyList(), 0, GenreContexte.INCONNU)
         }
+    }
+
+    /**
+     * Point de contrôle d'annulation fine (V-F1 — ADR 0029 phase 1) : coupe
+     * la collecte si l'époque du moteur a été retirée. Posé aux bornes des
+     * boucles LONGUES (coût du contrôle : une lecture volatile) — les tris
+     * bornés et les collections déjà en mémoire ne sont pas ponctués.
+     */
+    private fun pointDeControle() {
+        if (estCoupe()) throw EpoqueRetiree()
     }
 
     /** Analyse du contexte : sonde à chaud d'abord, classification marquée ensuite. */
@@ -163,6 +188,7 @@ public class ServiceCompletion(
             // DÉRIVÉE gagne (la collecte va du type vers les ancêtres et
             // le dédoublonnage garde la première occurrence).
             for (typeCourant in hierarchie(reference)) {
+                pointDeControle() // V-F1 : coupure fine par ancêtre balayé
                 for (champ in champsOuHerites(typeCourant)) {
                     if (statique && !champ.isStatic()) continue
                     if (!statique && champ.isStatic()) continue
@@ -187,6 +213,8 @@ public class ServiceCompletion(
                     )
                 }
             }
+        } catch (e: EpoqueRetiree) {
+            throw e // V-F1 : la coupure n'est pas un binding incomplet
         } catch (_: Exception) {
             // binding incomplet : ce qui a été collecté suffit
         }
@@ -269,6 +297,7 @@ public class ServiceCompletion(
         if (contexte.prefixe.isNotEmpty()) {
             val annuaire = environnementFournisseur().annuaire
             for (entree in annuaire.typesParPrefixe(contexte.prefixe, LIMITE_COLLECTE)) {
+                pointDeControle() // V-F1 : coupure fine pendant la traversée du classpath
                 if (visibles.any { it.first == entree.nomSimple }) continue
                 // Accessibilité (P6/G-004, vague V-A) : jamais de type non
                 // public d'un AUTRE paquet proposé avec auto-import insoluble.
@@ -307,6 +336,7 @@ public class ServiceCompletion(
             // Même paquet : tout type direct est accessible (règle Java),
             // package-privé compris — aucun filtre d'accessibilité ici.
             for (entree in annuaire.typesDirects(paquet)) {
+                pointDeControle() // V-F1 : coupure fine
                 resultats[entree.nomSimple] = entree.fqcn
             }
         }
@@ -331,6 +361,7 @@ public class ServiceCompletion(
         // java.lang est visible SANS import : seuls les types PUBLICS sont
         // réellement joignables depuis un paquet étranger (P6/G-004).
         for (entree in annuaire.typesDirects("java.lang")) {
+            pointDeControle() // V-F1 : coupure fine
             if (!annuaire.estProposablePourAutoImport(entree, contexte.paquetCourant)) continue
             resultats[entree.nomSimple] = entree.fqcn
         }
@@ -398,6 +429,7 @@ public class ServiceCompletion(
         val annuaire = environnementFournisseur().annuaire
         val items = mutableListOf<ItemCompletion>()
         for (segment in annuaire.segmentsEnfants(paquet)) {
+            pointDeControle() // V-F1 : coupure fine
             val fqn = if (paquet.isEmpty()) segment else "$paquet.$segment"
             items.add(
                 ItemCompletion(
@@ -410,6 +442,7 @@ public class ServiceCompletion(
         }
         if (paquet.isNotEmpty()) {
             for (entree in annuaire.typesDirects(paquet)) {
+                pointDeControle() // V-F1 : coupure fine
                 items.add(itemType(entree.nomSimple, entree.fqcn, autoImport = null))
             }
         }
@@ -430,6 +463,7 @@ public class ServiceCompletion(
                 // redéfinition la plus dérivée est proposée (première
                 // occurrence du sélecteur dans le balayage).
                 for (typeCourant in hierarchie(englobant)) {
+                    pointDeControle() // V-F1 : coupure fine par ancêtre balayé
                     for (methode in methodesOuHeritees(typeCourant)) {
                         if (methode.isConstructor()) continue
                         if (methode.isStatic()) continue
@@ -445,6 +479,8 @@ public class ServiceCompletion(
                         items.add(stubOverride(methode))
                     }
                 }
+            } catch (e: EpoqueRetiree) {
+                throw e // V-F1 : la coupure n'est pas une hiérarchie incomplète
             } catch (_: Exception) {
                 // hiérarchie incomplète : les stubs déjà collectés suffisent
             }

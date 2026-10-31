@@ -84,6 +84,10 @@ class Fiche034MoteurParModuleTest {
         // Re-sync Gradle de :a SEUL avec une autre racine.
         val srcA2 = dossier("src-a-2").also { it.resolve("X.java").writeText("class X { }\n") }
         environnement.remplacerContexteModule(":a", listOf(srcA2))
+        // V-F1 (amendement) : la reconstruction est DÉSORMAIS asynchrone
+        // (double-tampon — l'ancien moteur sert pendant la construction du
+        // neuf) ; la fiche attend la DRAINAGE avant d'observer le neuf.
+        assertTrue(environnement.attendreReconstructions(), "la reconstruction de :a draine")
 
         val moteurA2 = environnement.moteur(":a")
         val moteurB2 = environnement.moteur(":b")
@@ -118,6 +122,11 @@ class Fiche034MoteurParModuleTest {
         environnement.ajouterAuditeurContexte { notifications.incrementAndGet() }
         val moteur1 = environnement.moteur(":app")
         environnement.remplacerContexteModule(":app", listOf(srcApres))
+        // V-F1 (amendement) : le moteur est reconstruit EN TÂCHE DE FOND
+        // pendant que l'ancien sert (double-tampon) — la fiche attend le
+        // swap avant d'observer l'instance neuve ; la NOTIFICATION d'apparition
+        // d'auditeur reste, elle, EXACTEMENT une fois et SYNCHRONE à la sync.
+        assertTrue(environnement.attendreReconstructions(), "la reconstruction draine")
         val moteur2 = environnement.moteur(":app")
         assertNotSame(moteur1, moteur2, "le moteur est reconstruit")
         assertEquals(1, notifications.get(), "les auditeurs sont notifiés exactement une fois")
@@ -182,11 +191,15 @@ class Fiche034MoteurParModuleTest {
 
         // Un changement de niveau SEUL invalide le moteur et notifie une fois.
         environnement.remplacerContexteModule(":app", listOf(src), niveau = "21")
+        // V-F1 (amendement) : reconstruction asynchrone — drainage avant
+        // observation du niveau du moteur neuf.
+        assertTrue(environnement.attendreReconstructions(), "la reconstruction du niveau draine")
         assertEquals("21", environnement.moteur(":app").complianceModule())
         assertEquals(1, notifications.get(), "changement de niveau : une notification")
 
         // null explicite : retour au défaut de l'environnement (« 17 »).
         environnement.remplacerContexteModule(":app", listOf(src), niveau = null)
+        assertTrue(environnement.attendreReconstructions(), "la reconstruction du retour au défaut draine")
         assertNull(environnement.moteur(":app").complianceModule(), "null explicite : complianceModule rend null")
         assertEquals(2, notifications.get(), "2 notifications cumulées")
         assertEquals("17", environnement.moteur(":app").complianceDemandee(), "le moteur reconstruit hérite du niveau par défaut")
@@ -262,6 +275,9 @@ class Fiche034MoteurParModuleTest {
         assertSame(avant, environnement.moteur(), "remplacement redondant via clé null : no-op")
         val autre = dossier("src-defaut-2").also { it.resolve("X.java").writeText("class X { }\n") }
         environnement.remplacerContexteModule(null, listOf(autre))
+        // V-F1 (amendement) : reconstruction asynchrone — drainage avant
+        // l'observation du moteur reconstruit.
+        assertTrue(environnement.attendreReconstructions(), "la reconstruction du défaut draine")
         assertNotSame(avant, environnement.moteur(), "remplacement effectif via clé null : moteur reconstruit")
     }
 

@@ -1,5 +1,6 @@
 package jo.codeide.lsp.java.navigation
 
+import jo.codeide.lsp.java.concurrence.EpoqueRetiree
 import jo.codeide.lsp.java.diagnostics.Plage
 import jo.codeide.lsp.java.interne.LectureAst
 import org.eclipse.jdt.internal.compiler.ast.Assignment
@@ -52,11 +53,18 @@ import kotlin.io.path.readText
  * @param racines les racines sources du projet.
  * @param indexMots l'index de mots des sources (construction froide partagée).
  * @param resoudre résout une unité (chemin logique, texte) en arbre bindé.
+ * @param estCoupe point de contrôle d'annulation fine (V-F1 — ADR 0029
+ *   phase 1) : consulté à CHAQUE FICHIER du balayage multi-fichiers ; vrai
+ *   ⇒ le balayage est coupé par [EpoqueRetiree] — le moteur vient d'être
+ *   retiré par un swap de double-tampon, le résultat serait rejoué sur
+ *   l'époque courante par l'appelant. Défaut `{ false }` : jamais coupé
+ *   (services construits hors moteur).
  */
 public class ServiceUsages(
     private val racines: List<Path>,
     private val indexMots: IndexMotsSources,
     private val resoudre: (String, String) -> CompilationUnitDeclaration?,
+    private val estCoupe: () -> Boolean = { false },
 ) {
 
     // ------------------------------------------------------------------ //
@@ -109,6 +117,7 @@ public class ServiceUsages(
         // Autres fichiers : candidats de l'index de mots, texte disque.
         val disqueCourant = fichierCourant(chemin)
         for (fichier in indexMots.fichiersPour(mot)) {
+            pointDeControle() // V-F1 : coupure fine par fichier balayé
             if (disqueCourant != null && fichier == disqueCourant) continue // déjà servi (overlay)
             val texte = try {
                 fichier.readText()
@@ -160,6 +169,7 @@ public class ServiceUsages(
         }
         // Puis TOUTES les sources des racines.
         for (fichier in balayerSources()) {
+            pointDeControle() // V-F1 : coupure fine par fichier balayé
             if (disqueCourant != null && fichier == disqueCourant) continue
             val texte = try {
                 fichier.readText()
@@ -177,6 +187,16 @@ public class ServiceUsages(
     // ------------------------------------------------------------------ //
     // textDocument/documentHighlight
     // ------------------------------------------------------------------ //
+
+    /**
+     * Point de contrôle d'annulation fine (V-F1 — ADR 0029 phase 1) : coupe
+     * le balayage si l'époque du moteur a été retirée (coût : une lecture
+     * volatile par FICHIER — le balayage paie lecture disque + résolution
+     * par itération, le contrôle est négligeable).
+     */
+    private fun pointDeControle() {
+        if (estCoupe()) throw EpoqueRetiree()
+    }
 
     /**
      * Les surbrillances du document courant (miroir moteur de

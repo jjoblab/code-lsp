@@ -3,6 +3,8 @@ package jo.codeide.lsp.java
 import jo.codeide.lsp.java.classpath.EnvironnementNoms
 import jo.codeide.lsp.java.completion.ReponseCompletion
 import jo.codeide.lsp.java.completion.ServiceCompletion
+import jo.codeide.lsp.java.concurrence.JetonAnnulation
+import jo.codeide.lsp.java.concurrence.JetonsAnnulation
 import jo.codeide.lsp.java.diagnostics.Diagnostic
 import jo.codeide.lsp.java.diagnostics.Plage
 import jo.codeide.lsp.java.diagnostics.Severite
@@ -143,6 +145,46 @@ public class MoteurJava(
 
     /** Pont ecj (paresseux, lié à l'environnement). */
     private var pont: PontEcj? = null
+
+    /**
+     * Jeton d'ÉPOQUE du moteur (vague V-F1 — ADR 0029 phase 1) : reste
+     * [JetonAnnulation.NEVER] pendant toute la vie utile du moteur ; il
+     * est posé PUIS ANNULÉ au moment du retrait (swap de double-tampon —
+     * voir [retirer]). Les points de contrôle d'annulation fine (collecte
+     * de complétion, balayage d'usages) le consultent : `isCancelled()`
+     * vrai ⇒ le calcul en cours ne sera pas livré, il est coupé et REJOUÉ
+     * sur l'époque courante par le protocole d'époque de l'environnement
+     * de compilation. Aucun thread n'est jamais ATTACHÉ à ce jeton : la
+     * coupure est purement coopérative (fiche 046, généralisée).
+     */
+    @Volatile
+    private var jetonEpoque: JetonAnnulation = JetonAnnulation.NEVER
+
+    /**
+     * Sonde de retrait (V-F1) : vrai dès que ce moteur a été retiré du
+     * service par un swap de double-tampon — les appelants du protocole
+     * d'époque y détectent la péremption ; les moteurs utilisés directement
+     * (tests, hôte in-process) ne sont JAMAIS retirés.
+     */
+    internal fun estRetire(): Boolean = jetonEpoque.isCancelled()
+
+    /**
+     * RETIRE ce moteur du service (vague V-F1 — appelé par l'environnement
+     * de compilation APRÈS le swap, quand le moteur neuf est déjà vivant) :
+     * pose un jeton d'époque ANNULÉ (les points de contrôle coupent les
+     * calculs en cours — le résultat ne serait de toute façon pas livré),
+     * puis libère les ressources ([dispose] attend naturellement la fin
+     * des calculs en vol : il prend le MÊME moniteur qu'eux). Le moteur
+     * reste TECHNIQUEMENT utilisable (reconstruction paresseuse — contrat
+     * de [dispose]), mais tout résultat calculé après le retrait est
+     * périmé par construction : seul le rejeu sur l'époque courante livre.
+     */
+    internal fun retirer() {
+        val jeton = JetonsAnnulation.manual()
+        jetonEpoque = jeton
+        jeton.annuler()
+        dispose()
+    }
 
     /** Cache de parse LRU (fiche 025). */
     private val cacheParse = CacheParse()
@@ -1503,6 +1545,7 @@ public class MoteurJava(
             racines = racines,
             indexMots = indexMotsSources(),
             resoudre = { chemin, source -> resolveUnit(chemin, source, genererCode = false)?.arbre },
+            estCoupe = { jetonEpoque.isCancelled() },
         )
         serviceUsages = service
         return service
@@ -1570,6 +1613,7 @@ public class MoteurJava(
             environnementFournisseur = { environnementNoms() },
             arbreOriginal = { chemin, source -> arbreOriginal(chemin, source) },
             chainePersonnalisee = chaineCompletion,
+            estCoupe = { jetonEpoque.isCancelled() },
         )
         serviceCompletion = service
         return service

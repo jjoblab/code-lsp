@@ -129,6 +129,9 @@ class Fiche047RouteurFichierTest {
         val moteurLib1 = environnement.moteurPourFichier(cheminLib)
         // Remplacement EFFECTIF du contexte de :app.
         environnement.remplacerContexteModule(":app", listOf(srcAppApres))
+        // V-F1 (amendement) : la reconstruction est asynchrone (double-tampon)
+        // — drainage avant d'observer le moteur reconstruit au prochain routage.
+        assertTrue(environnement.attendreReconstructions(), "la reconstruction de :app draine")
         assertNotSame(moteurApp1, environnement.moteurPourFichier(cheminApp), "le moteur de :app est reconstruit au prochain routage")
         assertSame(moteurLib1, environnement.moteurPourFichier(cheminLib), "le moteur de :lib VIT — jamais invalidé par la sync de :app")
     }
