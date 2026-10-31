@@ -161,3 +161,18 @@ comme pour `:java` (le client impose 0.22.0, le moteur est binaire sous
 > Consignée après consultation du run (miroir des clôtures 4–6 et du
 > journal 10 §8.4) — le présent commit ne touche QUE des documents
 > (`docs/` seul, aucune ligne de code).
+
+**ATTESTATION CI (consignée après poussée)** : le push de consignation
+(`bac1785` → `7b2f972`, diff documents seuls — 3 fichiers : le présent
+document NEUF, ALERTES §2/§5, DEMANDES-INTERFACE) a déclenché le run
+**`41170597847`** — consulté le 31/10 via l'API GitHub Actions : **CI
+VERTE 10/10 sur le commit `7b2f972`**. Les dix jobs verts : Build et
+tests JDK 21, banc parité croisée T (oracle vendored épinglé), **suite
+du module Kotlin — les 523 tests, cahier COMPLET 469/469**, banc qualité
+complétion (baseline signée Java), banc empreinte/latence Kotlin, banc
+qualité complétion Kotlin étage 3 (baseline signée), gates Android SDK
+34, banc empreinte/latence du noyau N1, manifeste de provenance
+(anti-fichier-hors-registre), scan ART + dexage d8 sous seuils étage 0.
+Le flottant E-K6 (périmètre Java) n'a pas frappé. Aucune ligne de code
+n'ayant bougé, les chiffres moteur (jar, dex, bancs) sont inchangés par
+construction — les jobs les ont rejoués à l'identique.
