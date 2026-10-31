@@ -1,13 +1,19 @@
 package jo.codeide.lsp.java.completion
 
+import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.withLock
 import jo.codeide.lsp.java.classpath.EnvironnementNoms
 import jo.codeide.lsp.java.classpath.GenreType
 import jo.codeide.lsp.java.concurrence.EpoqueRetiree
+import jo.codeide.lsp.java.IndexNoms
 import jo.codeide.lsp.java.interne.ItemCompletion
+import jo.codeide.lsp.java.interne.MARQUEUR_INACCESSIBLE
+import jo.codeide.lsp.java.interne.MARQUEUR_TYPEDEF
 import jo.codeide.lsp.java.interne.LectureAst
 import jo.codeide.lsp.java.interne.NatureItem
 import jo.codeide.lsp.java.interne.PontEcj
 import jo.codeide.lsp.java.interne.UnitesSource
+import jo.codeide.lsp.java.projetandroid.ReferentielRessources
 import org.eclipse.jdt.internal.compiler.ast.CompilationUnitDeclaration
 import org.eclipse.jdt.internal.compiler.lookup.FieldBinding
 import org.eclipse.jdt.internal.compiler.lookup.MethodBinding
@@ -66,6 +72,16 @@ public class ReponseCompletion(
  *   coupée par [EpoqueRetiree] — le moteur vient d'être retiré par un swap
  *   de double-tampon et le résultat ne serait de toute façon pas livré.
  *   Défaut `{ false }` : jamais coupé (services construits hors moteur).
+ * @param ressourcesFournisseur le référentiel de RESSOURCES Android (V-C3 —
+ *   ADR 0026 (f) : littéraux `R.*` en position `@…Res` ; null = pas de
+ *   contrat Android, le genre LITTÉRAL_RESSOURCE rend une liste VIDE
+ *   honnête).
+ * @param indexFournisseur l'index de noms PARTAGÉ (V-C3 — ADR 0026 (d) :
+ *   3e invocation, types du PROJET entier avec import automatique ; null =
+ *   moteur sans index, le 3e appel n'élargit pas — honnête).
+ * @param compteur le compteur d'usage local OPT-IN (V-C3 — ADR 0026 (g) :
+ *   fenêtre glissante, peseur D9 de la chaîne standard ; null = statistiques
+ *   désactivées, défaut — vie privée).
  */
 public class ServiceCompletion(
     private val pontFournisseur: () -> PontEcj,
@@ -73,13 +89,21 @@ public class ServiceCompletion(
     private val arbreOriginal: (String, String) -> CompilationUnitDeclaration?,
     private val chainePersonnalisee: ChaineClassement? = null,
     private val estCoupe: () -> Boolean = { false },
+    private val ressourcesFournisseur: () -> ReferentielRessources? = { null },
+    private val indexFournisseur: () -> IndexNoms? = { null },
+    private val compteur: CompteurUsage? = null,
 ) {
 
     /** Chaîne de classement (statistique désactivée par défaut ; banc : remplaçable). */
-    private val chaine: ChaineClassement = chainePersonnalisee ?: ChaineClassement()
+    private val chaine: ChaineClassement = chainePersonnalisee ?: ChaineClassement(compteur)
 
     /** Arrangement (gel + trim honnête) — un par moteur. */
     private val arrangement: ArrangementListe = ArrangementListe(chaine)
+
+    /** Réinitialise le gel des têtes (banc ADR 0016 — scénarios indépendants). */
+    internal fun reinitialiserGel() {
+        arrangement.reinitialiser()
+    }
 
     /** Analyseur de contexte (paresseux — lié au pont et à l'environnement). */
     private val analyseur: AnalyseurContexte by lazy {
@@ -98,8 +122,23 @@ public class ServiceCompletion(
         if (source.isNullOrEmpty()) return ReponseCompletion(emptyList(), 0, GenreContexte.INCONNU)
         return try {
             val contexte = analyserContexte(chemin, source, offset)
-            val candidats = collecter(contexte, chemin, source, offset)
-            val filtres = filtrer(candidats, contexte.prefixe)
+            // V-C3 (fiche C-08 D4) : compteur d'invocation par (document,
+            // ancre, PRÉFIXE) — une frappe qui change le préfixe ROUVRE un
+            // contexte (retombe à 1) ; la même position ré-invoquée élargit
+            // (2e : inaccessibles marqués + statiques importables ; 3e : projet).
+            val invocation = noterInvocation(cleInvocation(chemin, contexte))
+            val candidats = collecter(contexte, chemin, source, offset, invocation)
+            var filtres = filtrer(candidats, contexte.prefixe)
+            // V-C3 (ADR 0026 (b)) : CHAÎNE — seconde passe quand AUCUN
+            // candidat direct type-compatible n'a survécu au préfixe : les
+            // méthodes du récepteur retournant le type attendu en deux
+            // sauts (`w.builder().text()`), budget borné.
+            if (contexte.genre == GenreContexte.MEMBRE &&
+                contexte.unionAttendus.isNotEmpty() &&
+                filtres.none { it.compatibilite == 0 }
+            ) {
+                filtres = filtres + filtrer(chaineDe(contexte), contexte.prefixe)
+            }
             val cle = cleDeGel(chemin, contexte)
             val reponse = arrangement.arranger(cle, filtres, ContexteClassement(contexte.genre, contexte.prefixe))
             // Gabarits (étage N7, fiche 029) : injection POST-arrangement —
@@ -123,6 +162,45 @@ public class ServiceCompletion(
             // 035) : un échec interne rend une liste vide honnête.
             ReponseCompletion(emptyList(), 0, GenreContexte.INCONNU)
         }
+    }
+
+    /**
+     * Compteur d'invocations de complétion (V-C3 — fiche C-08 D4) : la clé
+     * est (document, genre, ancre, préfixe) — mémoire BORNÉE (les 64
+     * dernières ancres, LRU d'accès).
+     */
+    private val invocations = LinkedHashMap<String, Int>(16, 0.75f, true)
+
+    /**
+     * Verrou du périmètre ÉTAT de complétion (V-F2 — ADR 0010 schéma B :
+     * verrou NOMMÉ, jamais de moniteur anonyme) : garde les compteurs
+     * d'invocation et les MÉMOS (membres binaires, bindings) — chemins
+     * SANS ecj, ils ne prennent jamais le verrou de compilation. Feuille
+     * relative au périmètre compilation : jamais l'inverse.
+     */
+    private val verrouEtat = java.util.concurrent.locks.ReentrantLock()
+
+    /** Note et rend le NUMÉRO d'invocation courant de la clé (1, 2, 3…). */
+    private fun noterInvocation(cle: String): Int = verrouEtat.withLock {
+        val numero = (invocations[cle] ?: 0) + 1
+        invocations[cle] = numero
+        while (invocations.size > MAX_ANCRES_INVOCATION) {
+            val iterateur = invocations.entries.iterator()
+            iterateur.next()
+            iterateur.remove()
+        }
+        numero
+    }
+
+    /** La clé d'invocation : document + genre + ancre + PRÉFIXE (fiche C-08 D4). */
+    private fun cleInvocation(chemin: String, contexte: ContexteCompletion): String = buildString {
+        append(chemin)
+        append('|')
+        append(contexte.genre.name)
+        append('|')
+        append(contexte.recepteur ?: contexte.paquetTape ?: "")
+        append('|')
+        append(contexte.prefixe)
     }
 
     /**
@@ -157,27 +235,113 @@ public class ServiceCompletion(
     // ------------------------------------------------------------------ //
 
     /** Collecte les candidats bruts du contexte. */
-    private fun collecter(contexte: ContexteCompletion, chemin: String, source: String, offset: Int): List<ItemCompletion> {
+    private fun collecter(
+        contexte: ContexteCompletion,
+        chemin: String,
+        source: String,
+        offset: Int,
+        invocation: Int = 1,
+    ): List<ItemCompletion> {
         return when (contexte.genre) {
-            GenreContexte.MEMBRE -> membresDe(contexte.typeRecepteur, statique = false)
-            GenreContexte.MEMBRE_STATIQUE -> membresStatiques(contexte)
+            GenreContexte.MEMBRE -> membresDe(contexte.typeRecepteur, statique = false, contexte, invocation)
+            GenreContexte.MEMBRE_STATIQUE -> membresStatiques(contexte, invocation)
             GenreContexte.TYPE -> types(contexte)
-            GenreContexte.NOM -> noms(contexte, chemin, source, offset)
+            GenreContexte.NOM -> noms(contexte, chemin, source, offset, invocation)
             GenreContexte.IMPORT -> sousPaquetages(contexte)
             GenreContexte.REFERENCE_PAQUET -> sousPaquetages(contexte)
             GenreContexte.CORPS_CLASSE -> corpsDeClasse(contexte)
             GenreContexte.NOM_DECLARATION -> nomsDeDeclaration(contexte)
-            GenreContexte.CASE_LABEL -> constantesDEnum(contexte.typeAttendu)
-            GenreContexte.VALEUR_ANNOTATION -> constantesDEnum(contexte.typeAttendu)
-            GenreContexte.TOP_NIVEAU -> motsClesTopNiveau()
+            GenreContexte.CASE_LABEL -> constantesDEnum(contexte.typeAttendu) + constantesTypedef(contexte)
+            GenreContexte.VALEUR_ANNOTATION -> constantesDEnum(contexte.typeAttendu) + constantesTypedef(contexte)
+            GenreContexte.TOP_NIVEAU -> motsClesTopNiveau() + stubsDeDeclaration(contexte)
+            GenreContexte.LITTERAL_RESSOURCE -> ressourcesDe(contexte)
             GenreContexte.INCONNU -> emptyList()
         }
     }
 
-    /** Membres d'INSTANCE du récepteur (fiche 020 : la hiérarchie complète est balayée). */
-    private fun membresDe(type: TypeBinding?, statique: Boolean): List<ItemCompletion> {
+    /**
+     * Un membre binaire brut du MÉMO : l'item + son type d'expression + son
+     * niveau d'accès (l'épreuve d'accessibilité dépend du CONTEXTE d'appel,
+     * elle ne se mémoïse pas).
+     */
+    private class MembreBrut(
+        val item: ItemCompletion,
+        val typeExpression: TypeBinding?,
+        val niveau: NiveauAcces,
+        val niveauDeclarent: ReferenceBinding?,
+    )
+
+    /** Niveau d'accès d'un membre (JLS 6.6 — épreuve par le contexte d'appel). */
+    private enum class NiveauAcces { PUBLIC, DEFAUT, PROTEGE, PRIVE }
+
+    /**
+     * MÉMO des membres de types BINAIRES (V-C3 — reste consigné du PV
+     * 1.6.0) : l'énumération paie le lazy-parsing du fichier de classe À
+     * CHAQUE appel (mesuré 15–26 ms par appel pour 68 membres de
+     * `java.lang.String`, 62–68 ms à froid) — les membres d'un type binaire
+     * ne changent JAMAIS dans la vie d'un moteur, ils se mémoïsent par
+     * IDENTITÉ de binding. Les types SOURCES ne s'y mémoïsent pas (leurs
+     * membres bougent à l'édition).
+     */
+    private val memoMembres = java.util.IdentityHashMap<ReferenceBinding, HashMap<Int, List<MembreBrut>>>()
+
+    /** Mémo des résolutions de bindings par FQCN (binaires seulement). */
+    private val memoBindings = HashMap<String, ReferenceBinding?>()
+
+    /**
+     * Membres du récepteur (fiche 020 : la hiérarchie complète est balayée) —
+     * depuis V-C3 : compatibilité au TYPE ATTENDU tamponnée (fiche C-03),
+     * accessibilité des membres éprouvée (fiche C-08 D1 : 1er appel =
+     * accessibles seuls ; 2e = les inaccessibles s'ajoutent MARQUÉS), et
+     * mémoïsation des types binaires.
+     */
+    private fun membresDe(
+        type: TypeBinding?,
+        statique: Boolean,
+        contexte: ContexteCompletion? = null,
+        invocation: Int = 1,
+    ): List<ItemCompletion> {
         val reference = type as? ReferenceBinding ?: return emptyList()
-        val items = mutableListOf<ItemCompletion>()
+        val attendus = contexte?.unionAttendus ?: emptyList()
+        val bruts = membresBruts(reference, statique)
+        return bruts.mapNotNull { brut ->
+            val accessible = estAccessible(brut.niveau, brut.niveauDeclarent, contexte)
+            if (!accessible && invocation < 2) return@mapNotNull null
+            brut.item.copy(
+                compatibilite = TypeAttendu.compatibilite(brut.typeExpression, attendus),
+                degrade = !accessible,
+                marqueur = if (!accessible) MARQUEUR_INACCESSIBLE else brut.item.marqueur,
+            )
+        }
+    }
+
+    /** Les membres bruts (mémoïsés pour les types BINAIRES). */
+    private fun membresBruts(reference: ReferenceBinding, statique: Boolean): List<MembreBrut> {
+        if (estBinaire(reference)) {
+            verrouEtat.withLock {
+                memoMembres[reference]?.get(cleMemo(statique))?.let { return it }
+            }
+        }
+        val bruts = collecterMembresBruts(reference, statique)
+        if (estBinaire(reference)) {
+            verrouEtat.withLock {
+                if (memoMembres.size >= MAX_TYPES_MEMO) memoMembres.clear() // borne : tout vider, un cache
+                memoMembres.getOrPut(reference) { HashMap() }[cleMemo(statique)] = bruts
+            }
+        }
+        return bruts
+    }
+
+    /** Clé de mémo : statique × (1er ou 2e appel — le 2e inclut tout). */
+    private fun cleMemo(statique: Boolean): Int = if (statique) 1 else 0
+
+    /** Vrai ssi le binding vient d'un fichier de CLASSE (jrt/jar). */
+    private fun estBinaire(reference: ReferenceBinding): Boolean =
+        reference is org.eclipse.jdt.internal.compiler.lookup.BinaryTypeBinding
+
+    /** La collecte brute : hiérarchie complète, niveaux d'accès consignés. */
+    private fun collecterMembresBruts(reference: ReferenceBinding, statique: Boolean): List<MembreBrut> {
+        val items = mutableListOf<MembreBrut>()
         try {
             // La hiérarchie COMPLÈTE est balayée (fiche 020) : les méthodes
             // et champs hérités — jusqu'à Object — sont proposés. ecj ne le
@@ -187,16 +351,29 @@ public class ServiceCompletion(
             // absents des membres d'un String) ; la redéfinition la plus
             // DÉRIVÉE gagne (la collecte va du type vers les ancêtres et
             // le dédoublonnage garde la première occurrence).
-            for (typeCourant in hierarchie(reference)) {
+            for (typeCourant in TypeAttendu.hierarchieComplete(reference)) {
                 pointDeControle() // V-F1 : coupure fine par ancêtre balayé
                 for (champ in champsOuHerites(typeCourant)) {
                     if (statique && !champ.isStatic()) continue
                     if (!statique && champ.isStatic()) continue
                     items.add(
-                        ItemCompletion(
-                            libelle = String(champ.name),
-                            nature = NatureItem.CHAMP,
-                            detail = LectureAst.lisible(champ.type),
+                        MembreBrut(
+                            item = ItemCompletion(
+                                libelle = String(champ.name),
+                                nature = NatureItem.CHAMP,
+                                detail = LectureAst.lisible(champ.type),
+                            ),
+                            typeExpression = try {
+                                champ.type
+                            } catch (_: Exception) {
+                                null
+                            },
+                            niveau = niveauAcces(champ.isPrivate(), champ.isProtected(), champ.isPublic()),
+                            niveauDeclarent = try {
+                                champ.declaringClass
+                            } catch (_: Exception) {
+                                null
+                            },
                         ),
                     )
                 }
@@ -205,10 +382,23 @@ public class ServiceCompletion(
                     if (statique && !methode.isStatic()) continue
                     if (!statique && methode.isStatic()) continue
                     items.add(
-                        ItemCompletion(
-                            libelle = String(methode.selector),
-                            nature = NatureItem.METHODE,
-                            detail = signature(methode),
+                        MembreBrut(
+                            item = ItemCompletion(
+                                libelle = String(methode.selector),
+                                nature = NatureItem.METHODE,
+                                detail = signature(methode),
+                            ),
+                            typeExpression = try {
+                                methode.returnType
+                            } catch (_: Exception) {
+                                null
+                            },
+                            niveau = niveauAcces(methode.isPrivate(), methode.isProtected(), methode.isPublic()),
+                            niveauDeclarent = try {
+                                methode.declaringClass
+                            } catch (_: Exception) {
+                                null
+                            },
                         ),
                     )
                 }
@@ -218,38 +408,57 @@ public class ServiceCompletion(
         } catch (_: Exception) {
             // binding incomplet : ce qui a été collecté suffit
         }
-        return items.distinctBy { it.libelle to it.nature }
+        return items.distinctBy { it.item.libelle to it.item.nature }
+    }
+
+    /** Le niveau d'accès d'un membre par ses drapeaux ecj (défaut = aucun des trois). */
+    private fun niveauAcces(prive: Boolean, protege: Boolean, publique: Boolean): NiveauAcces = when {
+        prive -> NiveauAcces.PRIVE
+        protege -> NiveauAcces.PROTEGE
+        publique -> NiveauAcces.PUBLIC
+        else -> NiveauAcces.DEFAUT
     }
 
     /**
-     * Hiérarchie complète d'un type : lui-même, ses superclasses (jusqu'à
-     * Object) et ses interfaces (directes et héritées) — l'ordre va du plus
-     * DÉRIVÉ au plus ancien (la première occurrence d'un nom lors du
-     * dédoublonnage est la redéfinition la plus dérivée).
-     *
-     * Les types d'ecj sont protégés contre les cycles par une garde
-     * d'identité (le recovery peut fabriquer des hiérarchies bouclées —
-     * jamais de boucle infinie).
+     * L'épreuve d'accessibilité (JLS 6.6, fiche C-08 D1) : public = partout ;
+     * défaut = même paquet ; protégé = même paquet OU sous-type ; privé =
+     * depuis le type déclarant (imbriqués compris). Sans type englobant
+     * (sonde muette), seul le PUBLIC passe — honnête.
      */
-    private fun hierarchie(base: ReferenceBinding): List<ReferenceBinding> {
-        val resultat = mutableListOf<ReferenceBinding>()
-        val vus = java.util.IdentityHashMap<ReferenceBinding, Boolean>()
-        fun visiter(type: ReferenceBinding?) {
-            if (type == null || vus.containsKey(type)) return
-            vus[type] = true
-            resultat.add(type)
-            try {
-                visiter(type.superclass())
-                for (interface_ in type.superInterfaces() ?: emptyArray()) {
-                    visiter(interface_)
-                }
+    private fun estAccessible(niveau: NiveauAcces, declarante: ReferenceBinding?, contexte: ContexteCompletion?): Boolean {
+        if (niveau == NiveauAcces.PUBLIC || declarante == null) return true
+        val paquet = contexte?.paquetCourant
+        val memePaquet = paquet != null && try {
+            String(declarante.qualifiedPackageName()) == paquet
+        } catch (_: Exception) {
+            false
+        }
+        if (niveau == NiveauAcces.DEFAUT) return memePaquet
+        val englobant = contexte?.typeEnglobant
+        if (englobant == null) return false
+        if (niveau == NiveauAcces.PRIVE) return estDansLeDeclarant(declarante, englobant)
+        // protégé : même paquet OU sous-type
+        return memePaquet || estSousType(englobant, declarante)
+    }
+
+    /** Vrai ssi le type courant vit DANS le déclarant (imbriqué — accès privé). */
+    private fun estDansLeDeclarant(declarante: ReferenceBinding, courant: ReferenceBinding): Boolean {
+        var curseur: ReferenceBinding? = courant
+        var garde = 0
+        while (curseur != null && garde++ < 16) {
+            if (curseur === declarante) return true
+            curseur = try {
+                curseur.enclosingType()
             } catch (_: Exception) {
-                // hiérarchie non connectée : le type seul suffit
+                null
             }
         }
-        visiter(base)
-        return resultat
+        return false
     }
+
+    /** Vrai ssi le candidat EST un sous-type (ou égal) au déclarant. */
+    private fun estSousType(courant: ReferenceBinding, declarante: ReferenceBinding): Boolean =
+        TypeAttendu.hierarchieComplete(courant).any { it === declarante }
 
     /** Champs DÉCLARÉS d'un type (défensif — liaison incomplète tolérée). */
     private fun champsOuHerites(type: ReferenceBinding): Array<org.eclipse.jdt.internal.compiler.lookup.FieldBinding> =
@@ -268,13 +477,13 @@ public class ServiceCompletion(
         }
 
     /** Membres STATIQUES du qualifier de type (fiche 020 : jamais une méthode d'instance). */
-    private fun membresStatiques(contexte: ContexteCompletion): List<ItemCompletion> {
+    private fun membresStatiques(contexte: ContexteCompletion, invocation: Int = 1): List<ItemCompletion> {
         val fqcn = contexte.recepteurFqcn ?: return emptyList()
         // Forme POINTÉE pour la sonde source : les imbriqués voyagent en
         // `$` côté FQCN (`com.example.monip.R$layout`) mais la source Java
         // de la sonde exige les points (`com.example.monip.R.layout`).
-        val binding = bindingDe(fqcn.replace('$', '.')) ?: return emptyList()
-        return membresDe(binding, statique = true)
+        val binding = bindingDeMemo(fqcn.replace('$', '.')) ?: return emptyList()
+        return membresDe(binding, statique = true, contexte, invocation)
     }
 
     /** Signature lisible d'une méthode (détail de l'item). */
@@ -400,23 +609,61 @@ public class ServiceCompletion(
         }
     }
 
-    /** Complétion de NOM : inventaire du fichier + types + mots-clés (fiche 008). */
-    private fun noms(contexte: ContexteCompletion, chemin: String, source: String, offset: Int): List<ItemCompletion> {
+    /**
+     * Complétion de NOM (fiche 008) : inventaire du fichier + types +
+     * mots-clés — depuis V-C3, tamponnés de leur compatibilité au type
+     * attendu (fiche C-03 S1/S2) et ÉLARGIS aux invocations successives
+     * (fiche C-08 : 2e appel = imports STATIQUES ; 3e = types du PROJET
+     * entier par l'index partagé, import automatique).
+     */
+    private fun noms(
+        contexte: ContexteCompletion,
+        chemin: String,
+        source: String,
+        offset: Int,
+        invocation: Int = 1,
+    ): List<ItemCompletion> {
         val items = mutableListOf<ItemCompletion>()
         items.addAll(types(contexte.copy(genre = GenreContexte.TYPE, filtre = null)))
         // Inventaire du fichier : champs, méthodes, locales, paramètres (le
         // marqueur a résolu l'unité — l'inventaire se lit sur l'original).
-        items.addAll(inventaireOriginal(chemin, source, offset))
+        // V-C3 : chaque item construit sur un binding vivant est tamponné de
+        // sa compatibilité au type attendu (S1 : la locale `String nom`
+        // remonte, la locale `int age` descend — JAMAIS cachée).
+        items.addAll(
+            inventaireOriginal(chemin, source, offset) { type ->
+                TypeAttendu.compatibilite(type, contexte.unionAttendus)
+            },
+        )
         for (mot in LectureAst.MOTS_CLES) {
             items.add(ItemCompletion(mot, NatureItem.MOT_CLE))
+        }
+        // V-C3 (fiche C-04 T1) : les constantes du TYPEDEF visé voyagent en
+        // tête — même non importées (import statique à l'insertion).
+        items.addAll(constantesTypedef(contexte))
+        // V-C3 (fiche C-08 D2) : SECOND appel — membres STATIQUES importables
+        // des types de l'unité (imports explicites, paquet courant, panneau
+        // java.lang), avec édition d'import statique (insertion compilable).
+        if (invocation >= 2) {
+            items.addAll(importsStatiques(contexte))
+        }
+        // V-C3 (fiche C-08 D3) : TROISIÈME appel — types du PROJET entier via
+        // l'index partagé, import automatique (sans index : honnête, rien).
+        if (invocation >= 3) {
+            items.addAll(typesDuProjet(contexte))
         }
         return items
     }
 
     /** Inventaire du fichier courant (complétion instantanée N1 réutilisée sur l'arbre original). */
-    private fun inventaireOriginal(chemin: String, source: String, offset: Int): List<ItemCompletion> {
+    private fun inventaireOriginal(
+        chemin: String,
+        source: String,
+        offset: Int,
+        evaluateur: (TypeBinding?) -> Int = { _ -> 1 },
+    ): List<ItemCompletion> {
         val arbre = arbreOriginal(chemin, source) ?: return emptyList()
-        return LectureAst.inventaireFichier(arbre, offset)
+        return LectureAst.inventaireFichier(arbre, offset, evaluateur)
     }
 
     /**
@@ -452,41 +699,50 @@ public class ServiceCompletion(
     /** Stubs d'override en position de membre de classe (fiche 007). */
     private fun corpsDeClasse(contexte: ContexteCompletion): List<ItemCompletion> {
         val items = mutableListOf<ItemCompletion>()
-        val englobant = contexte.typeEnglobant
-        if (englobant != null) {
-            val vus = mutableSetOf<String>()
-            try {
-                // Stubs d'override de TOUTE la hiérarchie (fiche 007) : le
-                // point même du stub est de redéfinir une méthode HÉRITÉE —
-                // toString() sur `toStr|` ne vit dans aucune méthode
-                // déclarée du type (constat du banc de qualité N2). La
-                // redéfinition la plus dérivée est proposée (première
-                // occurrence du sélecteur dans le balayage).
-                for (typeCourant in hierarchie(englobant)) {
-                    pointDeControle() // V-F1 : coupure fine par ancêtre balayé
-                    for (methode in methodesOuHeritees(typeCourant)) {
-                        if (methode.isConstructor()) continue
-                        if (methode.isStatic()) continue
-                        if (methode.isPrivate()) continue
-                        if (methode.isFinal()) continue
-                        // Le MARQUEUR de splice parse comme une méthode
-                        // déclarée du type englobant quand le préfixe est
-                        // vide en corps de classe — jamais un candidat.
-                        if (String(methode.selector) == AnalyseurContexte.MARQUEUR) continue
-                        val nom = String(methode.selector)
-                        if (nom in vus) continue
-                        vus.add(nom)
-                        items.add(stubOverride(methode))
-                    }
-                }
-            } catch (e: EpoqueRetiree) {
-                throw e // V-F1 : la coupure n'est pas une hiérarchie incomplète
-            } catch (_: Exception) {
-                // hiérarchie incomplète : les stubs déjà collectés suffisent
-            }
-        }
+        items.addAll(stubsDeDeclaration(contexte))
         // Les types restent proposés en corps de classe (déclarations imbriquées).
         items.addAll(types(contexte.copy(genre = GenreContexte.TYPE, filtre = null)))
+        return items
+    }
+
+    /**
+     * Les STUBS d'override de TOUTE la hiérarchie du type englobant (fiche
+     * 007) : le point même du stub est de redéfinir une méthode HÉRITÉE —
+     * `toString()` sur `toStr|` ne vit dans aucune méthode déclarée du type
+     * (constat du banc de qualité N2). La redéfinition la plus dérivée est
+     * proposée (première occurrence du sélecteur dans le balayage).
+     *
+     * Partagé par CORPS_CLASSE et — depuis V-C3 (décision D7, M1/G-024) —
+     * par la TÊTE de déclaration : les mots-clés `extends`/`implements` y
+     * sont FUSIONNÉS aux stubs de la hiérarchie du type en cours.
+     */
+    private fun stubsDeDeclaration(contexte: ContexteCompletion): List<ItemCompletion> {
+        val items = mutableListOf<ItemCompletion>()
+        val englobant = contexte.typeEnglobant ?: return items
+        val vus = mutableSetOf<String>()
+        try {
+            for (typeCourant in TypeAttendu.hierarchieComplete(englobant)) {
+                pointDeControle() // V-F1 : coupure fine par ancêtre balayé
+                for (methode in methodesOuHeritees(typeCourant)) {
+                    if (methode.isConstructor()) continue
+                    if (methode.isStatic()) continue
+                    if (methode.isPrivate()) continue
+                    if (methode.isFinal()) continue
+                    // Le MARQUEUR de splice parse comme une méthode
+                    // déclarée du type englobant quand le préfixe est
+                    // vide en corps de classe — jamais un candidat.
+                    if (String(methode.selector) == AnalyseurContexte.MARQUEUR) continue
+                    val nom = String(methode.selector)
+                    if (nom in vus) continue
+                    vus.add(nom)
+                    items.add(stubOverride(methode))
+                }
+            }
+        } catch (e: EpoqueRetiree) {
+            throw e // V-F1 : la coupure n'est pas une hiérarchie incomplète
+        } catch (_: Exception) {
+            // hiérarchie incomplète : les stubs déjà collectés suffisent
+        }
         return items
     }
 
@@ -567,6 +823,244 @@ public class ServiceCompletion(
     private fun motsClesTopNiveau(): List<ItemCompletion> =
         MOTS_CLES_TOP_NIVEAU.map { ItemCompletion(it, NatureItem.MOT_CLE) }
 
+    // ------------------------------------------------------------------ //
+    // V-C3 — typedef, ressources, chaîne, second/troisième appel
+    // ------------------------------------------------------------------ //
+
+    /**
+     * Les CONSTANTES du typedef visé (fiche C-04 T1/T2/T3) : proposées en
+     * TÊTE (marqueur `typedef`, compatibilité dominante) — l'insertion est le
+     * nom SIMPLE, l'import STATIQUE du type déclarant voyage en édition
+     * additionnelle quand le nom n'y est pas visible (P6 : insertion
+     * compilable).
+     */
+    private fun constantesTypedef(contexte: ContexteCompletion): List<ItemCompletion> {
+        val typedef = contexte.typedef ?: return emptyList()
+        if (typedef.constantes.isEmpty()) return emptyList()
+        return typedef.constantes.map { constante ->
+            val qualifiee = constante.insertion != constante.nom
+            ItemCompletion(
+                libelle = constante.nom,
+                nature = NatureItem.CHAMP,
+                texteInsertion = constante.insertion,
+                detail = if (typedef.typeDeclarent.isNotEmpty()) "${typedef.typeDeclarent}.${constante.nom}" else constante.nom,
+                marqueur = MARQUEUR_TYPEDEF,
+                compatibilite = 0,
+                importStatiqueFqn = if (qualifiee) {
+                    null // forme QUALIFIÉE : compilable telle quelle (P6), aucun import
+                } else {
+                    importStatiqueTypedef(typedef.typeDeclarent, constante.nom, contexte)
+                },
+            )
+        }
+    }
+
+    /**
+     * L'import statique d'une constante typedef : exigé dès que le type
+     * déclarant n'est PAS le type englobant du caret (un champ statique
+     * d'une AUTRE classe ne se voit pas sans import, même paquet — JLS 6.5).
+     */
+    private fun importStatiqueTypedef(typeDeclarent: String, constante: String, contexte: ContexteCompletion): String? {
+        if (typeDeclarent.isEmpty()) return null
+        val englobant = try {
+            contexte.typeEnglobant?.readableName()?.let { String(it) }
+        } catch (_: Exception) {
+            null
+        }
+        if (englobant != null && englobant == typeDeclarent) return null
+        return "$typeDeclarent.$constante"
+    }
+
+    /**
+     * Les NOMS de ressources du type attendu (ADR 0026 (f), B11) : depuis le
+     * RÉFÉRENTIEL du module (ADR 0020 — jamais d'invention) ; le détail
+     * `R.<type>.<nom>` porte la forme qualifiée, le client insère le nom.
+     */
+    private fun ressourcesDe(contexte: ContexteCompletion): List<ItemCompletion> {
+        val type = contexte.typeRessource ?: return emptyList()
+        val referentiel = try {
+            ressourcesFournisseur()
+        } catch (_: Exception) {
+            null
+        } ?: return emptyList()
+        return try {
+            referentiel.noms(type).map { nom ->
+                ItemCompletion(
+                    libelle = nom,
+                    nature = NatureItem.CHAMP,
+                    detail = "R.$type.$nom",
+                )
+            }
+        } catch (_: Exception) {
+            emptyList()
+        }
+    }
+
+    /**
+     * La CHAÎNE de complétion (ADR 0026 (b), fiche C-03 note) : les méthodes
+     * du récepteur retournant le type attendu en DEUX sauts — `m1().m2()` où
+     * m2 retourne un type compatible. Budgets bornés (premier niveau, items).
+     */
+    private fun chaineDe(contexte: ContexteCompletion): List<ItemCompletion> {
+        val reference = contexte.typeRecepteur as? ReferenceBinding ?: return emptyList()
+        val attendus = contexte.unionAttendus
+        val items = mutableListOf<ItemCompletion>()
+        val vus = HashSet<String>()
+        var premierNiveau = 0
+        try {
+            for (typeCourant in TypeAttendu.hierarchieComplete(reference)) {
+                pointDeControle()
+                for (m1 in TypeAttendu.methodesDeclarees(typeCourant)) {
+                    if (items.size >= BUDGET_CHAINES) return items
+                    if (m1.isConstructor() || m1.isStatic() || m1.isPrivate()) continue
+                    if (++premierNiveau > BUDGET_CHAINES_PREMIER_NIVEAU) return items
+                    val retour1 = try {
+                        m1.returnType
+                    } catch (_: Exception) {
+                        null
+                    } ?: continue
+                    if (TypeAttendu.compatibilite(retour1, attendus) == 0) continue // compatible direct : pas une chaîne
+                    if (retour1 is TypeBinding && "void" == String(retour1.readableName())) continue
+                    val intermediaire = retour1 as? ReferenceBinding ?: continue
+                    for (typeMilieu in TypeAttendu.hierarchieComplete(intermediaire)) {
+                        for (m2 in TypeAttendu.methodesDeclarees(typeMilieu)) {
+                            if (m2.isConstructor() || m2.isStatic() || m2.isPrivate()) continue
+                            val retour2 = try {
+                                m2.returnType
+                            } catch (_: Exception) {
+                                null
+                            } ?: continue
+                            if (TypeAttendu.compatibilite(retour2, attendus) != 0) continue
+                            val libelle = "${String(m1.selector)}().${String(m2.selector)}()"
+                            if (!vus.add(libelle)) continue
+                            items.add(
+                                ItemCompletion(
+                                    libelle = libelle,
+                                    nature = NatureItem.METHODE,
+                                    texteInsertion = libelle,
+                                    detail = "${String(m1.selector)}() → ${LectureAst.lisible(retour1) ?: "?"}, ${String(m2.selector)}() → attendu",
+                                    compatibilite = 0,
+                                ),
+                            )
+                            if (items.size >= BUDGET_CHAINES) return items
+                        }
+                    }
+                }
+            }
+        } catch (e: EpoqueRetiree) {
+            throw e
+        } catch (_: Exception) {
+            // bindings incomplets : les chaînes déjà collectées suffisent
+        }
+        return items
+    }
+
+    /**
+     * Les membres STATIQUES IMPORTABLES du second appel (fiche C-08 D2) :
+     * énumérés depuis les types EXPLICITEMENT importés par l'unité, les types
+     * du PAQUET COURANT et le PANNEAU java.lang des porteurs statiques —
+     * l'énumération binaire est mémoïsée (le reste consigné du PV 1.6.0).
+     * Chaque item porte `importStatiqueFqn` : l'édition d'insertion
+     * `import static …;` garantit une insertion COMPILABLE (P6).
+     */
+    private fun importsStatiques(contexte: ContexteCompletion): List<ItemCompletion> {
+        if (contexte.prefixe.isEmpty()) return emptyList() // sans préfixe : bruit, honnête
+        val items = mutableListOf<ItemCompletion>()
+        val porteurs = mutableListOf<String>()
+        contexte.importsFqcn.asSequence().filter { !it.endsWith(".*") }.take(MAX_TYPES_STATIQUES).forEach { porteurs.add(it) }
+        PANNEAU_JAVA_LANG.forEach { porteurs.add(it) }
+        try {
+            contexte.paquetCourant?.let { paquet ->
+                for (entree in environnementFournisseur().annuaire.typesDirects(paquet).take(4)) {
+                    porteurs.add(entree.fqcn)
+                }
+            }
+        } catch (_: Exception) {
+            // annuaire indisponible : le panneau suffit
+        }
+        for (fqcn in porteurs.distinct().take(2 * MAX_TYPES_STATIQUES)) {
+            pointDeControle()
+            val binding = bindingDeMemo(fqcn) ?: continue
+            for (champ in champsOuHerites(binding)) {
+                if (!champ.isStatic() || !champ.isPublic()) continue
+                items.add(
+                    ItemCompletion(
+                        libelle = String(champ.name),
+                        nature = NatureItem.CHAMP,
+                        detail = fqcn,
+                        importStatiqueFqn = "$fqcn.${String(champ.name)}",
+                        compatibilite = TypeAttendu.compatibilite(champ.type, contexte.unionAttendus),
+                    ),
+                )
+            }
+            for (methode in methodesOuHeritees(binding)) {
+                if (methode.isConstructor() || !methode.isStatic() || !methode.isPublic()) continue
+                items.add(
+                    ItemCompletion(
+                        libelle = String(methode.selector),
+                        nature = NatureItem.METHODE,
+                        detail = signature(methode),
+                        importStatiqueFqn = "$fqcn.${String(methode.selector)}",
+                        compatibilite = TypeAttendu.compatibilite(methode.returnType, contexte.unionAttendus),
+                    ),
+                )
+            }
+        }
+        return items
+    }
+
+    /**
+     * Les types du PROJET ENTIER au TROISIÈME appel (fiche C-08 D3) : par
+     * l'index de noms PARTAGÉ (CIDX), avec import automatique — en SUS des
+     * types du classpath déjà proposés au premier appel (dédoublonnés).
+     */
+    private fun typesDuProjet(contexte: ContexteCompletion): List<ItemCompletion> {
+        if (contexte.prefixe.isEmpty()) return emptyList()
+        val index = try {
+            indexFournisseur()
+        } catch (_: Exception) {
+            null
+        } ?: return emptyList()
+        val dejaProposees = try {
+            environnementFournisseur().annuaire.typesParPrefixe(contexte.prefixe, LIMITE_COLLECTE)
+                .map { it.fqcn }.toHashSet()
+        } catch (_: Exception) {
+            hashSetOf()
+        }
+        val items = mutableListOf<ItemCompletion>()
+        try {
+            for (nom in index.nomsParPrefixe(contexte.prefixe, LIMITE_COLLECTE)) {
+                pointDeControle()
+                for (fqcn in index.fqnsForSimpleName(nom)) {
+                    if (fqcn in dejaProposees) continue
+                    if (fqcn.contains('$')) continue // imbriqué : jamais importé directement
+                    items.add(itemType(nom, fqcn, autoImport = fqcn))
+                }
+            }
+        } catch (_: Exception) {
+            // index indisponible : honnête, rien
+        }
+        return items
+    }
+
+    /**
+     * Résolution de binding par FQCN (passe dédiée) — MÉMOÏSÉE pour les
+     * types BINAIRES (le reste consigné du PV 1.6.0 : 15–26 ms par appel).
+     */
+    private fun bindingDeMemo(fqcn: String): ReferenceBinding? {
+        verrouEtat.withLock {
+            if (memoBindings.containsKey(fqcn)) return memoBindings[fqcn]
+        }
+        val binding = bindingDe(fqcn)
+        if (binding != null && estBinaire(binding)) {
+            verrouEtat.withLock {
+                if (memoBindings.size >= MAX_TYPES_MEMO) memoBindings.clear()
+                memoBindings[fqcn] = binding
+            }
+        }
+        return binding
+    }
+
     /** Constantes d'un enum (fiche 007 : labels de switch, valeurs d'annotation — kind ENUM). */
     private fun constantesDEnum(type: TypeBinding?): List<ItemCompletion> {
         val reference = type as? ReferenceBinding ?: return emptyList()
@@ -611,6 +1105,11 @@ public class ServiceCompletion(
      * le client LSP l'applique comme `additionalTextEdits` au moment de la
      * SÉLECTION (jamais avant), le geste exact d'Android Studio.
      *
+     * Depuis V-C3, un item portant [ItemCompletion.importStatiqueFqn] reçoit
+     * de même une édition `import static <fqn>;\n` (imports statiques du
+     * SECOND appel, fiche C-08 D2 ; constantes typedef non visibles, fiche
+     * C-04 T1) — l'insertion reste COMPILABLE (P6).
+     *
      * Aucune édition quand l'import est INUTILE : déjà présent (exact ou
      * `.*`), type du PAQUET COURANT, ou `java.lang` — les mêmes règles de
      * visibilité que [typesVisibles].
@@ -625,8 +1124,23 @@ public class ServiceCompletion(
         contexte: ContexteCompletion,
         source: String,
     ): ItemCompletion {
-        val fqn = item.autoImportFqn ?: return item
+        val statique = item.importStatiqueFqn
+        val fqn = item.autoImportFqn ?: statique ?: return item
         if (fqn.contains('$')) return item // imbriqué : jamais importé directement
+        if (statique != null) {
+            // Import STATIQUE : inutile si déjà présent (exact ou `.*` du porteur).
+            for (importe in contexte.importsStatiquesFqcn) {
+                if (importe == statique) return item
+                if (importe.endsWith(".*") && statique.startsWith(importe.removeSuffix(".*") + ".")) return item
+            }
+            val insertion = pointInsertionImport(source)
+            val edition = jo.codeide.lsp.java.outils.EditionTexte(
+                offset = insertion,
+                longueur = 0,
+                texte = "import static $statique;\n",
+            )
+            return item.copy(editionsAdditionnelles = item.editionsAdditionnelles + edition)
+        }
         val paquetType = fqn.substringBeforeLast('.')
         if (paquetType == contexte.paquetCourant) return item
         if (paquetType == "java.lang") return item
@@ -717,6 +1231,43 @@ public class ServiceCompletion(
     private companion object {
         /** Borne de la traversée du classpath par préfixe (le plafond d'affichage est en aval). */
         private const val LIMITE_COLLECTE: Int = 800
+
+        /** Ancres d'invocation retenues (fiche C-08 D4 — mémoire bornée). */
+        private const val MAX_ANCRES_INVOCATION: Int = 64
+
+        /** Types BINAIRES mémoïsés (membres + bindings — reste consigné PV 1.6.0). */
+        private const val MAX_TYPES_MEMO: Int = 128
+
+        /** Budget d'items de la CHAÎNE (ADR 0026 (b)). */
+        private const val BUDGET_CHAINES: Int = 12
+
+        /** Budget de méthodes du PREMIER NIVEAU de la chaîne. */
+        private const val BUDGET_CHAINES_PREMIER_NIVEAU: Int = 40
+
+        /** Types porteurs énumérés pour les imports STATIQUES (fiche C-08 D2). */
+        private const val MAX_TYPES_STATIQUES: Int = 6
+
+        /**
+         * PANNEAU java.lang des porteurs statiques (fiche C-08 D2 — l'exemple
+         * de la fiche est `Math.asin`) : les types VISIBLES SANS IMPORT dont
+         * les membres statiques sont les plus couramment importés
+         * statiquement. Documenté (USAGE §7.21) : le panneau est borné par
+         * construction (latence du 2e appel), l'énumération est mémoïsée.
+         */
+        private val PANNEAU_JAVA_LANG: List<String> = listOf(
+            "java.lang.Math",
+            "java.lang.System",
+            "java.lang.Objects",
+            "java.lang.Integer",
+            "java.lang.Long",
+            "java.lang.Double",
+            "java.lang.Boolean",
+            "java.lang.Character",
+            "java.lang.Short",
+            "java.lang.Byte",
+            "java.lang.Float",
+            "java.lang.StrictMath",
+        )
 
         /**
          * Mots-clés légaux en position de TOP LEVEL (hors de tout corps de

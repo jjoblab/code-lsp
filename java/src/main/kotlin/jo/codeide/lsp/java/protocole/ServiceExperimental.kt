@@ -96,6 +96,23 @@ public interface ServiceExperimental {
      */
     @JsonRequest("textDocument/usagesGroupes")
     public fun usagesGroupes(params: TextDocumentPositionParams): CompletableFuture<ReponseUsagesGroupesRpc>
+
+    /**
+     * La COMPLÉTION D'INSTRUCTION au caret (vague V-C3 — ADR 0026 (c) : le
+     * geste Ctrl+Shift+Enter de la référence) : équilibre l'instruction en
+     * cours — referme le littéral ouvert et les listes ouvertes, termine par
+     * `;` (ou ouvre le bloc d'un mot-clé de contrôle) — et rend l'édition à
+     * appliquer AVEC la position du caret après édition.
+     *
+     * Calcul PUREMENT LEXICAL (aucune résolution) : servi dans tous les
+     * régimes, y compris instantané. Rien à compléter → `edition` null
+     * (jamais d'édition vide — convention I9 adjacente).
+     *
+     * @param params la position du caret dans l'instruction à compléter.
+     * @return l'édition + le caret d'arrivée, ou l'édition nulle.
+     */
+    @JsonRequest("textDocument/statementCompletion")
+    public fun statementCompletion(params: TextDocumentPositionParams): CompletableFuture<ReponseInstructionRpc>
 }
 
 /**
@@ -240,3 +257,24 @@ public fun grouperUsages(usages: List<jo.codeide.lsp.java.navigation.Usage>, pla
         groupes = parFichier.map { (chemin, occurrences) -> GroupeUsagesRpc(chemin, occurrences) },
     )
 }
+
+/**
+ * La réponse de `textDocument/statementCompletion` (V-C3) : l'édition à
+ * appliquer (offsets ABSOLUS dans le texte du document — même convention
+ * que `CibleSuperRpc` : jamais de conversion ligne/colonne) et la position
+ * du caret APRÈS application.
+ *
+ * @property offset l'offset d'insertion de l'édition.
+ * @property longueur la longueur remplacée (0 : pure insertion).
+ * @property texte le texte inséré (refermetures + terminateur).
+ * @property caret la position du caret APRÈS application de l'édition.
+ * @property edition vrai ssi une édition est rendue (null/absent : rien à
+ *   compléter — jamais d'édition vide).
+ */
+public data class ReponseInstructionRpc(
+    public val offset: Int?,
+    public val longueur: Int?,
+    public val texte: String?,
+    public val caret: Int?,
+    public val edition: Boolean,
+)

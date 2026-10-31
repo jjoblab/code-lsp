@@ -4,7 +4,8 @@ import jo.codeide.lsp.java.interne.ItemCompletion
 import jo.codeide.lsp.java.interne.NatureItem
 import java.nio.file.Files
 import java.nio.file.Path
-import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.withLock
 
 /**
  * Genre de contexte de complétion (étage N2) — la classification du caret
@@ -50,6 +51,14 @@ public enum class GenreContexte {
      * `import`/`interface`).
      */
     TOP_NIVEAU,
+
+    /**
+     * Littéral de CHAÎNE en position de RESSOURCE (V-C3 — ADR 0026 (f),
+     * B11/G-017) : le caret vit DANS un littéral de chaîne qui occupe un
+     * argument annoté `@…Res` — les NOMS de ressources du type attendu sont
+     * proposés (référentiel ADR 0020). Jamais d'invention sans référentiel.
+     */
+    LITTERAL_RESSOURCE,
 
     /** Contexte non classé (repli honnête : liste vide ou inventaire). */
     INCONNU,
@@ -99,10 +108,13 @@ public interface Peseur {
  *
  * La chaîne standard de l'étage N2, dans l'ordre :
  *  1. [PeseurCorrespondance] — la dominance du préfixe (fiche 008) ;
- *  2. [PeseurNature] — la priorité par nature, dépendante du contexte ;
- *  3. [PeseurLongueur] — liftShorter : les items courts remontent ;
- *  4. [PeseurAlphabetique] — départage déterministe ;
- *  5. [PeseurStatistiques] — compteur d'usage local, OPT-IN (désactivé par
+ *  2. [PeseurCompatibilite] — le filtrage SMART gradué (V-C3, ADR 0026 (a) :
+ *   type-compatibles en tête, incompatibles en bas, JAMAIS cachés — les
+ *   items inaccessibles du second appel en dessous) ;
+ *  3. [PeseurNature] — la priorité par nature, dépendante du contexte ;
+ *  4. [PeseurLongueur] — liftShorter : les items courts remontent ;
+ *  5. [PeseurAlphabetique] — départage déterministe ;
+ *  6. [PeseurStatistiques] — compteur d'usage local, OPT-IN (désactivé par
  *     défaut : vie privée — local uniquement, documenté ADR 0012).
  */
 public class ChaineClassement(
@@ -119,6 +131,7 @@ public class ChaineClassement(
     public constructor(statistiques: CompteurUsage? = null) : this(
         listOfNotNull(
             PeseurCorrespondance(),
+            PeseurCompatibilite(),
             PeseurNature(),
             PeseurLongueur(),
             PeseurAlphabetique(),
@@ -211,6 +224,26 @@ public class PeseurCorrespondance : Peseur {
 }
 
 /**
+ * Peseur de COMPATIBILITÉ au type attendu (V-C3 — ADR 0026 (a), fiche
+ * C-03 S5) : le filtrage gradué — les items type-compatibles (0) remontent,
+ * les inconnus (1) restent neutres, les incompatibles (2) descendent ; les
+ * membres INACCESSIBLES du second appel passent DERRIÈRE tout le monde
+ * (fiche C-08 D1 — marqués, jamais cachés).
+ *
+ * La dimension est NEUTRE (constante 1) hors contexte à type attendu et
+ * hors second appel : la chaîne des vagues antérieures est inchangée de
+ * fait sur ces positions (non-régression par construction).
+ */
+public class PeseurCompatibilite : Peseur {
+    override val nom: String = "compatibilite"
+
+    override fun poids(item: ItemCompletion, contexte: ContexteClassement): Comparable<*> =
+        (if (item.degrade) 4 else 0) +
+            item.compatibilite.coerceIn(0, 2) -
+            (if (item.marqueur == jo.codeide.lsp.java.interne.MARQUEUR_TYPEDEF) 1 else 0)
+}
+
+/**
  * Peseur de nature : priorité par nature, DÉPENDANTE du contexte (p. ex. en
  * contexte d'import, les sous-paquets dominent les types — fiche 008 :
  * « dominants sur les seuls types directs »).
@@ -240,6 +273,13 @@ public class PeseurNature : Peseur {
         GenreContexte.CASE_LABEL, GenreContexte.VALEUR_ANNOTATION ->
             when (nature) {
                 NatureItem.CONSTANTE_ENUM -> 0
+                NatureItem.CHAMP -> 1 // constantes typedef (V-C3, fiche C-04)
+                else -> 2
+            }
+
+        GenreContexte.LITTERAL_RESSOURCE ->
+            when (nature) {
+                NatureItem.CHAMP -> 0 // noms de ressources (V-C3, B11)
                 else -> 1
             }
 
@@ -282,51 +322,82 @@ public class PeseurAlphabetique : Peseur {
 }
 
 /**
- * Compteur d'usage local (ADR 0012 — `StatisticsWeigher` réécrit sur un
- * simple compteur d'usage local persistant) : un fichier de propriétés
- * `nom=fréquence`, local au poste, OPT-IN. Désactivé par défaut ; purgé à
- * la désactivation (cycle de vie vérifié par test).
+ * Compteur d'usage local à FENÊTRE GLISSANTE (V-C3 — ADR 0026 (g), écart
+ * G-018 : « compteur local opt-in », la réponse au `StatisticsWeigher` de la
+ * référence SANS son ML — rejeté en v1, gain/cost défavorable sans logs
+ * massifs) : un fichier local `nom=horodatages`, local au poste, OPT-IN.
+ *
+ * Chaque libellé retient ses [MAX_HORODATAGES] derniers USAGES (millis) ;
+ * [compter] ne compte que les usages tombés DANS la fenêtre glissante
+ * ([FENETRE_MS], défaut 30 jours — l'usage ancien s'éteint, la fraîcheur
+ * du classement est préservée). Désactivé par défaut (null à la
+ * construction du moteur) ; purgé à la désactivation (cycle de vie testé).
+ *
+ * Format du fichier : `label=millis,Millis,…` — les lignes de l'ANCIEN
+ * format `label=fréquence` (v1) sont IGNORÉES au chargement (état local
+ * opt-in purgable, jamais une donnée d'utilisateur — la rupture est
+ * documentée USAGE §7.21).
  *
  * @param fichier le fichier d'état (créé paresseusement à la première écriture).
+ * @param fenetreMs la fenêtre glissante en millisecondes (défaut 30 jours).
+ * @param horloge l'horloge injectée (tests : fenêtre simulée).
  */
 public class CompteurUsage(
     private val fichier: Path,
+    private val fenetreMs: Long = FENETRE_MS,
+    private val horloge: () -> Long = System::currentTimeMillis,
 ) {
-    /** Comptes en mémoire (chargés une fois, écrits à chaque incrément). */
-    private val comptes = ConcurrentHashMap<String, Int>()
+    /** Usages en mémoire : libellé → horodatages (les plus récents derniers). */
+    private val usages = HashMap<String, ArrayDeque<Long>>()
+
+    /**
+     * Verrou du compteur (V-F2 — ADR 0010 : verrou NOMMÉ, jamais de moniteur
+     * anonyme) : les usages sont peu nombreux et les écritures rares (une
+     * par SÉLECTION utilisateur) — UN verrou suffit.
+     */
+    private val verrou = java.util.concurrent.locks.ReentrantLock()
 
     /** Vrai ssi le fichier d'état existe (chargé alors paresseusement). */
     private val charge = java.util.concurrent.atomic.AtomicBoolean(false)
 
     /**
-     * Incrémente le compte d'usage d'un libellé.
+     * Note un USAGE d'un libellé (la sélection de l'utilisateur).
      *
-     * @param libelle le libellé choisi par l'utilisateur.
+     * @param libelle le libellé choisi.
      */
     public fun incrementer(libelle: String) {
-        charger()
-        comptes.merge(libelle, 1, Int::plus)
-        ecrire()
+        verrou.withLock {
+            charger()
+            val file = usages.getOrPut(libelle) { ArrayDeque() }
+            file.addLast(horloge())
+            while (file.size > MAX_HORODATAGES) file.removeFirst()
+            ecrire()
+        }
     }
 
     /**
-     * Compte d'usage d'un libellé.
+     * Compte d'usage d'un libellé DANS LA FENÊTRE (les usages plus anciens
+     * ne comptent pas — fenêtre glissante).
      *
      * @param libelle le libellé interrogé.
-     * @return le compte (0 si inconnu).
+     * @return le nombre d'usages récents (0 si inconnu ou périmé).
      */
-    public fun compter(libelle: String): Int {
+    public fun compter(libelle: String): Int = verrou.withLock {
         charger()
-        return comptes[libelle] ?: 0
+        val file = usages[libelle] ?: return@withLock 0
+        val borne = horloge() - fenetreMs
+        file.count { it >= borne }
     }
 
-    /** Purge complète : comptes vidés, fichier supprimé (test de cycle de vie). */
+    /** Purge complète : usages vidés, fichier supprimé (test de cycle de vie). */
     public fun purger() {
-        comptes.clear()
-        try {
-            Files.deleteIfExists(fichier)
-        } catch (_: Exception) {
-            // purge au mieux
+        verrou.withLock {
+            usages.clear()
+            try {
+                Files.deleteIfExists(fichier)
+            } catch (_: Exception) {
+                // purge au mieux
+            }
         }
     }
 
@@ -339,8 +410,14 @@ public class CompteurUsage(
                 val egale = ligne.indexOf('=')
                 if (egale <= 0) continue
                 val cle = ligne.substring(0, egale)
-                val valeur = ligne.substring(egale + 1).toIntOrNull() ?: continue
-                if (cle.isNotEmpty()) comptes[cle] = valeur
+                if (cle.isEmpty()) continue
+                val file = ArrayDeque<Long>()
+                for (valeur in ligne.substring(egale + 1).split(',')) {
+                    val millis = valeur.toLongOrNull() ?: continue
+                    file.addLast(millis)
+                    if (file.size > MAX_HORODATAGES) file.removeFirst()
+                }
+                if (file.isNotEmpty()) usages[cle] = file
             }
         } catch (_: Exception) {
             // état illisible : repart à vide (honnête)
@@ -351,10 +428,20 @@ public class CompteurUsage(
     private fun ecrire() {
         try {
             Files.createDirectories(fichier.parent)
-            Files.writeString(fichier, comptes.entries.joinToString("\n") { "${it.key}=${it.value}" })
+            Files.writeString(fichier, usages.entries.joinToString("\n") { (cle, file) ->
+                "$cle=${file.joinToString(",")}"
+            })
         } catch (_: Exception) {
             // écriture impossible : l'état reste en mémoire
         }
+    }
+
+    public companion object {
+        /** Fenêtre glissante par défaut : 30 jours (ADR 0026 (g)). */
+        public const val FENETRE_MS: Long = 30L * 24 * 60 * 60 * 1000
+
+        /** Horodatages retenus par libellé (borne mémoire du fichier d'état). */
+        public const val MAX_HORODATAGES: Int = 16
     }
 }
 

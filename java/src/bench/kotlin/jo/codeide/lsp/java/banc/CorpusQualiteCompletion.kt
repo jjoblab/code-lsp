@@ -29,19 +29,37 @@ import jo.codeide.lsp.java.completion.GenreContexte
  * design) doit PERDRE les trois positions de divergence (d1/d2/d3) : c'est
  * la preuve de valeur exigée à la sortie d'étage (+5 points top-1/MRR).
  *
+ * **v2 (V-C3 — ADR 0026/0030)** : 24 positions dont 6 nouvelles
+ * (smart/typedef/chaîne/second appel), étiquetées par sous-ensemble —
+ * TRAIN (développement) vs ÉVAL (cibles de vague : rappel ≥ 0,95,
+ * top-1 ≥ 0,80 sur les positions ÉVAL, split déterministe ADR 0030).
+ *
  * Plateforme : jrt du runtime SEUL (pas d'android.jar) — le banc tourne
  * partout, CI comprise ; les comportements android.jar sont couverts par
  * les tests de fiches (036/043/044/050/053).
  */
 object CorpusQualiteCompletion {
 
-    /** Une position de complétion étiquetée du corpus. */
+    /** Le sous-ensemble d'une position (ADR 0030 — split train/éval déterministe). */
+    enum class Subset { TRAIN, EVAL }
+
+    /**
+     * Une position de complétion étiquetée du corpus.
+     *
+     * @property subset TRAIN (développement des cas dorés) ou ÉVAL
+     *   (évaluation — les cibles de la vague s'y mesurent, ADR 0030 : la
+     *   réponse structurelle au sur-apprentissage).
+     * @property invocations le nombre d'invocations AVANT la mesure
+     *   (V-C3, fiche C-08 : 2 = le SECOND appel est mesuré).
+     */
     class Position(
         val nom: String,
         val source: String,
         val genreAttendu: GenreContexte,
         val attendus: List<String>,
         val gagnant: String,
+        val subset: Subset = Subset.TRAIN,
+        val invocations: Int = 1,
     )
 
     /** La source Main posée sur disque (sans bloc — le corpus marque les positions dans des variantes). */
@@ -69,15 +87,41 @@ object CorpusQualiteCompletion {
         }
     """.trimIndent()
 
-    /** La source Widget posée sur disque (champ zCount, méthode zAdd — divergence d3). */
+    /**
+     * La source Widget posée sur disque (champ zCount, méthode zAdd —
+     * divergence d3) — étendue V-C3 : membre PRIVÉ zSecret (second appel,
+     * fiche C-08 D1), chaîne builder()/Builder.text() (ADR 0026 (b)),
+     * typedef @IntDef MODE_* (fiche C-04 — annotation `@interface` de
+     * paquet, même fichier).
+     */
     val SOURCE_WIDGET = """
         package demo;
 
+        @interface IntDef {
+            int[] value();
+        }
+
         public class Widget {
+            public static final int MODE_ON = 1;
+            public static final int MODE_OFF = 2;
             public int zCount = 3;
+            private int zSecret = 9;
 
             public int zAdd() {
                 return zCount + 1;
+            }
+
+            public void setMode(@IntDef({MODE_ON, MODE_OFF}) int mode) {
+            }
+
+            public Builder builder() {
+                return new Builder();
+            }
+
+            public static class Builder {
+                public String text() {
+                    return "x";
+                }
             }
         }
     """.trimIndent()
@@ -202,6 +246,61 @@ object CorpusQualiteCompletion {
             GenreContexte.CASE_LABEL,
             listOf("ROUGE"),
             "ROUGE",
+        ),
+        // --- V-C3 SMART (ADR 0026 (a), fiche C-03 — S1 affectation, préfixe VIDE) ---
+        Position(
+            "smart-affectation",
+            mainAvec("String nom = \"x\";\n                int age = 1;\n                Object o = null;\n                String cible = ¦"),
+            GenreContexte.NOM,
+            listOf("nom"),
+            "nom",
+            Subset.EVAL,
+        ),
+        // --- V-C3 SMART (S1 borne : membres de Object retournant String) ---
+        Position(
+            "smart-membre",
+            mainAvec("Object o = null;\n                String r = o.¦;\n                return 0;"),
+            GenreContexte.MEMBRE,
+            listOf("toString", "hashCode"),
+            "toString",
+            Subset.EVAL,
+        ),
+        // --- V-C3 SMART (S2 argument : la locale du type du paramètre domine) ---
+        Position(
+            "smart-argument",
+            mainAvec("java.util.List<String> l = new java.util.ArrayList<>();\n                String zoo = \"x\";\n                int age = 1;\n                l.add(¦);\n                return 0;"),
+            GenreContexte.NOM,
+            listOf("zoo"),
+            "zoo",
+            Subset.TRAIN,
+        ),
+        // --- V-C3 TYPEDEF (fiche C-04 T1 : constantes autorisées en tête) ---
+        Position(
+            "typedef-argument",
+            mainAvec("new Widget().setMode(MODE_O¦);\n                return 0;"),
+            GenreContexte.NOM,
+            listOf("MODE_ON", "MODE_OFF"),
+            "MODE_ON",
+            Subset.EVAL,
+        ),
+        // --- V-C3 CHAÎNE (ADR 0026 (b) : deux sauts retournant le type attendu) ---
+        Position(
+            "chaine-builder-text",
+            mainAvec("Widget w = new Widget();\n                String r = w.b¦;\n                return 0;"),
+            GenreContexte.MEMBRE,
+            listOf("builder().text()", "builder"),
+            "builder().text()",
+            Subset.EVAL,
+        ),
+        // --- V-C3 SECOND APPEL (fiche C-08 D1 : l'inaccessible s'ajoute, marqué, derrière) ---
+        Position(
+            "second-appel-z",
+            mainAvec("Widget w = new Widget();\n                return w.z¦;"),
+            GenreContexte.MEMBRE,
+            listOf("zCount", "zAdd", "zSecret"),
+            "zCount",
+            Subset.EVAL,
+            2,
         ),
     )
 

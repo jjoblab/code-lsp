@@ -141,13 +141,17 @@ class RetoursAppareilV116Test {
 
     @org.junit.jupiter.api.Test
     fun motCleExtendsDansLaTeteDeDeclaration() {
-        // La tête de déclaration vit à profondeur zéro. La classification
-        // marquée y capture le sélecteur de MÉTHODE en cours (variante
-        // «() {}» — fiche 007 : CORPS_CLASSE, stubs d'override + types) :
-        // le repli TOP_NIVEAU ne s'y applique PAS, par contrat. ÉCART
-        // documenté (docs/ECARTS-SERVEUR.md) : Android Studio y propose
-        // aussi le mot-clé `extends` lui-même pendant sa frappe — non
-        // câblé.
+        // La tête de déclaration vit à profondeur zéro. AVANT V-C3, la
+        // classification marquée y capturait le sélecteur de MÉTHODE en
+        // cours (variante «() {}» — fiche 007 : CORPS_CLASSE) et le repli
+        // TOP_NIVEAU ne s'y appliquait PAS : le mot-clé `extends` était
+        // MUET pendant sa frappe (l'ÉCART documenté docs/ECARTS-SERVEUR.md
+        // = G-024/M1). AMENDÉ PAR LA VAGUE V-C3 (décision D7) : la tête de
+        // déclaration rend TOP_NIVEAU — les MOTS-CLÉS de clause proposés
+        // PENDANT leur frappe, FUSIONNÉS aux stubs d'override de la
+        // hiérarchie du type en cours de déclaration (le comportement
+        // Android Studio). Borne documentée : une tête LOCALE (classe dans
+        // un corps de méthode) reste un artefact de recovery d'ecj.
         val squelette = """
             package demo;
 
@@ -156,11 +160,12 @@ class RetoursAppareilV116Test {
         val marque = squelette.indexOf('¦')
         val texte = squelette.replace("¦", "")
         val reponse = MOTEUR.completer("/demo/Principal.java", texte, marque)
-        assertEquals(GenreContexte.CORPS_CLASSE, reponse.genre, "la position après le nom de classe capture la fiche 007 (sélecteur de méthode)")
+        assertEquals(GenreContexte.TOP_NIVEAU, reponse.genre, "la tête de déclaration rend TOP_NIVEAU (D7/M1 — mots-clés de clause)")
         val libelles = reponse.items.map { it.libelle }
+        assertTrue("extends" in libelles, "le mot-clé extends est proposé pendant sa frappe — reçu : ${libelles.take(6)}")
         assertTrue(
             libelles.any { it.startsWith("equals") },
-            "un stub d'override y est proposé (contrat fiche 007) — reçu : ${libelles.take(6)}",
+            "un stub d'override accompagne (fusion D7) — reçu : ${libelles.take(6)}",
         )
     }
 

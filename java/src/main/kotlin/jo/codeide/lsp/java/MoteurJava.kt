@@ -117,6 +117,7 @@ public class MoteurJava(
     private val niveauDemande: String?,
     private val indexNoms: IndexNoms?,
     private val projetAndroid: jo.codeide.lsp.java.projetandroid.ContratAndroidMoteur? = null,
+    private val compteurUsage: jo.codeide.lsp.java.completion.CompteurUsage? = null,
 ) {
 
     /**
@@ -138,6 +139,17 @@ public class MoteurJava(
 
     /** Chaîne de classement de complétion de remplacement (banc ADR 0016). */
     private var chaineCompletion: jo.codeide.lsp.java.completion.ChaineClassement? = null
+
+    /**
+     * Référentiel de RESSOURCES du module (V-B — partagé depuis V-C3 par la
+     * complétion des littéraux `R.*`, ADR 0026 (f)) : UNE instance pour la
+     * fabrique light ET la complétion (un seul scan des XML).
+     */
+    private val referentielRessources: jo.codeide.lsp.java.projetandroid.ReferentielRessources? by lazy {
+        val contrat = projetAndroid ?: return@lazy null
+        if (!contrat.actif) return@lazy null
+        jo.codeide.lsp.java.projetandroid.ReferentielRessources(contrat.dossiersRes)
+    }
 
     /**
      * Environnement de noms (paresseux — le premier usage paie jrt/jars).
@@ -165,7 +177,7 @@ public class MoteurJava(
         }
         jo.codeide.lsp.java.projetandroid.ClassesLegereAndroid(
             contrat,
-            jo.codeide.lsp.java.projetandroid.ReferentielRessources(contrat.dossiersRes),
+            referentielRessources ?: jo.codeide.lsp.java.projetandroid.ReferentielRessources(contrat.dossiersRes),
             sonde,
         )
     }
@@ -1295,6 +1307,59 @@ public class MoteurJava(
     }
 
     /**
+     * COMPLÉTION D'INSTRUCTION (vague V-C3 — ADR 0026 (c), le geste
+     * Ctrl+Shift+Enter de la référence) : équilibre l'instruction en cours
+     * au caret — referme le littéral ouvert, referme les listes ouvertes,
+     * termine par `;` (ou ouvre le bloc d'un mot-clé de contrôle) — et rend
+     * l'édition à appliquer AVEC la position du caret après édition.
+     *
+     * PUREMENT LEXICALE (réutilise la référence d'équilibrage d'
+     * [jo.codeide.lsp.java.signature.AideSignatures], v1.1.6 C2) : aucun
+     * ecj, aucun verrou, servie dans TOUS les régimes (plein comme
+     * instantané). Rien à compléter → null honnête (I9 adjacente : une
+     * édition VIDE ne voyage jamais).
+     *
+     * @param chemin chemin logique du document (journalier — le calcul est lexical).
+     * @param source le texte Java (null/vide : null).
+     * @param offset la position du caret.
+     * @return l'édition + le caret d'arrivée, ou null si rien à compléter.
+     */
+    public fun completerInstruction(
+        chemin: String,
+        source: String?,
+        offset: Int,
+    ): jo.codeide.lsp.java.signature.EditionInstruction? {
+        if (source.isNullOrEmpty()) return null
+        return jo.codeide.lsp.java.signature.AideSignatures.completerInstruction(source, offset)
+    }
+
+    /**
+     * Réinitialise le GEL des têtes de complétion (banc de qualité ADR 0016 :
+     * le corpus mesure la QUALITÉ DE LA CHAÎNE par position — chaque
+     * position est un scénario INDÉPENDANT, pas une frappe successive d'une
+     * même ancre ; le contrat « zéro saut de liste » reste mesuré par la
+     * SUCCESION de frappe dédiée). Hors banc : ne pas appeler — le gel est
+     * la stabilité de la popup en session.
+     */
+    public fun reinitialiserGelCompletion() {
+        verrouServices.withLock {
+            serviceCompletion?.reinitialiserGel()
+        }
+    }
+
+    /**
+     * Note la SÉLECTION d'un item de complétion dans le compteur d'usage
+     * OPT-IN (V-C3 — ADR 0026 (g) : statistiques locales, fenêtre glissante,
+     * peseur D9). Sans compteur posé à la construction (défaut — vie privée),
+     * l'appel est une NO-OP honnête.
+     *
+     * @param libelle le libellé choisi par l'utilisateur.
+     */
+    public fun noterSelectionCompletion(libelle: String) {
+        compteurUsage?.incrementer(libelle)
+    }
+
+    /**
      * Chaîne de service à trois niveaux (fiche 015) :
      * (1) arbre focalisé — double garde : contenu identique + offset DANS le
      * corps hôte (jamais hors du corps hôte) ;
@@ -1757,7 +1822,7 @@ public class MoteurJava(
         return pont
     }
 
-    /** Service de complétion paresseux (étage N2). */
+    /** Service de complétion paresseux (étage N2 — V-C3 : ressources, index, stats). */
     private fun serviceCompletion(): ServiceCompletion = verrouServices.withLock {
         serviceCompletion ?: ServiceCompletion(
             pontFournisseur = { verrouCompilation.withLock { pontEcj() } },
@@ -1765,6 +1830,9 @@ public class MoteurJava(
             arbreOriginal = { chemin, source -> arbreOriginal(chemin, source) },
             chainePersonnalisee = chaineCompletion,
             estCoupe = { jetonEpoque.isCancelled() },
+            ressourcesFournisseur = { referentielRessources },
+            indexFournisseur = { indexNoms },
+            compteur = compteurUsage,
         ).also { serviceCompletion = it }
     }
 

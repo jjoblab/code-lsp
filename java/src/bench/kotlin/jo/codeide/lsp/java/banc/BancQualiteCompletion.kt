@@ -13,7 +13,8 @@
 //                (la baseline de première signature : le design D8 doit la
 //                battre de ≥ 5 points top-1/MRR pour valider ADR 0012).
 //
-// Métriques (corpus [CorpusQualiteCompletion], 18 positions étiquetées) :
+// Métriques (corpus [CorpusQualiteCompletion] — 24 positions étiquetées v2,
+// dont 6 V-C3 et un split train/éval ADR 0030) :
 //  - recall  : fraction des positions dont TOUS les libellés attendus
 //              figurent dans la liste rendue ;
 //  - top-1   : fraction des positions dont le PREMIER item est le gagnant
@@ -79,14 +80,26 @@ fun main(args: Array<String>) {
     )
 
     // --- Passage de mesure (les deux moteurs partagent le corpus) ---
-    fun mesurer(moteur: MoteurJava, etiquette: String): Pair<Mesures, List<LignePosition>> {
+    // V-C3 (fiche C-08) : une position peut exiger plusieurs INVOCATIONS —
+    // la mesure porte la DERNIÈRE (second appel : les inaccessibles s'y
+    // ajoutent, marqués, derrière les accessibles). Le GEL se réinitialise
+    // par position : chaque position est un scénario INDÉPENDANT (pas la
+    // frappe successive d'une même ancre) — la stabilité du gel se mesure
+    // sur la SUCCESSION dédiée (contrat « zéro saut » ci-dessous).
+    fun mesurer(moteur: MoteurJava, etiquette: String): Triple<Mesures, Mesures?, List<LignePosition>> {
         val lignes = mutableListOf<LignePosition>()
         var rappels = 0
         var premiers = 0
         var sommeMrr = 0.0
+        var rappelsEval = 0
+        var premiersEval = 0
+        var sommeMrrEval = 0.0
+        var totalEval = 0
         for (position in CorpusQualiteCompletion.positions) {
             val marque = position.source.indexOf('¦')
             val texte = position.source.replace("¦", "")
+            moteur.reinitialiserGelCompletion()
+            repeat(position.invocations - 1) { moteur.completer("/demo/Main.java", texte, marque) }
             val reponse = moteur.completer("/demo/Main.java", texte, marque)
             val libelles = reponse.items.map { it.libelle }
             val manquants = position.attendus.filter { it !in libelles }
@@ -94,6 +107,12 @@ fun main(args: Array<String>) {
             val rang = libelles.indexOf(position.gagnant)
             if (rang == 0) premiers++
             if (rang >= 0) sommeMrr += 1.0 / (rang + 1)
+            if (position.subset == CorpusQualiteCompletion.Subset.EVAL) {
+                totalEval++
+                if (manquants.isEmpty()) rappelsEval++
+                if (rang == 0) premiersEval++
+                if (rang >= 0) sommeMrrEval += 1.0 / (rang + 1)
+            }
             lignes.add(LignePosition(position.nom, reponse.genre, position.genreAttendu, manquants, rang, libelles.firstOrNull() ?: "∅"))
         }
         val total = CorpusQualiteCompletion.positions.size
@@ -107,11 +126,25 @@ fun main(args: Array<String>) {
                 ),
             )
         }
-        return mesures to lignes
+        // V-C3 (ADR 0026/0030) : les cibles de vague se mesurent sur le
+        // sous-ensemble ÉVAL — rappel ≥ 0,95, top-1 ≥ 0,80.
+        val eval = if (totalEval > 0) {
+            Mesures(rappelsEval.toDouble() / totalEval, premiersEval.toDouble() / totalEval, sommeMrrEval / totalEval)
+        } else {
+            null
+        }
+        eval?.let {
+            println(
+                "== sous-ensemble ÉVAL (%d positions, split ADR 0030) : recall=%.3f top1=%.3f mrr=%.3f".format(
+                    totalEval, it.recall, it.top1, it.mrr,
+                ),
+            )
+        }
+        return Triple(mesures, eval, lignes)
     }
 
-    val (d8, lignesD8) = mesurer(moteurD8, "d8")
-    val (naif, _) = mesurer(moteurNaif, "naïf")
+    val (d8, evalD8, lignesD8) = mesurer(moteurD8, "d8")
+    val (naif, _, _) = mesurer(moteurNaif, "naïf")
 
     // --- Contrôle de santé : le verdict de genre est DÉTERMINISTE ---
     for (ligne in lignesD8) {
@@ -175,6 +208,12 @@ fun main(args: Array<String>) {
     println("== sauts de liste : $sauts (contrat gel : 0 exigé)")
 
     // --- Preuve de valeur du design D8 (vs la baseline naïve) ---
+    // V-C3 — critères de sortie de la vague (ADR 0026/0030) sur l'ÉVAL :
+    // rappel ≥ 0,95 / top-1 ≥ 0,80 (mesurés sur le moteur d8).
+    if (evalD8 != null) {
+        if (evalD8.recall < 0.95) echecs.add("cible V-C3 ÉVAL : rappel %.3f < 0,95".format(evalD8.recall))
+        if (evalD8.top1 < 0.80) echecs.add("cible V-C3 ÉVAL : top-1 %.3f < 0,80".format(evalD8.top1))
+    }
     if (d8.recall < naif.recall) echecs.add("recall d8 (%.3f) < naïf (%.3f)".format(d8.recall, naif.recall))
     if (d8.top1 < naif.top1 + 0.05) {
         echecs.add("top-1 d8 (%.3f) < naïf + 5 pts (%.3f) — ADR 0012 non validé".format(d8.top1, naif.top1 + 0.05))
@@ -210,7 +249,7 @@ fun main(args: Array<String>) {
         echecs.forEach { println("  ✗ $it") }
         exitProcess(1)
     }
-    println("== BANC DE QUALITÉ VERT (corpus ${CorpusQualiteCompletion.positions.size} positions)")
+    println("== BANC DE QUALITÉ VERT (corpus ${CorpusQualiteCompletion.positions.size} positions, cibles V-C3 ÉVAL tenues)")
 }
 
 /** Borne absolue de latence p95 par complétion (R2 : large, documentée). */
@@ -223,7 +262,7 @@ private fun ecrireBaseline(chemin: String, d8: Mesures, naif: Mesures, p95Ms: Do
     val contenu = """
         {
           "note": "Baseline du banc de qualité de complétion (ADR 0016 — signée par le commit qui la porte ; re-baseline par PR dédiée uniquement). 'naif' = chaîne alphabétique seule (statu quo sans design D8) ; 'd8' = chaîne livrée. Tolérance latence : p95 ≤ max(50 ms, baseline × 1,5).",
-          "corpus": "completion-n2 v1 (18 positions)",
+          "corpus": "completion-n2 v2 (24 positions, 6 V-C3, split train/éval ADR 0030)",
           "signee": "${LocalDate.now()}",
           "d8": {
             "recall": ${"%.3f".format(d8.recall)},

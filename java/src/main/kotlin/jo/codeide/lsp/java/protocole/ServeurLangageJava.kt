@@ -9,6 +9,7 @@ import jo.codeide.lsp.java.completion.ChaineClassement
 import jo.codeide.lsp.java.completion.ContexteClassement
 import jo.codeide.lsp.java.completion.CorrespondanceGraduee
 import jo.codeide.lsp.java.completion.FrontiereRpc
+import jo.codeide.lsp.java.completion.PeseurCompatibilite
 import jo.codeide.lsp.java.completion.PeseurCorrespondance
 import jo.codeide.lsp.java.completion.PeseurLongueur
 import jo.codeide.lsp.java.completion.PeseurNature
@@ -615,7 +616,7 @@ public class ServeurLangageJava(
         val repere = ConvertisseurLsp.repere(texte)
         val prefixe = prefixeAuCaret(texte, repere.offset(position))
         val contexte = ContexteClassement(reponse.genre, prefixe)
-        val peseurs = listOf(PeseurCorrespondance(), PeseurNature(), PeseurLongueur())
+        val peseurs = listOf(PeseurCorrespondance(), PeseurCompatibilite(), PeseurNature(), PeseurLongueur())
         val items = reponse.items.map { item ->
             val lsp = CompletionItem()
             lsp.label = item.libelle
@@ -637,8 +638,9 @@ public class ServeurLangageJava(
             // complet voyage sous les clés maison.
             val poids = FrontiereRpc.PoidsRpc(
                 correspondance = (peseurs[0].poids(item, contexte) as Number).toInt(),
-                nature = (peseurs[1].poids(item, contexte) as Number).toInt(),
-                longueur = (peseurs[2].poids(item, contexte) as Number).toInt(),
+                compatibilite = (peseurs[1].poids(item, contexte) as Number).toInt(),
+                nature = (peseurs[2].poids(item, contexte) as Number).toInt(),
+                longueur = (peseurs[3].poids(item, contexte) as Number).toInt(),
             )
             val donnees = CapacitesServeur.donneesItemRanking(
                 poids.packe,
@@ -1439,6 +1441,27 @@ public class ServeurLangageJava(
             moteur?.references(chemin, texte, offsetDe(texte, params.position), true)
         } ?: return CompletableFuture.completedFuture(vide)
         return CompletableFuture.completedFuture(grouperUsages(usages, PLAFOND_USAGES_RENDUS))
+    }
+
+    override fun statementCompletion(params: TextDocumentPositionParams): CompletableFuture<ReponseInstructionRpc> {
+        garde<ReponseInstructionRpc>()?.let { return it }
+        val uri = params.textDocument.uri
+        val document = documentDe(uri)
+            ?: return CompletableFuture.completedFuture(ReponseInstructionRpc(null, null, null, null, false))
+        val (chemin, texte) = document
+        // V-C3 (ADR 0026 (c)) : le calcul est PUREMENT LEXICAL — aucun
+        // verrou, aucun arbre, servi dans tous les régimes. Le protocole
+        // d'époque ne s'y raccroche pas (aucune résolution sous-jacente).
+        val edition = avecMoteurFrais(chemin) { moteur ->
+            moteur?.completerInstruction(chemin, texte, offsetDe(texte, params.position))
+        }
+        return CompletableFuture.completedFuture(
+            if (edition != null) {
+                ReponseInstructionRpc(edition.offset, edition.longueur, edition.texte, edition.caret, true)
+            } else {
+                ReponseInstructionRpc(null, null, null, null, false)
+            },
+        )
     }
 }
 

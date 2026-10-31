@@ -3,6 +3,7 @@ package jo.codeide.lsp.java.protocole
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -284,14 +285,25 @@ class Fiche066EnvironnementVivantTest {
         // La requête suivante voit la NOUVELLE racine : le type « Neuf »
         // IMPORTÉ résout dans le moteur RECONFIGURÉ — ses MEMBRES sont
         // proposés (preuve que la source de neufmodule est LUE).
+        // V-C3 (fiche C-08 D1, amendement de la vague) : « valeur » est un
+        // membre SANS MODIFICATEUR de `neuf.Neuf` — INACCESSIBLE depuis le
+        // paquet `app` (JLS 6.6) : le PREMIER appel ne le propose plus, le
+        // SECOND l'ajoute MARQUÉ (data.marqueur = "inaccessible"). La
+        // preuve de lecture de la racine neufmodule est conservée : le
+        // membre n'existe QUE là.
         val corps = sourceAlpha
             .replace("package app;", "package app;\n\nimport neuf.Neuf;")
             .replace("total += c.battre();", "total += c.battre(); Neuf n = new Neuf(); n.")
         val document = ouvrir(sourcesApp.resolve("app/Alpha.java"), corps, version = 1)
-        val labels = completer(document, positionApres(corps, "n."))
+        val premiers = completer(document, positionApres(corps, "n."))
+        assertFalse(
+            premiers.contains("valeur"),
+            "« valeur » (package-privé de neuf.Neuf, vu de app) est absent du PREMIER appel — fiche C-08 D1",
+        )
+        val marque = completer(document, positionApres(corps, "n."))
         assertTrue(
-            labels.contains("valeur"),
-            "« valeur » (membre de Neuf, racine AJOUTÉE par la re-sync) est proposé — trouvé : ${labels.take(12)}",
+            marque.contains("valeur"),
+            "« valeur » (membre de Neuf, racine AJOUTÉE par la re-sync) est proposé au SECOND appel — trouvé : ${marque.take(12)}",
         )
         // Drain du TIR retardé du publicateur (diagnostics du corps v1) :
         // la suite (test 5) sync l'environnement — le tir doit être TERMINÉ

@@ -11,6 +11,13 @@ package jo.codeide.lsp.java.completion
  *  - [PoidsRpc] : le poids de classement PACKÉ en un entier transportable ;
  *  - [CorrespondanceRpc] : le matcher sérialisé (préfixe + règles graduées)
  *    que le client rejoue localement à chaque frappe.
+ *
+ * **V-C3 — capability v2** (ADR 0026 (a), jamais de mutation silencieuse) :
+ * la dimension COMPATIBILITÉ au type attendu rejoint le poids packé ENTRE
+ * la correspondance et la nature — le re-filtrage local du client reproduit
+ * l'ordre smart du serveur (compatible en tête, jamais caché). Un client v1
+ * qui trie par le poids packé reste cohérent : l'ordre du poids EST l'ordre
+ * serveur.
  */
 public object FrontiereRpc {
 
@@ -24,11 +31,14 @@ public object FrontiereRpc {
      * client qui trierait par poids croissant reproduit l'ordre du serveur.
      *
      * @property correspondance le bonus de grade (−200 préfixe / 0 autre).
+     * @property compatibilite le rang smart (V-C3 : −1 typedef, 0 compatible,
+     *   1 inconnu, 2 incompatible, +4 si dégradé-inaccessible).
      * @property nature la priorité de nature dans le contexte.
      * @property longueur la longueur du libellé (liftShorter).
      */
     public class PoidsRpc(
         public val correspondance: Int,
+        public val compatibilite: Int,
         public val nature: Int,
         public val longueur: Int,
     ) {
@@ -43,8 +53,9 @@ public object FrontiereRpc {
          * bit, la convention « plus petit = plus prioritaire » aussi.
          */
         public val packe: Long
-            get() = (correspondance + DECALAGE).toLong() shl 32 or
-                ((nature + DECALAGE).toLong() shl 16) or
+            get() = (correspondance + DECALAGE).toLong() shl 40 or
+                ((compatibilite + DECALAGE).toLong() shl 28) or
+                ((nature + DECALAGE).toLong() shl 14) or
                 (longueur + DECALAGE).toLong()
 
         public companion object {

@@ -5,10 +5,12 @@ import org.eclipse.jdt.internal.compiler.ASTVisitor
 import org.eclipse.jdt.internal.compiler.ast.AbstractMethodDeclaration
 import org.eclipse.jdt.internal.compiler.ast.AllocationExpression
 import org.eclipse.jdt.internal.compiler.ast.Argument
+import org.eclipse.jdt.internal.compiler.ast.Assignment
 import org.eclipse.jdt.internal.compiler.ast.BinaryExpression
 import org.eclipse.jdt.internal.compiler.ast.CastExpression
 import org.eclipse.jdt.internal.compiler.ast.CompilationUnitDeclaration
 import org.eclipse.jdt.internal.compiler.ast.CompoundAssignment
+import org.eclipse.jdt.internal.compiler.ast.ConditionalExpression
 import org.eclipse.jdt.internal.compiler.ast.ConstructorDeclaration
 import org.eclipse.jdt.internal.compiler.ast.EqualExpression
 import org.eclipse.jdt.internal.compiler.ast.FieldDeclaration
@@ -21,6 +23,7 @@ import org.eclipse.jdt.internal.compiler.ast.MethodDeclaration
 import org.eclipse.jdt.internal.compiler.ast.PostfixExpression
 import org.eclipse.jdt.internal.compiler.ast.PrefixExpression
 import org.eclipse.jdt.internal.compiler.ast.QualifiedNameReference
+import org.eclipse.jdt.internal.compiler.ast.ReturnStatement
 import org.eclipse.jdt.internal.compiler.ast.SingleNameReference
 import org.eclipse.jdt.internal.compiler.ast.TypeDeclaration
 import org.eclipse.jdt.internal.compiler.lookup.BlockScope
@@ -33,6 +36,18 @@ import org.eclipse.jdt.internal.compiler.lookup.MethodScope
 import org.eclipse.jdt.internal.compiler.lookup.ReferenceBinding
 import org.eclipse.jdt.internal.compiler.lookup.TypeBinding
 import org.eclipse.jdt.internal.compiler.lookup.VariableBinding
+
+/**
+ * Marqueur `data` d'un item de complétion : constante TYPEDEF (V-C3, fiche
+ * C-04 — les constantes autorisées dominent le classement, badge client).
+ */
+public const val MARQUEUR_TYPEDEF: String = "typedef"
+
+/**
+ * Marqueur `data` d'un item de complétion : membre INACCESSIBLE du second
+ * appel (V-C3, fiche C-08 D1 — proposé marqué, jamais silencieux).
+ */
+public const val MARQUEUR_INACCESSIBLE: String = "inaccessible"
 
 /**
  * Nature d'un item de complétion (étage N1, cahier fiche 028) — kinds
@@ -115,6 +130,18 @@ public enum class NatureItem {
  *   (étage N7, fiche 029) : suppression du récepteur d'une postfixe,
  *   insertion d'import — en offsets de la source ORIGINALE, JAMAIS en
  *   chevauchement de la plage principale (contrainte LSP).
+ * @property compatibilite la compatibilité au TYPE ATTENDU du contexte
+ *   (vague V-C3 — ADR 0026 (a), fiche C-03) : 0 = type-compatible (remonte),
+ *   1 = inconnu (neutre), 2 = incompatible (descend, JAMAIS caché — S5).
+ *   Le filtrage par type n'ORDONNE que : la liste plafonnée honnête et le
+ *   filtrage par préfixe restent intacts.
+ * @property degrade vrai ssi l'item est un membre INACCESSIBLE proposé au
+ *   SECOND appel (fiche C-08 D1 : marqué — `data.marqueur = "inaccessible"`
+ *   sur le fil — et rangé DERRIÈRE les accessibles, jamais caché).
+ * @property importStatiqueFqn l'import STATIQUE proposé avec l'item au
+ *   second appel (fiche C-08 D2 : `java.lang.Math.asin`) — porte une édition
+ *   additionnelle `import static <fqn>;\n` au point d'insertion des imports
+ *   (insertion compilable, P6).
  */
 public data class ItemCompletion(
     public val libelle: String,
@@ -127,6 +154,9 @@ public data class ItemCompletion(
     public val correspondance: GradeCorrespondance? = null,
     public val pertinence: Int? = null,
     public val editionsAdditionnelles: List<jo.codeide.lsp.java.outils.EditionTexte> = emptyList(),
+    public val compatibilite: Int = 1,
+    public val degrade: Boolean = false,
+    public val importStatiqueFqn: String? = null,
 )
 
 /**
@@ -257,13 +287,24 @@ public object LectureAst {
      * types, méthodes, champs de l'unité + locales et paramètres de la
      * méthode englobante du caret.
      *
+     * V-C3 (ADR 0026 (a), fiche C-03) : l'option `evaluateur` porte le filtrage
+     * SMART — chaque item construit sur un binding vivant (locale, paramètre,
+     * champ, méthode) est tamponné de sa compatibilité au type attendu du
+     * contexte (0 compatible / 1 inconnu / 2 incompatible). Sans évaluateur
+     * (null — repli, complétion instantanée), tout item reste neutre.
+     *
      * @param arbre l'arbre PARSÉ (résolution non requise — le repli n'a pas
      *   de plateforme).
      * @param offset la position du caret.
+     * @param evaluateur la fonction type résolu → compatibilité (null = neutre).
      * @return les items du fichier (non filtrés par préfixe).
      */
-    public fun inventaireFichier(arbre: CompilationUnitDeclaration?, offset: Int): List<ItemCompletion> {
-        val collecteur = InventaireCollecteur(offset)
+    public fun inventaireFichier(
+        arbre: CompilationUnitDeclaration?,
+        offset: Int,
+        evaluateur: (TypeBinding?) -> Int = { _ -> 1 },
+    ): List<ItemCompletion> {
+        val collecteur = InventaireCollecteur(offset, evaluateur)
         traverserResilient(arbre, collecteur)
         return collecteur.items
     }
@@ -349,7 +390,10 @@ public object LectureAst {
         override fun visit(typeDeclaration: TypeDeclaration, scope: CompilationUnitScope?): Boolean = protege { visiteType(typeDeclaration, null) }
         override fun visit(argument: Argument, scope: BlockScope?): Boolean = protege { visiteArgument(argument, scope) }
         override fun visit(importReference: ImportReference, scope: CompilationUnitScope?): Boolean = protege { visiteImport(importReference, scope) }
+        override fun visit(assignment: Assignment, scope: BlockScope?): Boolean = protege { visiteAffectation(assignment, scope) }
         override fun visit(compoundAssignment: CompoundAssignment, scope: BlockScope?): Boolean = protege { visiteAffectationComposee(compoundAssignment, scope) }
+        override fun visit(returnStatement: ReturnStatement, scope: BlockScope?): Boolean = protege { visiteRetour(returnStatement, scope) }
+        override fun visit(conditionalExpression: ConditionalExpression, scope: BlockScope?): Boolean = protege { visiteConditionnelle(conditionalExpression, scope) }
         override fun visit(postfixExpression: PostfixExpression, scope: BlockScope?): Boolean = protege { visitePostfixe(postfixExpression, scope) }
         override fun visit(prefixExpression: PrefixExpression, scope: BlockScope?): Boolean = protege { visitePrefixe(prefixExpression, scope) }
         override fun visit(equalExpression: EqualExpression, scope: BlockScope?): Boolean = protege { visiteEgalite(equalExpression, scope) }
@@ -397,6 +441,14 @@ public object LectureAst {
         public open fun visiteAffectationComposee(node: CompoundAssignment, scope: BlockScope?): Boolean = true
         public open fun visitePostfixe(node: PostfixExpression, scope: BlockScope?): Boolean = true
         public open fun visitePrefixe(node: PrefixExpression, scope: BlockScope?): Boolean = true
+
+        // --- affectations simples, retours et ternaires (V-C3 — ADR 0026 (a)) ---
+        // Même discipline de routage : ces ponts exposent les nœuds
+        // porteurs de TYPE ATTENDU à la sonde de complétion (affectation
+        // `x = |`, `return |`, ternaire `c ? | : x`).
+        public open fun visiteAffectation(node: Assignment, scope: BlockScope?): Boolean = true
+        public open fun visiteRetour(node: ReturnStatement, scope: BlockScope?): Boolean = true
+        public open fun visiteConditionnelle(node: ConditionalExpression, scope: BlockScope?): Boolean = true
 
         // --- égalités et binaires (V-C1 — ADR 0023 : inspections pilotes) ---
         // NOTE de routage : EqualExpression ÉTEND BinaryExpression — le
@@ -642,7 +694,10 @@ public object LectureAst {
     }
 
     /** Inventaire du fichier pour la complétion instantanée (fiche 028). */
-    private class InventaireCollecteur(private val caret: Int) : VisiteurResilient() {
+    private class InventaireCollecteur(
+        private val caret: Int,
+        private val evaluateur: (TypeBinding?) -> Int,
+    ) : VisiteurResilient() {
         val items = mutableListOf<ItemCompletion>()
         private val pileMethodes = ArrayDeque<PlageMethode>()
 
@@ -652,7 +707,12 @@ public object LectureAst {
         }
 
         override fun visiteMethode(node: MethodDeclaration, scope: ClassScope?): Boolean {
-            items.add(ItemCompletion(String(node.selector), NatureItem.METHODE))
+            val retour = try {
+                node.binding?.returnType
+            } catch (_: Exception) {
+                null
+            }
+            items.add(ItemCompletion(String(node.selector), NatureItem.METHODE, compatibilite = evaluateur(retour)))
             val corpsDebut = node.bodyStart
             val corpsFin = node.bodyEnd
             if (corpsDebut >= 0 && corpsFin >= 0) {
@@ -666,7 +726,12 @@ public object LectureAst {
                 caret in node.sourceStart..node.declarationSourceEnd
             ) {
                 for (argument in node.arguments ?: emptyArray()) {
-                    items.add(ItemCompletion(String(argument.name), NatureItem.PARAMETRE))
+                    val typeArgument = try {
+                        argument.binding?.type
+                    } catch (_: Exception) {
+                        null
+                    }
+                    items.add(ItemCompletion(String(argument.name), NatureItem.PARAMETRE, compatibilite = evaluateur(typeArgument)))
                 }
             }
             return true
@@ -677,7 +742,12 @@ public object LectureAst {
         }
 
         override fun visiteChamp(node: FieldDeclaration, scope: MethodScope?): Boolean {
-            items.add(ItemCompletion(String(node.name), NatureItem.CHAMP))
+            val type = try {
+                node.binding?.type
+            } catch (_: Exception) {
+                null
+            }
+            items.add(ItemCompletion(String(node.name), NatureItem.CHAMP, compatibilite = evaluateur(type)))
             return true
         }
 
@@ -685,7 +755,12 @@ public object LectureAst {
             // Les locales ne comptent que pour la méthode ENGLOBANTE du caret.
             val englobante = pileMethodes.lastOrNull { it.contient(caret) }
             if (englobante != null) {
-                items.add(ItemCompletion(String(node.name), NatureItem.VARIABLE))
+                val type = try {
+                    node.binding?.type
+                } catch (_: Exception) {
+                    null
+                }
+                items.add(ItemCompletion(String(node.name), NatureItem.VARIABLE, compatibilite = evaluateur(type)))
             }
             return true
         }

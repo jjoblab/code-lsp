@@ -63,8 +63,14 @@ public object CapacitesServeur {
     /** Le champ capability maison du protocole riche (ADR 0012/0015). */
     public const val CHAMP_COMPLETION_RANKING: String = "x-codeide.completionRanking"
 
-    /** La version du protocole maison (évolution = nouvelle version, jamais de mutation silencieuse). */
-    public const val VERSION_PROTOCOLE_RANKING: Int = 1
+    /**
+     * La version du protocole maison (évolution = nouvelle version, jamais
+     * de mutation silencieuse). **v2 = V-C3** (ADR 0026 (a)) : le poids packé
+     * gagne la dimension COMPATIBILITÉ au type attendu (entre correspondance
+     * et nature) — l'ordre du re-filtrage local du client suit l'ordre smart
+     * du serveur ; les clés du payload sont inchangées.
+     */
+    public const val VERSION_PROTOCOLE_RANKING: Int = 2
 
     /** Le chemin de la ressource de version embarquée (fiche 059 I7). */
     private const val RESSOURCE_VERSION: String = "/jo/codeide/lsp/java/protocole/version.properties"

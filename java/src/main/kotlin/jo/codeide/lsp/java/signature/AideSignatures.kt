@@ -545,4 +545,136 @@ public object AideSignatures {
             return true
         }
     }
+
+
+    /**
+     * La COMPLÉTION D'INSTRUCTION au caret (V-C3 — ADR 0026 (c), le geste
+     * Ctrl+Shift+Enter de la référence) : réutilise la RÉFÉRENCE D'ÉQUILIBRAGE
+     * du niveau 4 (v1.1.6 C2 — [refermer]) pour terminer l'instruction en
+     * cours :
+     *
+     *  - littéral de chaîne/caractère OUVERT au caret → refermé ;
+     *  - listes `(`/`[` ouvertes depuis le début de l'instruction → refermées
+     *    (du plus interne au plus externe) ;
+     *  - instruction SIMPLE → terminée par `;` ;
+     *  - tête de CONTRÔLE (`if`, `while`, `for`, `switch`, `do`, `try`, `else`,
+     *    `catch`, `finally`, `synchronized`) → suivie de ` {` (l'accolade
+     *    fermante reste à la charge de la frappe — v1 documentée, USAGE §7.21).
+     *
+     * Le calcul est PUREMENT LEXICAL (aucun arbre, aucun verrou — servie dans
+     * tous les régimes). L'édition s'insère AU CARET : le texte déjà tapé APRÈS
+     * le caret sur la même instruction reste à sa charge (borne honnête).
+     *
+     * @param source le texte vivant.
+     * @param caret la position du caret.
+     * @return l'édition + le caret d'arrivée, ou null si l'instruction est déjà
+     *   complète (rien à équilibrer — jamais d'édition vide).
+     */
+    public fun completerInstruction(source: String, caret: Int): EditionInstruction? {
+        if (caret < 0 || caret > source.length) return null
+        // Début de l'instruction : le précédent `;`, `{` ou `}` (hors littéraux).
+        var debut = 0
+        var dansChaine = false
+        var dansCaractere = false
+        var echappe = false
+        for (i in 0 until caret) {
+            val c = source[i]
+            if (echappe) {
+                echappe = false
+            } else if (c == '\\') {
+                echappe = true
+            } else if (dansChaine) {
+                if (c == '"') dansChaine = false
+            } else if (dansCaractere) {
+                if (c == '\'') dansCaractere = false
+            } else {
+                when (c) {
+                    '"' -> dansChaine = true
+                    '\'' -> dansCaractere = true
+                    ';', '{', '}' -> debut = i + 1
+                }
+            }
+        }
+        val tete = source.substring(debut, caret)
+        if (tete.isBlank()) return null
+        // Tête de CONTRÔLE ? (premier jeton de l'instruction)
+        val premierJeton = tete.trim().substringBefore(' ').substringBefore('(').substringBefore('{')
+        val controle = premierJeton in TETES_DE_CONTROLE
+        // Pile des ouvrants depuis le début de l'instruction (littéraux franchis) —
+        // état lexical RÉINITIALIÉ : le second balayage repart du début de
+        // l'instruction, son état FINAL est celui du caret.
+        dansChaine = false
+        dansCaractere = false
+        echappe = false
+        val pile = ArrayDeque<Char>()
+        var i = debut
+        while (i < caret) {
+            val c = source[i]
+            if (echappe) {
+                echappe = false
+            } else if (c == '\\') {
+                echappe = true
+            } else if (dansChaine) {
+                if (c == '"') dansChaine = false
+            } else if (dansCaractere) {
+                if (c == '\'') dansCaractere = false
+            } else {
+                when (c) {
+                    '"' -> dansChaine = true
+                    '\'' -> dansCaractere = true
+                    '(', '[' -> pile.addLast(c)
+                    ')' -> if (pile.isNotEmpty() && pile.last() == '(') pile.removeLast()
+                    ']' -> if (pile.isNotEmpty() && pile.last() == '[') pile.removeLast()
+                }
+            }
+            i++
+        }
+        // Rien à équilibrer : honnête, null (instruction déjà complète).
+        if (!dansChaine && !dansCaractere && pile.isEmpty()) {
+            if (tete.trimEnd().endsWith(";") || tete.trimEnd().endsWith("{")) return null
+            // une instruction nue sans rien à refermer : un `;` la termine
+            val pointVirgule = ";"
+            return EditionInstruction(caret, 0, pointVirgule, caret + pointVirgule.length)
+        }
+        val virguleTrainante = tete.trimEnd().endsWith(",")
+        val insertion = buildString {
+            if (dansChaine) append('"')
+            if (dansCaractere) append('\'')
+            if (virguleTrainante) append("0") // argument de secours (famille B du niveau 4)
+            while (pile.isNotEmpty()) {
+                when (pile.removeLast()) {
+                    '(' -> append(')')
+                    '[' -> append(']')
+                }
+            }
+            if (controle) {
+                append(" {")
+            } else {
+                append(';')
+            }
+        }
+        return EditionInstruction(caret, 0, insertion, caret + insertion.length)
+    }
+
+    /** Têtes d'instruction de CONTRÔLE (la complétion ouvre le bloc). */
+    private val TETES_DE_CONTROLE: Set<String> = setOf(
+        "if", "while", "for", "switch", "do", "try", "else", "catch", "finally", "synchronized",
+    )
 }
+
+/**
+ * L'édition de COMPLÉTION D'INSTRUCTION (V-C3 — ADR 0026 (c)) : le texte à
+ * insérer au caret pour équilibrer l'instruction en cours, avec la position
+ * du caret APRÈS édition (le client applique puis déplace le caret).
+ *
+ * @property offset l'offset d'insertion (le caret courant).
+ * @property longueur la longueur remplacée (0 : pure insertion).
+ * @property texte le texte inséré (refermetures + terminateur).
+ * @property caret la position du caret APRÈS application de l'édition.
+ */
+public class EditionInstruction(
+    public val offset: Int,
+    public val longueur: Int,
+    public val texte: String,
+    public val caret: Int,
+)

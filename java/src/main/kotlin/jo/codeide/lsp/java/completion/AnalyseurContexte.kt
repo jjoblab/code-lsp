@@ -102,6 +102,23 @@ public class AnalyseurContexte(
         // la classification textuelle locale reste exacte.
         val focused = jo.codeide.lsp.java.outils.SourceFocuser.focusAndMap(source, offset)
         val sourceReduite = focused.source()
+
+        // V-C3 (ADR 0026 (f), B11/G-017) : le caret vit DANS un littéral de
+        // chaîne — le marqueur d'identifiant ne peut pas y vivre (il se
+        // fondrait au contenu) : une VARIANTE DÉDIÉE remplace le littéral
+        // ENTIER par le marqueur et classifie l'ARGUMENT — l'annotation
+        // `@…Res` du paramètre visé décide du contexte LITTÉRAL_RESSOURCE.
+        // Sans annotation (ou hors appel) : INCONNU honnête — le comportement
+        // d'avant V-C3 (liste vide dans un littéral).
+        littoralChaine(sourceReduite, focused.offset())?.let { littoral ->
+            val verdictLitteral = analyserLitteral(chemin, sourceReduite, focused.offset(), littoral)
+            if (verdictLitteral != null) return verdictLitteral
+            return ContexteCompletion(
+                GenreContexte.INCONNU,
+                prefixeDansLitteral(sourceReduite, littoral, focused.offset()),
+            )
+        }
+
         val verdict = analyserCascade(chemin, sourceReduite, focused.offset())
 
         // Repli TOP_NIVEAU (v1.1.6 — l'écart consigné INTEGRATION-CODEIDE
@@ -121,7 +138,7 @@ public class AnalyseurContexte(
                 return ContexteCompletion(
                     GenreContexte.TOP_NIVEAU,
                     prefixe,
-                    importsFqcn = verdict.importsFqcn,
+                    importsFqcn = verdict.importsFqcn, importsStatiquesFqcn = verdict.importsStatiquesFqcn,
                     paquetCourant = verdict.paquetCourant,
                 )
             }
@@ -164,7 +181,7 @@ public class AnalyseurContexte(
                     repli = ContexteCompletion(
                         GenreContexte.INCONNU,
                         prefixe,
-                        importsFqcn = commun.imports,
+                        importsFqcn = commun.imports, importsStatiquesFqcn = commun.importsStatiques,
                         paquetCourant = commun.paquet,
                     )
                 }
@@ -176,7 +193,12 @@ public class AnalyseurContexte(
             } catch (_: Exception) {
                 // arbre très cassé : le chemin partiel déjà collecté est conservé
             }
-            val classification = classer(collecteur.chemin, prefixe, marquee, debutMarqueur, commun, arbre)
+            val classification = enrichir(
+                classer(collecteur.chemin, prefixe, marquee, debutMarqueur, commun, arbre),
+                collecteur.chemin,
+                debutMarqueur,
+                arbre,
+            )
             if (classification.genre != GenreContexte.INCONNU) {
                 // La capture est DÉFINITIVE (un genre est un verdict, pas une
                 // liste : le classement du domaine « rank supérieur vide ne
@@ -190,10 +212,126 @@ public class AnalyseurContexte(
         return repli ?: ContexteCompletion(GenreContexte.INCONNU, prefixe)
     }
 
+    // ------------------------------------------------------------------ //
+    // V-C3 — littéral de chaîne en position de RESSOURCE (B11/G-017)
+    // ------------------------------------------------------------------ //
+
+    /** Le littoral d'une chaîne : [debut, fin] INCLUSIFS des guillemets. */
+    private class LittoralChaine(val debut: Int, val fin: Int)
+
+    /**
+     * Le littéral de CHAÎNE englobant le caret (null si le caret n'y vit
+     * pas — un littéral de CARACTÈRE n'est pas éligible, les noms de
+     * ressources n'y vivent pas).
+     *
+     * Un littéral NON refermé (frappe en cours) s'étend jusqu'au premier
+     * guillemet fermant OU à la fin de ligne — le remplacement par le
+     * marqueur reste une source bien formée.
+     */
+    private fun littoralChaine(source: String, offset: Int): LittoralChaine? {
+        var dansChaine = false
+        var echappe = false
+        var debut = -1
+        val borne = offset.coerceIn(0, source.length)
+        var i = 0
+        while (i < borne) {
+            val c = source[i]
+            if (echappe) {
+                echappe = false
+            } else if (c == '\\') {
+                echappe = true
+            } else if (dansChaine) {
+                if (c == '"') dansChaine = false
+            } else if (c == '"') {
+                dansChaine = true
+                debut = i
+            } else if (c == '\'') {
+                // littéral de caractère : le franchir (un " y serait)
+                i++
+                while (i < source.length && source[i] != '\'' && source[i] != '\n') i++
+            }
+            i++
+        }
+        if (!dansChaine || debut < 0) return null
+        var fin = borne
+        while (fin < source.length) {
+            val c = source[fin]
+            if (c == '\\') {
+                fin += 2
+                continue
+            }
+            if (c == '"' || c == '\n') break
+            fin++
+        }
+        if (fin >= source.length || source[fin] == '\n') fin = (fin - 1).coerceAtLeast(borne - 1)
+        return LittoralChaine(debut, fin)
+    }
+
+    /**
+     * Le préfixe tapé DANS le littéral : la suite identifiant qui précède le
+     * caret (les noms de ressources sont des identifiants Java).
+     */
+    private fun prefixeDansLitteral(source: String, littoral: LittoralChaine, offset: Int): String {
+        val borne = (offset - 1).coerceIn(littoral.debut, littoral.fin)
+        var debut = borne + 1
+        while (debut > littoral.debut + 1 && source[debut - 1].isJavaIdentifierPart()) debut--
+        return source.substring(debut, (offset).coerceAtMost(littoral.fin + 1))
+    }
+
+    /**
+     * Analyse du littéral remplacé par le marqueur : la variante dédiée de
+     * V-C3 — le littéral ENTIER devient l'argument-marqueur, la
+     * classification relit l'annotation `@…Res` du paramètre visé.
+     *
+     * @return le contexte LITTÉRAL_RESSOURCE, ou null (honnête : INCONNU).
+     */
+    private fun analyserLitteral(chemin: String, source: String, offset: Int, littoral: LittoralChaine): ContexteCompletion? {
+        val marquee = source.substring(0, littoral.debut) + MARQUEUR + source.substring((littoral.fin + 1).coerceAtMost(source.length))
+        val reponse = try {
+            pont.resoudre(UnitesSource.EnMemoire(chemin, marquee), genererCode = false)
+        } catch (_: Exception) {
+            return null
+        }
+        val arbre = reponse.arbre ?: return null
+        val collecteur = CheminMarqueur(littoral.debut)
+        try {
+            arbre.traverse(collecteur, arbre.scope, false)
+        } catch (_: Exception) {
+            return null
+        }
+        val cheminNodes = collecteur.chemin
+        val marqueurNode = cheminNodes.lastOrNull() ?: return null
+        for (node in cheminNodes.reversed()) {
+            if (node !is MessageSend) continue
+            val arguments = try {
+                node.arguments
+            } catch (_: Exception) {
+                null
+            } ?: continue
+            val index = arguments.indexOfFirst { it === marqueurNode }
+            if (index < 0) continue
+            val ressource = TypeAttendu.ressourceDeParametre(pont, environnement, node.binding, index, arbre)
+            if (ressource != null) {
+                return ContexteCompletion(
+                    genre = GenreContexte.LITTERAL_RESSOURCE,
+                    prefixe = prefixeDansLitteral(source, littoral, offset),
+                    typeRessource = ressource,
+                    importsFqcn = donneesCommunes(arbre).imports,
+                    paquetCourant = donneesCommunes(arbre).paquet,
+                )
+            }
+            return null
+        }
+        return null
+    }
+
     /**
      * Sonde à chaud sur l'arbre ORIGINAL (cache de parse) : détecte les
      * contextes MEMBRE / MEMBRE_STATIQUE / REFERENCE_PAQUET sans résolution
-     * nouvelle.
+     * nouvelle. Depuis V-C3, la capture MEMBRE porte AUSSI le TYPE ATTENDU
+     * du contexte (fiche C-03 : `String s = o.|` — membres retournant String
+     * en tête) et le type ENGLOBANT (épreuve d'accessibilité des membres,
+     * fiche C-08 D1) — lus sur l'arbre vivant par plages couvrantes.
      *
      * @param arbre l'arbre original résolu.
      * @param source la source originale.
@@ -221,6 +359,8 @@ public class AnalyseurContexte(
                 prefixe = prefixe,
                 recepteur = recepteur,
                 recepteurFqcn = fqcnType,
+                unionAttendus = attenduDuRecepteur(arbre, offset, prefixe),
+                typeEnglobant = typeEnglobant(arbre, offset),
             )
         }
         // Récepteur d'instance : le nœud de plage exacte porte le type résolu.
@@ -231,32 +371,178 @@ public class AnalyseurContexte(
                 prefixe = prefixe,
                 recepteur = recepteur,
                 typeRecepteur = typeInstance,
+                unionAttendus = attenduDuRecepteur(arbre, offset, prefixe),
+                typeEnglobant = typeEnglobant(arbre, offset),
             )
         }
         return null
+    }
+
+    /**
+     * Le type attendu du contexte d'un accès MEMBRE à chaud : l'ancêtre
+     * porteur (affectation, `return`, appel) couvre la FIN du récepteur — la
+     * sonde sonde la position du POINT puis celle du caret (tolérance aux
+     * plages de recovery).
+     */
+    private fun attenduDuRecepteur(arbre: CompilationUnitDeclaration, offset: Int, prefixe: String): List<TypeBinding> {
+        val finPrefixe = offset - prefixe.length
+        val candidats = listOf(finPrefixe - 1, offset)
+        for (position in candidats) {
+            if (position < 0) continue
+            val attendu = TypeAttendu.depuisArbre(arbre, position)
+            if (attendu.types.isNotEmpty()) return attendu.types
+        }
+        return emptyList()
+    }
+
+    /**
+     * Le type ENGLOBANT du caret sur l'arbre original (sonde) : le
+     * TypeDeclaration le plus profond couvrant la position.
+     */
+    private fun typeEnglobant(arbre: CompilationUnitDeclaration, offset: Int): ReferenceBinding? {
+        var trouve: ReferenceBinding? = null
+        val collecteur = object : LectureAst.VisiteurResilient() {
+            override fun visiteType(node: TypeDeclaration, scope: ClassScope?): Boolean {
+                considerer(node)
+                return true
+            }
+
+            private fun considerer(node: TypeDeclaration) {
+                val couvre = try {
+                    node.sourceStart in 0..offset && node.declarationSourceEnd + 1 >= offset
+                } catch (_: Exception) {
+                    false
+                }
+                if (couvre) trouve = try {
+                    node.binding
+                } catch (_: Exception) {
+                    null
+                } ?: trouve
+            }
+        }
+        LectureAst.traverserResilient(arbre, collecteur)
+        return trouve
     }
 
     // ------------------------------------------------------------------ //
     // Classification du chemin du marqueur
     // ------------------------------------------------------------------ //
 
-    /** Données communes extraites de l'unité (imports, paquet courant). */
-    private class Communs(val imports: List<String>, val paquet: String?)
+    /** Données communes extraites de l'unité (imports, imports statiques, paquet courant). */
+    private class Communs(val imports: List<String>, val importsStatiques: List<String>, val paquet: String?)
 
-    /** Extraction des imports et du paquet de l'unité. */
+    /** Extraction des imports (types ET statiques — V-C3, fiche C-08 D2) et du paquet de l'unité. */
     private fun donneesCommunes(arbre: CompilationUnitDeclaration?): Communs {
         val imports = mutableListOf<String>()
+        val importsStatiques = mutableListOf<String>()
         var paquet: String? = null
         if (arbre != null) {
             arbre.currentPackage?.let { ref ->
                 paquet = ref.tokens.joinToString(".") { String(it) }
             }
             for (import in arbre.imports ?: emptyArray()) {
-                if (import.isStatic) continue
-                imports.add(import.tokens.joinToString(".") { String(it) })
+                val fqn = import.tokens.joinToString(".") { String(it) }
+                if (import.isStatic) importsStatiques.add(fqn) else imports.add(fqn)
             }
         }
-        return Communs(imports, paquet)
+        return Communs(imports, importsStatiques, paquet)
+    }
+
+    /**
+     * ENRICHISSEMENT V-C3 (ADR 0026 (a)/(e), fiches C-03/C-04/C-08) : le
+     * verdict de la cascade gagne son type attendu (filtrage smart — calculé
+     * par les bindings du chemin marqué), son TYPEDEF (`@IntDef`/`@StringDef`
+     * du paramètre ou du champ visé) et son type ENGLOBANT (épreuve
+     * d'accessibilité des membres).
+     *
+     * Les genres de DÉCLARATION (TYPE, IMPORT, CORPS_CLASSE…) n'ont pas de
+     * type attendu d'EXPRESSION : seuls NOM, MEMBRE et MEMBRE_STATIQUE sont
+     * enrichis de l'union (les autres ne portent que le type englobant).
+     */
+    private fun enrichir(
+        verdict: ContexteCompletion,
+        chemin: List<ASTNode>,
+        debutMarqueur: Int,
+        arbre: CompilationUnitDeclaration,
+    ): ContexteCompletion {
+        val englobant = verdict.typeEnglobant ?: typeEnglobantDe(chemin)
+        val genresSmart = listOf(GenreContexte.NOM, GenreContexte.MEMBRE, GenreContexte.MEMBRE_STATIQUE)
+        if (verdict.genre !in genresSmart && verdict.genre != GenreContexte.CASE_LABEL) {
+            return if (englobant != null && verdict.typeEnglobant == null) verdict.copy(typeEnglobant = englobant) else verdict
+        }
+        val attendu = TypeAttendu.depuisChemin(chemin, debutMarqueur)
+        val typedef = typedefDuChemin(chemin, debutMarqueur, arbre)
+            ?: typedefDuSwitch(chemin, arbre)
+        return verdict.copy(
+            unionAttendus = attendu.types,
+            typedef = typedef,
+            typeEnglobant = englobant,
+        )
+    }
+
+    /**
+     * Le TYPEDEF porté par le chemin marqué : l'argument d'appel annoté
+     * (fiche C-04 T1) ou l'affectation à un champ annoté (T2).
+     */
+    private fun typedefDuChemin(chemin: List<ASTNode>, debutMarqueur: Int, arbre: CompilationUnitDeclaration): TypeAttendu.TypedefAttendu? {
+        val marqueurNode = chemin.lastOrNull() ?: return null
+        for (indice in chemin.indices.reversed()) {
+            val node = chemin[indice]
+            if (node is MessageSend) {
+                val arguments = try {
+                    node.arguments
+                } catch (_: Exception) {
+                    null
+                } ?: continue
+                val index = arguments.indexOfFirst { it === marqueurNode }
+                if (index >= 0) {
+                    return TypeAttendu.typedefDeParametre(pont, environnement, node.binding, index, arbre)
+                }
+            }
+            if (node is org.eclipse.jdt.internal.compiler.ast.Assignment) {
+                val couvre = try {
+                    node.expression != null && node.expression.sourceStart <= debutMarqueur && node.expression.sourceEnd + 1 >= debutMarqueur
+                } catch (_: Exception) {
+                    false
+                }
+                if (!couvre) continue
+                val champ = try {
+                    champDeExpression(node.lhs)
+                } catch (_: Exception) {
+                    null
+                } ?: continue
+                return TypeAttendu.typedefDeChamp(pont, environnement, champ, arbre)
+            }
+        }
+        return null
+    }
+
+    /** Le TYPEDEF du sélecteur du switch englobant (fiche C-04 T3). */
+    private fun typedefDuSwitch(chemin: List<ASTNode>, arbre: CompilationUnitDeclaration): TypeAttendu.TypedefAttendu? {
+        val interrupteur = chemin.reversed().filterIsInstance<SwitchStatement>().firstOrNull() ?: return null
+        return TypeAttendu.typedefDeSwitch(interrupteur, arbre)
+    }
+
+    /**
+     * Le CHAMP visé par le membre GAUCHE d'une affectation (T2) : nom simple,
+     * accès champ (`autre.key`) ou référence qualifiée — par son binding.
+     */
+    private fun champDeExpression(expression: org.eclipse.jdt.internal.compiler.ast.Expression?): org.eclipse.jdt.internal.compiler.lookup.FieldBinding? {
+        return when (expression) {
+            is SingleNameReference -> expression.binding as? org.eclipse.jdt.internal.compiler.lookup.FieldBinding
+            is org.eclipse.jdt.internal.compiler.ast.FieldReference -> try {
+                expression.binding
+            } catch (_: Exception) {
+                null
+            }
+            is QualifiedNameReference -> try {
+                val autres = expression.otherBindings
+                if (autres != null && autres.isNotEmpty()) autres.last() else expression.binding as? org.eclipse.jdt.internal.compiler.lookup.FieldBinding
+            } catch (_: Exception) {
+                null
+            }
+            else -> null
+        }
     }
 
     /** Classification : chemin d'ancêtres (extérieur → intérieur) → contexte. */
@@ -271,7 +557,7 @@ public class AnalyseurContexte(
         val base = ContexteCompletion(
             genre = GenreContexte.INCONNU,
             prefixe = prefixe,
-            importsFqcn = commun.imports,
+            importsFqcn = commun.imports, importsStatiquesFqcn = commun.importsStatiques,
             paquetCourant = commun.paquet,
         )
         if (chemin.isEmpty()) return base
@@ -289,7 +575,7 @@ public class AnalyseurContexte(
                 genre = GenreContexte.IMPORT,
                 prefixe = prefixe,
                 paquetTape = paquetTape,
-                importsFqcn = commun.imports,
+                importsFqcn = commun.imports, importsStatiquesFqcn = commun.importsStatiques,
                 paquetCourant = commun.paquet,
             )
         }
@@ -308,7 +594,7 @@ public class AnalyseurContexte(
                         prefixe,
                         recepteur = recepteur,
                         recepteurFqcn = fqcnType,
-                        importsFqcn = commun.imports,
+                        importsFqcn = commun.imports, importsStatiquesFqcn = commun.importsStatiques,
                         paquetCourant = commun.paquet,
                     )
                 }
@@ -317,7 +603,7 @@ public class AnalyseurContexte(
                     prefixe = prefixe,
                     recepteur = recepteur,
                     typeRecepteur = typeRecepteurDe(plusInterieur),
-                    importsFqcn = commun.imports,
+                    importsFqcn = commun.imports, importsStatiquesFqcn = commun.importsStatiques,
                     paquetCourant = commun.paquet,
                 )
             }
@@ -335,7 +621,7 @@ public class AnalyseurContexte(
                 prefixe = prefixe,
                 recepteur = "expression",
                 typeRecepteur = type,
-                importsFqcn = commun.imports,
+                importsFqcn = commun.imports, importsStatiquesFqcn = commun.importsStatiques,
                 paquetCourant = commun.paquet,
             )
         }
@@ -356,7 +642,7 @@ public class AnalyseurContexte(
                         prefixe = prefixe,
                         recepteur = recepteur,
                         recepteurFqcn = fqcnType,
-                        importsFqcn = commun.imports,
+                        importsFqcn = commun.imports, importsStatiquesFqcn = commun.importsStatiques,
                         paquetCourant = commun.paquet,
                     )
                 }
@@ -374,14 +660,14 @@ public class AnalyseurContexte(
                     prefixe = prefixe,
                     recepteur = recepteur,
                     typeRecepteur = type,
-                    importsFqcn = commun.imports,
+                    importsFqcn = commun.imports, importsStatiquesFqcn = commun.importsStatiques,
                     paquetCourant = commun.paquet,
                 )
             }
         }
 
         // --- le marqueur est une position de NOM de déclaration ---
-        classerPositionNom(chemin, prefixe, commun)?.let { return it }
+        classerPositionNom(chemin, prefixe, commun, source, debutMarqueur)?.let { return it }
 
         // --- le marqueur est une position de TYPE (TypeReference) ---
         if (plusInterieur is TypeReference) {
@@ -428,21 +714,21 @@ public class AnalyseurContexte(
                 while (indice < source.length && (source[indice] == ' ' || source[indice] == '\t')) indice++
                 val memeLigne = indice >= source.length || source[indice] != '\n'
                 return if (memeLigne) {
-                    ContexteCompletion(GenreContexte.TYPE, prefixe, importsFqcn = commun.imports, paquetCourant = commun.paquet)
+                    ContexteCompletion(GenreContexte.TYPE, prefixe, importsFqcn = commun.imports, importsStatiquesFqcn = commun.importsStatiques, paquetCourant = commun.paquet)
                 } else {
-                    ContexteCompletion(GenreContexte.NOM, prefixe, importsFqcn = commun.imports, paquetCourant = commun.paquet)
+                    ContexteCompletion(GenreContexte.NOM, prefixe, importsFqcn = commun.imports, importsStatiquesFqcn = commun.importsStatiques, paquetCourant = commun.paquet)
                 }
             }
             if (ancetre is TypeDeclaration) {
                 if (ancetre.superclass === typeRef) {
-                    return ContexteCompletion(GenreContexte.TYPE, prefixe, FiltreGrammatical.CLASSES_SEULES, importsFqcn = commun.imports, paquetCourant = commun.paquet)
+                    return ContexteCompletion(GenreContexte.TYPE, prefixe, FiltreGrammatical.CLASSES_SEULES, importsFqcn = commun.imports, importsStatiquesFqcn = commun.importsStatiques, paquetCourant = commun.paquet)
                 }
                 if (ancetre.superInterfaces?.contains(typeRef) == true) {
-                    return ContexteCompletion(GenreContexte.TYPE, prefixe, FiltreGrammatical.INTERFACES_SEULES, importsFqcn = commun.imports, paquetCourant = commun.paquet)
+                    return ContexteCompletion(GenreContexte.TYPE, prefixe, FiltreGrammatical.INTERFACES_SEULES, importsFqcn = commun.imports, importsStatiquesFqcn = commun.importsStatiques, paquetCourant = commun.paquet)
                 }
             }
             if (ancetre is MethodDeclaration && ancetre.thrownExceptions?.contains(typeRef) == true) {
-                return ContexteCompletion(GenreContexte.TYPE, prefixe, FiltreGrammatical.THROWABLES_SEULES, importsFqcn = commun.imports, paquetCourant = commun.paquet)
+                return ContexteCompletion(GenreContexte.TYPE, prefixe, FiltreGrammatical.THROWABLES_SEULES, importsFqcn = commun.imports, importsStatiquesFqcn = commun.importsStatiques, paquetCourant = commun.paquet)
             }
             if (ancetre is Argument && ancetre.type === typeRef) {
                 val estCatch = chemin.any { it is TryStatement }
@@ -450,24 +736,24 @@ public class AnalyseurContexte(
                     GenreContexte.TYPE,
                     prefixe,
                     if (estCatch) FiltreGrammatical.THROWABLES_SEULES else null,
-                    importsFqcn = commun.imports,
+                    importsFqcn = commun.imports, importsStatiquesFqcn = commun.importsStatiques,
                     paquetCourant = commun.paquet,
                 )
             }
             if (ancetre is AllocationExpression && ancetre.type === typeRef) {
-                return ContexteCompletion(GenreContexte.TYPE, prefixe, FiltreGrammatical.INSTANCIABLES_SEULES, importsFqcn = commun.imports, paquetCourant = commun.paquet)
+                return ContexteCompletion(GenreContexte.TYPE, prefixe, FiltreGrammatical.INSTANCIABLES_SEULES, importsFqcn = commun.imports, importsStatiquesFqcn = commun.importsStatiques, paquetCourant = commun.paquet)
             }
             if (ancetre is MarkerAnnotation && ancetre.type === typeRef) {
-                return ContexteCompletion(GenreContexte.TYPE, prefixe, FiltreGrammatical.ANNOTATIONS_SEULES, importsFqcn = commun.imports, paquetCourant = commun.paquet)
+                return ContexteCompletion(GenreContexte.TYPE, prefixe, FiltreGrammatical.ANNOTATIONS_SEULES, importsFqcn = commun.imports, importsStatiquesFqcn = commun.importsStatiques, paquetCourant = commun.paquet)
             }
             if (ancetre is NormalAnnotation && ancetre.type === typeRef) {
-                return ContexteCompletion(GenreContexte.TYPE, prefixe, FiltreGrammatical.ANNOTATIONS_SEULES, importsFqcn = commun.imports, paquetCourant = commun.paquet)
+                return ContexteCompletion(GenreContexte.TYPE, prefixe, FiltreGrammatical.ANNOTATIONS_SEULES, importsFqcn = commun.imports, importsStatiquesFqcn = commun.importsStatiques, paquetCourant = commun.paquet)
             }
             if (ancetre is SingleMemberAnnotation && ancetre.type === typeRef) {
-                return ContexteCompletion(GenreContexte.TYPE, prefixe, FiltreGrammatical.ANNOTATIONS_SEULES, importsFqcn = commun.imports, paquetCourant = commun.paquet)
+                return ContexteCompletion(GenreContexte.TYPE, prefixe, FiltreGrammatical.ANNOTATIONS_SEULES, importsFqcn = commun.imports, importsStatiquesFqcn = commun.importsStatiques, paquetCourant = commun.paquet)
             }
             if (ancetre is MethodDeclaration && ancetre.returnType === typeRef) {
-                return ContexteCompletion(GenreContexte.TYPE, prefixe, importsFqcn = commun.imports, paquetCourant = commun.paquet)
+                return ContexteCompletion(GenreContexte.TYPE, prefixe, importsFqcn = commun.imports, importsStatiquesFqcn = commun.importsStatiques, paquetCourant = commun.paquet)
             }
         }
         // Repli (retours appareil du 31/10/2026, banc S11) : une référence
@@ -479,9 +765,9 @@ public class AnalyseurContexte(
         // d'une méthode CONCRÈTE, le popup est donc NOM : locales +
         // membres + mots-clés + types, exactement Android Studio.
         if (chemin.any { it is MethodDeclaration && it.statements != null }) {
-            return ContexteCompletion(GenreContexte.NOM, prefixe, importsFqcn = commun.imports, paquetCourant = commun.paquet)
+            return ContexteCompletion(GenreContexte.NOM, prefixe, importsFqcn = commun.imports, importsStatiquesFqcn = commun.importsStatiques, paquetCourant = commun.paquet)
         }
-        return ContexteCompletion(GenreContexte.TYPE, prefixe, importsFqcn = commun.imports, paquetCourant = commun.paquet)
+        return ContexteCompletion(GenreContexte.TYPE, prefixe, importsFqcn = commun.imports, importsStatiquesFqcn = commun.importsStatiques, paquetCourant = commun.paquet)
     }
 
     /**
@@ -501,7 +787,13 @@ public class AnalyseurContexte(
      *  - argument SANS type → [GenreContexte.TYPE] (le token unique d'un
      *    paramètre incomplet se lit comme type — fiche 035).
      */
-    private fun classerPositionNom(chemin: List<ASTNode>, prefixe: String, commun: Communs): ContexteCompletion? {
+    private fun classerPositionNom(
+        chemin: List<ASTNode>,
+        prefixe: String,
+        commun: Communs,
+        source: String,
+        debutMarqueur: Int,
+    ): ContexteCompletion? {
         val noeud = chemin.last()
         when (noeud) {
             is LocalDeclaration -> {
@@ -515,12 +807,12 @@ public class AnalyseurContexte(
                         GenreContexte.NOM_DECLARATION,
                         prefixe,
                         typeAttendu = attendu,
-                        importsFqcn = commun.imports,
+                        importsFqcn = commun.imports, importsStatiquesFqcn = commun.importsStatiques,
                         paquetCourant = commun.paquet,
                     )
                 }
                 if (noeud.type != null && couvreMarqueur(noeud.type)) {
-                    return ContexteCompletion(GenreContexte.TYPE, prefixe, importsFqcn = commun.imports, paquetCourant = commun.paquet)
+                    return ContexteCompletion(GenreContexte.TYPE, prefixe, importsFqcn = commun.imports, importsStatiquesFqcn = commun.importsStatiques, paquetCourant = commun.paquet)
                 }
             }
 
@@ -536,12 +828,12 @@ public class AnalyseurContexte(
                             GenreContexte.NOM_DECLARATION,
                             prefixe,
                             typeAttendu = attendu,
-                            importsFqcn = commun.imports,
+                            importsFqcn = commun.imports, importsStatiquesFqcn = commun.importsStatiques,
                             paquetCourant = commun.paquet,
                         )
                     }
                     return if (noeud.modifiers != 0) {
-                        ContexteCompletion(GenreContexte.TYPE, prefixe, importsFqcn = commun.imports, paquetCourant = commun.paquet)
+                        ContexteCompletion(GenreContexte.TYPE, prefixe, importsFqcn = commun.imports, importsStatiquesFqcn = commun.importsStatiques, paquetCourant = commun.paquet)
                     } else {
                         // Identifiant nu dans le corps de classe : méthode en
                         // cours de frappe — stubs d'override (fiche 007).
@@ -549,13 +841,13 @@ public class AnalyseurContexte(
                             GenreContexte.CORPS_CLASSE,
                             prefixe,
                             typeEnglobant = typeEnglobantDe(chemin),
-                            importsFqcn = commun.imports,
+                            importsFqcn = commun.imports, importsStatiquesFqcn = commun.importsStatiques,
                             paquetCourant = commun.paquet,
                         )
                     }
                 }
                 if (noeud.type != null && couvreMarqueur(noeud.type)) {
-                    return ContexteCompletion(GenreContexte.TYPE, prefixe, importsFqcn = commun.imports, paquetCourant = commun.paquet)
+                    return ContexteCompletion(GenreContexte.TYPE, prefixe, importsFqcn = commun.imports, importsStatiquesFqcn = commun.importsStatiques, paquetCourant = commun.paquet)
                 }
             }
 
@@ -571,11 +863,11 @@ public class AnalyseurContexte(
                             GenreContexte.NOM_DECLARATION,
                             prefixe,
                             typeAttendu = attendu,
-                            importsFqcn = commun.imports,
+                            importsFqcn = commun.imports, importsStatiquesFqcn = commun.importsStatiques,
                             paquetCourant = commun.paquet,
                         )
                     }
-                    return ContexteCompletion(GenreContexte.TYPE, prefixe, importsFqcn = commun.imports, paquetCourant = commun.paquet)
+                    return ContexteCompletion(GenreContexte.TYPE, prefixe, importsFqcn = commun.imports, importsStatiquesFqcn = commun.importsStatiques, paquetCourant = commun.paquet)
                 }
                 if (noeud.type != null && couvreMarqueur(noeud.type)) {
                     val estCatch = chemin.any { it is TryStatement }
@@ -583,7 +875,7 @@ public class AnalyseurContexte(
                         GenreContexte.TYPE,
                         prefixe,
                         if (estCatch) FiltreGrammatical.THROWABLES_SEULES else null,
-                        importsFqcn = commun.imports,
+                        importsFqcn = commun.imports, importsStatiquesFqcn = commun.importsStatiques,
                         paquetCourant = commun.paquet,
                     )
                 }
@@ -591,12 +883,29 @@ public class AnalyseurContexte(
 
             is MethodDeclaration -> {
                 if (estLeMarqueur(noeud.selector) && noeud.statements == null) {
+                    val englobant = typeEnglobantDe(chemin)
+                    // V-C3 (décision D7 — M1/G-024) : TÊTE de déclaration — le
+                    // marqueur y est un artefact de recovery de la CLAUSE, pas
+                    // un membre : les MOTS-CLÉS (extends/implements/permits)
+                    // sont proposés PENDANT leur frappe, FUSIONNÉS aux stubs
+                    // de la hiérarchie du type en cours de déclaration (le
+                    // verrou « muets » de la fiche 007 est LEVÉ par
+                    // l'amendement D7 — comportement livré = attendu).
+                    if (estTeteDeclaration(source, debutMarqueur, chemin)) {
+                        return ContexteCompletion(
+                            GenreContexte.TOP_NIVEAU,
+                            prefixe,
+                            typeEnglobant = englobant,
+                            importsFqcn = commun.imports, importsStatiquesFqcn = commun.importsStatiques,
+                            paquetCourant = commun.paquet,
+                        )
+                    }
                     // Frappe d'un nom de méthode dans le corps de classe.
                     return ContexteCompletion(
                         GenreContexte.CORPS_CLASSE,
                         prefixe,
-                        typeEnglobant = typeEnglobantDe(chemin),
-                        importsFqcn = commun.imports,
+                        typeEnglobant = englobant,
+                        importsFqcn = commun.imports, importsStatiquesFqcn = commun.importsStatiques,
                         paquetCourant = commun.paquet,
                     )
                 }
@@ -622,7 +931,7 @@ public class AnalyseurContexte(
                     GenreContexte.CASE_LABEL,
                     prefixe,
                     typeAttendu = typeEnum,
-                    importsFqcn = commun.imports,
+                    importsFqcn = commun.imports, importsStatiquesFqcn = commun.importsStatiques,
                     paquetCourant = commun.paquet,
                 )
             }
@@ -639,7 +948,7 @@ public class AnalyseurContexte(
                     GenreContexte.VALEUR_ANNOTATION,
                     prefixe,
                     typeAttendu = typeEnum,
-                    importsFqcn = commun.imports,
+                    importsFqcn = commun.imports, importsStatiquesFqcn = commun.importsStatiques,
                     paquetCourant = commun.paquet,
                 )
             }
@@ -653,12 +962,12 @@ public class AnalyseurContexte(
                     GenreContexte.VALEUR_ANNOTATION,
                     prefixe,
                     typeAttendu = typeEnum,
-                    importsFqcn = commun.imports,
+                    importsFqcn = commun.imports, importsStatiquesFqcn = commun.importsStatiques,
                     paquetCourant = commun.paquet,
                 )
             }
         }
-        return ContexteCompletion(GenreContexte.NOM, prefixe, importsFqcn = commun.imports, paquetCourant = commun.paquet)
+        return ContexteCompletion(GenreContexte.NOM, prefixe, importsFqcn = commun.imports, importsStatiquesFqcn = commun.importsStatiques, paquetCourant = commun.paquet)
     }
 
     /** Type de l'attribut d'une annotation (par son nom, ou `value` en mono-valeur). */
@@ -683,6 +992,64 @@ public class AnalyseurContexte(
     /** Type englobant du chemin (le TypeDeclaration le plus profond). */
     private fun typeEnglobantDe(chemin: List<ASTNode>): ReferenceBinding? =
         chemin.filterIsInstance<TypeDeclaration>().lastOrNull()?.binding
+
+    /**
+     * Vrai ssi la position vit dans la TÊTE du type englobant (D7/M1 :
+     * entre le nom du type et sa première accolade — `class Foo e|`). La
+     * profondeur d'accolades (littéraux et commentaires franchis) y est
+     * IDENTIQUE à celle du DÉBUT du type : aucun bloc n'a été ouvert depuis.
+     */
+    private fun estTeteDeclaration(source: String, debutMarqueur: Int, chemin: List<ASTNode>): Boolean {
+        val type = chemin.filterIsInstance<TypeDeclaration>().lastOrNull() ?: return false
+        val debutType = try {
+            type.sourceStart
+        } catch (_: Exception) {
+            -1
+        }
+        if (debutType < 0 || debutType > debutMarqueur) return false
+        return profondeurAccolades(source, debutType) == profondeurAccolades(source, debutMarqueur)
+    }
+
+    /** Profondeur d'accolades à une position (littéraux/commentaires franchis). */
+    private fun profondeurAccolades(source: String, borne: Int): Int {
+        var profondeur = 0
+        var dansChaine = false
+        var dansCaractere = false
+        var dansLigne = false
+        var dansBloc = false
+        var i = 0
+        val limite = borne.coerceIn(0, source.length)
+        while (i < limite) {
+            val c = source[i]
+            if (dansChaine) {
+                if (c == '"' && source[i - 1] != '\\') dansChaine = false
+            } else if (dansCaractere) {
+                if (c == '\'' && source[i - 1] != '\\') dansCaractere = false
+            } else if (dansLigne) {
+                if (c == '\n') dansLigne = false
+            } else if (dansBloc) {
+                if (c == '*' && i + 1 < limite && source[i + 1] == '/') {
+                    dansBloc = false
+                    i++
+                }
+            } else {
+                when (c) {
+                    '"' -> dansChaine = true
+                    '\'' -> dansCaractere = true
+                    '/' -> if (i + 1 < limite) {
+                        when (source[i + 1]) {
+                            '/' -> { dansLigne = true; i++ }
+                            '*' -> { dansBloc = true; i++ }
+                        }
+                    }
+                    '{' -> profondeur++
+                    '}' -> if (profondeur > 0) profondeur--
+                }
+            }
+            i++
+        }
+        return profondeur
+    }
 
     /** Récepteur textuel d'une référence qualifiée marquée (texte avant le marqueur). */
     private fun recepteurDe(node: QualifiedNameReference, source: String, debutMarqueur: Int): String? {
@@ -1191,6 +1558,13 @@ public class AnalyseurContexte(
         override fun visit(tryStatement: TryStatement, scope: BlockScope?): Boolean = considerer(tryStatement)
         override fun visit(switchStatement: SwitchStatement, scope: BlockScope?): Boolean = considerer(switchStatement)
         override fun visit(caseStatement: CaseStatement, scope: BlockScope?): Boolean = considerer(caseStatement)
+        // V-C3 (ADR 0026 (a)) : les ancêtres PORTEURS DE TYPE ATTENDU —
+        // affectation, retour, ternaire, cast, lambda — rejoignent le chemin.
+        override fun visit(assignment: org.eclipse.jdt.internal.compiler.ast.Assignment, scope: BlockScope?): Boolean = considerer(assignment)
+        override fun visit(returnStatement: org.eclipse.jdt.internal.compiler.ast.ReturnStatement, scope: BlockScope?): Boolean = considerer(returnStatement)
+        override fun visit(conditionalExpression: org.eclipse.jdt.internal.compiler.ast.ConditionalExpression, scope: BlockScope?): Boolean = considerer(conditionalExpression)
+        override fun visit(castExpression: org.eclipse.jdt.internal.compiler.ast.CastExpression, scope: BlockScope?): Boolean = considerer(castExpression)
+        override fun visit(lambda: org.eclipse.jdt.internal.compiler.ast.LambdaExpression, scope: BlockScope?): Boolean = considerer(lambda)
         override fun visit(markerAnnotation: MarkerAnnotation, scope: BlockScope?): Boolean = considerer(markerAnnotation)
         override fun visit(normalAnnotation: NormalAnnotation, scope: BlockScope?): Boolean = considerer(normalAnnotation)
         override fun visit(singleMemberAnnotation: SingleMemberAnnotation, scope: BlockScope?): Boolean = considerer(singleMemberAnnotation)

@@ -39,9 +39,20 @@ public enum class FiltreGrammatical {
  *   la collecte des membres statiques résoudra son binding.
  * @property typeAttendu le type attendu (NOM_DECLARATION : le type déclarant
  *   dont on dérive les noms ; CASE_LABEL/VALEUR_ANNOTATION : l'enum).
+ * @property unionAttendus l'UNION des types attendus du contexte smart
+ *   (V-C3 — ADR 0026 (a) : affectation, argument, `return`, ternaire,
+ *   lambda) : vide = pas de filtrage par type.
+ * @property typedef le typedef du paramètre/champ visé (V-C3 — G-017,
+ *   [TypeAttendu.TypedefAttendu]).
+ * @property typeRessource le type de RESSOURCE attendu d'un littéral de
+ *   chaîne en position annotée `@…Res` (V-C3 — B11) : `"string"`…
  * @property typeEnglobant le type englobant au caret (CORPS_CLASSE : les
- *   stubs d'override parcourent sa hiérarchie).
+ *   stubs d'override parcourent sa hiérarchie — V-C3 : l'épreuve
+ *   d'accessibilité des membres s'y raccroche aussi).
  * @property importsFqcn les FQCN importés par l'unité (types visibles).
+ * @property importsStatiquesFqcn les imports STATIQUES de l'unité (V-C3 —
+ *   fiche C-08 D2 : un membre déjà importé statiquement n'exige pas
+ *   d'édition d'insertion).
  * @property paquetCourant le paquet de l'unité (types visibles sans import).
  */
 public data class ContexteCompletion(
@@ -53,7 +64,11 @@ public data class ContexteCompletion(
     public val typeRecepteur: TypeBinding? = null,
     public val recepteurFqcn: String? = null,
     public val typeAttendu: TypeBinding? = null,
+    public val unionAttendus: List<TypeBinding> = emptyList(),
+    public val typedef: TypeAttendu.TypedefAttendu? = null,
+    public val typeRessource: String? = null,
     public val typeEnglobant: org.eclipse.jdt.internal.compiler.lookup.ReferenceBinding? = null,
     public val importsFqcn: List<String> = emptyList(),
+    public val importsStatiquesFqcn: List<String> = emptyList(),
     public val paquetCourant: String? = null,
 )
