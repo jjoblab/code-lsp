@@ -1256,7 +1256,11 @@ public class MoteurJava(
         // se verrouille seule, les intentions sont des lectures d'arbre.
         if (!regimePlein()) return emptyList()
         val arbre = resolveUnit(chemin, source, genererCode = false)?.arbre ?: return emptyList()
-        return jo.codeide.lsp.java.actionscode.ServiceIntentions(arbre, source).intentions(debut, fin)
+        // V-D2 (ADR 0027 (e)) : les REFACTORINGS LOURDS se servent dans la
+        // MÊME réponse — extractions sur SÉLECTION, inline et safe delete
+        // au caret, tous DIFFÉRÉS (clé + positions, éditions au resolve).
+        return jo.codeide.lsp.java.actionscode.ServiceIntentions(arbre, source).intentions(debut, fin) +
+            jo.codeide.lsp.java.actionscode.ServiceRefactorisations(arbre, source).refactorings(debut, fin)
     }
 
     /**
@@ -1278,8 +1282,76 @@ public class MoteurJava(
         arguments: List<String>,
     ): List<jo.codeide.lsp.java.outils.EditionTexte>? {
         if (!regimePlein()) return null
+        // V-D2 : le SAFE DELETE exige la garde des usages MULTI-FICHIERS
+        // (socle ADR 0028) AVANT toute édition — le gros calcul vit au
+        // resolve, la liste n'a jamais payé (ADR 0027 (f)).
+        if (cle == "refactor.supprimerSure") {
+            val offset = arguments.firstOrNull()?.toIntOrNull() ?: return null
+            return suppressionSure(chemin, source, offset)?.editions
+        }
         val arbre = resolveUnit(chemin, source, genererCode = false)?.arbre ?: return null
+        // V-D2 : l'inline d'une CONSTANTE est MONO-FICHIER en tranche 2 — un
+        // usage hors du fichier courant ferme la porte honnêtement (le
+        // multi-fichiers suit avec change signature, tranche 3).
+        if (cle == "refactor.mettreEnLigneConstante") {
+            val offset = arguments.firstOrNull()?.toIntOrNull() ?: return null
+            if (usagesHorsFichierCourant(chemin, source, offset)) return null
+        }
         return jo.codeide.lsp.java.actionscode.ServiceIntentions(arbre, source).resoudre(cle, arguments)
+            ?: jo.codeide.lsp.java.actionscode.ServiceRefactorisations(arbre, source).resoudre(cle, arguments)
+    }
+
+    /**
+     * La SUPPRESSION SÛRE au caret (vague V-D2 — ADR 0027 (e) : safe
+     * delete = USAGES + conflits, socle ADR 0028) : l'ORACLE du banc —
+     * la détection des usages est MULTI-FICHIERS (exhaustive par clé de
+     * binding), la SUPPRESSION est mono-fichier (la déclaration vit
+     * toujours dans le fichier courant).
+     *
+     * Un usage hors déclaration FERME la porte : [SuppressionSure.editions]
+     * est null et [SuppressionSure.usagesBloquants] porte la liste
+     * exhaustive (le client a `references` pour les montrer — ADR 0014 :
+     * la projection du dialogue de décision appartient au client, le
+     * moteur ne décide JAMAIS à sa place). Les refus honnêtes (méthode
+     * qui OUTREPASSE, paramètre) portent leur motif.
+     *
+     * @param chemin le chemin logique du document.
+     * @param source le texte Java complet (tampon ouvert).
+     * @param offset la position du caret (sur le NOM de la déclaration).
+     * @return le verdict, ou null (caret sans déclaration supprimable /
+     *   régime instantané).
+     */
+    public fun suppressionSure(chemin: String, source: String, offset: Int): SuppressionSure? {
+        // Périmètre MODULE (V-F2) : la résolution se verrouille seule.
+        if (!regimePlein()) return null
+        val arbre = resolveUnit(chemin, source, genererCode = false)?.arbre ?: return null
+        val service = jo.codeide.lsp.java.actionscode.ServiceRefactorisations(arbre, source)
+        val cible = service.cibleSuppression(offset) ?: return null
+        if (cible.refus != null) {
+            return SuppressionSure(cible.nom, cible.genre, cible.refus, emptyList(), null)
+        }
+        val usages = references(chemin, source, offset, inclureDeclaration = true)
+        val bloquants = usages.filter { !it.estDeclaration }
+        if (bloquants.isNotEmpty()) {
+            return SuppressionSure(cible.nom, cible.genre, null, bloquants, null)
+        }
+        return SuppressionSure(cible.nom, cible.genre, null, emptyList(), service.suppressionEditions(offset))
+    }
+
+    /**
+     * Vrai sss le symbole au caret possède des usages HORS du fichier
+     * courant (garde mono-fichier de l'inline de constante, V-D2).
+     */
+    private fun usagesHorsFichierCourant(chemin: String, source: String, offset: Int): Boolean {
+        val cheminCourant = runCatching {
+            val direct = java.nio.file.Path.of(chemin)
+            if (java.nio.file.Files.isRegularFile(direct)) direct else null
+        }.getOrNull() ?: racines.firstNotNullOfOrNull { racine ->
+            val candidat = racine.resolve(chemin)
+            if (java.nio.file.Files.isRegularFile(candidat)) candidat else null
+        }?.toString() ?: chemin
+        return references(chemin, source, offset, inclureDeclaration = true)
+            .any { it.chemin != cheminCourant }
     }
 
     /**
@@ -2018,3 +2090,28 @@ public class MoteurJava(
         }
     }
 }
+
+/**
+ * Le verdict de suppression sûre (vague V-D2 — ADR 0027 (e) : safe delete =
+ * usages + conflits, socle ADR 0028) : le miroir moteur du dialogue « Safe
+ * Delete » de la référence — le moteur FOURNIT la détection, le client
+ * décide de la suite (ADR 0014).
+ *
+ * @property cible le nom lisible du symbole visé (« calculer », « MAX »…).
+ * @property genre le genre machine : local / field / method / type / parameter.
+ * @property motifRefus le motif de refus honnête (null = pas de refus
+ *   structurel) : « override » (la clé d'usages ne suit pas la hiérarchie —
+ *   tranche 3), « parametre » (change signature, tranche 3).
+ * @property usagesBloquants les usages HORS déclaration, MULTI-FICHIERS,
+ *   exhaustifs par clé de binding — non vide ⇒ la suppression est fermée.
+ * @property editions les éditions de suppression (mono-fichier : la
+ *   déclaration vit dans le fichier courant), ou null (usages bloquants /
+ *   refus honnête).
+ */
+public data class SuppressionSure(
+    public val cible: String,
+    public val genre: String,
+    public val motifRefus: String?,
+    public val usagesBloquants: List<Usage>,
+    public val editions: List<jo.codeide.lsp.java.outils.EditionTexte>?,
+)

@@ -7,6 +7,7 @@ import jo.codeide.lsp.java.navigation.CollecteurSymbole
 import jo.codeide.lsp.java.navigation.NatureSymbole
 import jo.codeide.lsp.java.navigation.SymboleAuCaret
 import org.eclipse.jdt.internal.compiler.ast.AbstractMethodDeclaration
+import org.eclipse.jdt.internal.compiler.ast.AllocationExpression
 import org.eclipse.jdt.internal.compiler.ast.Argument
 import org.eclipse.jdt.internal.compiler.ast.ConstructorDeclaration
 import org.eclipse.jdt.internal.compiler.ast.FieldDeclaration
@@ -15,8 +16,10 @@ import org.eclipse.jdt.internal.compiler.ast.ImportReference
 import org.eclipse.jdt.internal.compiler.ast.LocalDeclaration
 import org.eclipse.jdt.internal.compiler.ast.MessageSend
 import org.eclipse.jdt.internal.compiler.ast.MethodDeclaration
+import org.eclipse.jdt.internal.compiler.ast.QualifiedAllocationExpression
 import org.eclipse.jdt.internal.compiler.ast.QualifiedNameReference
 import org.eclipse.jdt.internal.compiler.ast.QualifiedTypeReference
+import org.eclipse.jdt.internal.compiler.ast.ReferenceExpression
 import org.eclipse.jdt.internal.compiler.ast.SingleNameReference
 import org.eclipse.jdt.internal.compiler.ast.TypeDeclaration
 import org.eclipse.jdt.internal.compiler.lookup.ClassScope
@@ -385,7 +388,12 @@ internal class CollecteurOccurrencesRenommage(
 
     val occurrences = ArrayList<Occurrence>()
 
-    /** Vrai ssi la méthode binding correspond à la clé méthode (ou à un override suivi). */
+    /** Le sélecteur LISIBLE d'un binding : le nom du type pour un CONSTRUCTEUR (le sélecteur brut est `<init>` — mesuré V-D2). */
+    private fun selecteurDe(b: MethodBinding): String = runCatching {
+        if (b.isConstructor()) String(b.declaringClass.compoundName.last()) else String(b.selector)
+    }.getOrDefault(String(b.selector))
+
+    /** Vrai sss la méthode binding correspond à la clé méthode (ou à un override suivi). */
     private fun correspond(b: MethodBinding): Boolean {
         val m = cle as? CleUsages.Methode ?: return false
         val proprietaire = fqnTopDuType(b.declaringClass) ?: return false
@@ -393,11 +401,11 @@ internal class CollecteurOccurrencesRenommage(
             // Opt-in overrides : la déclaration d'un sous-type (même
             // sélecteur, même arité) suit le renommage de la base.
             return suivreOverrides &&
-                String(b.selector) == m.selecteur &&
+                selecteurDe(b) == m.selecteur &&
                 (b.parameters?.size ?: 0) == m.nbParametres &&
                 estSousTypeFqn(b.declaringClass, m.fqnProprietaire)
         }
-        return String(b.selector) == m.selecteur && (b.parameters?.size ?: 0) == m.nbParametres
+        return selecteurDe(b) == m.selecteur && (b.parameters?.size ?: 0) == m.nbParametres
     }
 
     /** Vrai ssi le champ binding correspond à la clé champ. */
@@ -428,6 +436,44 @@ internal class CollecteurOccurrencesRenommage(
             if (plage != null) retenir(plage.debutOffset, plage.finOffset - 1, false)
         }
         return true
+    }
+
+    // V-D2 (socle safe-delete, ADR 0027 (e)) : les sites `new X(…)` comptent
+    // pour la MÉTHODE constructeur — le binding d'une AllocationExpression
+    // est le MethodBinding du constructeur (sélecteur = nom simple du type).
+    override fun visiteAllocation(node: AllocationExpression, scope: BlockScope?): Boolean {
+        considererInvocation(node.binding, node.type?.sourceStart ?: node.sourceStart, node.type?.sourceEnd ?: node.sourceEnd)
+        return true
+    }
+
+    // V-D2 : allocations QUALIFIÉES (le répartiteur d'ecj route chaque nœud
+    // vers SA signature — visiteAllocation ne les voit jamais).
+    override fun visit(node: QualifiedAllocationExpression, scope: BlockScope?): Boolean {
+        considererInvocation(node.binding, node.type?.sourceStart ?: node.sourceStart, node.type?.sourceEnd ?: node.sourceEnd)
+        return true
+    }
+
+    // V-D2 : les références de méthode `X::m` comptent pour la MÉTHODE
+    // visée (getExactMethod — les non exactes restent hors correspondance).
+    override fun visit(node: ReferenceExpression, scope: BlockScope?): Boolean {
+        val b = try { node.getExactMethod() } catch (_: Exception) { null }
+        val nom = try { String(node.selector) } catch (_: Exception) { null }
+        if (b is MethodBinding && correspond(b) && nom != null) {
+            retenir(node.nameSourceStart, node.nameSourceStart + nom.length - 1, false)
+        }
+        return true
+    }
+
+    /** Le binding d'un site d'invocation (constructeur ou méthode) contre la clé MÉTHODE. */
+    private fun considererInvocation(b: org.eclipse.jdt.internal.compiler.lookup.Binding?, debutType: Int, finType: Int) {
+        if (b !is MethodBinding || !correspond(b)) return
+        // Le JETON cherché est le sélecteur LISIBLE (le nom du type pour un
+        // constructeur — `<init>` n'existe pas dans le texte source). La
+        // LIMITE de plageJeton est EXCLUE (mesuré) : sourceEnd du type est
+        // INCLUSIF — +1 pour ne pas couper la dernière lettre du nom.
+        val nom = selecteurDe(b)
+        val plage = plageJeton(source, debutType, finType + 1, nom) ?: return
+        retenir(plage.debutOffset, plage.finOffset - 1, false)
     }
 
     override fun visiteMethode(node: MethodDeclaration, scope: ClassScope?): Boolean {

@@ -471,6 +471,57 @@ complètent la couverture.
 
 ### V-D — Actions de code
 
+> **TRANCHE 2 LIVRÉE le 01/11/2026 (v1.9.0 — ADR 0027 Accepté-tranche 2,
+> PV `mesures/2026-11-01-vd2-refactorings.txt`)** :
+>
+> - **EXTRACT VARIABLE/CONSTANTE/MÉTHODE sur SÉLECTION** (kinds
+>   `refactor.extract.variable/constant/function`) : l'expression
+>   couverte s'extrait en locale (insertion au DÉBUT DE LIGNE de
+>   l'instruction porteuse, nommage par type + anti-collision), en
+>   constante (`private static final` en tête des membres) ou en méthode
+>   (**l'appel remplace l'expression sur place** — l'ordre d'évaluation
+>   est préservé, les locales lues deviennent des paramètres dans
+>   l'ordre de première lecture). La plage CONTIGUË d'instructions d'un
+>   même bloc s'extrait en méthode « instructions » (heuristiques §A5 :
+>   une SORTIE au plus — les locales écrites-d'abord sont DÉCLARÉES
+>   dans la méthode extraite, miroir de la référence —, contrôle de flux
+>   non local = refus honnête R1).
+> - **INLINE** (kinds `refactor.inline.variable/constant`) : locale
+>   initialisée → chaque LECTURE remplacée par l'initialisateur
+>   (parenthésage des binaires/ternaires/unaires, lignes repliées) ;
+>   réaffectations et effets multi-usages FERMÉS. Champ `static final`
+>   constant → usages du FICHIER COURANT remplacés par la valeur
+>   (référence ENTIÈRE pour les qualifiées) ; usage hors fichier =
+>   refus honnête (multi-fichiers en tranche 3).
+> - **SAFE DELETE** (kind `refactor.rewrite.delete`) : détection des
+>   usages MULTI-FICHIERS exhaustive (socle ADR 0028), suppression
+>   mono-fichier ; l'oracle `MoteurJava.suppressionSure` porte les
+>   usages bloquants et les motifs de refus (`override`,
+>   `paramètre`) ; la garde se paie au RESOLVE (ADR (f)).
+> - **SOCLE USAGES ÉTENDU** : les sites `new X(…)` comptent pour la
+>   MÉTHODE constructeur (sélecteur lisible = nom du type — le sélecteur
+>   brut `<init>` n'existe pas dans le texte source, MESURÉ), les
+>   références `X::m` comptent pour la méthode visée, les CONSTRUCTEURS
+>   sont identifiés au caret, l'égalité d'étendue de la fenêtre « +120 »
+>   laisse passer le DERNIER candidat (des méthodes rapprochées volaient
+>   le caret de la suivante, MESURÉ).
+> - **Pièges mesurés** : `declarationSourceEnd` avale le `;`/`}` final
+>   (une instruction-expression ne le porte PAS dans ses bornes) ; le
+>   corps d'une méthode n'est PAS un nœud Block ; le constructeur PAR
+>   DÉFAUT synthétique vit à type.methods sur le NOM du type (jamais
+>   ancre, jamais cible) ; la LIMITE de plageJeton est EXCLUE alors que
+>   sourceEnd d'un TypeReference est INCLUSIF (la dernière lettre du nom
+>   était coupée).
+>
+> **Critères éprouvés** : 22 cas dorés (WorkspaceEdit exacts +
+> compilabilité re-diagnostiquée — esprit P5) ; oracle safe-delete
+> « 0 manqué » (usage même fichier, autre fichier, sites `new`,
+> références `X::m` ; refus motivés override/paramètre) ; latence liste
+> AVEC refactorings **p95 mesurée 3 881 µs** (< 30 ms, mémo chaud) ;
+> 708 tests / 0 échec. **Reste la tranche 3** : change signature,
+> rename de ressource (G-028), création de champ sur UndefinedField,
+> suppression hiérarchique, inline multi-fichiers.
+
 > **TRANCHE 1 LIVRÉE le 31/10/2026 au soir (v1.8.0 — ADR 0027
 > Accepté-tranche 1, PV `mesures/2026-10-31-vd-vc2-catalogue.txt`)** :
 >

@@ -1,13 +1,26 @@
 # ADR 0027 — Actions de code étendues (catalogue, source.\*, refactor.\*, codeAction/resolve)
 
-- **Statut** : Accepté — **TRANCHE 1 LIVRÉE le 31/10/2026 au soir** (V-D :
-  organizeImports exposé M3/G-020, kinds source.\*/refactor.\*,
-  codeAction/resolve différé, génération de code — les 6 capacités,
-  intentions sans diagnostic — 4 conversions, familles ecj étendues +7 IDs
-  avec P5 étendu ; PV dans `mesures/2026-10-31-vd-vc2-catalogue.txt` ;
-  restent les tranches 2–3 : extract method/variable sur sélection, safe
-  delete, inline, change signature, rename de ressource)
-- **Date** : 2026-10-31
+- **Statut** : Accepté — **TRANCHE 2 LIVRÉE le 01/11/2026** (V-D2 :
+  refactorings lourds — extract variable/constant/méthode sur SÉLECTION
+  (heuristiques §A5 : une sortie au plus, paramètres par ordre de première
+  lecture, locales écrites-d'abord déclarées dans la méthode extraite,
+  refus honnête des positions paresseuses et du contrôle de flux non
+  local), inline variable (réaffectations et effets multi-usages fermés)
+  et inline constante (mono-fichier), safe delete par usages
+  MULTI-FICHIERS exhaustifs avec l'oracle « 0 manqué » et refus motivés
+  (`override`, `paramètre`) ; socle usages ADR 0028 étendu aux sites
+  `new X(…)` et aux références `X::m`, constructeurs identifiés au caret,
+  égalité d'étendue de la fenêtre « +120 » corrigée ; PV dans
+  `mesures/2026-11-01-vd2-refactorings.txt`).
+  **TRANCHE 1 LIVRÉE le 31/10/2026 au soir** (organizeImports exposé
+  M3/G-020, kinds source.\*/refactor.\*, codeAction/resolve différé,
+  génération de code — les 6 capacités, intentions sans diagnostic — 4
+  conversions, familles ecj étendues +7 IDs avec P5 étendu ; PV dans
+  `mesures/2026-10-31-vd-vc2-catalogue.txt`). **Reste la tranche 3** :
+  change signature (graphe d'appelants CIDX), rename de ressource
+  (G-028), création de champ sur UndefinedField, suppression
+  hiérarchique (override), inline multi-fichiers.
+- **Date** : 2026-10-31 (tranche 2 : 2026-11-01)
 - **Écarts résolus** : G-014, G-015, G-016, G-020 (`01-audit-moteur.md` §1.7)
 
 ## Contexte

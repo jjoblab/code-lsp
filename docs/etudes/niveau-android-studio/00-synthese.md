@@ -164,7 +164,20 @@ avec P5 étendu 0 violation et latence liste p95 mesurée 255 µs
 (< 30 ms) ; V-C2 suite : **Range/ResourceType/CommitPrefEdits/
 Recycle** (catalogue 15 contrôles) + **segment CIDX compact CLBA**
 de la base (re-compilable bit-à-bit) — cf. `04-plan-vagues.md` §V-D
-et `mesures/2026-10-31-vd-vc2-catalogue.txt`).
+et `mesures/2026-10-31-vd-vc2-catalogue.txt`) ; **V-D tranche 2
+(refactorings lourds) livrée le 01/11 (v1.9.0)** — extract
+variable/constante/méthode sur SÉLECTION (heuristiques §A5 : une sortie
+au plus, paramètres par première lecture, locales écrites-d'abord
+déclarées dedans, refus honnête des positions paresseuses et du
+contrôle de flux non local), inline variable/constante (réaffectations
+et effets multi-usages fermés, inline constante mono-fichier), **safe
+delete** par usages MULTI-FICHIERS exhaustifs (oracle « 0 manqué »,
+refus motivés override/paramètre) ; socle usages ADR 0028 étendu aux
+sites `new X(…)` et références `X::m`, constructeurs identifiés au
+caret, égalité d'étendue de la fenêtre « +120 » corrigée ; 22 cas
+dorés compilables, latence liste p95 mesurée 3 881 µs (< 30 ms),
+708 tests / 0 échec — cf. `04-plan-vagues.md` §V-D et
+`mesures/2026-11-01-vd2-refactorings.txt`).
 
 | # | Décision | Recommandation |
 |---|---|---|

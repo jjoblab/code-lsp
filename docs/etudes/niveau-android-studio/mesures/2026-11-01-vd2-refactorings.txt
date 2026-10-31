@@ -1,0 +1,169 @@
+PV DE MESURE — V-D tranche 2 (refactorings lourds : extractions,
+inline, safe delete) — 01/11/2026
+====================================================================
+
+R5 : AUCUNE valeur fabriquée. Toutes les mesures ci-dessous proviennent
+des bancs et tests exécutés ce jour (JVM du bac à sable — CPU partagé
+plus bruyant que la CI ; les gates de latence y sont re-vérifiées par
+la CI, la valeur de référence reste la passe CI).
+
+--- Contenu livré (ADR 0027 (e) — « extract variable/constant puis
+    method, inline, safe delete » ; écarts G-016 restants) -------------
+
+(a) EXTRACT VARIABLE (kind refactor.extract.variable, DIFFÉRÉ — clé
+  refactor.extraireVariable + bornes de sélection) : l'expression
+  couverte par la sélection devient une locale — `Type nom = <expr>;`
+  insérée au DÉBUT DE LIGNE de l'instruction de bloc porteuse
+  (convention tranche 1), sélection remplacée par le nom. NOMMAGE par
+  type (int/long → nombre, boolean → drapeau, String → texte, char →
+  caractere, double/float → valeur, sinon nom simple décaptialisé) avec
+  ANTI-COLLISION contre les locales, les paramètres, les champs du type
+  ET tout identifiant lu dans la méthode (le nommé masquerait).
+(b) EXTRACT CONSTANTE (kind refactor.extract.constant, DIFFÉRÉ) :
+  private static final en tête des membres du type englobant (ancre =
+  début de ligne du PREMIER MEMBRE RÉEL — le constructeur par défaut
+  synthétique ne compte jamais, filtre declarationSourceStart >=
+  bodyStart), littéraux et binaires de littéraux seulement, nom
+  CONSTANTE_x/CHAINE_x (miroir tranche 1).
+(c) EXTRACT MÉTHODE — CAS EXPRESSION (kind refactor.extract.function,
+  DIFFÉRÉ) : la méthode extraite rend le type résolu de l'expression,
+  L'APPEL REMPLACE L'EXPRESSION SUR PLACE (l'ordre d'évaluation est
+  préservé — aucune restriction de position, contrairement à
+  l'extraction de variable), les LOCALES LUES deviennent des paramètres
+  dans l'ordre de PREMIÈRE LECTURE ; refus en corps de lambda (la
+  portée ne suit pas) et sur expression qui écrit.
+(d) EXTRACT MÉTHODE — CAS INSTRUCTIONS : la sélection doit couvrir
+  EXACTEMENT une plage CONTIGUË d'instructions d'un MÊME conteneur (la
+  FAMILLE est celle du conteneur du premier couvert — les instructions
+  IMBRIQUÉES d'un if couvert ne comptent jamais, sinon le return d'un
+  bloc then volait la place de dernier couvert, MESURÉ). Heuristiques
+  §A5 de la référence : les locales déclarées AVANT et lues avant toute
+  écriture = ENTRÉES (paramètres) ; celles ÉCRITES avant toute lecture
+  = DÉCLARÉES DANS la méthode extraite (miroir de la référence — la
+  valeur d'entrée n'est jamais lue) ; UNE SORTIE au plus (locale lue
+  après la sélection et déclarée dedans OU écrite dedans — l'appel
+  ASSIGNE si la déclaration reste au site, DÉCLARE si elle a déménagé) ;
+  return/break/continue/label dans la sélection = REFUS HONNÊTE (R1).
+  Ré-indentation RELATIVE de l'extrait (profondeur de la ligne de
+  sélection = base, translatée au corps de la nouvelle méthode).
+(e) INLINE VARIABLE (kind refactor.inline.variable, DIFFÉRÉ) : chaque
+  LECTURE remplacée par l'initialisateur (PARENTHÉSÉ pour
+  binaire/ternaire/unaire/lambda, lignes repliées sur une), déclaration
+  supprimée avec sa ligne. FERMETURES honnêtes : locale RÉAFFECTÉE
+  (affectation/composée/incrément), initialisateur qui ÉCRIT
+  (`int x = (y = 5);`), effets MULTI-USAGES (un appel ne se
+  ré-évalue pas), effet à usage unique DANS UNE LAMBDA (l'évaluation
+  glisserait au corps différé).
+(f) INLINE CONSTANTE (kind refactor.inline.constant, DIFFÉRÉ) : champ
+  static final à initialisateur constant ; les usages du FICHIER
+  COURANT sont remplacés par la valeur — la référence ENTIÈRE pour les
+  qualifiées (`demo.Main.MAX` devient `42`), valeur NÉGATIVE
+  parenthésée. Garde MONO-FICHIER au niveau moteur : un usage hors du
+  fichier ferme la porte (refus honnête — le multi-fichiers suit la
+  tranche 3 avec change signature).
+(g) SAFE DELETE (kind refactor.rewrite.delete, DIFFÉRÉ) : au caret sur
+  une déclaration (locale, champ, méthode, constructeur, type). La
+  DÉTECTION des usages est MULTI-FICHIERS (socle ADR 0028, exhaustive
+  par clé de binding — la liste n'a JAMAIS payé, la garde vit au
+  RESOLVE, ADR 0027 (f)) ; la SUPPRESSION est mono-fichier (la
+  déclaration vit toujours dans le fichier courant). L'API moteur
+  MoteurJava.suppressionSure rend l'ORACLE complet : usagesBloquants
+  (un usage ferme la porte), editions (null ssi bloqué), motifRefus
+  (« override » — la clé d'usages ne suit pas la hiérarchie, tranche 3 ;
+  « parametre » — change signature, tranche 3). Le constructeur PAR
+  DÉFAUT synthétique n'est jamais cible (le caret sur le nom du type
+  vise le TYPE).
+(h) SOCLE USAGES ÉTENDU (ADR 0028, amélioration de couverture V-D2) :
+  * les sites `new X(…)` comptent pour la MÉTHODE constructeur (le
+    binding d'une AllocationExpression EST le MethodBinding du
+    constructeur — sélecteur LISIBLE : le nom du type ; le sélecteur
+    brut `<init>` N'EXISTE PAS dans le texte source, MESURÉ) ;
+  * les références de méthode `X::m` comptent pour la méthode visée
+    (getExactMethod — les non exactes restent hors correspondance) ;
+  * les CONSTRUCTEURS sont identifiés au caret (CollecteurSymbole :
+    visiteConstructeur — clé MÉTHODE au nom du type, le synthétique
+    saute) ;
+  * l'ÉGALITÉ d'étendue de la fenêtre « +120 » d'une tête de méthode
+    laisse passer le DERNIER candidat (MESURÉ : des méthodes
+    rapprochées volaient le caret posé sur le nom de la suivante —
+    usages et renommage touchaient la MAUVAISE méthode).
+  * le renommage N5 profite des mêmes ponts (CollecteurOccurrences-
+    Renommage) : un `X::m` retouché au rename, un `new X()` aussi.
+(i) KINDS : codeActionKinds annonce les formes PRÉCISES
+  refactor.extract.variable/constant/function,
+  refactor.inline.variable/constant et refactor.rewrite.delete (+
+  refactor.inline) — consommables par préfixe hiérarchique LSP 3.17.
+
+--- Pièges ecj MESURÉS au banc (sonde jetable, jamais codés de mémoire) -
+
+1. declarationSourceEnd d'une locale/méthode AVALE le `;`/`}` final ;
+   une instruction-EXPRESSION (envoi, affectation, incrément nus — ce
+   sont des instructions ecj, pas de nœud ExpressionStatement) ne porte
+   PAS son `;` : la fin d'instruction le SCANNE en aval.
+2. Le CORPS d'une méthode n'est PAS un nœud Block : les instructions de
+   haut niveau ont la MÉTHODE pour conteneur direct.
+3. ecj ne pose pas de lien parent : toutes les relations (conteneur
+   direct, méthode englobante, dans-lambda) se calculent par PLAGE.
+4. Le constructeur PAR DÉFAUT synthétique vit dans type.methods,
+   positionné sur le NOM du type (hors corps) : jamais ancre, jamais
+   cible de suppression.
+5. La LIMITE de plageJeton est EXCLUE alors que sourceEnd d'un
+   TypeReference est INCLUSIF : sans +1, la DERNIÈRE LETTRE du nom du
+   type était coupée (le site new X(…) n'était jamais retenu).
+6. La CIBLE d'une affectation (`x = …`, `x += …`, `x++`) reçoit bien un
+   visit SingleNameReference (ordre parent-puis-enfants) : ce n'est pas
+   une LECTURE — l'analyse de flot de l'extraction la filtre.
+7. ASTVisitor n'a PAS de hook générique visit(Expression)/
+   visit(Statement) : chaque type route vers SA signature (EqualExpression
+   ≠ BinaryExpression ≠ AND_AND_Expression ; AllocationExpression ≠
+   QualifiedAllocationExpression).
+
+--- Critères de sortie V-D (plan 04, tranches 2) ----------------------
+
+Cas dorés par capacité (WorkspaceEdit EXACT après application +
+compilabilité re-diagnostiquée — esprit P5) : 22/22 VERTS — extract
+variable (doré exact), extract constante (doré exact), extract méthode
+expression (signature + appel sur place), extract méthode instructions
+(int somme; déclarée dedans, appel qui ASSIGNE, retour), inline variable
+(doré exact, réaffectée fermée, effets multi-usages fermés), inline
+constante (doré exact avec usage QUALIFIÉ, hors-fichier fermé), safe
+delete (méthode inutilisée dorée + compilable, champ, locale, action
+différée servie puis resolve bloqué par l'usage).
+Conflits safe-delete — ORACLE « 0 manqué » : usage MÊME FICHIER (1
+bloquant exact), usage AUTRE FICHIER (multi-fichiers détecté, chemin
+vérifié), site new X(…) (extension (h)), référence X::m (extension
+(h)), override (refus motivé, action non servie), paramètre (refus
+motivé).
+Refus honnêtes (R1) : opérande de &&, condition de while (identité
+comprise — une condition ré-évaluée ne s'extrait pas), return dans la
+sélection, deux sorties, locale réaffectée, initialisateur à effets en
+multi-usage, inline constante hors fichier.
+Latence liste codeAction AVEC refactorings (test
+LatenceRefactorissementsVd2Test, transcript MESURÉ) : 48 requêtes sur
+8 positions ciblées (4 SÉLECTIONS d'extraction + 4 CARETS inline/safe
+delete), mémo chaud — p50 199 µs / p95 3 881 µs / max 5 455 µs
+(budget < 30 ms TENU ×7,7 ; la CI reste la référence).
+Non-régression : SUITE COMPLÈTE 707 tests / 0 échec / 0 erreur (les
+extensions du socle usages et la correction d'égalité d'étendue sont
+PUREMENT ADDITIVES — bancs V-E parité et usages intacts).
+
+--- Volumétrie ----------------------------------------------------------
+
+Production : ServiceRefactorisations.kt 1 382 l. + MoteurJava
+(suppressionSure/usagesHorsFichierCourant/routage resolve ~99 l. delta)
++ collecteurs usages/renommage étendus (~106 l. delta) + SymboleAuCaret
+(~28 l. delta) + CapacitesServeur kinds (~11 l. delta).
+Tests : RefactorisationsVd2Test 660 l. (22 cas) +
+LatenceRefactorissementsVd2Test 112 l. (transcript).
+Docs : USAGE §7.23 + historique 1.9.0 + banc §12 ; ADR 0027
+Accepté-tranche 2 ; plan 04 §V-D tranche 2 ; synthèse.
+
+--- Restes (tranche 3 V-D) ----------------------------------------------
+
+Change signature (graphe d'appelants CIDX), rename de ressource
+(G-028), création de champ sur UndefinedField, suppression
+hiérarchique (override — suivre la hiérarchie), inline multi-fichiers.
+Le critère « conflits rename/safe-delete : 0 manqué (oracle) » est
+ACQUIS sur le périmètre livré (le rename l'était depuis V-E, le safe
+delete l'est ici) ; la suppression hiérarchique restante est consignée
+comme refus honnête motivé, pas comme un manqué.

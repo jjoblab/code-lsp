@@ -3,6 +3,7 @@ package jo.codeide.lsp.java.navigation
 import jo.codeide.lsp.java.concurrence.EpoqueRetiree
 import jo.codeide.lsp.java.diagnostics.Plage
 import jo.codeide.lsp.java.interne.LectureAst
+import org.eclipse.jdt.internal.compiler.ast.AllocationExpression
 import org.eclipse.jdt.internal.compiler.ast.Assignment
 import org.eclipse.jdt.internal.compiler.ast.CompilationUnitDeclaration
 import org.eclipse.jdt.internal.compiler.ast.CompoundAssignment
@@ -13,7 +14,9 @@ import org.eclipse.jdt.internal.compiler.ast.MessageSend
 import org.eclipse.jdt.internal.compiler.ast.MethodDeclaration
 import org.eclipse.jdt.internal.compiler.ast.PostfixExpression
 import org.eclipse.jdt.internal.compiler.ast.PrefixExpression
+import org.eclipse.jdt.internal.compiler.ast.QualifiedAllocationExpression
 import org.eclipse.jdt.internal.compiler.ast.QualifiedNameReference
+import org.eclipse.jdt.internal.compiler.ast.ReferenceExpression
 import org.eclipse.jdt.internal.compiler.ast.SingleNameReference
 import org.eclipse.jdt.internal.compiler.ast.TypeDeclaration
 import org.eclipse.jdt.internal.compiler.lookup.FieldBinding
@@ -297,12 +300,17 @@ public class ServiceUsages(
         /** Les plages des CIBLES d'affectation vues jusqu'ici (écritures). */
         private val ciblesAffectation = ArrayList<IntRange>()
 
+        /** Le sélecteur LISIBLE d'un binding : le nom du type pour un CONSTRUCTEUR (le sélecteur brut est `<init>` — mesuré V-D2). */
+        private fun selecteurDe(b: MethodBinding): String = runCatching {
+            if (b.isConstructor()) String(b.declaringClass.compoundName.last()) else String(b.selector)
+        }.getOrDefault(String(b.selector))
+
         /** Vrai ssi la méthode binding correspond à la clé méthode. */
         private fun correspond(b: MethodBinding): Boolean {
             val m = cle as? CleUsages.Methode ?: return false
             val proprietaire = fqnTopDe(b.declaringClass) ?: return false
             return proprietaire == m.fqnProprietaire &&
-                String(b.selector) == m.selecteur &&
+                selecteurDe(b) == m.selecteur &&
                 (b.parameters?.size ?: 0) == m.nbParametres
         }
 
@@ -349,6 +357,50 @@ public class ServiceUsages(
                 if (plage != null) retenirTexte(plage.debutOffset, plage.finOffset - 1, false)
             }
             return true
+        }
+
+        // V-D2 (ADR 0027 (e) — safe delete) : les sites `new X(…)` comptent
+        // pour la MÉTHODE constructeur (le binding d'une AllocationExpression
+        // EST le MethodBinding du constructeur — son sélecteur est le nom
+        // simple du type). Sans ce pont, supprimer un constructeur utilisé
+        // passerait la garde des usages.
+        override fun visiteAllocation(node: AllocationExpression, scope: org.eclipse.jdt.internal.compiler.lookup.BlockScope?): Boolean {
+            considererInvocation(node.binding, node.type?.sourceStart ?: node.sourceStart, node.type?.sourceEnd ?: node.sourceEnd)
+            return true
+        }
+
+        // V-D2 : idem pour les allocations QUALIFIÉES (`a.new I()`, classes
+        // anonymes `new X() {…}`) — le répartiteur d'ecj route chaque nœud
+        // vers SA signature (visiteAllocation ne les voit jamais).
+        override fun visit(node: QualifiedAllocationExpression, scope: org.eclipse.jdt.internal.compiler.lookup.BlockScope?): Boolean {
+            considererInvocation(node.binding, node.type?.sourceStart ?: node.sourceStart, node.type?.sourceEnd ?: node.sourceEnd)
+            return true
+        }
+
+        // V-D2 : les références de méthode `X::m` comptent pour la MÉTHODE
+        // visée (getExactMethod — les références NON exactes, surchargées
+        // par le type attendu, restent hors correspondance : silence honnête
+        // côté usages, la garde safe-delete refuse alors via l'oracle).
+        override fun visit(node: ReferenceExpression, scope: org.eclipse.jdt.internal.compiler.lookup.BlockScope?): Boolean {
+            val b = try { node.getExactMethod() } catch (_: Exception) { null }
+            val nom = try { String(node.selector) } catch (_: Exception) { null }
+            if (b is MethodBinding && correspond(b) && nom != null) {
+                val debut = node.nameSourceStart
+                retenirTexte(debut, debut + nom.length - 1, false)
+            }
+            return true
+        }
+
+        /** Le binding d'un site d'invocation (constructeur ou méthode) contre la clé MÉTHODE. */
+        private fun considererInvocation(b: org.eclipse.jdt.internal.compiler.lookup.Binding?, debutType: Int, finType: Int) {
+            if (b !is MethodBinding || !correspond(b)) return
+            // Le JETON cherché est le sélecteur LISIBLE (le nom du type pour
+            // un constructeur — `<init>` n'existe pas dans le texte source).
+            // La LIMITE de plageJeton est EXCLUE (mesuré) : sourceEnd du type
+            // est INCLUSIF — +1 pour ne pas couper la dernière lettre du nom.
+            val nom = selecteurDe(b)
+            val plage = plageJeton(debutType, finType + 1, nom) ?: return
+            retenirTexte(plage.debutOffset, plage.finOffset - 1, false)
         }
 
         override fun visiteMethode(node: MethodDeclaration, scope: org.eclipse.jdt.internal.compiler.lookup.ClassScope?): Boolean {

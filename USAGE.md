@@ -1275,6 +1275,72 @@ xml. Re-compilable **bit-à-bit** (empreintes SHA-256 consignées par
 l'outil). Restes : mode global différé (UnusedResources), mesure de la
 taille sur la vraie base en CI/appareil.
 
+### 7.23 Refactorings lourds : extractions, inline, safe delete (vague V-D tranche 2)
+
+**Extractions sur SÉLECTION** (ADR 0027 (e) — kinds `refactor.extract.variable`,
+`refactor.extract.constant`, `refactor.extract.function`) : une sélection qui
+couvre une EXPRESSION sert l'extraction de variable (`Type nom = <expr>;`
+insérée au **début de ligne** de l'instruction de bloc porteuse, sélection
+remacée par le nom — heuristique de nommage par type : `nombre`, `texte`,
+`drapeau`…, suffixe anti-collision contre les locales, les champs et tout
+identifiant lu de la méthode), de constante (`private static final` en tête
+des membres du type, nom `CONSTANTE_…`/`CHAINE_…`, littéraux et binaires de
+littéraux seulement) et de méthode (**l'appel remplace l'expression SUR
+PLACE** — l'ordre d'évaluation est préservé, les locales lues deviennent des
+paramètres dans l'ordre de première lecture). Une sélection qui couvre
+**exactement une plage contiguë d'instructions d'un même bloc** sert
+l'extraction de méthode « instructions » (heuristiques §A5 de la référence :
+**une sortie au plus**, les locales lues avant toute écriture deviennent des
+paramètres, celles écrites avant toute lecture sont **déclarées dans la
+méthode extraite**, `return`/`break`/`continue` dans la sélection = refus
+honnête). Une sélection paresseuse — opérande de `&&`/`||`, branche de
+ternaire, condition de boucle, `assert`, corps de lambda — ne propose PAS
+l'extraction de variable (R1 : refus honnête plutôt que transformation
+fausse). Tous DIFFÉRÉS : la liste ne porte que clé + positions.
+
+**Inline** (kinds `refactor.inline.variable`, `refactor.inline.constant`) :
+au caret sur une locale initialisée — chaque LECTURE est remplacée par
+l'initialisateur (parenthésé pour les binaires/ternaires/unaires, lignes
+repliées), la déclaration est supprimée ; une locale **réaffectée** ne
+s'inline jamais, un initialisateur à effets ne s'inline qu'à usage **unique**
+(une lambda qui l'utilise compte comme différée). Au caret sur un champ
+`static final` à initialisateur **constant** — les usages du **fichier
+courant** sont remplacés par la valeur (référence **ENTIÈRE** pour les
+qualifiées : `demo.Main.MAX` devient `42` ; valeur négative parenthésée) ; un
+usage hors du fichier ferme la porte honnêtement (le multi-fichiers suit la
+tranche 3 avec change signature).
+
+**Safe delete** (kind `refactor.rewrite.delete`) : au caret sur une
+déclaration (locale, champ, méthode, constructeur, type). La DÉTECTION des
+usages est **multi-fichiers** (socle ADR 0028, exhaustive par clé de
+binding) ; la **SUPPRESSION** est mono-fichier (la déclaration vit toujours
+dans le fichier courant). L'API moteur `suppressionSure(chemin, source,
+offset)` rend le verdict complet — `usagesBloquants` (l'oracle : un usage
+ferme la porte), `editions` (null ssi bloqué), `motifRefus` (`override` :
+la clé d'usages ne suit pas la hiérarchie — tranche 3 ; `paramètre` :
+change signature — tranche 3). Le client LSP voit l'action au caret, la
+garde se paie au **resolve** (ADR 0027 (f) : rien d'eager) — un usage
+bloquant laisse l'action sans édition (refus honnête), `references` montre
+les coupables.
+
+**Socle usages étendu** (V-D2, mesuré) : les sites `new X(…)` comptent pour
+la **méthode constructeur** (le binding d'une allocation EST le
+`MethodBinding` du constructeur — son sélecteur LISIBLE est le nom du type,
+le sélecteur brut `<init>` n'existe pas dans le texte source), les
+références de méthode `X::m` comptent pour la **méthode visée**
+(`getExactMethod` — les non exactes restent hors correspondance). Le
+symbole au caret identifie désormais les **constructeurs** (clé MÉTHODE au
+nom du type) et l'égalité d'étendue de la fenêtre « +120 » d'une tête de
+méthode laisse passer le **dernier** candidat (mesuré : des méthodes
+rapprochées volaient le caret de la suivante). `codeActionKinds` annonce
+les formes précises `refactor.extract.variable/constant/function`,
+`refactor.inline.variable/constant` et `refactor.rewrite.delete`
+(consommables par préfixe hiérarchique).
+
+Restent (tranche 3) : change signature (graphe d'appelants CIDX), rename de
+ressource (G-028), création de champ sur UndefinedField, suppression
+hiérarchique (override), inline multi-fichiers.
+
 ## 8. Capability maison `x-codeide.completionRanking`
 
 Le protocole riche de classement (ADR 0012/0015, design intégré N8) :
@@ -1536,6 +1602,7 @@ reconstruit » est devenu ASYNCHRONE.
 | `./gradlew :java:test --tests 'jo.codeide.lsp.java.InspectionsTest'` | **banc V-C1** : 12 cas dorés des inspections (détection, non-détection, suppression, mutants P4, P3 zéro-erreur, P1 frappe confinée, dumb-aware) |
 | `./gradlew :java:test --tests 'jo.codeide.lsp.java.ControlesLintTest'` | **banc V-C2** : 8 cas dorés du lint (échappatoires NewApi une à une, @SuppressLint, base synthétique, repli honnête, garde erreurs) — gate android.jar du banc |
 | `./gradlew :java:test --tests 'jo.codeide.lsp.java.completion.CompletionVagueC3Test'` | **banc V-C3** : 26 cas dorés (smart S1–S5, typedef T1–T3, second appel D1–D4 avec imports statiques et index projet, chaîne, statement completion, stats à fenêtre glissante, mémo binaire avec transcript de latence, littéral `R.string.*` sur la fixture mini, mots-clés de tête de déclaration D7) |
+| `./gradlew :java:test --tests 'jo.codeide.lsp.java.RefactorisationsVd2Test'` | **banc V-D2** : 22 cas dorés des refactorings lourds (extractions dorées + compilables, refus honnêtes — paresseuse, condition de boucle, return, deux sorties, réaffectée, effets multi-usages, hors-fichier ; oracle safe-delete — usage même fichier, autre fichier, sites `new`, références `X::m`, override, paramètre, champ/locale inutilisés) + `LatenceRefactorissementsVd2Test` : transcript de latence de la liste avec refactorings (48 requêtes, p95 mesuré < 30 ms) |
 
 Re-baseline : par **PR dédiée** uniquement (ADR 0016 — jamais en passant).
 Re-pin de l'oracle (montée de version du vendored) : PR dédiée de re-pin +
@@ -1560,7 +1627,7 @@ re-signature de `parite-completion.json` (les stubs de façade suivent).
   dit pas de quel module il vient — ADR 0215) ; une source décompilée
   pendant un swap peut donc refléter l'époque précédente — la requête
   suivante re-sonde (comportement d'aperçu, jamais un diagnostic).
-- **Version 1.8.0 = vague V-D tranche 1 + V-C2 complément de catalogue (ADR 0027 Accepté-tranche 1 + ADR 0024 : organizeImports exposé M3/G-020 avec kinds source.*/refactor.* et codeAction/resolve DIFFÉRÉ ; génération de code — getter/setter/constructeur/equals+hashCode/toString/stubs d'outrepassement ; intentions sans diagnostic — ternaire, constante, référence de méthode, var↔explicite ; familles ecj étendues +7 IDs avec P5 étendu 0 violation ; latence liste p95 mesurée 255 µs < 30 ms ; lint Range/ResourceType/CommitPrefEdits/Recycle — catalogue 15 contrôles ; segment compact CLBA de la base api-versions, re-compilable bit-à-bit — §7.22)** ; - **Version 1.7.0 = vague V-C3 (complétion niveau Android Studio — ADR 0026 Accepté-livré : smart par bindings avec filtrage gradué jamais caché, typedef @IntDef/@StringDef en tête avec import statique, littéraux R.* par @…Res + référentiel, second appel — inaccessibles marqués + imports statiques — et 3ᵉ appel projet par CIDX, chaîne à deux sauts, statement completion lexicale moteur + RPC textDocument/statementCompletion, stats locales opt-in à fenêtre glissante, mémoïsation des membres binaires, mots-clés de tête de déclaration D7/G-024 avec fusion stubs ; capability completionRanking **v2** ; corpus qualité **v2 24 positions split train/éval** — ÉVAL 1,000/1,000 ; fiches 066 et 007 amendées, ECARTS-SERVEUR M1 résolu — §7.21/§8/§9.4)** ; **version 1.0.0 = bascule §8.5 SIGNÉE (30/10/2026)** ; **version 1.1.0 = intégration CodeIDE (§4.4 : régime vivant, option B arbitrée ; superDefinition aligné contrat vendord ; fiche 066)** ; **version 1.3.0 = vague V-E (références multi-fichiers D1, surbrillances composées typées, RPC usagesGroupes ; le 1.2.0 est SAUTÉ : valeur fantôme du vendord proscrite par la fiche 059 I7)** ; **version 1.4.0 = vague V-B (projet Android : modèle v11 + dérivateur disque, référentiel de ressources, classes light R/BuildConfig/Binding/BR, navigation ressource, interop Kotlin — décisions D2/D3/D6 ; `declasserDatabinding` RETIRÉ, rupture d'API consignée)** ; **version 1.5.0 = vague V-F1 (double-tampon + époques de l'environnement : 0 figage / 0 réponse périmée, rejeu des requêtes coupées, annulation fine complétion + usages, republication au swap d'époque, repli `jo.codeide.lsp.java.doubletampon.disabled` — ADR 0029 phase 1, §7.19/§11.1)** ; **version 1.6.0 = vagues V-F2 + V-C1/V-C2 (verrous par périmètre + chaos tests + banc de charge ADR 0010, comptage synchronized 99 → 0 ; inspections — contrat, profil, suppressions, 8 pilotes, provenance "inspection" ; lint Android — base api-versions en tâche de fond, NewApi/InlinedApi/ObsoleteSdkInt/MissingSuperCall/SetTextI18n, @SuppressLint, provenance "lint" — §7.20)** : checklist 6/6 du
+- **Version 1.9.0 = vague V-D tranche 2 (refactorings lourds — ADR 0027 Accepté-tranche 2 : extract variable/constante/méthode sur SÉLECTION avec heuristiques §A5 — une sortie au plus, paramètres par première lecture, locales écrites-d'abord déclarées dedans, refus honnête des positions paresseuses et du contrôle de flux non local ; inline variable — réaffectations et effets multi-usages fermés — et inline constante mono-fichier ; safe delete par usages multi-fichiers exhaustifs avec oracle « 0 manqué » — refus motivés override/paramètre ; socle usages étendu aux sites new X(…) et références X::m, constructeurs identifiés au caret, égalité d'étendue de la fenêtre +120 corrigée ; kinds refactor.extract.*/inline.*/rewrite.delete annoncés ; cas dorés compilables par capacité, latence liste p95 mesurée 3 881 µs < 30 ms — §7.23)** ; - **Version 1.8.0 = vague V-D tranche 1 + V-C2 complément de catalogue (ADR 0027 Accepté-tranche 1 + ADR 0024 : organizeImports exposé M3/G-020 avec kinds source.*/refactor.* et codeAction/resolve DIFFÉRÉ ; génération de code — getter/setter/constructeur/equals+hashCode/toString/stubs d'outrepassement ; intentions sans diagnostic — ternaire, constante, référence de méthode, var↔explicite ; familles ecj étendues +7 IDs avec P5 étendu 0 violation ; latence liste p95 mesurée 255 µs < 30 ms ; lint Range/ResourceType/CommitPrefEdits/Recycle — catalogue 15 contrôles ; segment compact CLBA de la base api-versions, re-compilable bit-à-bit — §7.22)** ; - **Version 1.7.0 = vague V-C3 (complétion niveau Android Studio — ADR 0026 Accepté-livré : smart par bindings avec filtrage gradué jamais caché, typedef @IntDef/@StringDef en tête avec import statique, littéraux R.* par @…Res + référentiel, second appel — inaccessibles marqués + imports statiques — et 3ᵉ appel projet par CIDX, chaîne à deux sauts, statement completion lexicale moteur + RPC textDocument/statementCompletion, stats locales opt-in à fenêtre glissante, mémoïsation des membres binaires, mots-clés de tête de déclaration D7/G-024 avec fusion stubs ; capability completionRanking **v2** ; corpus qualité **v2 24 positions split train/éval** — ÉVAL 1,000/1,000 ; fiches 066 et 007 amendées, ECARTS-SERVEUR M1 résolu — §7.21/§8/§9.4)** ; **version 1.0.0 = bascule §8.5 SIGNÉE (30/10/2026)** ; **version 1.1.0 = intégration CodeIDE (§4.4 : régime vivant, option B arbitrée ; superDefinition aligné contrat vendord ; fiche 066)** ; **version 1.3.0 = vague V-E (références multi-fichiers D1, surbrillances composées typées, RPC usagesGroupes ; le 1.2.0 est SAUTÉ : valeur fantôme du vendord proscrite par la fiche 059 I7)** ; **version 1.4.0 = vague V-B (projet Android : modèle v11 + dérivateur disque, référentiel de ressources, classes light R/BuildConfig/Binding/BR, navigation ressource, interop Kotlin — décisions D2/D3/D6 ; `declasserDatabinding` RETIRÉ, rupture d'API consignée)** ; **version 1.5.0 = vague V-F1 (double-tampon + époques de l'environnement : 0 figage / 0 réponse périmée, rejeu des requêtes coupées, annulation fine complétion + usages, republication au swap d'époque, repli `jo.codeide.lsp.java.doubletampon.disabled` — ADR 0029 phase 1, §7.19/§11.1)** ; **version 1.6.0 = vagues V-F2 + V-C1/V-C2 (verrous par périmètre + chaos tests + banc de charge ADR 0010, comptage synchronized 99 → 0 ; inspections — contrat, profil, suppressions, 8 pilotes, provenance "inspection" ; lint Android — base api-versions en tâche de fond, NewApi/InlinedApi/ObsoleteSdkInt/MissingSuperCall/SetTextI18n, @SuppressLint, provenance "lint" — §7.20)** : checklist 6/6 du
   gabarit `bancs/GABARIT-BASCULE-APPAREIL.md` (passe appareil moto g06 —
   18/18, 0 saut, p50/p95 GLOBAL 42,93/73,01 ms ; deltas 165 arbitrés
   103/62/0 — `ANALYSE-DELTAS-BASCULE.md`) ; `serverInfo.version` rend

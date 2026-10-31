@@ -167,6 +167,12 @@ internal open class CollecteurSymbole(
      * courant — CHAMP PAR CHAMP (un candidat sans clé écrase la clé du
      * candidat précédent : la locale du récepteur ne porte pas la clé du
      * champ du dernier chaînon).
+     *
+     * V-D2 (mesuré au banc) : l'égalité d'étendue LASSE PASSER le dernier
+     * candidat — la fenêtre « +120 » de la TÊTE d'une méthode déborde sur
+     * la méthode SUIVANTE quand elles sont proches, et le candidat vu en
+     * PREMIER volait alors le caret posé sur le nom de la suivante : la
+     * tête de la DERNIÈRE (la plus profonde, la plus proche) gagne l'égalité.
      */
     fun considerer(
         debut: Int,
@@ -178,7 +184,7 @@ internal open class CollecteurSymbole(
         bindingEcj: org.eclipse.jdt.internal.compiler.lookup.Binding?,
     ) {
         if (offset < debut || offset > fin) return
-        if (fin - debut >= tailleMeilleure) return
+        if (fin - debut > tailleMeilleure) return
         tailleMeilleure = fin - debut
         jeton = Plage(debut, fin + 1)
         this.nature = nature
@@ -387,6 +393,26 @@ internal open class CollecteurSymbole(
             CleUsages.Methode(proprietaire, String(b.selector), b.parameters?.size ?: 0),
             proprietaire,
             fqnDeType(b.returnType),
+            b,
+        )
+        return true
+    }
+
+    // V-D2 (mesuré) : le CONSTRUCTEUR porte la clé MÉTHODE au NOM SIMPLE
+    // DU TYPE — le sélecteur du BINDING est `<init>` (mesuré), le nœud AST
+    // porte le nom de la classe. Le constructeur PAR DÉFAUT synthétique
+    // (posé sur le nom du type) ne compte JAMAIS : le caret là-bas vise le
+    // TYPE. Sans ce pont, `references` au caret d'un constructeur ne voyait
+    // RIEN et le safe delete passait la garde.
+    override fun visiteConstructeur(node: org.eclipse.jdt.internal.compiler.ast.ConstructorDeclaration, scope: org.eclipse.jdt.internal.compiler.lookup.ClassScope?): Boolean {
+        if (runCatching { node.isDefaultConstructor() }.getOrDefault(false)) return true
+        val b = try { node.binding } catch (_: Exception) { null } ?: return true
+        val proprietaire = fqnTopDe(b.declaringClass) ?: return true
+        considerer(
+            node.sourceStart, node.sourceStart + 120, NatureSymbole.METHODE,
+            CleUsages.Methode(proprietaire, String(node.selector), b.parameters?.size ?: 0),
+            proprietaire,
+            null,
             b,
         )
         return true
