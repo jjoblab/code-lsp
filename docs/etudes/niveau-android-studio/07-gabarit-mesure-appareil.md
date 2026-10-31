@@ -13,6 +13,18 @@
 
 ## 1. Conditions de passe
 
+> **Périmètre de la première passe (avant toute vague)** — les mesures qui
+> n'attendent aucune implémentation : **S1, S2, S3, F1, F3, F4, F5, F6,
+> R1 (colonne « Avant V-F1 »), M1, M2, M3, M4, Q1, Q2, Q3** et C3 (déjà
+> mesuré côté dépôt, voir §5). Restent vides pour l'instant : S4 (après
+> V-B), F2 (après V-C), S5 (après V-G), R2/R3 (après V-F1), C1/C2 (après
+> V-F). Une case non mesurable reste **vide avec sa raison** (R5).
+>
+> **Méthode de chronométrage conseillée** : enregistrement d'écran à 60 i/s,
+> lecture image par image (≈ 16,7 ms/image) entre l'appui touche et
+> l'affichage complet du popup/soulignement ; 3 passes minimum espacées de
+> ≥ 30 s, mode avion (§11), aucune autre application active.
+
 - [ ] Appareil : ____________ (modèle, Android, RAM libre au repos : ______ Mo)
 - [ ] Version du moteur : `lspjava` v________ (tag/commit : __________)
 - [ ] Version hôte CodeIDE : ______ / client : ______
@@ -57,7 +69,7 @@
 |---|---|---|
 | C1 | Complétion fichier A pendant diagnose fichier B : p95 de A (ms) | |
 | C2 | Interblocage constaté (jamais — dump si survient) | |
-| C3 | Comptage `synchronized` résiduel (CI : `rg -c` — cible < 6 après V-F2) | |
+| C3 | Comptage `synchronized` résiduel (CI : `rg -c` — cible < 6 après V-F2) | **82 occurrences** au 31/10/2026 sur `3dfcc4a` (dont 46 dans `MoteurJava.kt`, 11 dans `EnvironnementCompilation.kt`) — mesure dépôt, hors appareil |
 
 ## 6. Mémoire et pression (§11)
 

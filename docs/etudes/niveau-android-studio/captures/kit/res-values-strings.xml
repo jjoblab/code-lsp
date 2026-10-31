@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  KIT DE CAPTURES — ressources chaîne pour A6, B6 et D1.
+  Copie locale (JAMAIS committée) :
+  bancs/projet-android/app/src/main/res/values/strings.xml
+  Le projet du banc ne contient aucune ressource chaîne ; celles-ci
+  alimentent R.string.* pour les scénarios du protocole 06.
+-->
+<resources>
+    <string name="app_name">monip</string>
+    <string name="titre_principal">Bienvenue dans monip</string>
+    <string name="action_envoyer">Envoyer</string>
+    <string name="msg_confirmation">Message envoyé</string>
+    <string name="erreur_reseau">Réseau indisponible</string>
+    <string name="libelle_annuler">Annuler</string>
+</resources>
