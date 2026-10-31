@@ -1032,3 +1032,43 @@ la cause racine des retards appareil selon §13.5, client §4, décisions
   (H1 fenêtre des 2 minutes de cache, H2 complétions 11–12 s post-sync,
   H3 churn de sessions, H4 arbre `build/generated`) — à traiter côté
   codeide-lsp/CodeIDE (ECARTS-SERVEUR §3).
+
+## 15. Exécution (31/10 au soir) — vague V-E : `references` multi-fichiers (D1), surbrillances composées, RPC `usagesGroupes` (v1.3.0)
+
+Mission « niveau Android Studio », vague V-E du plan par vagues (ADR 0028,
+décision D1 du GO propriétaire D1–D9). **Aucun changement hôte requis** —
+la vague est moteur/protocole pure ; voici ce que le client `cel-lsp` peut
+désormais consommer :
+
+1. **`references` MULTI-FICHIERS (rupture annoncée)** : la réponse n'est
+   plus confinée au document interrogé — elle rend les usages de TOUT le
+   projet (exhaustifs par clé de binding, ordre trié chemin+offset,
+   plages converties avec le repère du FICHIER PORTEUR). Un client qui
+   rendait la liste à plat continue de fonctionner (la liste reste une
+   liste) ; un client qui groupait par URI garde son groupement. La
+   rupture de la parité stricte §10.4 est annoncée par la capability
+   versionnée **`x-codeide.usages`** (champ `experimental` :
+   `{version: 1, multiFichiers: true, groupes: true, plafondRendu: 2000}`).
+2. **RPC maison `textDocument/usagesGroupes`** : la vue arborescente
+   « Find Usages » — un groupe par fichier porteur (ordre de première
+   apparition), déclaration TOUJOURS incluse et signalée
+   (`estDeclaration` — à épingler en racine du groupe), offsets ABSOLUS
+   du texte du porteur (convertir côté client si besoin), **plafond
+   honnête 2 000** : `total` (compte exact), `rendus`, `plafond`,
+   `tronque` TOUJOURS dans la réponse — afficher le total quand
+   `tronque` (jamais de troncature silencieuse). Contrat complet :
+   `USAGE.md` §9.3.
+3. **`documentHighlight` types lecture/écriture COMPLETS** : les
+   affectations composées (`+=`) et incréments (`x++`/`++x`) sont des
+   `Write` (3) — styles lecture/écriture côté client (K2) désormais
+   exploitables à 100 % (déclaration, cibles d'affectation simples ET
+   composées, incréments → Write ; le reste → Read ; méthodes/types →
+   Text).
+
+Validation (PV complet dans `docs/etudes/niveau-android-studio/
+04-plan-vagues.md` §V-E) : 564 tests / 0 échec gates Android ouvertes,
+banc usages rappel 1,000 / p95 50,30 ms, banc qualité baseline tenue,
+P1–P8 strict 0 violation. Fiche 054 AMENDÉE (D1 + kinds), M4/M7 rayés
+dans ECARTS-SERVEUR §2, ADR 0028 Accepté. Publication artefact 1.3.0 :
+à la chaîne habituelle (tag → Publication → pin hôte → catalogue
+CodeIDE) — NON jouée dans cette vague, à la demande du propriétaire.

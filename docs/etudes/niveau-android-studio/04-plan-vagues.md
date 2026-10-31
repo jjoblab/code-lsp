@@ -143,6 +143,60 @@ complètent la couverture.
 
 ### V-E — Navigation/références (P1, livrée tôt — décision D1)
 
+> **LIVRÉE le 31/10/2026 (v1.3.0)** — intégralité du périmètre :
+>
+> - **Levée du confinement `references` (G-013, ADR 0028 (a), décision D1)** :
+>   le filtre protocolaire est retiré — la réponse rend les usages
+>   MULTI-FICHIERS réels du moteur (exhaustifs par clé de binding, ordre
+>   trié chemin+offset) ; la conversion ligne/colonne passe par le repère
+>   du FICHIER PORTEUR de chaque usage (texte disque analysé par le
+>   moteur, overlay ouvert en repli) — l'ancien confinement convertissait
+>   tout avec le repère du document interrogé, ce qui n'était vrai que
+>   pour lui. **Gate « taille = 1 » INVERSÉE** : fiche 054 borne « 2
+>   exactement » (déclaration T.java + appel U.java, plage du JETON « a »
+>   vérifiée dans le porteur). Capability versionnée `x-codeide.usages`
+>   (champ `experimental` : `multiFichiers`/`groupes`/`plafondRendu`,
+>   version 1) annonce la rupture de la parité stricte §10.4.
+> - **Typage lecture/écriture complet (G-026, ADR 0028 (b))** : le typage
+>   simple existait depuis N4 (`GenreSurbrillance` — l'affirmation
+>   d'audit « Surbrillance non typée » était erronée, annotée) ; le trou
+>   RÉEL était les écritures COMPOSÉES et incréments — la hiérarchie ecj
+>   (`Assignment` ← `CompoundAssignment` ← `PostfixExpression`/
+>   `PrefixExpression`) route `+=`/`x++`/`++x` HORS du pont
+>   `visit(Assignment)` : trois ponts dédiés posés dans
+>   `LectureAst.VisiteurResilient` ; la cible (membre gauche) est une
+>   zone d'écriture, champ qualifié compris (`c.memoire += 1` → segment
+>   `memoire` en Write). Fiche 054 amendée : `total+=x` passe de
+>   « lecture » (narrative vendord) à Write (le genre LSP est unique par
+>   plage : l'écriture domine, la lecture implicite relève du data flow).
+>   Non livré, renvoyé documenté : « argument d'appel mutateur » (exige
+>   la DFA de V-C).
+> - **Usages groupés (ADR 0028 (e), risque R1)** : RPC maison
+>   `textDocument/usagesGroupes` — un groupe par fichier porteur (ordre
+>   de première apparition), déclaration TOUJOURS incluse et signalée,
+>   offsets absolus du porteur (convention `CibleSuperRpc`), **plafond
+>   honnête 2 000** : `total` exact, `rendus`, `plafond`, `tronque`
+>   TOUJOURS annoncés (jamais de troncature silencieuse) ; la liste
+>   plate `references` reste EXHAUSTIVE. Regroupement pur isolé et testé
+>   unitairement (4 tests d'invariants).
+> - **Comptabilité** : M4 ET M7 rayés dans `ECARTS-SERVEUR.md` §2 (M7
+>   corrigé par V-A1 mais la ligne n'avait pas été mise à jour) ; ADR
+>   0028 → Accepté ; audit §1.8 annoté (erreur d'audit corrigée, mesures
+>   d'origine conservées — R5) ; matrice G-013/G-026 résolus.
+>
+> **PV de mesure (JVM, 31/10 au soir, gates Android ouvertes — android.jar
+> 34-ext12 + bibliothèques réelles du banc)** : 564 tests / 0 échec
+> (dont 2 tests moteur affectations composées/incréments, 4 tests RPC
+> groupé, 1 test E2E `usagesGroupesParFichier`, gate inversée + kinds
+> verrouillés 3/3) ; 726 tests tous modules / 0 échec ; `clean build`
+> strict intégral VERT. **Banc usages** : rappel **1,000** = oracle,
+> p50 13,3–16,1 ms, **p95 50,30 ms < 100 ms** (borne tenue), 1 seule
+> construction d'index (30 classes, 153 usages). **Banc qualité** :
+> baseline signée tenue (d8 p95 36,27 ms, 0 saut). **P1–P8 strict :
+> 0 violation** (P7 rename sûr inchangé — 3/3, même index, la levée
+> n'ajoute pas d'occurrences fausses). Effort réel : ~0,5 séance agent —
+> cohérent avec l'estimation « quasi gratuit » (1–3 j-h).
+
 - **Périmètre** : levée du confinement `references` (ADR 0028), typage
   lecture/écriture de `documentHighlight`, usages groupés.
 - **Critères de sortie** : usages multi-fichiers réels (gate « taille = 1 » inversée) ;

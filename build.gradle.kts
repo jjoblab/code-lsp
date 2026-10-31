@@ -81,6 +81,26 @@ plugins {
 // :java:test 521/0/0 gates ouvertes, benchQualite baseline SIGNÉE intacte
 // (1,000/1,000/1,000, p95 36,7 ms), benchUsages 1,000/43 ms. §13
 // d'INTEGRATION-CODEIDE.
+// 1.3.0 : VAGUE V-E — NAVIGATION/RÉFÉRENCES (GO propriétaire D1–D9 du
+// 31/10 ; ADR 0028, décision D1 : abandon de la parité stricte §10.4).
+// (1) LEVÉE DU CONFINEMENT `references` : la réponse rend les usages
+// MULTI-FICHIERS réels du moteur (rappel = oracle au banc), conversion
+// ligne/colonne par le repère du FICHIER PORTEUR (disque puis overlay) —
+// la gate « taille = 1 » de la fiche 054 est INVERSÉE (borne 2 : la
+// déclaration T.java ET l'appel U.java) ; capability maison versionnée
+// `x-codeide.usages` (experimental) annonce la rupture. (2) TYPOAGE
+// lecture/écriture COMPLET du documentHighlight : les affectations
+// COMPOSÉES (`+=`) et les incréments (`x++`/`++x`) sont des ÉCRITURES
+// (la hiérarchie ecj Assignment ← CompoundAssignment ← Postfix/Prefix
+// route ces nœuds hors du pont visit(Assignment) — trois ponts dédiés
+// posés dans LectureAst). (3) RPC maison `textDocument/usagesGroupes` :
+// usages groupés par fichier (ADR 0028 (e)) avec plafond honnête 2 000
+// — total exact, rendus, tronque TOUJOURS annoncés (R1 : jamais de
+// troncature silencieuse). Validation : 564 tests / 0 échec (gates
+// Android ouvertes), banc usages rappel 1,000 / p95 50,3 ms, banc
+// qualité tenu (d8 p95 36,3 ms, 0 saut), P1–P8 strict 0 violation.
+// (Le 1.2.0 est SAUTÉ délibérément : valeur fantôme du vendord,
+// proscrite par la fiche 059 I7 — test serverInfoVersionEstCelleDuDepot.)
 allprojects {
-    version = "1.1.6"
+    version = "1.3.0"
 }

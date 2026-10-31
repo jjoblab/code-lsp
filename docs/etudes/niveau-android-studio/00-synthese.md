@@ -118,8 +118,10 @@ conditionne — elle peut s'exécuter dès maintenant.**
 > commencer les vagues ») : les neuf recommandations ci-dessous sont
 > entérinées telles quelles ; la **passe 1 du gabarit 07** (consignée le
 > 31/10) arbitre D5 — cibles §0.1 maintenues, la passe jrt devient la
-> baseline vague 0. L'exécution des vagues suit (V-A démarrée le 31/10,
-> cf. `04-plan-vagues.md` §V-A).
+> baseline vague 0. L'exécution des vagues suit (V-A1 livrée le 31/10,
+> **V-E livrée le 31/10 au soir** — D1 exécutée : references
+> multi-fichiers, surbrillances composées typées, RPC usagesGroupes,
+> cf. `04-plan-vagues.md` §V-E).
 
 | # | Décision | Recommandation |
 |---|---|---|

@@ -173,9 +173,14 @@ publications traversent la sérialisation Gson et les en-têtes
   (`resolveProvider: true`), `renameProvider` (forme options,
   `prepareProvider: true`), `callHierarchyProvider`,
   `typeHierarchyProvider`, `workspaceSymbolProvider`,
-  `inlayHintProvider`, et la capability maison
-  `x-codeide.completionRanking` (§8).
-- `serverInfo` : nom **`lspjava`**, version **1.1.4** — lue de la
+  `inlayHintProvider`, la capability maison
+  `x-codeide.completionRanking` (§8), et — depuis la vague V-E (ADR 0028,
+  décision D1) — le **contrat usages versionné** `x-codeide.usages` dans le
+  champ `experimental` : `multiFichiers` (la réponse `references` rend les
+  usages multi-fichiers réels — la parité stricte §10.4 est abandonnée),
+  `groupes` (le RPC `textDocument/usagesGroupes`, §9.3) et `plafondRendu`
+  (2 000 — le plafond honnête du RPC groupé).
+- `serverInfo` : nom **`lspjava`**, version **1.3.0** — lue de la
   ressource embarquée `version.properties`, générée à la construction
   depuis la version du projet (fiche 059 I7 : jamais de version fantôme).
 
@@ -218,9 +223,14 @@ Extrait de réponse (seule la capability maison est tronquée ici, voir §8) :
       "callHierarchyProvider": true,
       "typeHierarchyProvider": true,
       "workspaceSymbolProvider": true,
-      "inlayHintProvider": true
+      "inlayHintProvider": true,
+      "experimental": {
+        "superDefinitionProvider": true,
+        "decompiledSourceProvider": true,
+        "x-codeide.usages": { "version": 1, "multiFichiers": true, "groupes": true, "plafondRendu": 2000 }
+      }
     },
-    "serverInfo": { "name": "lspjava", "version": "1.1.4" }
+    "serverInfo": { "name": "lspjava", "version": "1.3.0" }
   }
 }
 ```
@@ -637,12 +647,18 @@ le verdict du cahier (fiches 049/060 : « 1 cible exactement »).
 
 ### 7.7 Références & surbrillance
 
-- `textDocument/references` (fiche 054) : **parité stricte §10.4** — la
-  réponse est CONFINÉE au document courant (l'écart de l'ancien moteur
-  sur l'appel inter-fichiers est reproduit tel quel, correction
-  consignée comme amélioration candidate post-bascule). Le moteur
-  conserve l'oracle complet : `MoteurJava.referencesParBalayageComplet`
-  (utilisé par le comptage des lentilles, §7.13).
+- `textDocument/references` (fiche 054, **amendée D1** — vague V-E, ADR
+  0028) : usages **MULTI-FICHIERS réels** — exhaustifs sur les racines du
+  projet par clé de binding (homonymes départagés par propriétaire et
+  arité, jamais par le texte), ordre trié (chemin, offset). La parité
+  stricte §10.4 (réponse confinée au document courant, écart du vendored)
+  est **formellement abandonnée** — décision D1 du propriétaire du
+  31/10/2026 ; la rupture est annoncée par la capability versionnée
+  `x-codeide.usages`. La conversion ligne/colonne utilise le repère du
+  FICHIER PORTEUR de chaque usage (texte disque — celui que le moteur a
+  analysé — puis overlay ouvert en repli). La vue groupée par fichier
+  (rendu arborescent « Find Usages ») est servie par le RPC maison
+  `textDocument/usagesGroupes` (§9.3).
 
 ```json
 {"jsonrpc":"2.0","id":15,"method":"textDocument/references","params":{
@@ -654,12 +670,20 @@ le verdict du cahier (fiches 049/060 : « 1 cible exactement »).
 ```json
 {"jsonrpc":"2.0","id":15,"result":[
   {"uri":"file:///projet/demo/src/demo/Demo.java",
-   "range":{"start":{"line":13,"character":22},"end":{"line":13,"character":27}}}
+   "range":{"start":{"line":13,"character":22},"end":{"line":13,"character":27}}},
+  {"uri":"file:///projet/demo/src/demo/Consommateur.java",
+   "range":{"start":{"line":41,"character":14},"end":{"line":41,"character":19}}}
 ]}
 ```
 
 - `textDocument/documentHighlight` : occurrences exhaustives **dans le
-  document courant** par clé de binding (homonymes départagés).
+  document courant** par clé de binding (homonymes départagés), typées
+  lecture/écriture (vague V-E, G-026) : méthode et type → `Text` (1) ;
+  variable → `Write` (3) pour la DÉCLARATION, la cible d'une affectation
+  — SIMPLE (`=`) ou COMPOSÉE (`+=`, `-=`, …) — et les incréments
+  (`x++`/`++x`) ; `Read` (2) pour le reste (le genre LSP est unique par
+  plage : l'écriture domine, la lecture implicite d'une composée relève
+  du data flow).
 
 ### 7.8 Renommage — `textDocument/prepareRename` + `textDocument/rename`
 
@@ -1046,6 +1070,42 @@ lecture-seule. Le champ `source` est null si le FQCN est introuvable.
 Le câble binaire côté moteur : `fqcnAt` / `isBinaryType` /
 `decompiledSource` (source attachée ou stub, §10).
 
+### 9.3 `usagesGroupes` — les usages groupés par fichier (vague V-E)
+
+Le rendu arborescent « Find Usages » de la référence (résultats groupés
+par fichiers, ADR 0028 (e)) : MÊME requête moteur que `references`
+(usages multi-fichiers exhaustifs, déclaration **toujours incluse** —
+elle est la racine de la vue), servie groupée. Un groupe par fichier
+porteur (ordre de première apparition de la liste triée chemin, offset),
+occurrences par offset croissant, offsets **ABSOLUS** dans le texte du
+porteur (même convention que `superDefinition` : jamais ligne/colonne).
+
+Le **plafond honnête** (ADR 0028 R1 : jamais de troncature silencieuse) :
+au-delà de 2 000 usages rendus, la réponse est tronquée dans l'ordre
+trié et L'ANNONCE TOUJOURS — `total` (le compte exact, jamais plafonné),
+`rendus`, `plafond` et le drapeau `tronque` ; la liste plate standard
+`references` reste EXHAUSTIVE (aucune troncature). Le plafond est
+annoncé dans la capability `x-codeide.usages` (`plafondRendu`).
+
+```json
+{"jsonrpc":"2.0","id":32,"method":"textDocument/usagesGroupes","params":{
+  "textDocument":{"uri":"file:///projet/demo/src/demo/Demo.java"},
+  "position":{"line":8,"character":20}}}
+```
+
+```json
+{"jsonrpc":"2.0","id":32,"result":{
+  "total":2,"rendus":2,"plafond":2000,"tronque":false,
+  "groupes":[
+    {"path":"/projet/demo/src/demo/Demo.java",
+     "usages":[{"start":146,"end":151,"estDeclaration":true}]},
+    {"path":"/projet/demo/src/demo/Consommateur.java",
+     "usages":[{"start":1024,"end":1029,"estDeclaration":false}]}
+  ]}}
+```
+
+Vue VIDE honnête si le caret ne porte pas de symbole (I9).
+
 ## 10. Utilisation in-process du moteur
 
 Le moteur pur (`jo.codeide.lsp.java.MoteurJava`) s'utilise sans boucle
@@ -1141,13 +1201,16 @@ re-signature de `parite-completion.json` (les stubs de façade suivent).
 - **Convention I9** (fiche 059) : hover **null**, structures **VIDES**
   ailleurs — jamais de contenus factices ; une liste vide EST une
   réponse.
-- **Parité stricte §10.4** : `references` confiné au document courant
-  (écart du vendored reproduit à dessein — §7.7).
+- **Usages multi-fichiers depuis V-E (1.3.0)** : `references` rend les
+  usages de TOUT le projet (décision D1 — ADR 0028 ; la parité stricte
+  §10.4 est abandonnée, la rupture est annoncée par `x-codeide.usages`) ;
+  le RPC groupé `usagesGroupes` borne à 2 000 rendus AVEC total exact et
+  drapeau `tronque` (§9.3).
 - **Pas de semanticTokens** : capability non annoncée (règle matrice
   ADR 0015), requête tolérante vide.
 - **Quick-fixes mono-fichier** (fiche 063) : le multi-fichiers passe
   par le renommage (N5) et le protocole (N8), jamais par ces édits.
-- **Version 1.0.0 = bascule §8.5 SIGNÉE (30/10/2026)** ; **version 1.1.0 = intégration CodeIDE (§4.4 : régime vivant, option B arbitrée ; superDefinition aligné contrat vendord ; fiche 066)** : checklist 6/6 du
+- **Version 1.0.0 = bascule §8.5 SIGNÉE (30/10/2026)** ; **version 1.1.0 = intégration CodeIDE (§4.4 : régime vivant, option B arbitrée ; superDefinition aligné contrat vendord ; fiche 066)** ; **version 1.3.0 = vague V-E (références multi-fichiers D1, surbrillances composées typées, RPC usagesGroupes ; le 1.2.0 est SAUTÉ : valeur fantôme du vendord proscrite par la fiche 059 I7)** : checklist 6/6 du
   gabarit `bancs/GABARIT-BASCULE-APPAREIL.md` (passe appareil moto g06 —
   18/18, 0 saut, p50/p95 GLOBAL 42,93/73,01 ms ; deltas 165 arbitrés
   103/62/0 — `ANALYSE-DELTAS-BASCULE.md`) ; `serverInfo.version` rend

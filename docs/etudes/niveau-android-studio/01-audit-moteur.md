@@ -176,6 +176,19 @@ Découverte importante de l'audit : **le moteur sait déjà faire du multi-fichi
   pas de distinction lecture/écriture dans la réponse (`Surbrillance` non typée
   lecture/écriture — vérifié `MoteurJava.kt:702`).
 
+> **Correction d'audit (vague V-E, 31/10/2026 — R5 : la lecture d'origine reste
+> ci-dessus, non réécrite)** : l'affirmation « `Surbrillance` non typée
+> lecture/écriture » est **ERRONÉE** — le typage existe depuis l'étage N4
+> (`navigation/TypesNavigation.kt` : `GenreSurbrillance` TEXTE/LECTURE/ÉCRITURE
+> mappé sur les `DocumentHighlightKind` par `ConvertisseurLsp.surlignage`) ;
+> la vérification s'était arrêtée à la façade `MoteurJava.kt` sans ouvrir le
+> type. Le trou RÉEL (corrigé par V-E, G-026) était ailleurs : les écritures
+> COMPOSÉES (`+=`) et incréments (`x++`/`++x`) — la hiérarchie ecj
+> (`Assignment` ← `CompoundAssignment` ← `PostfixExpression`/`PrefixExpression`)
+> route ces nœuds HORS du pont `visit(Assignment)` : ils étaient typés LECTURE.
+> La levée du confinement (G-013) est exécutée le même jour (ADR 0028, décision
+> D1 — PV `04-plan-vagues.md` §V-E).
+
 ### 1.9 H9 — Complétion par réparations textuelles `[CONFIRMÉ]`
 
 - `completion/AnalyseurContexte.kt` (1 236 lignes) : « échelle de variantes du splice »
