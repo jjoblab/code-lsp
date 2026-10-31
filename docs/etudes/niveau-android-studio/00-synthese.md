@@ -121,7 +121,11 @@ conditionne — elle peut s'exécuter dès maintenant.**
 > baseline vague 0. L'exécution des vagues suit (V-A1 livrée le 31/10,
 > **V-E livrée le 31/10 au soir** — D1 exécutée : references
 > multi-fichiers, surbrillances composées typées, RPC usagesGroupes,
-> cf. `04-plan-vagues.md` §V-E).
+> cf. `04-plan-vagues.md` §V-E ; **V-B livrée le 31/10 au soir (v1.4.0)** —
+> D2/D3/D6 exécutées : modèle v11 + dérivateur disque, référentiel de
+> ressources, classes light R/BuildConfig/Binding/BR, navigation
+> ressource exacte, interop Kotlin conservatrice, retrait
+> `DeclassementDatabinding`, cf. `04-plan-vagues.md` §V-B).
 
 | # | Décision | Recommandation |
 |---|---|---|

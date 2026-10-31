@@ -101,6 +101,32 @@ plugins {
 // qualité tenu (d8 p95 36,3 ms, 0 saut), P1–P8 strict 0 violation.
 // (Le 1.2.0 est SAUTÉ délibérément : valeur fantôme du vendord,
 // proscrite par la fiche 059 I7 — test serverInfoVersionEstCelleDuDepot.)
+// 1.4.0 : VAGUE V-B — PROJET ANDROID (ADR 0020/0021/0022, décisions
+// D2/D3/D6 du 31/10). (1) CONTRAT :model v11 (ModuleAndroidLsp, liste
+// B10, empreinte étendue, protocole ClasspathModuleAndroid producteur
+// hôte) + DÉRIVATEUR DISQUE KTS/Groovy tolérant (la sync PRIME, R3).
+// (2) RÉFÉRENTIEL DE RESSOURCES : parseur XML pull sans dépendance
+// (ART-compatible), values/ids @+id/styleables 3 familles/layout* par
+// configuration, MAJ CIBLÉE sur didChange .xml (mémo invalidé — P8
+// étendu aux ressources), octetsCompacts (peson CIDX : 126 Ko max sur
+// le corpus, budget 2 Mo tenu ×16). (3) CLASSES LIGHT : R + imbriquées
+// (attribut InnerClasses), BuildConfig, databinding.*Binding + BR —
+// ordre de repli sources → SYNTHÉTIQUES → jars → jrt → stubs (la source
+// générée réelle PRIME, anti-doublon R3 testé) ; équivalence light ↔
+// simulacre AGP du banc : 0 écart sur l'API ; MainActivity SANS racine
+// générée : zéro erreur. (4) NAVIGATION RESSOURCE : R.layout.x / R.id.x
+// / R.string.x / R.styleable.X_a / binding.champ → XML déclarant à la
+// plage EXACTE ; forme « liaison unique » des références qualifiées
+// couverte dans SymboleAuCaret (gain pour TOUTE réf. qualifiée statique).
+// (5) INTEROP KOTLIN (D3) : scanner lexical conservateur — types de
+// premier niveau + facades *Kt, signatures CERTAINES seulement. (6) D6 :
+// RETRAIT de DeclassementDatabinding + MoteurJava.declasserDatabinding
+// (RUPTURE d'API — l'import .databinding RÉSOUT avant build ; fiche 051
+// amendée « couvert par résolution »). Validation : 717 tests / 0 échec
+// (java+model+index, gates Android ouvertes), banc ressources 172 res/ :
+// scan p95 95 ms / MAJ ciblée 1,26 ms / peson 126 Ko (budgets ADR
+// tenus), bancs qualité (d8 p95 31–50 ms, 1,000) et usages (1,000,
+// < 100 ms) non régressés, P1–P8 strict 0 violation.
 allprojects {
-    version = "1.3.0"
+    version = "1.4.0"
 }

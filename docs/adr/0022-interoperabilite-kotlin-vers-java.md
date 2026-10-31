@@ -1,6 +1,6 @@
 # ADR 0022 — Interopérabilité Kotlin → Java
 
-- **Statut** : Proposé
+- **Statut** : Accepté (exécuté — vague V-B3, 31/10/2026)
 - **Date** : 2026-10-31
 - **Écart résolu** : G-009 (`01-audit-moteur.md` §1.2)
 
@@ -52,7 +52,18 @@ coût ART prohibitif ; rejeté.
 - Coût du scan : p95 par Ko de `.kt` [à mesurer ; cible < 1 ms/Ko JVM].
 - Empreinte du segment CIDX [budget : < 1 Mo pour 3 500 fichiers `.kt`].
 
-## Décision proposée
+## Décision proposée (exécutée)
+
+> **EXÉCUTÉE en V-B3** (PV : `04-plan-vagues.md` §V-B) : scanner lexical
+> `DeclarationsKotlin` — types de premier niveau + facades `*Kt`
+> (`@file:JvmName` primant), signatures CERTAINES seules (primitifs,
+> `String`/collections standards, FQCN avec point — le reste ÉCARTÉ :
+> jamais un type inventé) ; drapeau
+> `jo.codeide.lsp.java.interoperabilite.kotlin.disabled`. Le rappel est
+> vérifié contre un oracle compté à la main sur la fixture `mixte` ;
+> la mesure sur l'échantillon du corpus (gate P3, manifestes requis) et
+> le complément bytecode (point 3) restent à la gate corpus. Le segment
+> CIDX partagé reste le CONTRAT documenté avec le futur moteur Kotlin.
 
 **Option 1** (scanner lexical, déclarations publiques, index partagé CIDX — l'unique
 point de contact avec le futur moteur Kotlin, qui pourra **écrire** le même segment

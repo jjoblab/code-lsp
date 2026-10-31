@@ -93,7 +93,10 @@
 - Re-passe appareil du gabarit 07 **avec `android.jar`** (API 34) — la passe 1
   (jrt) est consignée (gabarit 07 §2/§3/§5-§8 + transcript `mesures/`) ; perçu
   écran 60 i/s quand un hôte CodeIDE sera disponible.
-- ~~Décisions D1–D9~~ **APPROUVÉES le 31/10/2026 (GO)** — vagues lancées
-  (V-A démarrée, cf. `04-plan-vagues.md` §V-A).
+- ~~Décisions D1–D9~~ **APPROUVÉES le 31/10/2026 (GO)** — vagues lancées :
+  V-A1 et V-E livrées le 31/10, **V-B livrée le 31/10 au soir (v1.4.0** —
+  PV `04-plan-vagues.md` §V-B : 717 tests / 0 échec, budgets ADR tenus ;
+  restes consignés : segment CIDX côté index, R.txt AAR, gate P3 corpus
+  manifestes, producteur hôte du modèle v11 = prompt §4 du plan).
 - Confirmation éventuelle des conditions d'artefacts JetBrains (ADR 0017 — ne
   conditionne que la vague incrémentalité, ADR 0019 option 2).

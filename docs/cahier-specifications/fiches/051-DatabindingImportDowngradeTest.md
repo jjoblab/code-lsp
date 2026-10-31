@@ -1,5 +1,15 @@
 # Fiche 051 — DatabindingImportDowngradeTest
 
+> **AMENDÉE le 31/10/2026 (décision D6, vague V-B3 — ADR 0021)** :
+> les classes Data Binding sont désormais **RÉSOLUES avant tout build**
+> par la fabrique light (`ClassesLegereAndroid` — ADR 0021) ;
+> `DeclassementDatabinding` est **RETRAIT** : son rôle disparaît (plus
+> d'erreur à déclasser). Le comportement couvert devient « couvert par
+> RÉSOLUTION » : voir `Fiche051BindingResoluTest` (import + usage du
+> binding sans build = zéro erreur ; faute de frappe = ERROR intégrale ;
+> post-build la source générée réelle PRIME). L'historique de la fiche
+> (déclassement HINT honnête, v1.x) reste ci-dessous pour la trace.
+
 > **Source** : `codeide-lsp` @ `cb809e14` — `lsp/java/src/test/java/jo/lspjava/lsp/DatabindingImportDowngradeTest.java`.
 > **Domaine** : diagnostics
 > **Résumé** : Repro du constat production v0.107.0 : « The import com.example.monip.databinding cannot be resolved » en ERROR sec sur un projet Data Binding sans build préalable. Les classes `XxxBinding` ne sont produites par AGP qu'AU BUILD (la sync ne les génère pas) : avant tout build, l'import est STRUCTURELLEMENT non résoluble — l'ERROR est exacte mais incurable côté utilisateur. Le correctif verrouillé : au package Data Binding, le MÊME downgrade honnête que la classe R — ERROR→HINT avec remède (« lance un Build ») — avec COUPURE honnête : dès que la première classe générée existe, une faute de frappe redevient une ERROR intégrale. Vrai flux LSP4J : serveur in-process + `LanguageClient` espion collectant les `publishDiagnostics` (le downgrade vit dans la PUBLICATION, pas dans le moteur).

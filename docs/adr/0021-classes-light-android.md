@@ -1,6 +1,6 @@
 # ADR 0021 — Classes « light » Android (R, BuildConfig, ViewBinding, DataBinding, Safe Args)
 
-- **Statut** : Proposé
+- **Statut** : Accepté (exécuté — vagues V-B1/V-B3, 31/10/2026)
 - **Date** : 2026-10-31
 - **Écarts résolus** : G-001, G-007, G-027 (partie navigation), G-028 (partie rename) — `01-audit-moteur.md` §1.1
 
@@ -61,7 +61,18 @@ projet de l'utilisateur, conflits avec AGP, mauvaise citoyenneté LSP.
 - Latence : fabrication à froid du R d'un module (200 ressources) [cible < 30 ms JVM] ;
   empreinte mémoire du référentiel light [budget < 3 Mo/module].
 
-## Décision proposée
+## Décision proposée (exécutée)
+
+> **EXÉCUTÉE en V-B1 (R, BuildConfig) puis V-B3 (Binding, BR)** (PV :
+> `04-plan-vagues.md` §V-B) : ordre de repli sources → SYNTHÉTIQUES →
+> jars → jrt → stubs (anti-doublon R3 : la source générée réelle PRIME —
+> testée build présent/absent) ; octets v52 (ConstantValue + attribut
+> InnerClasses) ; équivalence light ↔ simulacre AGP du banc : 0 écart sur
+> l'API couverte ; `DeclassementDatabinding` RETIRÉ (décision D6 — fiche
+> 051 amendée « couvert par résolution »). **Renvoyé documenté** : Safe
+> Args (graphe de navigation absent du banc), annotations de nullabilité
+> (inlay V-C — les TYPES par configuration sont déjà fusionnés :
+> incohérent ⇒ `android.view.View`).
 
 **Option 1**, dans cet ordre : R (le plus gros gain) → BuildConfig → ViewBinding →
 DataBinding (`BR` inclus) → Safe Args (si navigation présente).

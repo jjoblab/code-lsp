@@ -180,7 +180,7 @@ publications traversent la sérialisation Gson et les en-têtes
   usages multi-fichiers réels — la parité stricte §10.4 est abandonnée),
   `groupes` (le RPC `textDocument/usagesGroupes`, §9.3) et `plafondRendu`
   (2 000 — le plafond honnête du RPC groupé).
-- `serverInfo` : nom **`lspjava`**, version **1.3.0** — lue de la
+- `serverInfo` : nom **`lspjava`**, version **1.4.0** — lue de la
   ressource embarquée `version.properties`, générée à la construction
   depuis la version du projet (fiche 059 I7 : jamais de version fantôme).
 
@@ -230,7 +230,7 @@ Extrait de réponse (seule la capability maison est tronquée ici, voir §8) :
         "x-codeide.usages": { "version": 1, "multiFichiers": true, "groupes": true, "plafondRendu": 2000 }
       }
     },
-    "serverInfo": { "name": "lspjava", "version": "1.3.0" }
+    "serverInfo": { "name": "lspjava", "version": "1.4.0" }
   }
 }
 ```
@@ -991,6 +991,47 @@ proposition?.let {
 }
 ```
 
+### 7.18 Projet Android — classes light, référentiel, interop Kotlin (vague V-B)
+
+Le moteur connaît le projet Android **sans Gradle ni build** (ADR
+0020/0021/0022, décisions D2/D3/D6) :
+
+- **Contrat Android** (`ContratAndroidMoteur`) : deux producteurs, un
+  contrat. L'hôte pose celui de la sync (surcharge
+  `EnvironnementCompilation.remplacerContexteModule(…, projetAndroid)` —
+  la sync PRIME) ; sinon le moteur le **dérive du disque**
+  (`build.gradle(.kts)` KTS/Groovy tolérant + manifest + `res/` par
+  convention). Correspondance des champs avec `ModuleLsp.android` du
+  modèle v11 : `namespace`, `applicationId`, `minSdk`, `targetSdk`,
+  `compileSdk`, `dossiersRes`, `manifest`, `viewBinding`, `dataBinding`,
+  `buildConfig`, `nonTransitiveRClass`, `nonFinalResIds`, `resValues`,
+  `buildConfigFields`.
+- **Classes light** (ordre de repli : sources → synthétiques → jars →
+  jrt → stubs ; la source générée réelle PRIME toujours) : `R` +
+  imbriquées, `BuildConfig` (si `buildFeatures.buildConfig`),
+  `<ns>.databinding.*Binding` + `BR` — résolus, complétés, décompilables
+  (aperçu API) et navigables vers le XML déclarant (`R.layout.x`,
+  `R.id.x`, `R.string.x`, `R.styleable.X_a`, `binding.textTitre` →
+  `@+id/text_titre`).
+- **MAJ ciblée des ressources** : un `didChange` d'un document `.xml`
+  rafraîchit le référentiel du module (re-scan du SEUL fichier) et
+  invalide les diagnostics mis en mémoire — les champs de `R` suivent
+  l'édition du layout.
+- **Interop Kotlin** : les déclarations publiques `.kt` de premier
+  niveau (classes/objets/énum) et les facades `*Kt` (fonctions et
+  propriétés top-level à signature certaine) résolvent et se complètent
+  depuis Java — aperçu honnête (API seule), navigation vers le `.kt`.
+- **Drapeaux de repli** (propriétés système) :
+  `jo.codeide.lsp.java.projetandroid.derivation.disabled`,
+  `jo.codeide.lsp.java.projetandroid.classelegere.disabled`,
+  `jo.codeide.lsp.java.interoperabilite.kotlin.disabled`.
+- Sondes moteur : `contratAndroid()`, `aClassesLegereAndroid()`,
+  `classesLegereAndroid()`, `declarationsKotlin()`,
+  `generationRessources()`, `rafraichirFichierXml(chemin)`.
+- **Retrait (v1.4.0, décision D6)** : `MoteurJava.declasserDatabinding`
+  n'existe plus — l'import `.databinding` RÉSOUT avant build (fiche 051
+  amendée « couvert par résolution »).
+
 ## 8. Capability maison `x-codeide.completionRanking`
 
 Le protocole riche de classement (ADR 0012/0015, design intégré N8) :
@@ -1134,7 +1175,7 @@ code) :
 | Navigation | `definition`, `typeDefinition`, `implementation`, `superDefinition`, `fqcnAt`, `isBinaryType`, `decompiledSource` |
 | Usages | `references`, `referencesParBalayageComplet` (l'oracle), `surbrillances` |
 | Renommage | `cibleRenommageA`, `renommageProjet`, `conflitsRenommage`, `editionsRenommage`, `apercuRenommage` (preview sur copie) |
-| Actions de code | `actionsCode(chemin, source, diagnostics)`, `actionsCodePour(…, diagnostic)`, `declasserDatabinding(diagnostics)` |
+| Actions de code | `actionsCode(chemin, source, diagnostics)`, `actionsCodePour(…, diagnostic)` |
 | Confort éditeur | `formater(source, style)`, `formaterPlage`, `editionsFormatagePlage`, `plis(source)`, `organiserImports`, `chainesSelection` |
 | Hiérarchies | `typeAuCaret`, `supertypesDirects`, `sousTypes`, `methodeAuCaret`, `appelsEntrants`, `appelsSortants` |
 | Index / types | `findTypesByPrefix`, `fqnsForSimpleName`, `typesDansPaquet`, `constructionsIndexMots` |
@@ -1210,7 +1251,7 @@ re-signature de `parite-completion.json` (les stubs de façade suivent).
   ADR 0015), requête tolérante vide.
 - **Quick-fixes mono-fichier** (fiche 063) : le multi-fichiers passe
   par le renommage (N5) et le protocole (N8), jamais par ces édits.
-- **Version 1.0.0 = bascule §8.5 SIGNÉE (30/10/2026)** ; **version 1.1.0 = intégration CodeIDE (§4.4 : régime vivant, option B arbitrée ; superDefinition aligné contrat vendord ; fiche 066)** ; **version 1.3.0 = vague V-E (références multi-fichiers D1, surbrillances composées typées, RPC usagesGroupes ; le 1.2.0 est SAUTÉ : valeur fantôme du vendord proscrite par la fiche 059 I7)** : checklist 6/6 du
+- **Version 1.0.0 = bascule §8.5 SIGNÉE (30/10/2026)** ; **version 1.1.0 = intégration CodeIDE (§4.4 : régime vivant, option B arbitrée ; superDefinition aligné contrat vendord ; fiche 066)** ; **version 1.3.0 = vague V-E (références multi-fichiers D1, surbrillances composées typées, RPC usagesGroupes ; le 1.2.0 est SAUTÉ : valeur fantôme du vendord proscrite par la fiche 059 I7)** ; **version 1.4.0 = vague V-B (projet Android : modèle v11 + dérivateur disque, référentiel de ressources, classes light R/BuildConfig/Binding/BR, navigation ressource, interop Kotlin — décisions D2/D3/D6 ; `declasserDatabinding` RETIRÉ, rupture d'API consignée)** : checklist 6/6 du
   gabarit `bancs/GABARIT-BASCULE-APPAREIL.md` (passe appareil moto g06 —
   18/18, 0 saut, p50/p95 GLOBAL 42,93/73,01 ms ; deltas 165 arbitrés
   103/62/0 — `ANALYSE-DELTAS-BASCULE.md`) ; `serverInfo.version` rend

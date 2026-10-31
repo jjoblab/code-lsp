@@ -123,6 +123,85 @@ complètent la couverture.
 
 ### V-B — Projet Android (P1 « aveugle »)
 
+> **LIVRÉE le 31/10/2026 au soir (v1.4.0) — intégralité du périmètre en
+> trois sous-vagues V-B1→V-B3** :
+>
+> - **V-B1 — modèle + R** : `:model` **v11** (`ModuleAndroidLsp`, liste
+>   B10 : namespace, SDK, res/, manifest, buildFeatures, drapeaux R,
+>   resValue/buildConfigField) avec empreinte de module étendue au contrat
+>   et protocole `ClasspathModuleAndroid` (le producteur hôte — la sync
+>   PRIME par contrat, R3). Côté moteur : `ContratAndroidMoteur` (miroir
+>   documenté USAGE §7.8), **dérivateur disque** KTS/Groovy tolérant
+>   (`ModeleAndroidDerive` — namespace/minSdk/target/compileSdk/
+>   buildFeatures/srcDirs res + manifest, repli par défauts AGP 8, drapeau
+>   `projetandroid.derivation.disabled`), **référentiel de ressources**
+>   (`ReferentielRessources` — parseur pull `LecteurXmlTolerant` SANS
+>   dépendance (ART-compat. : ni StAX ni DOM), values typés, ids `@+id`
+>   collectés dans TOUS les XML (règle aapt), styleables à TROIS familles,
+>   layouts par configuration (type incohérent ⇒ `View`, règle §B9),
+>   `tools:viewBindingType` primant, MAJ ciblée), **classes light
+>   R/BuildConfig** (`ClassesLegereAndroid` + `EcrivainClasseLegere` :
+>   octets v52 avec ConstantValue et attribut **InnerClasses** — sans lui
+>   ecj refuse `R.layout`), ordre de repli verrouillé **sources →
+>   SYNTHÉTIQUES → jars → jrt → stubs** (anti-doublon : la source générée
+>   réelle PRIME — testée build présent/absent), annuaire `Origine.
+>   SYNTHETIQUE` (complétion + auto-import), isPackage du namespace.
+> - **V-B2 — ressources + navigation** : GO TO `R.layout.x`/`R.id.x`/
+>   `R.string.x`/`R.styleable.X_a` → le XML déclarant à la **plage EXACTE
+>   du nom** (ressource FICHIER : plage vide, ouverture — comportement de
+>   la référence) ; serveur : didChange `.xml` → **MAJ ciblée** du
+>   référentiel + invalidation du mémo (P8 étendu aux ressources) ;
+>   décompilation des classes light (aperçu API honnête via FormatterStub) ;
+>   `octetsCompacts()` (peson du futur segment CIDX) ; **banc
+>   `:java:benchRessources`** (mesures R5 : mini + monip + corpus 5 projets
+>   = **172 res/**).
+> - **V-B3 — binding + Kotlin (décisions D3/D6)** : fabrique
+>   `<ns>.databinding.*Binding` (nommage PascalCase+Binding §B9 ; view
+>   binding final + `ViewBinding` si résoluble + rootView/getRoot +
+>   inflate×2 + bind ; data binding abstrait + `ViewDataBinding` si
+>   résoluble + variables `<data>` en champs `public final` ; `BR` ; sonde
+>   de résolvabilité — repli Object, jamais de hiérarchie cassée) ;
+>   navigation `binding.textTitre` → la déclaration `@+id/text_titre` ;
+>   **`DeclarationsKotlin`** (ADR 0022 : scanner lexical conservateur —
+>   types de premier niveau + facades `*Kt`/`@file:JvmName`, signatures
+>   CERTAINES seulement, le reste ÉCARTÉ — jamais un type inventé ;
+>   drapeau `interoperabilite.kotlin.disabled`) ; **RETRAIT
+>   `DeclassementDatabinding` + `MoteurJava.declasserDatabinding` (D6)** —
+>   son rôle disparaît, l'import `.databinding` RÉSOUS avant build
+>   (fiche 051 remplacée par `Fiche051BindingResoluTest`).
+>
+> **PV de mesure (JVM, 31/10 au soir, gates Android ouvertes — android.jar
+> 34-ext12 + bibliothèques réelles du banc, corpus téléchargé)** : **717
+> tests / 0 échec** (java+model+index ; +31 tests V-B : référentiel/
+> dérivateur/lecteur XML, octets R/BuildConfig/Binding, navigation
+> ressource, interop Kotlin, équivalence, fiche 051 amendée ; 41 gates
+> environnementales ignorées avec raison). **Banc ressources** (172 res/
+> mesurés, 7 projets) : scan complet **p95 max 95,0 ms < 150 ms** (budget
+> ADR), MAJ ciblée **p95 max 1,26 ms < 5 ms** (échauffement JIT documenté :
+> 5,003 ms constatés à froid), **peson compact max 126 395 o < 2 Mo**
+> (marge ×16 ; chemins relatifs, métadonnées binding comprises). **Bancs
+> non régressés** : qualité d8 p95 31,4–49,7 ms / rappel 1,000 (baseline
+> tenue), usages p95 < 100 ms / rappel 1,000, P1–P8 strict 0 violation.
+> **Équivalence light ↔ généré (monip)** : `ActivityMainBinding` — super
+> `ViewDataBinding`, champs `textTitre`/`liaison` typés comme le simulacre
+> AGP commis, inflate×2 + bind : **0 écart** sur l'API couverte ;
+> `MainActivity` du banc SANS racine générée : **zéro erreur** (R + binding
+> light). **Régressions corrigées en cours de vague** (consignées) :
+> `List<Path> + Path` itère les SEGMENTS du chemin (Path est Iterable) ;
+> `return@when` invalide hors lambda ; forme « liaison unique » des
+> références qualifiées (`R.layout.x` : ecj lie le DERNIER segment dans
+> `binding`, `otherBindings` null) — comblée dans `SymboleAuCaret`, gain
+> pour TOUTE référence qualifiée statique. **Non livré, renvoyé
+> documenté** : câblage du SEGMENT CIDX côté index partagé (le peson
+> compact prouve le budget ; le format binaire est prêt — PR dédiée avec
+> l'index), `R.txt` AAR + flavors (ADR 0020 plan 3), rappel Kotlin mesuré
+> sur l'ÉCHANTILLON du corpus (gate P3 corpus — manifestes requis),
+> annotations de nullabilité des bindings (inlay, V-C), rename de
+> ressource (V-D). **Effort réel : ~1,5 séance agent** (V-B1+V-B2+V-B3
+> dans la même session) — à recouper avec l'estimation 36–60 j-h au
+> recalage (la méthode de comptabilité agent/j-h du PLAN-REECRITURE s'applique
+> au prochain recalage).
+
 - **Périmètre** : modèle `:model` v2 + dérivateur disque (ADR 0020), référentiel de
   ressources + MAJ incrémentale (ADR 0020), classes light R/BuildConfig/ViewBinding/
   DataBinding (ADR 0021), interop Kotlin→Java par index léger (ADR 0022).

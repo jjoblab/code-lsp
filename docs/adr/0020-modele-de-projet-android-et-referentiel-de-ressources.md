@@ -1,6 +1,6 @@
 # ADR 0020 — Modèle de projet Android et référentiel de ressources
 
-- **Statut** : Proposé
+- **Statut** : Accepté (exécuté — vague V-B1/V-B2, 31/10/2026)
 - **Date** : 2026-10-31
 - **Écarts résolus** : G-006, G-008 (fondation de G-001/G-007/G-011 ; `01-audit-moteur.md` §1.1–§1.3, §3.9)
 
@@ -58,7 +58,19 @@ deux avec priorité sync.
   (namespace/minSdk/buildFeatures vs valeurs réelles des build.gradle) [cible ≥ 95 %].
 - [Non vérifiable en local] : comportement sur appareil sans sync — gabarit 07.
 
-## Décision proposée
+## Décision proposée (exécutée)
+
+> **EXÉCUTÉE en V-B1/V-B2** (PV : `04-plan-vagues.md` §V-B) : contrat
+> `:model` v11 (`ModuleAndroidLsp`, champ `android` optionnel — rétro-
+> compatible), dérivateur disque `ModeleAndroidDerive` (KTS/Groovy
+> tolérant, repli par défauts AGP 8, drapeau
+> `jo.codeide.lsp.java.projetandroid.derivation.disabled`), référentiel
+> `ReferentielRessources` (parseur pull sans dépendance, MAJ ciblée,
+> `octetsCompacts()` — peson mesuré 126 Ko max < 2 Mo sur le corpus),
+> surcharge sync `remplacerContexteModule(…, projetAndroid)` (la sync
+> PRIME, R3). **Reste du plan de migration** : point 3 (R.txt AAR +
+> resValue/flavors) et le câblage du segment CIDX côté index partagé
+> (format binaire prêt, budget prouvé) — PR dédiée.
 
 **Option 1.** Le contrat `:model` est étendu en **v2 rétro-compatible** (nouveaux
 champs optionnels, `empreinte` étendue) ; le dérivateur disque vit dans le moteur

@@ -6,7 +6,7 @@ import java.nio.file.Path
  * Contrat Android D'UN MODULE, côté moteur (vague V-B — ADR 0020, décision
  * D2). Miroir moteur de `ModuleAndroidLsp` du module `:model` (v11) : le
  * moteur ne dépend PAS de `:model` (artefact autonome, budget ART — la
- * correspondance des champs est documentée dans `USAGE.md` §7.8).
+ * correspondance des champs est documentée dans `USAGE.md` §7.18).
  *
  * DEUX producteurs, UN contrat :
  *
