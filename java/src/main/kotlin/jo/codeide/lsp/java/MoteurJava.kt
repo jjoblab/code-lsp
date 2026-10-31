@@ -15,6 +15,7 @@ import jo.codeide.lsp.java.hierarchie.CibleMethodeHierarchie
 import jo.codeide.lsp.java.hierarchie.CibleSortante
 import jo.codeide.lsp.java.hierarchie.CibleTypeHierarchie
 import jo.codeide.lsp.java.hierarchie.ServiceHierarchies
+import jo.codeide.lsp.java.inspections.MoteurInspections
 import jo.codeide.lsp.java.inlay.IndiceInlay
 import jo.codeide.lsp.java.inlay.ServiceInlay
 import jo.codeide.lsp.java.imports.OrganisateurImports
@@ -534,19 +535,26 @@ public class MoteurJava(
         var diagnostics = reponse.problemes().map { RegimeInstantane.convertir(it) }
             .sortedWith(compareBy({ it.plage.debutOffset }, { it.plage.finOffset }))
         diagnostics = enrichirHierarchie(diagnostics, reponse.arbre)
+        // V-C1 (ADR 0023) : la passe d'INSPECTIONS suit la diagnose ecj du
+        // fichier (même passe de fond, ADR 0025) — Warning/Info seulement,
+        // provenance « inspection », jamais une erreur (règle ADR 0013).
+        val inspections = MoteurInspections.inspecter(reponse.arbre, source, chemin, diagnostics)
+        val toutes = if (inspections.isEmpty()) diagnostics else {
+            (diagnostics + inspections).sortedWith(compareBy({ it.plage.debutOffset }, { it.plage.finOffset }))
+        }
         val uniteResolue = UniteResolue(reponse.arbre, chemin, source, genererCode = true)
         cacheParse.ranger(chemin, source, uniteResolue, genererCode = true, focused = null)
         val corps = ScannerCorps.corpsDeMethodes(source) ?: emptyList()
         etatsRapides[chemin] = DiagnoseRapide.Etat(
             source,
-            diagnostics,
+            toutes,
             corps,
             arbreFocalise = null,
             corpsHote = null,
             dependances = empreintes(piste),
-            analytiquesHorsCorps = analytiquesHorsCorps(diagnostics, corps),
+            analytiquesHorsCorps = analytiquesHorsCorps(toutes, corps),
         )
-        return diagnostics
+        return toutes
     }
 
     /**
@@ -578,6 +586,14 @@ public class MoteurJava(
         var frais = reponse.problemes().map { RegimeInstantane.convertir(it) }
             .sortedWith(compareBy({ it.plage.debutOffset }, { it.plage.finOffset }))
         frais = enrichirHierarchie(frais, reponse.arbre)
+        // V-C1 (ADR 0023) : inspections sur l'arbre MASQUÉ — le squelette
+        // (déclarations, hors-corps) et le corps HÔTE sont intacts, les
+        // signaux des corps MASQUÉS sont PORTÉS par [DiagnoseRapide.portables]
+        // (isomorphie des offsets) : aucune divergence rapide/complet (P1).
+        val inspections = MoteurInspections.inspecter(reponse.arbre, masquee, chemin, frais)
+        if (inspections.isNotEmpty()) {
+            frais = (frais + inspections).sortedWith(compareBy({ it.plage.debutOffset }, { it.plage.finOffset }))
+        }
         val indexHote = corps.indexOf(hote)
         val portables = DiagnoseRapide.portables(etat.diagnostics, etat.corps, corps, indexHote)
         // État d'erreur de l'unité ENTIÈRE (frais = hôte + hors-corps,

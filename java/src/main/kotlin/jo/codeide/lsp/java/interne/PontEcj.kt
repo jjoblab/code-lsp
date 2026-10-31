@@ -245,6 +245,11 @@ public class PontEcj(
         "org.eclipse.jdt.core.compiler.problem.rawTypeReference" to "ignore",
         "org.eclipse.jdt.core.compiler.problem.uncheckedTypeOperation" to "ignore",
         "org.eclipse.jdt.core.compiler.problem.missingSerialVersion" to "ignore",
+        // V-C1 (ADR 0023/0024) : les annotations des liaisons BINAIRES sont
+        // stockées (/@CheckResult, @RequiresApi, @IntRange… lu par les
+        // inspections et les contrôles lint — sans cette option, ecj ne
+        // matérialise pas les annotations des jars). Coût mesuré au banc N1.
+        "org.eclipse.jdt.core.compiler.storeAnnotations" to "enabled",
     )
 
     public companion object {

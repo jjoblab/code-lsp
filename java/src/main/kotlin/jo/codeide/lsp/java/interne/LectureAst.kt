@@ -5,9 +5,12 @@ import org.eclipse.jdt.internal.compiler.ASTVisitor
 import org.eclipse.jdt.internal.compiler.ast.AbstractMethodDeclaration
 import org.eclipse.jdt.internal.compiler.ast.AllocationExpression
 import org.eclipse.jdt.internal.compiler.ast.Argument
+import org.eclipse.jdt.internal.compiler.ast.BinaryExpression
+import org.eclipse.jdt.internal.compiler.ast.CastExpression
 import org.eclipse.jdt.internal.compiler.ast.CompilationUnitDeclaration
 import org.eclipse.jdt.internal.compiler.ast.CompoundAssignment
 import org.eclipse.jdt.internal.compiler.ast.ConstructorDeclaration
+import org.eclipse.jdt.internal.compiler.ast.EqualExpression
 import org.eclipse.jdt.internal.compiler.ast.FieldDeclaration
 import org.eclipse.jdt.internal.compiler.ast.FieldReference
 import org.eclipse.jdt.internal.compiler.ast.ImportReference
@@ -349,6 +352,9 @@ public object LectureAst {
         override fun visit(compoundAssignment: CompoundAssignment, scope: BlockScope?): Boolean = protege { visiteAffectationComposee(compoundAssignment, scope) }
         override fun visit(postfixExpression: PostfixExpression, scope: BlockScope?): Boolean = protege { visitePostfixe(postfixExpression, scope) }
         override fun visit(prefixExpression: PrefixExpression, scope: BlockScope?): Boolean = protege { visitePrefixe(prefixExpression, scope) }
+        override fun visit(equalExpression: EqualExpression, scope: BlockScope?): Boolean = protege { visiteEgalite(equalExpression, scope) }
+        override fun visit(binaryExpression: BinaryExpression, scope: BlockScope?): Boolean = protege { visiteBinaire(binaryExpression, scope) }
+        override fun visit(castExpression: CastExpression, scope: BlockScope?): Boolean = protege { visiteCast(castExpression, scope) }
         override fun endVisit(methodDeclaration: MethodDeclaration, scope: ClassScope?): Unit = protegeUnit { finMethode(methodDeclaration, scope) }
         override fun endVisit(constructorDeclaration: ConstructorDeclaration, scope: ClassScope?): Unit = protegeUnit { finConstructeur(constructorDeclaration, scope) }
 
@@ -391,6 +397,15 @@ public object LectureAst {
         public open fun visiteAffectationComposee(node: CompoundAssignment, scope: BlockScope?): Boolean = true
         public open fun visitePostfixe(node: PostfixExpression, scope: BlockScope?): Boolean = true
         public open fun visitePrefixe(node: PrefixExpression, scope: BlockScope?): Boolean = true
+
+        // --- égalités et binaires (V-C1 — ADR 0023 : inspections pilotes) ---
+        // NOTE de routage : EqualExpression ÉTEND BinaryExpression — le
+        // répartiteur statique d'ecj route `==`/`!=` vers visit(EqualExpression)
+        // et les autres opérateurs vers visit(BinaryExpression) : les deux
+        // ponts sont disjoints (même discipline que Assignment/CompoundAssignment).
+        public open fun visiteEgalite(node: EqualExpression, scope: BlockScope?): Boolean = true
+        public open fun visiteBinaire(node: BinaryExpression, scope: BlockScope?): Boolean = true
+        public open fun visiteCast(node: CastExpression, scope: BlockScope?): Boolean = true
         public open fun finMethode(node: MethodDeclaration, scope: ClassScope?): Unit {}
         public open fun finConstructeur(node: ConstructorDeclaration, scope: ClassScope?): Unit {}
     }

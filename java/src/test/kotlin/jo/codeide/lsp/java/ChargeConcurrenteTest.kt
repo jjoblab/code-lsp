@@ -33,10 +33,11 @@ class ChargeConcurrenteTest {
         for (i in 0 until 12) {
             append("    public int methode$i(int v) { return v + $i; }\n")
         }
+        append("    public int apres(A autre) { return autre.methode0(1); }\n")
         append("    public void go() {\n")
         append("        int total = 0;\n")
         append("        total = total + nom.length();\n")
-        append("        // ancre\n")
+        append("        // fin du corps hote\n")
         append("    }\n")
         append("}\n")
     }
@@ -75,7 +76,12 @@ class ChargeConcurrenteTest {
         val moteur = MoteurJava(racines = listOf(racine()))
         val cheminA = "/demo/A.java"
         val cheminB = "/demo/B.java"
-        val ancre = sourceA.indexOf("// ancre")
+        // L'ancre vit sur un ACCÈS MEMBRE (« nom.| ») : la sonde à chaud
+        // de la complétion y lit le récepteur depuis l'arbre du cache de
+        // parse — le CHEMIN CHAUD réel de la frappe (une ancre en
+        // commentaire manquerait la sonde et paierait la résolution
+        // marquée : ce n'est pas le chemin que le banc doit mesurer).
+        val ancre = sourceA.indexOf("nom.length") + "nom.".length
 
         // Chauffe : environnement + cache de parse de A (le chemin chaud de
         // la complétion vit sur l'arbre du cache) + un premier diagnose de B.

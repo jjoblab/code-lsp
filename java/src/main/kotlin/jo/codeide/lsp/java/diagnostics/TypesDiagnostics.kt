@@ -62,6 +62,14 @@ public data class Plage(
  *   paquet Data Binding se font sur ces arguments, JAMAIS sur le message
  *   localisé (fiche 065 : « le dispatch est Locale-indépendant »). Vide pour
  *   les diagnostics synthétiques du moteur.
+ * @property source la PROVENANCE du diagnostic (V-C1 — ADR 0023/0025) :
+ *   `null` = le compilateur ecj (ou un enrichissement synthétique du
+ *   moteur), `"inspection"` = la couche IDE au-dessus du compilateur
+ *   (ADR 0013 : le rouge n'a qu'une source — les inspections n'ajoutent
+ *   JAMAIS de sévérité Erreur, uniquement Warning/Info). Transportée pour
+ *   le filtrage et la provenance côté hôte (G-023 : relatedInformation en
+ *   V-G). L'équivalence des valeurs par défaut préserve l'identité des
+ *   diagnostics ecj existants (contrat fiche 014).
  */
 public data class Diagnostic(
     public val severite: Severite,
@@ -69,4 +77,5 @@ public data class Diagnostic(
     public val plage: Plage,
     public val code: String? = null,
     public val arguments: List<String> = emptyList(),
+    public val source: String? = null,
 )
