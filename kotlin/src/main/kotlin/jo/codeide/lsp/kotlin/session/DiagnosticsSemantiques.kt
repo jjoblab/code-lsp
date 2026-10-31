@@ -912,6 +912,27 @@ internal object DiagnosticsSemantiques {
         // La ZONE DE CONSTRUCTION (paramètres nus du primaire, `field` des
         // accesseurs — fiche 028).
         if (nom in nomsZone) return
+        // `it` IMPLICITE (transverse T — fiche 021) : jamais un nom nu
+        // ordinaire, il NAÎT de l'attente de la lambda englobante. L'attente
+        // DÉMONTRÉE à EXACTEMENT un paramètre le déclare (silence — miroir
+        // exact du typage [TypageBorne.typeDeLexpression], même garde
+        // documentaire : une locale nommée `it` prime) ; une attente
+        // démontrée à une AUTRE arité le condamne (le nom ne peut pas
+        // exister, la preuve tient) ; SANS attente démontrable la preuve
+        // manque (silence D3 — jamais un faux positif sur la lambda d'une
+        // extension classpath dont le récepteur n'est pas typable à cet
+        // étage : `liste.map { it + 1 }`).
+        if (nom == "it" && !contextes.univers.possedeNomDeclare("it")) {
+            val attente =
+                TypageBorne.attenteLambdaAuPoint(
+                    contextes.univers.arbre,
+                    reference.debut,
+                    contextes.univers,
+                    liaison,
+                    pile,
+                )
+            if (attente == null || attente.size == 1) return
+        }
         val verdict = contextes.univers.resoudreNomNu(nom, contextes.nomsDeclares, liaison, pile)
         if (verdict != UniversPreuves.Verdict.SIGNALABLE) return
         emettreNonResolu(
