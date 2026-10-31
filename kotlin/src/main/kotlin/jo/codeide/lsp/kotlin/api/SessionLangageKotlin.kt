@@ -385,6 +385,77 @@ public interface SessionLangageKotlin : AutoCloseable {
     public fun renommage(uri: String, deplacement: Int): List<EmplacementKotlin>
 
     /**
+     * Rend les DÉFINITIONS DE TYPE du symbole sous le point (étage 4 vague
+     * 4b — fiche 053 : `textDocument/typeDefinition` L2, plan 1.3.0) : la
+     * DÉCLARATION du type désigné — la référence de TYPE visée, le type
+     * ÉCRIT d'une propriété ou d'un paramètre dont le NOM est sous le
+     * caret, ou la CLASSE CONSTRUITE d'un appel de constructeur.
+     *
+     * La preuve est PROJET : une cible n'est servie que si son nom résout
+     * par les IMPORTS du fichier du curseur (ou par le fichier lui-même,
+     * ou par unicité projet) vers un type DÉCLARÉ du projet — un type du
+     * CLASSPATH sans source projet n'est jamais servi (D3 : l'incertain
+     * rend VIDE, jamais deviné).
+     *
+     * @param uri l'identifiant du document ;
+     * @param deplacement l'offset du caret (sur le nom typé, la référence
+     * de type ou le constructeur) ;
+     * @return l'emplacement de la déclaration du type visé ; liste VIDE
+     * pour un document inconnu/fermé, une position sans type écrit
+     * démontrable ou un type sans source projet — jamais `null`, jamais
+     * d'exception.
+     */
+    public fun typeDefinition(uri: String, deplacement: Int): List<EmplacementKotlin>
+
+    /**
+     * Rend les IMPLÉMENTATIONS du type sous le point (étage 4 vague 4b —
+     * fiche 053 : `textDocument/implementation` L2) : les héritiers
+     * PROUVÉS du type désigné — le document courant EN TÊTE (ordre du
+     * document), puis les fichiers fermés du scan (ordre de marche).
+     *
+     * La preuve est PAR FQCN : un héritier n'entre dans la liste que si
+     * son supertype ÉCRIT résout, par les IMPORTS de SON PROPRE fichier
+     * (ou son paquet courant, ou l'unicité projet), vers le FQCN du type
+     * visé — jamais par homonymie de nom simple (deux `Base` de paquets
+     * distincts ne se confondent pas). L'incertain rend VIDE (D3).
+     *
+     * @param uri l'identifiant du document ;
+     * @param deplacement l'offset du caret (sur le supertype écrit ou le
+     * nom du type) ;
+     * @return les emplacements des déclarations héritières ; liste VIDE
+     * pour un document inconnu/fermé ou sans type prouvé — jamais `null`,
+     * jamais d'exception.
+     */
+    public fun implementations(uri: String, deplacement: Int): List<EmplacementKotlin>
+
+    /**
+     * Rend les CIBLES du GO-TO SUPER du symbole sous le point (étage 4
+     * vague 4c — fiche 052 : ADR 0210, `textDocument/superDefinition`,
+     * miroir des scénarios du LSP Java) — les DEUX chemins du picker :
+     *
+     * - **MEMBRE** au caret (déclaration OUTREPASSANTE, ou usage RÉSOLU
+     *   NON AMBIGU — deux homonymes dans la chaîne du récepteur rendent
+     *   le silence, borne O3 : le moteur ne présage jamais) : le
+     *   MÊME-NOMMÉ dans chaque supertype TRANSITIF projet du déclarant
+     *   (`« run  ·  Base »`, triés par libellé) ;
+     * - **TYPE** en contexte sinon (la référence de type sous le caret, à
+     *   défaut la classe ENGLOBANTE) : ses supertypes DIRECTS ÉCRITS
+     *   (`« Base  ·  demo »`).
+     *
+     * Chaque supertype est prouvé PAR FQCN (les imports de SON fichier) —
+     * jamais par homonymie ; un supertype sans source projet (classpath)
+     * est ABSENT, jamais un faux jalon (D3).
+     *
+     * @param uri l'identifiant du document ;
+     * @param deplacement l'offset du caret (sur le membre ou le type en
+     * contexte) ;
+     * @return les cibles super (uri + libellé picker + plage du nom) ;
+     * liste VIDE pour un document inconnu/fermé ou sans super prouvable —
+     * jamais `null`, jamais d'exception.
+     */
+    public fun superDefinition(uri: String, deplacement: Int): List<CibleSuperKotlin>
+
+    /**
      * Pose le classpath de la session : entrées des bibliothèques et racines
      * des sources (fiche 042 — ADR 0211).
      *

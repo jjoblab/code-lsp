@@ -267,6 +267,25 @@ internal object OccurrencesProuvees {
         }
 
         /**
+         * Les FICHIERS CANDIDATS contenant un nom, en ordre de visite : le
+         * document courant, les autres documents ouverts (ordre d'ouverture),
+         * puis les fichiers du scan non ouverts (ordre de marche) —
+         * pré-filtrés par contenu (la navigation de types et les
+         * implémentations s'y servent).
+         *
+         * @param nom le nom cherché dans le contenu ;
+         * @param uriCourante l'URI du document consulté ;
+         * @return les URI candidates, pré-filtrées.
+         */
+        internal fun fichiersParContenu(nom: String, uriCourante: String): List<String> {
+            val ordre = LinkedHashSet<String>()
+            ordre.add(uriCourante)
+            for (uri in ordreDocuments) ordre.add(uri)
+            for (uri in urisScan) ordre.add(uri)
+            return ordre.filter { uri -> texteDe(uri)?.let { it.contains(nom) } == true }
+        }
+
+        /**
          * Les FICHIERS CANDIDATS d'une cible, en ordre de visite : le
          * fichier DÉCLARANT d'abord (ses usages se lient par lui), le
          * document courant, les autres documents ouverts (ordre d'ouverture),
@@ -1006,7 +1025,7 @@ internal object OccurrencesProuvees {
      * Le SITE du membre d'un type (recherche par FQCN déclarant + nom) —
      * le corps de classe ET le constructeur primaire (`val`/`var`).
      */
-    private fun siteMembreDe(arbre: KtFichier, paquet: String, fqcnDeclarant: String, nom: String): PlageTexte? {
+    internal fun siteMembreDe(arbre: KtFichier, paquet: String, fqcnDeclarant: String, nom: String): PlageTexte? {
         for (site in sitesDeclaration(arbre)) {
             if (site.nom != nom) continue
             if (site.conteneur != Conteneur.CORPS_CLASSE && site.conteneur != Conteneur.PRIMAIRE) continue

@@ -713,6 +713,61 @@ internal class SessionLangageKotlinDocuments(
     }
 
     /**
+     * Rend les DÉFINITIONS DE TYPE du symbole sous le point (étage 4 —
+     * fiche 053 : typeDefinition L2 — la preuve projet par les imports du
+     * fichier du curseur).
+     */
+    override fun typeDefinition(uri: String, deplacement: Int): List<EmplacementKotlin> {
+        val document = verrou.read {
+            if (fermee) return@read null
+            documents[uri]
+        } ?: return emptyList()
+        return NavigationTypes.typeDefinition(
+            document = document,
+            uri = uri,
+            deplacement = deplacement,
+            montage = montageOccurrences(),
+        )
+    }
+
+    /**
+     * Rend les IMPLÉMENTATIONS du type sous le point (étage 4 —
+     * fiche 053 : les héritiers PROUVÉS par FQCN — le supertype écrit de
+     * chaque héritier résout par les imports de SON fichier, jamais par
+     * homonymie de nom simple).
+     */
+    override fun implementations(uri: String, deplacement: Int): List<EmplacementKotlin> {
+        val document = verrou.read {
+            if (fermee) return@read null
+            documents[uri]
+        } ?: return emptyList()
+        return NavigationTypes.implementations(
+            document = document,
+            uri = uri,
+            deplacement = deplacement,
+            montage = montageOccurrences(),
+        )
+    }
+
+    /**
+     * Rend les CIBLES du GO-TO SUPER du symbole sous le point (étage 4 —
+     * fiche 052 : ADR 0210 — les DEUX chemins du picker, membre puis type
+     * en contexte, chaque supertype prouvé PAR FQCN).
+     */
+    override fun superDefinition(uri: String, deplacement: Int): List<jo.codeide.lsp.kotlin.api.CibleSuperKotlin> {
+        val document = verrou.read {
+            if (fermee) return@read null
+            documents[uri]
+        } ?: return emptyList()
+        return NavigationSuper.superDefinition(
+            document = document,
+            uri = uri,
+            deplacement = deplacement,
+            montage = montageOccurrences(),
+        )
+    }
+
+    /**
      * Les statistiques du DERNIER passage du scanneur (vague 2e — fiche
      * 036 : le fichier au-delà de la borne est COMPTÉ — total réel des
      * fichiers éligibles vus par la marche, `faits < total` signale la

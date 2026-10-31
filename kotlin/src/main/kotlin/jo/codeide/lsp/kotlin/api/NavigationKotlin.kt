@@ -117,3 +117,22 @@ public class PlageRenommableKotlin(
     public val plage: PlageTexte,
     public val placeholder: String,
 )
+
+/**
+ * Une CIBLE du GO-TO SUPER (étage 4 vague 4c — fiche 052 : ADR 0210,
+ * `textDocument/superDefinition`) : l'emplacement du même-nommé dans un
+ * SUPERTYPE (chemin membre : `« run  ·  Base »`) ou du supertype DIRECT
+ * du type en contexte (chemin type : `« Base  ·  demo »`), avec son
+ * LIBELLÉ de picker — l'hôte l'affiche tel quel (miroir des libellés de
+ * l'éditeur hôte, jamais interprétés par le moteur).
+ *
+ * @property uri l'identifiant du fichier portant la cible ;
+ * @property libelle le libellé picker (`« nom  ·  déclarant »` pour un
+ * membre, `« nomSimple  ·  paquet »` pour un type) ;
+ * @property plage l'emplacement du NOM de la cible (offsets).
+ */
+public class CibleSuperKotlin(
+    public val uri: String,
+    public val libelle: String,
+    public val plage: PlageTexte,
+)
