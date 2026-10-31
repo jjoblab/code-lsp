@@ -8,6 +8,7 @@
 package jo.codeide.lsp.kotlin.session
 
 import java.io.File
+import java.nio.file.Files
 import java.util.concurrent.locks.ReentrantReadWriteLock
 import jo.codeide.lsp.kotlin.api.ClasspathKotlin
 import jo.codeide.lsp.kotlin.api.DiagnosticKotlin
@@ -16,6 +17,7 @@ import jo.codeide.lsp.kotlin.api.EmplacementKotlin
 import jo.codeide.lsp.kotlin.api.GenreContexteKotlin
 import jo.codeide.lsp.kotlin.api.PlagePliableKotlin
 import jo.codeide.lsp.kotlin.api.PlageRenommableKotlin
+import jo.codeide.lsp.kotlin.api.PreviewKotlin
 import jo.codeide.lsp.kotlin.api.PropositionKotlin
 import jo.codeide.lsp.kotlin.api.ReponseCompletionKotlin
 import jo.codeide.lsp.kotlin.api.SessionLangageKotlin
@@ -26,6 +28,8 @@ import jo.codeide.lsp.kotlin.index.IndexAppelablesKotlin
 import jo.codeide.lsp.kotlin.parse.ParseurKotlin
 import jo.codeide.lsp.kotlin.parse.kt.KtDirectiveImport
 import jo.codeide.lsp.kotlin.parse.kt.KtFichier
+import jo.codeide.lsp.kotlin.preview.PreviewsDocumentKotlin
+import jo.codeide.lsp.kotlin.resolve.ModeleProjet
 import jo.codeide.lsp.kotlin.plis.PlisDocumentKotlin
 import jo.codeide.lsp.kotlin.resolve.EtatScan
 import kotlin.concurrent.read
@@ -800,6 +804,72 @@ internal class SessionLangageKotlinDocuments(
             deplacement = deplacement,
             montage = montageOccurrences(),
         )
+    }
+
+    /**
+     * Rend les previews Compose du document (étage 5 vague 5c — fiche 050 :
+     * la reprise R3 `PreviewsDocumentKotlin` conduit TOUTE la marche ; la
+     * session lui fournit le document, le MODÈLE du projet (document +
+     * contributions du scan) et le PORT vers les autres fichiers —
+     * documents ouverts d'abord, disque re-parsé ensuite, TOUJOURS hors
+     * verrou pour la lecture disque, ADR 0212).
+     */
+    override fun previews(uri: String): List<PreviewKotlin> {
+        val document =
+            verrou.read {
+                if (fermee) return@read null
+                documents[uri]
+            } ?: return emptyList()
+        val paquet = document.arbre.directivePackage()?.nomQualifie()
+
+        // Le modèle et les appelables du projet : le document (uri RÉELLE —
+        // le port y retrouve l'arbre vif) puis les contributions du scan
+        // (les autres documents ouverts et les fichiers fermés).
+        val contributionCourante = ModeleProjet.contributionKotlin(document.arbre, uri)
+        val contributions = contributionsAuConsult(uri)
+        val batisseur = ModeleProjet.Batisseur()
+        batisseur.ajouter(contributionCourante)
+        contributions.forEach(batisseur::ajouter)
+        val declarationsProjet =
+            contributionCourante.appelables + contributions.flatMap { it.appelables }
+
+        val port = object : PreviewsDocumentKotlin.Port {
+            override fun fichierDe(uriCible: String): Pair<KtFichier, CharSequence>? {
+                // Le document OUVERT d'abord (l'arbre vif prime le disque).
+                val ouvert =
+                    verrou.read {
+                        if (fermee) return@read null
+                        documents[uriCible]
+                    }
+                if (ouvert != null) return Pair(ouvert.arbre, ouvert.texte)
+                // Le DISQUE ensuite : lecture et parse HORS verrou (ADR 0212
+                // — jamais d'I/O sous le verrou de session).
+                return try {
+                    val fichier = File(java.net.URI(uriCible))
+                    if (!fichier.isFile) return null
+                    val texte = String(Files.readAllBytes(fichier.toPath()), Charsets.UTF_8)
+                    Pair(parseur.arbre(texte, uriCible.endsWith(".kts")), texte)
+                } catch (_: Exception) {
+                    null
+                }
+            }
+
+            override fun contexteNomDe(fichier: KtFichier): PreviewsDocumentKotlin.ContexteNom =
+                PreviewsDocumentKotlin.ContexteNom(
+                    paquet = fichier.directivePackage()?.nomQualifie().orEmpty(),
+                    imports = fichier.imports(),
+                )
+        }
+        val contexte =
+            PreviewsDocumentKotlin.Contexte(
+                uri = uri,
+                texte = document.texte,
+                contexteNom = port.contexteNomDe(document.arbre),
+                modele = batisseur.figer(),
+                declarationsProjet = declarationsProjet,
+                port = port,
+            )
+        return PreviewsDocumentKotlin.collecter(contexte, document.arbre.noeud, paquet)
     }
 
     /**

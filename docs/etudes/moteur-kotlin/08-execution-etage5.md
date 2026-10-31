@@ -209,3 +209,46 @@ ensemble).
 - **Suite** : **456 tests VERTS** sur la toolchain 17 (447 + 9) ;
   baseline de parité RE-SIGNÉE **393 → 395 fichiers** (la reprise R8 et
   le test 007 entrent au corpus).
+
+## 7. Vague 5c — les previews Compose (31/10, reprise R3 — fiche 050, 16 comportements)
+
+### 7.1 Périmètre exécuté
+
+| # | Item | État | Détail |
+|---|---|---|---|
+| 1 | Le modèle SPI NEUF `api/PreviewsKotlin.kt` | **Fait** | Code NEUF jjoblab écrit fiche 050 en main (l'ancien `api/` est zone NOYAU en lecture interdite R9.1) : `PreviewKotlin` (nom, paquet, plageNom, paramètres tranchés, corps, coupureBudget, ligneAnnotation), l'arbre d'appels `NoeudAppelKotlin` scellé (`AppelFonctionKotlin` / `ExpressionNonInterpreteeKotlin`), `GenreInlineKotlin` (6 genres — AUCUN, PROJET_INLINE, PROJET_CYCLE, PROJET_BUDGET, PROJET_PARAMETRES, PROJET_ILLISIBLE), `GenreArgumentAppelKotlin` (LITTÉRAL/REFERENCE/AUTRE), `ParametrePreviewKotlin` |
+| 2 | L'extension du modèle neuf | **Fait** | `AppelableProjet` gagne `estFonction` et `debutNom` (remplis à la collecte) — la candidate d'inline est une FONCTION top-level ouverte à sa fonction PAR LA POSITION du nom, pas par homonymie (frontière consignée au manifeste §3 R3) |
+| 3 | La REPRISE R3 `preview/PreviewsDocumentKotlin.kt` | **Fait** | Copiée depuis `codeide-lsp` @ bc11253 vers `kotlin/src/main/kotlin/jo/codeide/lsp/kotlin/preview/` (re-contrôle R9.4 : PASSÉ). Adaptations de câblage SEULEMENT (manifeste §3 R3) : paquet neuf, SPI neuf, façade `parse.kt.*` neuve, extensions d'expression de l'ancienne façade (nomAppele, genreLitteral, recepteurQualifie, selecteurQualifie — zone noyau interdite) réécrites en helpers PRIVÉS depuis le contrat de la fiche, preuve FQCN d'un nom d'annotation (l'ancienne `fqcnDuNomEcrit` vivait dans le résolveur noyau, jamais lu) réécrite depuis sa sémantique documentée : imports EXACTS (alias compris), jokers de paquets PROJET (le nom doit être un type du modèle sous le paquet importé — un joker hors projet ne prouve RIEN), unicité projet. Le cœur est repris TEL QUEL : preuve FQCN des DEUX annotations, réduction du corps en arbre d'appels (littéraux distingués, lambda final = contenu, expressions honnêtes), INLINING borné (budget 500 nœuds PARTAGÉ par document, profondeur 6, cycles CYCLE, paramétrés PARAMETRES, non-composables AUCUN, illisibles ILLISIBLE), lignes d'annotation |
+| 4 | Le CÂBLAGE session | **Fait** | `previews(uri)` au contrat [SessionLangageKotlin] : le document, le MODÈLE du projet (contribution du document à uri RÉELLE + contributions du scan — `contributionsAuConsult`) et le PORT (documents ouverts d'abord — l'arbre vif prime le disque ; fichier du disque re-parsé ensuite, lecture et parse TOUJOURS hors verrou, ADR 0212) nourrissent la reprise |
+| 5 | R9 `symboles/` : reprise CADUQUE | **Fait** | NON copiée : la capacité symboles de document vit déjà dans le code NEUF de la vague 2e (`NavigationDocuments.symboles()`, fiche 025 verte) — consigné au journal du manifeste §6 |
+| 6 | Tests neufs | **Fait** | 16 comportements aux noms exacts du cahier : `Fiche050SessionLangageKotlinPreviewsTest` — par le SPI, moteur réel, projet multi-fichiers sur disque pour l'inline (fichiers écrits AVANT definirClasspath : la course avec le scan WARM est fermée par construction, ADR 0212) |
+
+### 7.2 Décisions d'exécution consignées
+
+1. **La preuve FQCN d'un nom d'annotation vit DANS la reprise, sur le
+   modèle neuf** : l'ancienne vivait dans le résolveur noyau (lecture
+   interdite) — sa sémantique documentée (imports exacts, jokers,
+   unicité projet) est réécrite sur `ModeleProjet` : un JOKER ne prouve
+   que si le nom est un TYPE DU PROJET sous le paquet importé (le joker
+   `androidx.compose.runtime.*` d'un paquet hors projet ne prouve
+   jamais `Composable` — comportement `import-joker-et-forme-qualifiee`
+   : JokerRuntime SOUS-RAPPORTÉ, la forme qualifiée TOUJOURS prouvée).
+2. **La candidate d'inline s'ouvre PAR LA POSITION du nom** (`debutNom`
+   porté par `AppelableProjet`) : deux `fun Titre` dans un même fichier
+   ne se confondent pas — miroir de l'ancien, la position remplace
+   l'identité d'objet de l'ancien modèle.
+3. **Le port sert l'arbre VIF d'abord** : un composable d'un document
+   OUVERT s'inline depuis son arbre frais (jamais le disque périmé) ;
+   un fichier fermé du scan se lit et se RE-PARSE à la demande, hors
+   verrou — le même patron que la navigation multi-fichiers de la vague
+   4a (§5.3 du journal 07).
+
+### 7.3 Preuves du bac à sable (avant commit)
+
+- **Fiche** : `Fiche050SessionLangageKotlinPreviewsTest` **16/16 VERTS
+  à la PREMIÈRE exécution** (aucune retouche du moteur repris après sa
+  rédaction — les 16 comportements, inline disque, cycle, budget et
+  lignes d'annotation compris).
+- **Suite** : **472 tests VERTS** sur la toolchain 17 (456 + 16) ;
+  baseline de parité RE-SIGNÉE **395 → 398 fichiers** (la reprise R3,
+  le SPI neuf et le test 050 entrent au corpus).

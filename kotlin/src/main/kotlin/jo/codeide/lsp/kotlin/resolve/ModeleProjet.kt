@@ -237,7 +237,13 @@ internal class TypeFonctionEcrit(
  * @property uri l'identifiant du fichier déclarant (`""` = document
  * COURANT — le témoin d'arité s'y vérifie PROPRE, fiche 017) ;
  * @property parametres les paramètres DÉCLARÉS (témoins d'arité, attente
- * des lambdas) ; liste vide pour les propriétés.
+ * des lambdas) ; liste vide pour les propriétés ;
+ * @property estFonction `true` pour une FUN, `false` pour une PROPRIÉTÉ
+ * (étage 5 vague 5c — reprise R3 preview : la candidate d'inline est une
+ * FONCTION top-level) ;
+ * @property debutNom l'offset du JETON NOM de la déclaration (étage 5
+ * vague 5c — reprise R3 preview : la candidate s'ouvre à sa fonction par
+ * la position du nom, pas par homonymie).
  */
 internal class AppelableProjet(
     internal val nom: String,
@@ -246,6 +252,8 @@ internal class AppelableProjet(
     internal val paquetSource: String,
     internal val uri: String,
     internal val parametres: List<ParametreProjet>,
+    internal val estFonction: Boolean = true,
+    internal val debutNom: Int = -1,
 )
 
 /**
@@ -530,13 +538,19 @@ internal class ModeleProjet private constructor(
                     val appelable = AppelableProjet(
                         nom, recepteur, typeRetourEcrit(noeud), paquet, uri,
                         parametresDeclares(noeud),
+                        estFonction = true,
+                        debutNom = debutNomDeclaration(noeud),
                     )
                     if (recepteur == null) appelables.add(appelable) else extensions.add(appelable)
                 }
                 KtNodeTypes.PROPERTY -> {
                     val nom = nomDeDeclaration(noeud) ?: return
                     val recepteur = recepteurEcrit(noeud)
-                    val appelable = AppelableProjet(nom, recepteur, typeEcritPropriete(noeud), paquet, uri, emptyList())
+                    val appelable = AppelableProjet(
+                        nom, recepteur, typeEcritPropriete(noeud), paquet, uri, emptyList(),
+                        estFonction = false,
+                        debutNom = debutNomDeclaration(noeud),
+                    )
                     if (recepteur == null) appelables.add(appelable) else extensions.add(appelable)
                 }
                 else -> Unit
@@ -889,6 +903,15 @@ internal class ModeleProjet private constructor(
         /** Le nom d'un nœud déclaration (premier IDENTIFIER propre). */
         private fun nomDeDeclaration(noeud: NoeudArbre): String? {
             return noeud.jetonsPropres.firstOrNull { it.genre == KtTokens.IDENTIFIER }?.texte
+        }
+
+        /**
+         * L'offset du JETON NOM d'une déclaration (étage 5 vague 5c —
+         * reprise R3 : la candidate d'inline s'ouvre à sa fonction par la
+         * position du nom) ; `-1` si tronquée sans identifiant.
+         */
+        private fun debutNomDeclaration(noeud: NoeudArbre): Int {
+            return noeud.jetonsPropres.firstOrNull { it.genre == KtTokens.IDENTIFIER }?.debut ?: -1
         }
     }
 }

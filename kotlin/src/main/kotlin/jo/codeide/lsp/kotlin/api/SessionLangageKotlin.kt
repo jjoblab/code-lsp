@@ -504,6 +504,26 @@ public interface SessionLangageKotlin : AutoCloseable {
     public fun superDefinition(uri: String, deplacement: Int): List<CibleSuperKotlin>
 
     /**
+     * Rend les PREVIEWS Compose du document (étage 5 vague 5c — fiche 050,
+     * C1 — PREVIEW.md §4.4) : les fonctions `@Preview @Composable`, leurs
+     * paramètres tranchés dans la source, leur corps réduit en ARBRE
+     * D'APPELS neutre (littéraux distingués, lambda final = contenu,
+     * expressions honnêtes) et l'INLINING borné des composables du projet
+     * (cycles et budgets typés — jamais un faux rendu).
+     *
+     * La preuve des annotations est FQCN PAR LES IMPORTS du fichier (un
+     * `@Preview` d'un autre paquet n'est pas une preview ; un joker hors
+     * projet ne prouve rien — conservateur D3). La ligne d'annotation
+     * porte le marqueur de gouttière (PAS la ligne du `fun`).
+     *
+     * @param uri l'identifiant du document ;
+     * @return les previews en ordre du document ; liste VIDE pour un
+     * document inconnu/fermé ou sans preview prouvée — jamais `null`,
+     * jamais d'exception.
+     */
+    public fun previews(uri: String): List<PreviewKotlin>
+
+    /**
      * Pose le classpath de la session : entrées des bibliothèques et racines
      * des sources (fiche 042 — ADR 0211).
      *
