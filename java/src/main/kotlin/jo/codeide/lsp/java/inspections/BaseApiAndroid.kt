@@ -1,8 +1,11 @@
 package jo.codeide.lsp.java.inspections
 
+import java.io.DataInputStream
+import java.io.DataOutputStream
 import java.io.InputStream
 import java.nio.file.Files
 import java.nio.file.Path
+import java.security.MessageDigest
 import java.util.concurrent.atomic.AtomicReference
 import javax.xml.stream.XMLInputFactory
 
@@ -47,11 +50,21 @@ public object BaseApiAndroid {
     /**
      * Le chemin de la base : propriété système
      * `jo.codeide.lsp.java.lint.baseapi` (fichier `api-versions.xml` ou
-     * sa forme gzippée `api-versions.xml.gz`).
+     * sa forme gzippée `api-versions.xml.gz`), OU le **segment compact**
+     * `.seg` — posé à côté du xml (chemin `<xml>.seg`, le chemin rapide)
+     * ou désigné directement par la propriété (ADR 0024 : compilation
+     * binaire de la base, cible ~1,7 Mo, re-compilable bit-à-bit).
      */
     private fun chemin(): Path? {
         val brut = System.getProperty("jo.codeide.lsp.java.lint.baseapi") ?: return null
         return runCatching { Path.of(brut) }.getOrNull()
+    }
+
+    /** Le chemin du SEGMENT COMPACT associé à un chemin de base (null sinon). */
+    private fun segmentDe(chemin: Path): Path? {
+        if (chemin.fileName.toString().endsWith("." + EXTENSION_SEGMENT)) return chemin
+        val voisin = chemin.resolveSibling(chemin.fileName.toString() + "." + EXTENSION_SEGMENT)
+        return if (Files.isRegularFile(voisin)) voisin else null
     }
 
     /**
@@ -81,10 +94,18 @@ public object BaseApiAndroid {
         return chargee.get()
     }
 
-    /** Le parse réel (fil de fond). */
+    /** Le parse réel (fil de fond) : segment compact d'abord, xml ensuite. */
     private fun charger() {
         val chemin = chemin() ?: return
-        val carte = runCatching { lire(chemin) }.getOrNull() ?: return
+        val carte = runCatching {
+            val segment = segmentDe(chemin)
+            when {
+                segment == null -> lire(chemin)
+                // Un segment illisible/corrompu ne tue JAMAIS la base :
+                // repli honnête sur le xml (jamais un silence fabriqué).
+                else -> runCatching { lireSegment(segment) }.getOrNull() ?: lire(chemin)
+            }
+        }.getOrNull() ?: return
         chargee.set(carte)
     }
 
@@ -168,4 +189,127 @@ public object BaseApiAndroid {
 
     /** Le nom interne d'un binding (« android.widget.TextView » → « android/widget/TextView »). */
     public fun nomInterneDe(lisible: String): String = lisible.replace('.', '/')
+
+    /**
+     * Réinitialise l'état chargé (usage BANC documenté : recharger une
+     * autre base sous la même propriété — la production ne la touche
+     * jamais, la base vit pour toute la session).
+     */
+    public fun reinitialiser() {
+        chargee.set(null)
+        fil.set(null)
+    }
+
+    // ------------------------------------------------------------------ //
+    // Segment compact CIDX (ADR 0024 : compilation binaire de la base) //
+    // ------------------------------------------------------------------ //
+
+    /**
+     * Compile la base `api-versions.xml` (ou `.xml.gz`) en SEGMENT
+     * COMPACT binaire : classes par ordre lexicographique, méthodes et
+     * champs triés — le résultat est RE-COMPILABLE BIT-À-BIT (même xml →
+     * mêmes octets, empreinte versionnée par [empreinte]).
+     *
+     * Format (`CLBA`, v1) : magic 4 octets, version 1 octet, puis par
+     * classe (UTF nom interne, Int since) ses méthodes (UTF clé, Int
+     * since) et ses champs (UTF nom, Int since, Int inlined ; -1 =
+     * absent) — lecture [DataInputStream], écriture [DataOutputStream].
+     *
+     * @param source le xml de la base (gzip transparent).
+     * @param cible le fichier segment à écrire (créé/écrasé).
+     * @return le nombre d'octets écrits.
+     */
+    public fun compilerSegment(source: Path, cible: Path): Long {
+        val carte = lire(source)
+        Files.createDirectories(cible.toAbsolutePath().parent)
+        DataOutputStream(
+            java.util.zip.GZIPOutputStream(
+                java.io.BufferedOutputStream(Files.newOutputStream(cible)),
+            ),
+        ).use { flux ->
+            flux.write(MAGIE_SEGMENT.toByteArray(Charsets.US_ASCII))
+            flux.writeByte(VERSION_SEGMENT)
+            flux.writeInt(carte.size)
+            for (nomClasse in carte.keys.sorted()) {
+                val classe = carte.getValue(nomClasse)
+                flux.writeUTF(nomClasse)
+                flux.writeInt(classe.since)
+                val methodes = classe.methodes.entries.sortedBy { it.key }
+                flux.writeInt(methodes.size)
+                for ((cle, since) in methodes) {
+                    flux.writeUTF(cle)
+                    flux.writeInt(since)
+                }
+                val champs = classe.champs.entries.sortedBy { it.key }
+                flux.writeInt(champs.size)
+                for ((nom, niveau) in champs) {
+                    flux.writeUTF(nom)
+                    flux.writeInt(niveau.since)
+                    flux.writeInt(niveau.inlined ?: -1)
+                }
+            }
+        }
+        return Files.size(cible)
+    }
+
+    /** La lecture d'un segment compact (v1) — muette sur format inconnu. */
+    private fun lireSegment(chemin: Path): Map<String, ClasseApi>? {
+        DataInputStream(
+            java.util.zip.GZIPInputStream(
+                java.io.BufferedInputStream(Files.newInputStream(chemin)),
+            ),
+        ).use { flux ->
+            val magie = ByteArray(MAGIE_SEGMENT.length)
+            flux.readFully(magie)
+            if (String(magie, Charsets.US_ASCII) != MAGIE_SEGMENT) return null
+            if (flux.readByte().toInt() != VERSION_SEGMENT) return null
+            val nombreClasses = flux.readInt()
+            val carte = HashMap<String, ClasseApi>(nombreClasses * 2)
+            repeat(nombreClasses) {
+                val nomClasse = flux.readUTF()
+                val classe = ClasseApi(flux.readInt())
+                repeat(flux.readInt()) {
+                    classe.methodes[flux.readUTF()] = flux.readInt()
+                }
+                repeat(flux.readInt()) {
+                    val nom = flux.readUTF()
+                    val since = flux.readInt()
+                    val inlined = flux.readInt()
+                    classe.champs[nom] = Niveau(since, if (inlined < 0) null else inlined)
+                }
+                carte[nomClasse] = classe
+            }
+            return carte
+        }
+    }
+
+    /**
+     * L'empreinte SHA-256 d'un fichier de base (xml OU segment) — la
+     * signature versionnée du déploiement (ADR 0024 : la base
+     * re-compilable bit-à-bit se PRÉUVE par son empreinte).
+     *
+     * @param chemin le fichier à signer.
+     * @return l'empreinte hexadécimale minuscule, ou null (illisible).
+     */
+    public fun empreinte(chemin: Path): String? = runCatching {
+        val condensat = MessageDigest.getInstance("SHA-256")
+        java.io.BufferedInputStream(Files.newInputStream(chemin)).use { flux ->
+            val tampon = ByteArray(64 * 1024)
+            while (true) {
+                val lus = flux.read(tampon)
+                if (lus < 0) break
+                condensat.update(tampon, 0, lus)
+            }
+        }
+        condensat.digest().joinToString("") { "%02x".format(it) }
+    }.getOrNull()
+
+    /** L'extension du segment compact. */
+    public const val EXTENSION_SEGMENT: String = "seg"
+
+    /** La magie du format segment. */
+    private const val MAGIE_SEGMENT: String = "CLBA"
+
+    /** La version courante du format segment. */
+    private const val VERSION_SEGMENT: Int = 1
 }
