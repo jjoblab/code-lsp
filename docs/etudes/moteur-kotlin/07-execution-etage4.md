@@ -61,7 +61,8 @@
 > scan ART 6 × AUCUNE (moteur 289 classes / 307 méthodes déclarées), dex
 > d8 25 823 méthodes (79 % du plafond) / 3,95 Mo (66 % du budget 6 Mo),
 > bancs verts (déterminisme IDENTIQUE ; complétion p95 5,07 ms, 0 saut),
-> provenance rc=0 — et le RECALAGE N° 3 de l'effort (§8.4 : la
+> provenance rc=0 — CI VERTE 10/10 PREMIÈRE TENTATIVE sur le commit de
+> clôture (run 41150305161) — et le RECALAGE N° 3 de l'effort (§8.4 : la
 > dominante navigation s'est révélée MOINS COÛTEUSE que l'abaque —
 > ~112 l. par comportement, l'étage 3 en coûtait ~135).**
 >
@@ -374,6 +375,14 @@ entrant est documenté au SPI.
   NEUF intégral, zones noyau anciennes jamais consultées R9.1).
 
 ### 8.4 Clôture de la vague 4d, de l'ÉTAGE 4 — et recalage n° 3 de l'effort
+
+**CI VERTE 10/10 sur le commit de clôture `89c2a7c`, PREMIÈRE TENTATIVE**
+(run `41150305161`, consulté le 31/10 via l'API GitHub Actions — le run
+porte le SHA de TÊTE du push : il éprouve le code de livraison `e9967c9`
+ET la clôture ensemble, les dix jobs verts — suite du module, scan ART +
+dexage d8 sous seuils, bancs empreinte/latence, banc qualité baseline
+signée, parité croisée, build JDK 21, gates Android, provenance). Le
+flottant E-K6 (périmètre Java) n'a pas frappé cette fois.
 
 **LES TROIS CRITÈRES DE SORTIE DE L'ÉTAGE 4 (§2) SONT ATTESTÉS** :
 
