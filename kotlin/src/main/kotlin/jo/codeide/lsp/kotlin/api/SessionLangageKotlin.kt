@@ -94,13 +94,61 @@ public interface SessionLangageKotlin : AutoCloseable {
 
     /**
      * Rend les plages pliables d'un document (fiche 049 : classe, fonctions,
-     * imports et KDoc).
+     * imports et KDoc ; étage 5 vague 5a — fiche 014 : le pliage COMPLET,
+     * une plage par paire d'accolades — branche de contrôle, lambda et
+     * `when` compris, dédupliqués — et les commentaires multi-lignes).
      *
      * @param uri l'identifiant du document ;
      * @return les plages en ordre du document ; liste VIDE pour un document
      * inconnu, fermé ou vide — jamais d'exception.
      */
     public fun plagesPliables(uri: String): List<PlagePliableKotlin>
+
+    /**
+     * Rend les éditions de ré-indentation du FORMATEUR BORNÉ d'un document
+     * entier (étage 5 vague 5a — fiche 019, `textDocument/formatting` L2,
+     * ADR 0202 miroir) : ré-indentation canonique SEULE, le contenu des
+     * lignes n'est JAMAIS réécrit.
+     *
+     * Le contrat est borné (honnêteté D3) : un document portant des
+     * marqueurs d'erreur de syntaxe (édition en cours) rend une liste
+     * VIDE — la profondeur d'un arbre incomplet serait une invention ;
+     * les lignes DANS un jeton multi-ligne (chaîne brute, KDoc, bloc)
+     * et les continuations d'expression libres ne reçoivent JAMAIS
+     * d'édition ; une ligne déjà juste n'en reçoit aucune (idempotence).
+     *
+     * @param uri l'identifiant du document ;
+     * @param tailleIndentation le nombre d'espaces par niveau
+     * (la demande du client — 2, 4…) ;
+     * @return les éditions ordonnées, jamais superposées ; liste VIDE
+     * pour un document inconnu/fermé, en erreur, ou déjà formaté —
+     * jamais `null`, jamais d'exception.
+     */
+    public fun formatage(uri: String, tailleIndentation: Int): List<EditionTexteKotlin>
+
+    /**
+     * Rend les éditions de ré-indentation du formateur borné RESTREINTES
+     * à la plage (étage 5 vague 5a — fiche 019, `rangeFormatting` L2) :
+     * seules les lignes qui INTERSECTENT la plage bougent — une édition
+     * hors plage décalerait le buffer du client, jamais émise.
+     *
+     * Les intouchables du formatage complet s'appliquent à l'identique
+     * (jetons multi-lignes, continuations libres, refus sur arbre en
+     * erreur).
+     *
+     * @param uri l'identifiant du document ;
+     * @param debutPlage le début de la plage (offset inclus) ;
+     * @param finPlage la fin de la plage (offset exclu) ;
+     * @param tailleIndentation le nombre d'espaces par niveau ;
+     * @return les éditions DANS la plage ; liste VIDE dans les mêmes
+     * conditions que [formatage] — jamais `null`, jamais d'exception.
+     */
+    public fun formatagePlage(
+        uri: String,
+        debutPlage: Int,
+        finPlage: Int,
+        tailleIndentation: Int,
+    ): List<EditionTexteKotlin>
 
     /**
      * Rend le survol (S2) au point demandé : la signature de la déclaration

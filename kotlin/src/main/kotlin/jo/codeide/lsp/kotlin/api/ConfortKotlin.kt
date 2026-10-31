@@ -1,7 +1,8 @@
 // CodeIDE — SPI du moteur Kotlin LSP : modèles de confort neutres (module
-// :kotlin, étage 1 vague 1b). Code NEUF jjoblab (clean-room — contrat :
-// fiche 049 du cahier : plages pliables et survol S2 ; les genres du pliage
-// sont NEUTRES, l'hôte les traduit en `FoldingRangeKind` LSP — frontière D6).
+// :kotlin, étage 1 vague 1b ; étage 5 vague 5a — genre BLOC et édition de
+// texte du formateur borné, fiches 014/019). Code NEUF jjoblab (clean-room —
+// contrat : fiches 049/014/019 du cahier ; les genres du pliage sont
+// NEUTRES, l'hôte les traduit en `FoldingRangeKind` LSP — frontière D6).
 package jo.codeide.lsp.kotlin.api
 
 import jo.codeide.lsp.kotlin.parse.kt.PlageTexte
@@ -9,7 +10,7 @@ import jo.codeide.lsp.kotlin.parse.kt.PlageTexte
 /**
  * Le genre d'une plage pliable d'un document Kotlin (vocabulaire neutre —
  * l'hôte le traduit en `FoldingRangeKind` LSP : [IMPORTS] vers `imports`,
- * [KDOC] vers `comment`, [CLASSE] et [FONCTION] sans genre LSP).
+ * [KDOC] vers `comment`, [CLASSE]/[FONCTION]/[BLOC] sans genre LSP).
  */
 public enum class GenrePlagePliable {
     /** Le bloc des directives d'import du document. */
@@ -23,6 +24,11 @@ public enum class GenrePlagePliable {
 
     /** Le corps de bloc d'une fonction. */
     FONCTION,
+
+    /** Un corps à accolades SANS genre dédié (étage 5 vague 5a — fiche 014 :
+     * branche de structure de contrôle, lambda, bloc d'un `when`, commentaire
+     * de bloc multi-ligne). */
+    BLOC,
 }
 
 /**
@@ -52,4 +58,25 @@ public class PlagePliableKotlin(
 public class SurvolKotlin(
     public val signature: String,
     public val documentation: String?,
+)
+
+/**
+ * Une ÉDITION DE TEXTE neutre du formateur borné (étage 5 vague 5a —
+ * fiche 019, `textDocument/formatting` et `rangeFormatting` L2) : la plage
+ * remplacée et le nouveau texte — l'hôte l'applique comme un `TextEdit`
+ * LSP (plage en offsets du document, une plage vide est une INSERTION à
+ * [PlageTexte.debut]).
+ *
+ * Le contrat est celui du formateur BORNÉ (ADR 0202 miroir) : le contenu
+ * des lignes n'est JAMAIS réécrit — seule la plénitude de tête d'une ligne
+ * est remplacée ; une édition à l'identique n'est JAMAIS émise
+ * (idempotence).
+ *
+ * @property plage la plage remplacée (offsets, [PlageTexte.debut] inclus
+ * [PlageTexte.fin] exclu) ;
+ * @property texte le texte de remplacement (le blanc de tête canonique).
+ */
+public class EditionTexteKotlin(
+    public val plage: PlageTexte,
+    public val texte: String,
 )

@@ -11,6 +11,7 @@ import java.io.File
 import java.util.concurrent.locks.ReentrantReadWriteLock
 import jo.codeide.lsp.kotlin.api.ClasspathKotlin
 import jo.codeide.lsp.kotlin.api.DiagnosticKotlin
+import jo.codeide.lsp.kotlin.api.EditionTexteKotlin
 import jo.codeide.lsp.kotlin.api.EmplacementKotlin
 import jo.codeide.lsp.kotlin.api.GenreContexteKotlin
 import jo.codeide.lsp.kotlin.api.PlagePliableKotlin
@@ -20,10 +21,12 @@ import jo.codeide.lsp.kotlin.api.ReponseCompletionKotlin
 import jo.codeide.lsp.kotlin.api.SessionLangageKotlin
 import jo.codeide.lsp.kotlin.api.SurlignageDocumentKotlin
 import jo.codeide.lsp.kotlin.api.SurvolKotlin
+import jo.codeide.lsp.kotlin.format.FormateurKotlin
 import jo.codeide.lsp.kotlin.index.IndexAppelablesKotlin
 import jo.codeide.lsp.kotlin.parse.ParseurKotlin
 import jo.codeide.lsp.kotlin.parse.kt.KtDirectiveImport
 import jo.codeide.lsp.kotlin.parse.kt.KtFichier
+import jo.codeide.lsp.kotlin.plis.PlisDocumentKotlin
 import jo.codeide.lsp.kotlin.resolve.EtatScan
 import kotlin.concurrent.read
 import kotlin.concurrent.write
@@ -395,7 +398,39 @@ internal class SessionLangageKotlinDocuments(
         return verrou.read {
             if (fermee) return@read emptyList()
             val document = documents[uri] ?: return@read emptyList()
-            PlagesPliablesDocuments.calculer(document)
+            PlisDocumentKotlin.depuis(document.arbre.noeud)
+        }
+    }
+
+    /**
+     * Rend les éditions de ré-indentation du document entier (étage 5
+     * vague 5a — fiche 019 : le formateur borné repris R6, ré-indentation
+     * canonique seule ; le refus sur arbre en erreur et les intouchables
+     * vivent dans le moteur).
+     */
+    override fun formatage(uri: String, tailleIndentation: Int): List<EditionTexteKotlin> {
+        return verrou.read {
+            if (fermee) return@read emptyList()
+            val document = documents[uri] ?: return@read emptyList()
+            FormateurKotlin.editer(document.arbre, tailleIndentation)
+        }
+    }
+
+    /**
+     * Rend les éditions de ré-indentation restreintes à la PLAGE (fiche
+     * 019, `rangeFormatting` L2) : seules les lignes qui intersectent la
+     * plage bougent.
+     */
+    override fun formatagePlage(
+        uri: String,
+        debutPlage: Int,
+        finPlage: Int,
+        tailleIndentation: Int,
+    ): List<EditionTexteKotlin> {
+        return verrou.read {
+            if (fermee) return@read emptyList()
+            val document = documents[uri] ?: return@read emptyList()
+            FormateurKotlin.editer(document.arbre, tailleIndentation, debutPlage, finPlage)
         }
     }
 
