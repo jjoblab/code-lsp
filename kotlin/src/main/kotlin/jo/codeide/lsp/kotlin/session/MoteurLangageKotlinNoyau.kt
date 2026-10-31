@@ -58,6 +58,24 @@ public class MoteurLangageKotlinNoyau(
     /** Le verrou de la publication (pas sur le chemin des requêtes). */
     private val verrouMoteur = Any()
 
+    // ── Descripteur de pack (étage 6 vague 6a — fiche 001, contrat D6) ──
+
+    /** L'identifiant du pack, lu du descripteur généré (valeur réelle). */
+    override val identifiant: String
+        get() = DescripteurPackKotlin.valeur("id")
+
+    /** La version du pack : celle du projet, générée à la construction. */
+    override val version: String
+        get() = DescripteurPackKotlin.valeur("version")
+
+    /** La version de la grammaire vendorée (épinglage unique ADR 0121). */
+    override val versionGrammaire: String
+        get() = DescripteurPackKotlin.valeur("grammaire")
+
+    /** La version minimale de l'app consommatrice du pack. */
+    override val versionMinimaleApp: String
+        get() = DescripteurPackKotlin.valeur("minApp")
+
     /** Le dernier snapshot publié (volatil : lectures sans verrou des requêtes). */
     @Volatile
     private var publie: SnapshotClasspath? = null

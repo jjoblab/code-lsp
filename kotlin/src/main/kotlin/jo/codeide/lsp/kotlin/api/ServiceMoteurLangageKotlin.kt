@@ -29,10 +29,38 @@ import jo.codeide.lsp.kotlin.session.MoteurLangageKotlinNoyau
  * [unique] charge l'implémentation par [ServiceLoader] (descripteur
  * `META-INF/services` embarqué dans le jar du pack) et retombe sur le moteur
  * noyau du module si aucun fournisseur n'est enregistré — le chargement ne
- * lève JAMAIS (une fiche dédiée — 001 — verrouillera les clés du
- * descripteur à l'étage 6).
+ * lève JAMAIS (la fiche 001 verrouille le chargement et les clés du
+ * descripteur).
  */
 public interface ServiceMoteurLangageKotlin {
+
+    /**
+     * L'IDENTIFIANT du pack langue (contrat D6 — clé `id` du descripteur
+     * `version.properties` généré par le build) : il discrimine CE pack
+     * côté hôte, la valeur attendue est `jo-codeide-lsp-kotlin`.
+     */
+    public val identifiant: String
+
+    /**
+     * La VERSION du pack (clé `version` du descripteur) : celle du projet,
+     * générée à la construction — JAMAIS un repli (fiche 001 : « valeurs
+     * réelles pas des replis » ; un descripteur absent du classpath est un
+     * contrat de pack cassé, le test le dénonce).
+     */
+    public val version: String
+
+    /**
+     * La VERSION DE LA GRAMMAIRE vendorée (clé `grammaire` du descripteur —
+     * épinglage unique ADR 0121, miroir de `VERSION_GRAMMAIRE` du build).
+     */
+    public val versionGrammaire: String
+
+    /**
+     * La VERSION MINIMALE de l'app consommatrice (clé `minApp` du
+     * descripteur — motif `x.y.z`) : la borne de compatibilité posée par
+     * le premier consommateur potentiel du pack.
+     */
+    public val versionMinimaleApp: String
 
     /**
      * Crée une session de langage NEUVE et indépendante (états étanches —
