@@ -93,6 +93,10 @@ fun main() {
                 .orElse(null)
         }
         val referentiel = ReferentielRessources(listOf(res))
+        // Échauffement JIT (5 passes non mesurées) — sinon la première MAJ
+        // paie le chargement des classes et fausse le p95 (constaté : 5,003
+        // ms mesurés à froid contre < 1 ms chaud).
+        repeat(5) { referentiel.rafraichirFichier(plusGros!!) }
         val majs = (0 until 50).map {
             measureNanoTime { referentiel.rafraichirFichier(plusGros!!) } / 1_000_000.0
         }
@@ -100,7 +104,7 @@ fun main() {
 
         // Peson compact.
         val peson = referentiel.octetsCompacts().size.toLong()
-        val projet = nom.substringBefore('/')
+        val projet = nom.removePrefix("corpus/").substringBefore('/')
         compactMaxParProjet[projet] = maxOf(compactMaxParProjet[projet] ?: 0L, peson)
 
         println(

@@ -146,7 +146,7 @@ class ModeleAndroidDeriveTest {
         val contrat = ModeleAndroidDerive.deriver(listOf(MINI))!!
         val referentiel = ReferentielRessources(contrat.dossiersRes)
 
-        assertEquals(setOf("ecran_principal"), referentiel.noms("layout"))
+        assertEquals(setOf("ecran_donnees", "ecran_principal"), referentiel.noms("layout"))
         assertEquals(
             setOf("app_nom", "salut", "pluriel_zero"),
             referentiel.noms("string"),

@@ -59,24 +59,26 @@ class NavigationRessourcesTest {
     @Test
     fun `r point id vise la declaration at plus id dans le layout principal`() {
         val moteur = moteurMini()
+        // vue_perso n'existe QUE dans le layout principal (pas de
+        // layout-land ni d'ecran_donnees) — la cible est non ambiguë.
         val source = """
             package com.exemple.mini;
 
             public class NavId {
                 int viser() {
-                    return R.id.text_titre;
+                    return R.id.vue_perso;
                 }
             }
         """.trimIndent()
-        val cibles = moteur.definition("/com/exemple/mini/NavId.java", source, source.indexOf("text_titre"))
+        val cibles = moteur.definition("/com/exemple/mini/NavId.java", source, source.indexOf("vue_perso"))
 
         assertEquals(1, cibles.size)
         val cible = cibles.single()
-        assertTrue(cible.chemin!!.endsWith("res/layout/ecran_principal.xml"), "l'id du layout principal — pas de layout-land")
+        assertTrue(cible.chemin!!.endsWith("res/layout/ecran_principal.xml"), "l'id du layout qui le déclare : ${cible.chemin}")
         val texte = Files.readString(cible.chemin)
         val extraite = texte.substring(cible.plage.debutOffset, cible.plage.finOffset)
-        assertEquals("text_titre", extraite)
-        // La cible vit DANS la valeur @+id/text_titre (pas ailleurs).
+        assertEquals("vue_perso", extraite)
+        // La cible vit DANS la valeur @+id/vue_perso (pas ailleurs).
         assertTrue(extraite.isNotEmpty() && texte.regionMatches(cible.plage.debutOffset - 5, "@+id/", 0, 5), "la plage désigne le nom dans @+id/")
     }
 

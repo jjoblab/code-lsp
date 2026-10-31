@@ -129,9 +129,15 @@ public class MoteurJava(
         if (CLASSES_LEGERES_DESACTIVEES) return@lazy null
         val contrat = projetAndroid ?: return@lazy null
         if (!contrat.actif) return@lazy null
+        // Sonde de résolvabilité pour les supers des Binding (ViewBinding /
+        // ViewDataBinding : présents quand les artefacts runtime le sont).
+        val sonde: (String) -> Boolean = { fqcn ->
+            runCatching { environnementNoms().trouverFqcn(fqcn) != null }.getOrDefault(false)
+        }
         jo.codeide.lsp.java.projetandroid.ClassesLegereAndroid(
             contrat,
             jo.codeide.lsp.java.projetandroid.ReferentielRessources(contrat.dossiersRes),
+            sonde,
         )
     }
 
@@ -206,6 +212,14 @@ public class MoteurJava(
          */
         private val CLASSES_LEGERES_DESACTIVEES: Boolean =
             System.getProperty("jo.codeide.lsp.java.projetandroid.classelegere.disabled") == "true"
+
+        /**
+         * Kill-switch de l'interop Kotlin (V-B3 — ADR 0022, repli
+         * documenté) : `jo.codeide.lsp.java.interoperabilite.kotlin.disabled`
+         * = vrai coupe l'exposition des déclarations `.kt` publiques.
+         */
+        private val INTEROPERABILITE_KOTLIN_DESACTIVEE: Boolean =
+            System.getProperty("jo.codeide.lsp.java.interoperabilite.kotlin.disabled") == "true"
     }
 
     // ------------------------------------------------------------------ //
@@ -247,12 +261,31 @@ public class MoteurJava(
     public fun aClassesLegereAndroid(): Boolean = synchronized(this) { fabriqueLegere != null }
 
     /**
+     * Déclarations Kotlin publiques du module (V-B3 — ADR 0022),
+     * paresseuses : coquilles des types de premier niveau + facades `*Kt`
+     * (fonctions/propriétés top-level à signature CERTAINE) ; le scan
+     * lexical ne démarre qu'au premier usage (un projet sans `.kt` ne
+     * paie que le balayage des noms de fichiers).
+     */
+    private val declarationsKotlin: jo.codeide.lsp.java.projetandroid.DeclarationsKotlin? by lazy {
+        if (INTEROPERABILITE_KOTLIN_DESACTIVEE) return@lazy null
+        if (racines.isEmpty()) return@lazy null
+        jo.codeide.lsp.java.projetandroid.DeclarationsKotlin(racines)
+    }
+
+    /**
      * La fabrique des classes light du module (V-B — ADR 0021) : référentiel
      * de ressources + octets synthétiques ; la sonde permet à l'hôte et aux
      * tests d'observer la fabrique VIVANTE du moteur (navigation ressource,
      * cibles XML). `null` si le contrat est inactif ou le repli posé.
      */
     public fun classesLegereAndroid(): jo.codeide.lsp.java.projetandroid.ClassesLegereAndroid? = synchronized(this) { fabriqueLegere }
+
+    /**
+     * Les déclarations Kotlin exposées (V-B3 — ADR 0022), ou null si le
+     * repli est posé — sonde d'observation pour l'hôte et les tests.
+     */
+    public fun declarationsKotlin(): jo.codeide.lsp.java.projetandroid.DeclarationsKotlin? = synchronized(this) { declarationsKotlin }
 
     /**
      * La GÉNÉRATION du référentiel de ressources (V-B — sonde de fraîcheur) :
@@ -997,25 +1030,6 @@ public class MoteurJava(
     }
 
     /**
-     * Le déclassement honnête des imports Data Binding (étage N6 — cahier
-     * fiche 051) : la couche de PUBLICATION déclasse en HINT les imports
-     * `.databinding` non résolus d'un module SANS classes générées (le
-     * remède est un Build) — avec coupure honnête : dès que la première
-     * classe générée existe (racines sources ou jars du moteur), plus
-     * AUCUN downgrade sur ce paquet. Le diagnose du moteur reste SANS
-     * compromis ; les autres diagnostics passent INTACTS.
-     *
-     * @param diagnostics les diagnostics publiés par le moteur.
-     * @return la liste PUBLIÉE (diagnostics déclassés ou intacts).
-     */
-    public fun declasserDatabinding(diagnostics: List<Diagnostic>): List<Diagnostic> =
-        jo.codeide.lsp.java.actionscode.DeclassementDatabinding.declasser(
-            diagnostics,
-            racines,
-            jars,
-        )
-
-    /**
      * Indices inlay de l'unité (étage N3 — cahier fiches 002/003/030) :
      * paramètres « nom: » aux sites d'appel de méthodes SOURCE, types « : T »
      * des `var` et des paramètres lambda implicites, frontières de
@@ -1534,7 +1548,8 @@ public class MoteurJava(
     /** Environnement de noms paresseux (jrt + jars ouverts au premier usage). */
     private fun environnementNoms(): EnvironnementNoms {
         environnement?.let { return it }
-        val env = EnvironnementNoms(racines, jars, jdkHome, listOfNotNull(fabriqueLegere))
+        val fournisseurs = listOfNotNull(fabriqueLegere, declarationsKotlin)
+        val env = EnvironnementNoms(racines, jars, jdkHome, fournisseurs)
         environnement = env
         return env
     }

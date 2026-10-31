@@ -7,8 +7,7 @@ import jo.codeide.lsp.java.classpath.TypesSynthetiques
 /**
  * Fabrique et ANNEXE des classes light Android d'un module (vague V-B —
  * ADR 0021 option 1, décision D2) : `R` et ses classes internes par type,
- * `BuildConfig` — les classes `*Binding` (V-B3) s'y raccorderont par le
- * même contrat [TypesSynthetiques].
+ * `BuildConfig`, les classes `*Binding` et `BR` (V-B3).
  *
  * **Règles AGP reproduites** (§B9 de la référence, vérifiées sur les cas
  * dorés du banc) :
@@ -21,7 +20,16 @@ import jo.codeide.lsp.java.classpath.TypesSynthetiques
  *    référentiel ne scanne que SES dossiers `res/` ;
  *  - `BuildConfig` n'existe QUE si `buildFeatures.buildConfig` (AGP 8 :
  *    désactivé par défaut) : `DEBUG`, `APPLICATION_ID`, `BUILD_TYPE`,
- *    `FLAVOR`, `VERSION_CODE`, `VERSION_NAME` + champs `buildConfigField`.
+ *    `FLAVOR`, `VERSION_CODE`, `VERSION_NAME` + champs `buildConfigField` ;
+ *  - **V-B3 — classes Binding** (si viewBinding/dataBinding actif) : nom
+ *    PascalCase + « Binding » (`activity_main` → `ActivityMainBinding`),
+ *    paquet `<ns>.databinding` ; view binding → classe FINALE implémentant
+ *    `androidx.viewbinding.ViewBinding` (si résoluble), champs `public
+ *    final` par vue (id camelCase, type du référentiel — incohérent entre
+ *    configurations ⇒ `android.view.View`), `getRoot()`, `inflate` ×2,
+ *    `bind` statiques ; data binding → classe ABSTRAITE étendant
+ *    `androidx.databinding.ViewDataBinding` (si résoluble) + variables du
+ *    `<data>` en champs `public final` + `BR` (une constante par variable).
  *
  * **Anti-doublon (R3)** : la règle vit dans l'ORDRE DE REPLI de
  * l'environnement (sources d'abord, la source générée réelle PRIME) et
@@ -35,10 +43,15 @@ import jo.codeide.lsp.java.classpath.TypesSynthetiques
  *
  * @param contrat le contrat Android du module (namespace, drapeaux).
  * @param referentiel le référentiel de ressources (source de vérité des noms).
+ * @param resolvabilite sonde « ce FQCN est-il résoluble par le classpath
+ *   du module ? » — décide des supers/interfaces des Binding (ViewBinding,
+ *   ViewDataBinding : présents quand les artefacts runtime le sont, sinon
+ *   repli Object — JAMAIS une hiérarchie cassée, miroir du choix light).
  */
 public class ClassesLegereAndroid(
     public val contrat: ContratAndroidMoteur,
     public val referentiel: ReferentielRessources,
+    private val resolvabilite: (String) -> Boolean = { _ -> false },
 ) : TypesSynthetiques {
 
     /** Compteur de fraîcheur (incrémenté par [rafraichirFichierXml]). */
@@ -65,6 +78,8 @@ public class ClassesLegereAndroid(
             fqcn == "${contrat.namespace}.R" -> fabriquerR()
             fqcn.startsWith("${contrat.namespace}.R$") -> fabriquerImbriqueeR(fqcn.substringAfterLast('$'))
             fqcn == "${contrat.namespace}.BuildConfig" && contrat.buildConfig -> fabriquerBuildConfig()
+            fqcn == "${contrat.namespace}.databinding.BR" && contrat.dataBinding -> fabriquerBR()
+            fqcn.startsWith("${contrat.namespace}.databinding.") -> fabriquerBinding(fqcn.substringAfterLast('.'))
             else -> null
         } ?: return null
         octetsParFqcn[fqcn] = fabrique
@@ -83,13 +98,23 @@ public class ClassesLegereAndroid(
                 add("R")
                 if (contrat.buildConfig) add("BuildConfig")
             }
+            // V-B3 : le paquet databinding (bindings + BR).
+            val nomsBinding = nomsBindings()
+            if (nomsBinding.isNotEmpty()) {
+                resultat.getOrPut("${contrat.namespace}.databinding") { mutableListOf() }.apply {
+                    addAll(nomsBinding)
+                    if (contrat.dataBinding) add("BR")
+                }
+            }
         }
         catalogue = resultat
         return resultat
     }
 
     /** Les paquets porteurs de types light (`ns`, `ns.databinding`). */
-    override fun estPaquet(nomPaquet: String): Boolean = nomPaquet == contrat.namespace
+    override fun estPaquet(nomPaquet: String): Boolean =
+        nomPaquet == contrat.namespace ||
+            (nomPaquet == "${contrat.namespace}.databinding" && nomsBindings().isNotEmpty())
 
     /**
      * La cible de NAVIGATION d'un champ light : `R.layout.x` → le XML du
@@ -109,7 +134,7 @@ public class ClassesLegereAndroid(
         val type = when {
             fqcnDeclarant.startsWith("$prefixeR$") -> fqcnDeclarant.substringAfterLast('$')
             fqcnDeclarant.startsWith("$prefixeR.") -> fqcnDeclarant.removePrefix("$prefixeR.")
-            else -> return null
+            else -> return cibleChampBinding(fqcnDeclarant, champ)
         }
         if (type == "styleable" && champ.contains('_')) {
             val styleable = champ.substringBefore('_')
@@ -127,6 +152,26 @@ public class ClassesLegereAndroid(
         } else {
             jo.codeide.lsp.java.classpath.TypesSynthetiques.CibleChampSynthetique(fichier, cible.second, champ.length)
         }
+    }
+
+    /**
+     * La cible d'un champ de BINDING (V-B3) : `binding.textTitre` → la
+     * déclaration `@+id/text_titre` dans le layout (le champ camelCase
+     * retombe sur l'id serpentin).
+     */
+    private fun cibleChampBinding(
+        fqcnDeclarant: String,
+        champ: String,
+    ): jo.codeide.lsp.java.classpath.TypesSynthetiques.CibleChampSynthetique? {
+        if (!fqcnDeclarant.startsWith("${contrat.namespace}.databinding.")) return null
+        val nomSimple = fqcnDeclarant.substringAfterLast('.')
+        val nomLayout = nomLayoutDeBinding(nomSimple) ?: return null
+        val binding = referentiel.binding(nomLayout) ?: return null
+        // champ camelCase → id serpentin (si le champ VIENT d'une vue).
+        val idSerpentin = binding.vues.keys.firstOrNull { idVue -> camelCaseDe(idVue) == champ }
+            ?: return null // variable <data> ou rootView : pas de cible XML.
+        val cible = referentiel.cible("id", idSerpentin) ?: return null
+        return jo.codeide.lsp.java.classpath.TypesSynthetiques.CibleChampSynthetique(cible.first, cible.second, idSerpentin.length)
     }
 
     // ------------------------------------------------------------------ //
@@ -221,6 +266,123 @@ public class ClassesLegereAndroid(
         }
         return ecrivain.octets()
     }
+
+    /** Les noms de classes Binding fabriquables (triés — ordre stable). */
+    private fun nomsBindings(): List<String> {
+        if (!contrat.viewBinding && !contrat.dataBinding) return emptyList()
+        return referentiel.bindings().keys
+            .map { nomLayout -> nomBindingDe(nomLayout) }
+            .sorted()
+    }
+
+    /** Le nom de classe Binding d'un layout (`activity_main` → `ActivityMainBinding`). */
+    private fun nomBindingDe(nomLayout: String): String =
+        nomLayout.split('_').joinToString("") { segment -> segment.replaceFirstChar { it.uppercase() } } + "Binding"
+
+    /** Le FQCN du binding d'un layout. */
+    private fun fqcnBinding(nomLayout: String): String = "${contrat.namespace}.databinding.${nomBindingDe(nomLayout)}"
+
+    /**
+     * Fabrique une classe `*Binding` (V-B3 — règles §B9) : view binding
+     * (final, ViewBinding si résoluble, getRoot) ou data binding (abstrait,
+     * ViewDataBinding si résoluble, variables en champs).
+     */
+    private fun fabriquerBinding(nomSimple: String): ByteArray? {
+        if (!contrat.viewBinding && !contrat.dataBinding) return null
+        val nomLayout = nomLayoutDeBinding(nomSimple) ?: return null
+        val binding = referentiel.binding(nomLayout) ?: return null
+        val fqcn = fqcnBinding(nomLayout)
+        val ecrivain = EcrivainClasseLegere.pour(fqcn)
+
+        if (binding.estDataBinding) {
+            // Data binding : ABSTRAIT, étend ViewDataBinding si résoluble.
+            ecrivain.abstraite()
+            if (contrat.dataBinding && resolvabilite("androidx.databinding.ViewDataBinding")) {
+                ecrivain.superClasse("androidx.databinding.ViewDataBinding")
+            }
+        } else {
+            // View binding : FINAL, implémente ViewBinding si résoluble.
+            ecrivain.finale()
+            if (contrat.viewBinding && resolvabilite("androidx.viewbinding.ViewBinding")) {
+                ecrivain.interfaceImplantee("androidx.viewbinding.ViewBinding")
+            }
+        }
+
+        // Champs de vues (id camelCase) + variables <data>.
+        for ((idVue, type) in binding.vues) {
+            ecrivain.champ(
+                nom = camelCaseDe(idVue),
+                descripteur = EcrivainClasseLegere.descripteurDe(type),
+                statique = false,
+                finalChamp = true,
+            )
+        }
+        for ((nomVariable, type) in binding.variables) {
+            ecrivain.champ(
+                nom = nomVariable,
+                descripteur = EcrivainClasseLegere.descripteurDe(type),
+                statique = false,
+                finalChamp = true,
+            )
+        }
+
+        // View binding : rootView + getRoot().
+        if (!binding.estDataBinding) {
+            ecrivain.champ("rootView", "Landroid/view/View;", statique = false, finalChamp = true)
+            ecrivain.methode("getRoot", "()Landroid/view/View;", statique = false)
+        }
+
+        // inflate(LayoutInflater, ViewGroup, boolean) + inflate(LayoutInflater)
+        // + bind(View) — statiques, retournant le binding.
+        val descripteurBinding = "L" + fqcn.replace('.', '/') + ";"
+        ecrivain.methode(
+            "inflate",
+            "(Landroid/view/LayoutInflater;Landroid/view/ViewGroup;Z)$descripteurBinding",
+            statique = true,
+        )
+        ecrivain.methode("inflate", "(Landroid/view/LayoutInflater;)$descripteurBinding", statique = true)
+        ecrivain.methode("bind", "(Landroid/view/View;)$descripteurBinding", statique = true)
+        ecrivain.constructeurPrive()
+        return ecrivain.octets()
+    }
+
+    /** Le nom de layout d'un nom de binding (`ActivityMainBinding` → `activity_main`). */
+    private fun nomLayoutDeBinding(nomSimple: String): String? {
+        if (!nomSimple.endsWith("Binding")) return null
+        val base = nomSimple.removeSuffix("Binding")
+        if (base.isEmpty()) return null
+        val segments = base.split(Regex("(?<!^)(?=[A-Z])"))
+        if (segments.any { it.isEmpty() }) return null
+        return segments.joinToString("_") { it.lowercase() }
+    }
+
+    /**
+     * Fabrique `databinding.BR` (V-B3) : une constante int par variable
+     * `<data>` de TOUS les layouts data binding + `_all`.
+     */
+    private fun fabriquerBR(): ByteArray {
+        val ecrivain = EcrivainClasseLegere.pour("${contrat.namespace}.databinding.BR")
+        ecrivain.finale()
+        ecrivain.constructeurPrive()
+        var rang = 1
+        val nomsVariables = mutableSetOf<String>()
+        for (binding in referentiel.bindings().values) {
+            if (!binding.estDataBinding) continue
+            for ((nomVariable, _) in binding.variables) nomsVariables.add(nomVariable)
+        }
+        ecrivain.champ("_all", "I", constante = 0)
+        for (nom in nomsVariables.sorted()) {
+            ecrivain.champ(nom, "I", constante = rang)
+            rang++
+        }
+        return ecrivain.octets()
+    }
+
+    /** camelCase d'un id de vue (`text_titre` → `textTitre`). */
+    private fun camelCaseDe(id: String): String =
+        id.split('_').mapIndexed { index, segment ->
+            if (index == 0) segment else segment.replaceFirstChar { it.uppercase() }
+        }.joinToString("")
 
     /** Base déterministe des valeurs de R par type (ordre stable par nom). */
     private fun baseDeType(type: String): Int = 0x7f0000 + (BASES_PAR_TYPE[type] ?: 0x00) * 0x100

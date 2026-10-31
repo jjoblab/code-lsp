@@ -54,15 +54,15 @@ class ClassesLegereAndroidTest {
         val octetsLayout = fabrique.octetsPour("com.exemple.mini.R\$layout")!!
         val lecteurLayout = ClassFileReader.read(octetsLayout, "com/exemple/mini/R\$layout.class")
         val champs = lecteurLayout.fields!!.map { String(it.name) to it.modifiers }
-        assertEquals(listOf("ecran_principal"), champs.map { it.first }, "champ par ressource layout")
-        val (nom, drapeaux) = champs.single()
+        assertEquals(listOf("ecran_donnees", "ecran_principal"), champs.map { it.first }, "champ par ressource layout (tri stable)")
+        val (nom, drapeaux) = champs.single { it.first == "ecran_principal" }
         assertEquals("ecran_principal", nom)
         assertTrue((drapeaux and ClassFileConstants.AccPublic) != 0)
         assertTrue((drapeaux and ClassFileConstants.AccStatic) != 0)
         assertTrue((drapeaux and ClassFileConstants.AccFinal) != 0, "final par défaut (nonFinalResIds = faux)")
 
         // ConstantValue lisible : la valeur est un int stable.
-        val constante = lecteurLayout.fields!!.single().constant
+        val constante = lecteurLayout.fields!!.single { String(it.name) == "ecran_principal" }.constant
         assertNotNull(constante, "ConstantValue émis pour le switch sur R.layout.x")
 
         // Les styleables portent leurs trois familles.
