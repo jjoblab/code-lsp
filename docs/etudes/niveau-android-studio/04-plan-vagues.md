@@ -440,9 +440,19 @@ complètent la couverture.
 >   `SDK_INT`, le déclarant réel fait foi), **InlinedApi**,
 >   **ObsoleteSdkInt**, **MissingSuperCall** (fix suggéré),
 >   **SetTextI18n** ; `@SuppressLint` (scalaire ou tableau) ; garde du
->   circuit annotator (erreur de résolution = silence). **Restent** :
->   Range, ResourceType, CommitPrefEdits, Recycle, mode global différé,
->   segment CIDX compact de la base.
+>   circuit annotator (erreur de résolution = silence). **Complément de
+>   catalogue livré le 31/10 au soir (v1.8.0, PV
+>   `mesures/2026-10-31-vd-vc2-catalogue.txt`)** : **Range**
+>   (@IntRange/@FloatRange/@Size — arguments constants et retours
+>   annotés, taille des chaînes et cardinal des tableaux),
+>   **ResourceType** (famille `R.<famille>.x` ou nom annoté `@…Res`
+>   contre la famille attendue — l'entier ordinaire jamais signalé),
+>   **CommitPrefEdits** (locales + chaînes nues sans commit/apply,
+>   évasions silencieuses), **Recycle** (TypedArray/VelocityTracker,
+>   try-with-resources exempté) + **segment CIDX compact CLBA** de la
+>   base (re-compilable bit-à-bit, chemin rapide, outil CLI + script).
+>   **Restent** : mode global différé (UnusedResources), mesure de la
+>   taille du segment sur la vraie base en CI/appareil.
 
 - **Périmètre** : contrat d'inspection + profil + suppressions + 8 inspections
   pilotes puis DFA nullité intra-méthode (ADR 0023) ; contrôles lint mono-fichier +
@@ -460,6 +470,44 @@ complètent la couverture.
   (inspections), V-C2 (lint), V-C3 (complétion smart).
 
 ### V-D — Actions de code
+
+> **TRANCHE 1 LIVRÉE le 31/10/2026 au soir (v1.8.0 — ADR 0027
+> Accepté-tranche 1, PV `mesures/2026-10-31-vd-vc2-catalogue.txt`)** :
+>
+> - **organizeImports EXPOSÉ** (M3 — G-020) par le filtre `only` de
+>   LSP 3.17 (égalité ou préfixe hiérarchique) ; kinds annoncés
+>   `source`/`source.organizeImports`/`source.generate`/`refactor`/
+>   `refactor.extract`/`refactor.rewrite`.
+> - **codeAction/resolve DIFFÉRÉ** (ADR (f)) : les GÉNÉRATEURS
+>   voyagent avec `data` (cle + arguments + uri), les éditions se
+>   recalculent déterministement au resolve — rien d'eager.
+> - **Génération de code — les 6 capacités** (G-015) : getter (is*
+>   boolean), setter (jamais sur final), couple, constructeur assignant
+>   les champs d'instance, equals/hashCode (java.util.Objects, ==
+>   primitif, deepEquals tableaux), toString, stubs d'outrepassement
+>   des abstraites manquantes (@Override + défaut + TODO) — déclenchement
+>   CIBLÉ (caret sur le champ / le nom du type / type incomplet).
+> - **Intentions sans diagnostic** (G-014) : if/else symétrique →
+>   ternaire, extraction de constante au littéral, lambda → référence
+>   de méthode, var ↔ type explicite (jamais de changement de
+>   sémantique : le type déclaré doit ÉGALER le type résolu).
+> - **Familles ecj étendues +7 IDs** (G-014) : stubs des abstraites
+>   manquantes (par bindings, arguments structurés), corps manquant
+>   (corps qui jette), retour de valeur en void, imports en
+>   conflit/dupliqués, cast inutile (alias nommé de l'inspection
+>   V-C1 — l'ID numérique garde la priorité, fiche 065 intacte).
+> - **Piège mesuré** : ecj ajoute un CONSTRUCTEUR PAR DÉFAUT à
+>   `type.methods`, positionné sur le nom du type (hors corps) — l'ancre
+>   des membres filtre `declarationSourceStart >= bodyStart`.
+>
+> **Critères éprouvés** : cas dorés par capacité (WorkspaceEdit exacts,
+> 10/10) ; P5 = 0 violation sur l'ensemble exposé (balayage élargi
+> 3 → 7 fixtures) ; latence liste codeAction **p95 mesurée 255 µs**
+> (< 30 ms, mémo chaud). **Restent les tranches 2–3** : extract
+> variable/method sur SÉLECTION, safe delete (usages + conflits,
+> ADR 0014/0028), inline, change signature, rename de ressource
+> (G-028), création de champ sur UndefinedField — le critère « conflits
+> rename/safe-delete : 0 manqué (oracle) » suivra ces tranches.
 
 - **Périmètre** : organizeImports exposé + kinds (ADR 0027/0031), génération de code
   (6 capacités), intentions sans diagnostic, familles ecj étendues, extract

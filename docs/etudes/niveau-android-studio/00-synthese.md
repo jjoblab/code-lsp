@@ -154,7 +154,17 @@ Banc qualité **v2** : 24 positions, split train/éval (ADR 0030) — d8
 1,000/1,000/1,000, **ÉVAL 1,000/1,000** (cibles ≥ 0,95/≥ 0,80 dépassées),
 naïf ÉVAL top-1 0,000 (la preuve de valeur). Capability
 `x-codeide.completionRanking` **v2**. Cf. `04-plan-vagues.md` §V-C et
-`mesures/2026-10-31-vc3-completion.txt`).
+`mesures/2026-10-31-vc3-completion.txt` ; **V-D tranche 1 + V-C2
+complément de catalogue livrées le 31/10 au soir (v1.8.0)** — V-D :
+organizeImports exposé (G-020 RÉSOLU), kinds source.*/refactor.*,
+codeAction/resolve DIFFÉRÉ, génération de code — les 6 capacités
+(G-015 RÉSOLU), intentions sans diagnostic (ternaire, constante,
+référence de méthode, var↔explicite), familles ecj étendues +7 IDs
+avec P5 étendu 0 violation et latence liste p95 mesurée 255 µs
+(< 30 ms) ; V-C2 suite : **Range/ResourceType/CommitPrefEdits/
+Recycle** (catalogue 15 contrôles) + **segment CIDX compact CLBA**
+de la base (re-compilable bit-à-bit) — cf. `04-plan-vagues.md` §V-D
+et `mesures/2026-10-31-vd-vc2-catalogue.txt`).
 
 | # | Décision | Recommandation |
 |---|---|---|

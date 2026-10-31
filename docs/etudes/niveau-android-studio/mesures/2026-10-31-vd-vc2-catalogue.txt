@@ -1,0 +1,180 @@
+PV DE MESURE — V-D tranche 1 (actions de code) + V-C2 complément de
+catalogue (Range/ResourceType/CommitPrefEdits/Recycle, segment compact)
+— 31/10/2026 (nuit)
+=================================================================
+
+R5 : AUCUNE valeur fabriquée. Toutes les mesures ci-dessous proviennent
+des bancs et tests exécutés ce jour (JVM du bac à sable — CPU partagé
+plus bruyant que la CI ; les gates de latence y sont re-vérifiées par la
+CI, la valeur de référence reste la passe CI).
+
+--- Contenu livré (ADR 0027 G-014/G-015/G-020 + ADR 0024 reste PV 1.7.0) --
+
+(a) ORGANIZEIMPORTS EXPOSÉ (M3 — G-020) : le fil codeAction sert
+  « source.organizeImports » par le filtre `only` de LSP 3.17 (égalité
+  OU préfixe hiérarchique — « source » le demande,
+  « source.organizeImports » ne demande PAS « source.generate ») ;
+  l'édition unique remplace la plage du bloc par le bloc trié de
+  l'OrganisateurImports (fiche 022, API moteur jamais réécrite).
+(b) KINDS ÉTENDUS (fiche 055 amendée par ADR 0027 (b)) :
+  codeActionKinds = quickfix + source + source.organizeImports +
+  source.generate + refactor + refactor.extract + refactor.rewrite —
+  les kinds sont des formes hiérarchiques LSP 3.17 consommables par le
+  client K2 (registre séparé).
+(c) codeAction/RESOLVE (ADR 0027 (f)) : resolveProvider VRAI ; les
+  GÉNÉRATEURS voyagent DIFFÉRÉS — ModCommande.Differee (cle +
+  arguments + uri dans CodeAction.data), éditions recalculées
+  DÉTERMINISTEMENT au resolve par moteur.resoudreAction ; les
+  intentions légères restent EAGER (une édition chacune).
+(d) GÉNÉRATION DE CODE — les 6 capacités de l'ADR (d) (G-015) :
+  getter (is* pour boolean), setter (jamais sur final), couple
+  getter+setter, constructeur assignant les champs d'INSTANCE,
+  equals/hashCode (java.util.Objects ; == primitif ; deepEquals
+  tableaux ; non servis si déjà déclarés), toString
+  « Type{champ=valeur, …} », stubs d'outrepassement des méthodes
+  abstraites manquantes (@Override + valeur de retour par défaut +
+  « // TODO : implémenter », liste déterministe bornée à 8).
+  Déclenchement CIBLÉ (miroir de la référence) : caret sur le champ /
+  sur le NOM du type / dans un type incomplet.
+(e) INTENTIONS SANS DIAGNOSTIC (ADR (c), G-014) : if/else symétrique →
+  ternaire (DÉBALLAGE des blocs mono-instruction — le piège mesuré :
+  les branches entre accolades sont des Block, pas des ReturnStatement
+  nus), extraction de constante au littéral (nom CONSTANTE_42 /
+  CHAINE_<préfixe> ; refus honnête des noms trop pauvres), lambda →
+  référence de méthode (récepteur IDENTITAIRE du paramètre, args
+  mappés aux paramètres restants dans l'ordre ; java.lang en nom
+  simple, sinon QUALIFIÉ compilable), var ↔ type explicite (seulement
+  si le type déclaré ÉGALE le type résolu de l'initialisateur — un
+  « Object x = "a" » ne change JAMAIS de sémantique).
+(f) FAMILLES ECJ ÉTENDUES (ADR (a), G-014) — +7 IDs, EXTRAITS du jar
+  ecj 3.40.0 par lecture javap (jamais codés « de mémoire ») :
+  AbstractMethodMustBeImplemented (67109264) +
+  AbstractMethodMustBeImplementedOverConcreteMethod (67109282) +
+  EnumAbstractMethodMustBeImplemented (67109622) → METHODES_ABSTRAITES
+  (stubs par BINDINGS — passe d'appoint ARBRE de
+  MoteurJava.actionsCode : le type visé et le sélecteur viennent des
+  ARGUMENTS STRUCTURÉS du diagnostic [sonde mesurée : run, ,
+  java.lang.Runnable, demo.Main]) ; MethodRequiresBody (603979883) →
+  CORPS_MANQUANT (corps qui jette — compilable pour tout retour) ;
+  VoidMethodReturnsValue (67108969) → RETOUR_VOID (l'instruction
+  ENTIÈRE disparaît) ; ConflictingImport (268435841) +
+  DuplicateImport-collides (268435842, l'ID réellement émis) →
+  IMPORT_CONFLIT (suppression de ligne) ; l'alias NOMMÉ
+  « RedundantCast » de l'inspection V-C1 → CAST_INUTILE (retrait du
+  premier groupe de parenthèses). L'ID NUMÉRIQUE garde la priorité
+  (fiche 065 intacte).
+(g) V-C2 COMPLÉMENT DE CATALOGUE (ADR 0024, reste du PV 1.7.0) :
+  * RANGE : @IntRange/@FloatRange/@Size éprouvés sur les ARGUMENTS
+    CONSTANTS (identité de binding pour les méthodes du fichier — sonde
+    mesurée : identiteLocale=true ; getParameterAnnotations() pour les
+    .class du SDK/androidx, PEUPLÉ même sur source) et sur les RETOURS
+    annotés ; @Size éprouve la longueur des littéraux de chaîne et le
+    cardinal des initialisateurs (nu ou dans new int[] {…}).
+  * RESOURCETYPE : famille réelle R.<famille>.x (l'avant-dernier
+    segment du déclarant doit être « R ») ou nom annoté @…Res du
+    fichier, contre la famille attendue du paramètre — l'entier
+    ordinaire n'est JAMAIS signalé (silence honnête).
+  * COMMITPREFEDITS : pistage intra-méthode des locales Editor
+    (edit() en initialisateur) ET des chaînes nues
+    prefs.edit().putX(…) ; sans terminaison (évasions silencieuses :
+    argument, retour, affectation).
+  * RECYCLE : TypedArray (obtainStyledAttributes/obtainTypedAttributes)
+    et VelocityTracker (obtain) pistés par le RETOUR de l'appel
+    d'obtention ; try-with-resources exempté ; évasions silencieuses.
+  * Socle commun PisteurLocales : traversée à PILES VIVANTES (méthodes,
+    envois, locales) — ecj ne pose PAS de lien parent sur ses nœuds
+    (mesuré : ASTNode n'expose pas `parent`), la traversée le fournit.
+  * Catalogue : 11 → 15 contrôles (tous dumb-aware, Warning LSP,
+    jamais Error, @SuppressLint, garde « erreur de résolution =
+    silence » du circuit annotator).
+(h) SEGMENT COMPACT CIDX de la base api-versions (ADR 0024) : format
+  CLBA v1 gzip (classes lexicographiques, membres triés),
+  re-compilable BIT-À-BIT (preuve au banc : deux compilations du même
+  xml → octets identiques, empreintes SHA-256 égales), outil CLI
+  OutilSegmentBaseApi (chemin + empreintes), script
+  preparer-base-api.sh étendu ; chargeur : le segment voisin
+  « base.seg » PRIME sur le xml (pot de miel au banc : le since modifié
+  du xml n'est pas servi), un segment corrompu retombe honnêtement sur
+  le xml.
+
+--- Critères de sortie V-D (plan 04, tranche 1) --------------------------
+
+P5 = 0 violation sur l'ENSEMBLE EXPOSÉ : le balayage élargi passe de 3
+  à 7 fixtures (+ abstraites, corps manquant, retour void, import
+  conflit) — 0 violation MESURÉE ; les cas dorés par capacité
+  (WorkspaceEdit exact après application) : 10/10 VERTS (getter+setter
+  dore, constructeur, equals/hashCode, toString, stubs, ternaire,
+  constante, référence de méthode, var↔explicite, organizeImports) ;
+  compilabilité re-diagnostiquée de chaque résultat (esprit P5).
+Conflits rename/safe-delete : NON MESURÉ ici — safe delete/inline/
+  change signature/extract method ne sont PAS livrés (restes V-D
+  ci-dessous), le critère complet suit les tranches.
+Latence liste codeAction p95 < 30 ms JVM : TRANSCRIPT MESURÉ (test
+  `transcript de latence de la liste codeAction`) : 48 requêtes sur les
+  8 positions ciblées (champ, nom de type, littéral, if, lambda, var,
+  méthode), mémo chaud — p50 169 µs / p95 255 µs / max 342 µs
+  (budget TENU ×100 ; la CI reste la référence).
+
+--- Critères V-C2 complément ---------------------------------------------
+
+Cas dorés par contrôle (détection, mutant négatif, échappatoire/
+  évasion, suppression, garde erreurs de résolution) : 11 tests VERTS
+  (CatalogueLintTest) — détections : Range 5 signaux (dont le RETOUR
+  annoté), ResourceType 1 mismatch (R.string vers @DrawableRes) +
+  noms annotés, CommitPrefEdits 2 (locale + chaîne nue), Recycle 2
+  (TypedArray + VelocityTracker) ; plages isolées PAR MÉTHODE (le
+  commit de la seconde méthode n'acquitte pas la première).
+Segment : aller-retour des niveaux INTACT, chemin rapide par voisin
+  (pot de miel), re-compilation bit-à-bit (empreintes égales), repli
+  honnête sur segment corrompu — 4 tests VERTS.
+
+--- Non-régression (tous modules, ce jour) -------------------------------
+
+Tests : 850 / 0 échec — java 684 (dont 15 V-C2 catalogue + 15 V-D :
+  10 IntentionsEtGeneration + 6 FamillesEtendues/Latence ; 73 gates
+  environnementales ignorées avec raison : corpus/android.jar hors bac
+  à sable), model 42, index 84, testing 4, ecj-art 36.
+`build` strict (BANC_COHERENCE_STRICT=true, P1–P8) : VERT.
+Comptage synchronized(` : 0 (métrique CI ADR 0010 maintenue).
+
+--- Pièges mesurés et corrigés (consignés au commit) ---------------------
+
+1. CONSTRUCTEUR PAR DÉFAUT : ecj ajoute un constructeur synthétique à
+   type.methods, positionné sur le NOM du type (sonde mesurée : Carre
+   declStart=71, bodyStart=108, ctor=84) — l'ancre des membres filtre
+   désormais declarationSourceStart >= bodyStart (les inserts
+   tombaient AVANT la déclaration du type : « record expected »).
+2. BLOC MONO-INSTRUCTION : les branches d'un if/else entre accolades
+   sont des Block — le ternaire déballe avant d'éprouver.
+3. types publics : une fixture multi-types publics (Main.java portant
+   un second type public) est une ERREUR ecj qui TAIT la passe lint
+   (garde commune) — les bancs V-C2 n'ont qu'UN type public par
+   fichier.
+4. ElementValuePair : la clé se lit par getName()/champ `name`
+   (PAS « getKey() »), les valeurs par getValue().
+5. Allocation de tableau : new int[] {…} enveloppe l'initialisateur
+   (ArrayAllocationExpression.initializer) — @Size déballe avant de
+   compter.
+6. SuperfluousSemicolon NON ÉMIS par défaut (mesuré) — le mapping mort
+   est écarté ; le cast redondant vivant est le signal de NOTRE
+   inspection V-C1 (code nommé « RedundantCast »), d'où l'alias
+   nommé dans fromCode.
+7. try-with-resources : l'exemption se joue AU VERDICT (la visite du
+   try précède celle des ressources — piste pas encore ouverte).
+
+--- Restes consignés -------------------------------------------------------
+
+V-D (tranches suivantes) : extract variable/constant sur SÉLECTION puis
+  extract method (heuristiques référence : une sortie, entrées bornées,
+  refus honnête), safe delete (usages + conflits, réutilise ADR
+  0014/0028), inline variable/constant, change signature (graphe
+  d'appelants CIDX), rename de ressource (G-028, propagation code+XML),
+  création de champ sur UndefinedField, génération multi-sélection.
+V-C2 : mode analyse GLOBALE DIFFÉRÉ (UnusedResources : commande, pas à
+  la frappe) ; taille du segment sur la VRAIE base 5,5 Mo (cible
+  ~1,7 Mo) à mesurer en CI/appareil (le bac à sable n'a pas le SDK) ;
+  annotations BINAIRES @…Res du SDK sur corpus réel (gate plateforme).
+V-F (phases 3–5) : budgets octets + onTrimMemory, plage prioritaire,
+  incrémentalité conditionnée (ADR 0017/0006).
+V-G : workDoneProgress, relatedInformation, semanticTokens, resolve
+  réels, capability v2 (ADR 0031).

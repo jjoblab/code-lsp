@@ -182,6 +182,43 @@ plugins {
 // (scénarios indépendants). Validation : 818 tests / 0 échec (652 java
 // dont 26 V-C3 ; 73 gates ignorées avec raison), build strict P1-P8 VERT,
 // usages 1,000 / p95 51 ms, sauts 0.
+// 1.8.0 (31/10/2026, vague V-D tranche 1 + V-C2 complément de catalogue —
+// ADR 0027 Accepté-tranche 1 + ADR 0024) : ACTIONS DE CODE ET CATALOGUE
+// LINT. V-D : (1) organizeImports EXPOSÉ au fil codeAction (M3/G-020) par
+// le filtre `only` de LSP 3.17 (égalité ou préfixe hiérarchique) ; kinds
+// annoncés source/source.organizeImports/source.generate/refactor.*/.
+// (2) codeAction/resolve DIFFÉRÉ (resolveProvider, ModCommande.Differee :
+// cle + arguments + uri dans data, éditions recalculées au resolve).
+// (3) GÉNÉRATION DE CODE — les 6 capacités (G-015) : getter (is* boolean),
+// setter (jamais sur final), couple, constructeur assignant les champs
+// d'instance, equals/hashCode (java.util.Objects, == primitif, deepEquals
+// tableaux, non servis si déjà déclarés), toString, stubs d'outrepassement
+// des abstraites manquantes (@Override + valeur par défaut + TODO) —
+// déclenchement ciblé, ancre des membres filtrée par bodyStart (piège
+// mesuré : le constructeur PAR DÉFAUT d'ecj vit sur le nom du type).
+// (4) INTENTIONS sans diagnostic (G-014) : if/else symétrique → ternaire
+// (déballage des blocs mono-instruction), extraction de constante au
+// littéral, lambda → référence de méthode (java.lang simple, sinon
+// qualifié compilable), var ↔ type explicite (le type déclaré doit ÉGALER
+// le type résolu — jamais de changement de sémantique). (5) FAMILLES ECJ
+// ÉTENDUES +7 IDs (extraits du jar par javap) : stubs des abstraites
+// manquantes (par bindings, arguments structurés), corps manquant (corps
+// qui jette), retour de valeur en void (instruction entière supprimée),
+// imports en conflit/dupliqués (ligne supprimée), cast inutile (alias
+// nommé de l'inspection V-C1 « RedundantCast » — l'ID numérique garde la
+// priorité, fiche 065 intacte) ; P5 étendu 7 fixtures 0 violation.
+// V-C2 suite : Range (@IntRange/@FloatRange/@Size — arguments constants +
+// retours annotés, taille des chaînes, cardinal des tableaux),
+// ResourceType (famille R.<famille>.x vs @…Res — l'entier ordinaire jamais
+// signalé), CommitPrefEdits (locales + chaînes nues sans commit/apply),
+// Recycle (TypedArray/VelocityTracker, try-with-resources exempté) —
+// socle PisteurLocales à piles vivantes (ecj ne pose pas de lien parent) ;
+// catalogue 11 → 15 contrôles. SEGMENT CIDX compact CLBA de la base
+// api-versions (re-compilable bit-à-bit, empreintes SHA-256, chemin rapide
+// sur le .seg voisin, repli honnête si corrompu, outil CLI + script).
+// Validation : 850 tests / 0 échec (684 java dont 15 V-C2 + 15 V-D ; 73
+// gates ignorées avec raison), build strict P1–P8 VERT ; latence liste
+// codeAction p95 MESURÉE 255 µs (budget < 30 ms TENU ×100).
 // ---------------------------------------------------------------------------
 // VERSION DU DÉPÔT (fiche 059 I7 — serverInfo.version générée d'ICI).
 // 1.5.0 (31/10/2026, vague V-F1 — ADR 0029 phase 1) : DOUBLE-TAMPON +
@@ -200,5 +237,5 @@ plugins {
 // p95 35,96 ms), usages (1,000, p95 40,62 ms), parité et N1
 // (diagnose rapide p50 4,8 ms, tas 17 Mo) non régressés.
 allprojects {
-    version = "1.7.0"
+    version = "1.8.0"
 }

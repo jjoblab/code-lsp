@@ -3,8 +3,12 @@
 - **Statut** : Accepté — **LIVRÉ en première vague le 31/10/2026** (V-C2 :
   base `api-versions.xml` en tâche de fond + NewApi/InlinedApi/
   ObsoleteSdkInt/MissingSuperCall/SetTextI18n + `@SuppressLint` ; PV dans
-  `mesures/2026-10-31-vf2-vc1-vc2.txt` ; restent : Range, ResourceType,
-  CommitPrefEdits, Recycle, mode global différé, segment CIDX compact)
+  `mesures/2026-10-31-vf2-vc1-vc2.txt`) — **COMPLÉMENT DE CATALOGUE livré
+  le 31/10/2026 au soir** (Range/ResourceType/CommitPrefEdits/Recycle +
+  segment CIDX compact de la base, re-compilable bit-à-bit ; PV dans
+  `mesures/2026-10-31-vd-vc2-catalogue.txt` ; restent : mode global
+  différé, mesure de la taille du segment sur la vraie base en
+  CI/appareil)
 - **Date** : 2026-10-31
 - **Écart résolu** : G-011 (`02-reference-android-studio.md` §B13–B14)
 

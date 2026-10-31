@@ -217,7 +217,10 @@ Extrait de réponse (seule la capability maison est tronquée ici, voir §8) :
       "documentFormattingProvider": true,
       "documentRangeFormattingProvider": true,
       "documentOnTypeFormattingProvider": { "firstTriggerCharacter": "}", "moreTriggerCharacter": [";"] },
-      "codeActionProvider": { "codeActionKinds": ["quickfix"] },
+      "codeActionProvider": {
+        "codeActionKinds": ["quickfix", "source", "source.organizeImports", "source.generate", "refactor", "refactor.extract", "refactor.rewrite"],
+        "resolveProvider": true
+      },
       "codeLensProvider": { "resolveProvider": true },
       "renameProvider": { "prepareProvider": true },
       "callHierarchyProvider": true,
@@ -1196,6 +1199,82 @@ aux stubs d'override de la hiérarchie du type en cours (fiche 007
 amendée). Borne : une tête **locale** (classe déclarée dans un corps de
 méthode) reste un artefact de recovery d'ecj (mots-clés non proposés).
 
+### 7.22 Actions de code étendues et complément lint (vagues V-D/V-C2 suite)
+
+**`source.organizeImports` exposé** (M3 — G-020, ADR 0027 (b)) : le fil
+`codeAction` sert l'action « Organiser les imports » quand le `only` de
+la requête demande `source` ou `source.organizeImports` (égalité ou
+**préfixe hiérarchique** LSP 3.17 — `source.generate` ne répond PAS à un
+`only` = `source.organizeImports`). L'édition unique remplace la plage
+du bloc d'imports par le bloc **trié** de l'API moteur existante (fiche
+022) ; `codeActionKinds` annonce désormais `quickfix`, `source`,
+`source.organizeImports`, `source.generate`, `refactor`,
+`refactor.extract`, `refactor.rewrite`.
+
+**Génération de code — 6 capacités** (G-015, ADR 0027 (d)) : au caret
+**sur un champ** → getter (préfixe `is` pour `boolean`), setter (jamais
+sur `final`), ou le couple ; au caret **sur le nom d'un type** →
+constructeur assignant les champs d'instance, `equals()`/`hashCode()`
+(`java.util.Objects` ; `==` sur primitifs, `deepEquals` sur tableaux ;
+non servis si déjà déclarés), `toString()` ; dans un type **incomplet**
+→ un stub « Implémenter « x(…) » » par méthode abstraite manquante
+(`@Override`, valeur de retour par défaut, `// TODO : implémenter`,
+liste bornée à 8). Kinds `source.generate.*` ; déclenchement **ciblé**
+(miroir de la référence : l'ampoule ne s'allume que là où le geste a du
+sens).
+
+**`codeAction/resolve`** (ADR 0027 (f)) : `resolveProvider` annoncé ;
+les **générateurs voyagent différés** — la liste ne porte que `data`
+(`cle` + `arguments` + `uri`), les éditions se recalculent
+**déterministement** au resolve (même source → mêmes éditions). Les
+intentions légères restent EAGER.
+
+**Intentions sans diagnostic** (G-014, ADR 0027 (c) — ampoule jaune) :
+`if/else` **symétrique** (deux `return`) → ternaire ; littéral au caret
+→ **extraction de constante** (`private static final`, nom
+`CONSTANTE_42`/`CHAINE_<préfixe>`, refus honnête des noms trop pauvres) ;
+lambda à récepteur identitaire (`s -> s.length()`) → **référence de
+méthode** (`String::length` — nom simple pour `java.lang`, sinon qualifié
+compilable) ; déclaration locale → **`var` ↔ type explicite** (uniquement
+si le type déclaré ÉGALE le type résolu de l'initialisateur : un
+`Object x = "a"` ne change jamais de sémantique). Kinds
+`refactor.rewrite` / `refactor.extract`.
+
+**Familles ecj étendues** (G-014, ADR 0027 (a)) : la table ID→famille
+couvre **+7 IDs** (extraits du jar ecj 3.40.0, jamais codés de mémoire) :
+`AbstractMethodMustBeImplemented` (et ses deux variantes) → **stubs**
+(génération par bindings, arguments structurés du diagnostic) ;
+`MethodRequiresBody` → insertion d'un corps qui **jette** (compilable
+pour tout type de retour) ; `VoidMethodReturnsValue` → suppression de
+l'instruction de retour **entière** ; `ConflictingImport`/`DuplicateImport`
+(collision d'imports) → suppression de la ligne ; **cast redondant** → le
+signal de l'inspection V-C1 « RedundantCast » (code nommé — alias
+`fromCode`, l'ID numérique garde la priorité) porte le retrait du cast.
+Le balayage P5 couvre l'ensemble exposé (7 fixtures, 0 violation).
+
+**Complément de catalogue lint** (ADR 0024, G-011) : quatre contrôles de
+plus, mono-fichier, Warning LSP, `@SuppressLint`, garde « erreur de
+résolution = silence » — **Range** : `@IntRange`/`@FloatRange`/`@Size`
+éprouvés sur les arguments **constants** et les retours annotés (la
+taille des littéraux de chaîne et le cardinal des initialisateurs pour
+`@Size`) ; **ResourceType** : famille réelle `R.<famille>.x` ou nom
+annoté `@…Res` contre la famille attendue du paramètre (l'entier
+ordinaire n'est jamais signalé) ; **CommitPrefEdits** : `edit()` sans
+`commit()`/`apply()` (locales et chaînes nues, évasions silencieuses) ;
+**Recycle** : `TypedArray`/`VelocityTracker` obtenus sans `recycle()`
+(try-with-resources exempté). Le catalogue passe à **15 contrôles**
+(8 inspections + 7 lint).
+
+**Segment compact de la base API** (ADR 0024) : `api-versions.xml` se
+compile en segment binaire **CLBA v1** (gzip) —
+`scripts/preparer-base-api.sh` appelle `OutilSegmentBaseApi` quand le jar
+du moteur est disponible (`java/build/libs/` ou `JAR_BASE_API`) ; le
+chargeur lit `<base>.seg` **en priorité** sur le xml (ou la propriété
+désigne le `.seg` directement), un segment corrompu **retombe** sur le
+xml. Re-compilable **bit-à-bit** (empreintes SHA-256 consignées par
+l'outil). Restes : mode global différé (UnusedResources), mesure de la
+taille sur la vraie base en CI/appareil.
+
 ## 8. Capability maison `x-codeide.completionRanking`
 
 Le protocole riche de classement (ADR 0012/0015, design intégré N8) :
@@ -1481,7 +1560,7 @@ re-signature de `parite-completion.json` (les stubs de façade suivent).
   dit pas de quel module il vient — ADR 0215) ; une source décompilée
   pendant un swap peut donc refléter l'époque précédente — la requête
   suivante re-sonde (comportement d'aperçu, jamais un diagnostic).
-- **Version 1.7.0 = vague V-C3 (complétion niveau Android Studio — ADR 0026 Accepté-livré : smart par bindings avec filtrage gradué jamais caché, typedef @IntDef/@StringDef en tête avec import statique, littéraux R.* par @…Res + référentiel, second appel — inaccessibles marqués + imports statiques — et 3ᵉ appel projet par CIDX, chaîne à deux sauts, statement completion lexicale moteur + RPC textDocument/statementCompletion, stats locales opt-in à fenêtre glissante, mémoïsation des membres binaires, mots-clés de tête de déclaration D7/G-024 avec fusion stubs ; capability completionRanking **v2** ; corpus qualité **v2 24 positions split train/éval** — ÉVAL 1,000/1,000 ; fiches 066 et 007 amendées, ECARTS-SERVEUR M1 résolu — §7.21/§8/§9.4)** ; **version 1.0.0 = bascule §8.5 SIGNÉE (30/10/2026)** ; **version 1.1.0 = intégration CodeIDE (§4.4 : régime vivant, option B arbitrée ; superDefinition aligné contrat vendord ; fiche 066)** ; **version 1.3.0 = vague V-E (références multi-fichiers D1, surbrillances composées typées, RPC usagesGroupes ; le 1.2.0 est SAUTÉ : valeur fantôme du vendord proscrite par la fiche 059 I7)** ; **version 1.4.0 = vague V-B (projet Android : modèle v11 + dérivateur disque, référentiel de ressources, classes light R/BuildConfig/Binding/BR, navigation ressource, interop Kotlin — décisions D2/D3/D6 ; `declasserDatabinding` RETIRÉ, rupture d'API consignée)** ; **version 1.5.0 = vague V-F1 (double-tampon + époques de l'environnement : 0 figage / 0 réponse périmée, rejeu des requêtes coupées, annulation fine complétion + usages, republication au swap d'époque, repli `jo.codeide.lsp.java.doubletampon.disabled` — ADR 0029 phase 1, §7.19/§11.1)** ; **version 1.6.0 = vagues V-F2 + V-C1/V-C2 (verrous par périmètre + chaos tests + banc de charge ADR 0010, comptage synchronized 99 → 0 ; inspections — contrat, profil, suppressions, 8 pilotes, provenance "inspection" ; lint Android — base api-versions en tâche de fond, NewApi/InlinedApi/ObsoleteSdkInt/MissingSuperCall/SetTextI18n, @SuppressLint, provenance "lint" — §7.20)** : checklist 6/6 du
+- **Version 1.8.0 = vague V-D tranche 1 + V-C2 complément de catalogue (ADR 0027 Accepté-tranche 1 + ADR 0024 : organizeImports exposé M3/G-020 avec kinds source.*/refactor.* et codeAction/resolve DIFFÉRÉ ; génération de code — getter/setter/constructeur/equals+hashCode/toString/stubs d'outrepassement ; intentions sans diagnostic — ternaire, constante, référence de méthode, var↔explicite ; familles ecj étendues +7 IDs avec P5 étendu 0 violation ; latence liste p95 mesurée 255 µs < 30 ms ; lint Range/ResourceType/CommitPrefEdits/Recycle — catalogue 15 contrôles ; segment compact CLBA de la base api-versions, re-compilable bit-à-bit — §7.22)** ; - **Version 1.7.0 = vague V-C3 (complétion niveau Android Studio — ADR 0026 Accepté-livré : smart par bindings avec filtrage gradué jamais caché, typedef @IntDef/@StringDef en tête avec import statique, littéraux R.* par @…Res + référentiel, second appel — inaccessibles marqués + imports statiques — et 3ᵉ appel projet par CIDX, chaîne à deux sauts, statement completion lexicale moteur + RPC textDocument/statementCompletion, stats locales opt-in à fenêtre glissante, mémoïsation des membres binaires, mots-clés de tête de déclaration D7/G-024 avec fusion stubs ; capability completionRanking **v2** ; corpus qualité **v2 24 positions split train/éval** — ÉVAL 1,000/1,000 ; fiches 066 et 007 amendées, ECARTS-SERVEUR M1 résolu — §7.21/§8/§9.4)** ; **version 1.0.0 = bascule §8.5 SIGNÉE (30/10/2026)** ; **version 1.1.0 = intégration CodeIDE (§4.4 : régime vivant, option B arbitrée ; superDefinition aligné contrat vendord ; fiche 066)** ; **version 1.3.0 = vague V-E (références multi-fichiers D1, surbrillances composées typées, RPC usagesGroupes ; le 1.2.0 est SAUTÉ : valeur fantôme du vendord proscrite par la fiche 059 I7)** ; **version 1.4.0 = vague V-B (projet Android : modèle v11 + dérivateur disque, référentiel de ressources, classes light R/BuildConfig/Binding/BR, navigation ressource, interop Kotlin — décisions D2/D3/D6 ; `declasserDatabinding` RETIRÉ, rupture d'API consignée)** ; **version 1.5.0 = vague V-F1 (double-tampon + époques de l'environnement : 0 figage / 0 réponse périmée, rejeu des requêtes coupées, annulation fine complétion + usages, republication au swap d'époque, repli `jo.codeide.lsp.java.doubletampon.disabled` — ADR 0029 phase 1, §7.19/§11.1)** ; **version 1.6.0 = vagues V-F2 + V-C1/V-C2 (verrous par périmètre + chaos tests + banc de charge ADR 0010, comptage synchronized 99 → 0 ; inspections — contrat, profil, suppressions, 8 pilotes, provenance "inspection" ; lint Android — base api-versions en tâche de fond, NewApi/InlinedApi/ObsoleteSdkInt/MissingSuperCall/SetTextI18n, @SuppressLint, provenance "lint" — §7.20)** : checklist 6/6 du
   gabarit `bancs/GABARIT-BASCULE-APPAREIL.md` (passe appareil moto g06 —
   18/18, 0 saut, p50/p95 GLOBAL 42,93/73,01 ms ; deltas 165 arbitrés
   103/62/0 — `ANALYSE-DELTAS-BASCULE.md`) ; `serverInfo.version` rend

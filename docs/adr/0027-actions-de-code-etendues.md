@@ -1,6 +1,12 @@
 # ADR 0027 — Actions de code étendues (catalogue, source.\*, refactor.\*, codeAction/resolve)
 
-- **Statut** : Proposé
+- **Statut** : Accepté — **TRANCHE 1 LIVRÉE le 31/10/2026 au soir** (V-D :
+  organizeImports exposé M3/G-020, kinds source.\*/refactor.\*,
+  codeAction/resolve différé, génération de code — les 6 capacités,
+  intentions sans diagnostic — 4 conversions, familles ecj étendues +7 IDs
+  avec P5 étendu ; PV dans `mesures/2026-10-31-vd-vc2-catalogue.txt` ;
+  restent les tranches 2–3 : extract method/variable sur sélection, safe
+  delete, inline, change signature, rename de ressource)
 - **Date** : 2026-10-31
 - **Écarts résolus** : G-014, G-015, G-016, G-020 (`01-audit-moteur.md` §1.7)
 

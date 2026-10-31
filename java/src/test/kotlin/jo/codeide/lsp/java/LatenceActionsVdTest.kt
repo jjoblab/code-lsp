@@ -88,7 +88,7 @@ class LatenceActionsVdTest {
                 val debut = System.nanoTime()
                 val liste = moteur.intentions(chemin, source, position, position)
                 val quickfixes = moteur.actionsCode(chemin, source, diagnostics)
-                durees.add((System.nanoTime() - debut) / 1_000_000)
+                durees.add((System.nanoTime() - debut) / 1_000)
                 assertTrue(liste.size + quickfixes.size >= 0, "les listes vivent")
             }
         }
@@ -96,7 +96,7 @@ class LatenceActionsVdTest {
         val p50 = triees[triees.size / 2]
         val p95 = triees[(triees.size * 95 / 100).coerceAtMost(triees.size - 1)]
         val max = triees.last()
-        println("TRANSCRIPT_VD_LISTE: requetes=${durees.size} p50=${p50}ms p95=${p95}ms max=${max}ms")
-        assertTrue(p95 < 30, "la liste codeAction tient le budget p95 < 30 ms (mesuré $p95 ms)")
+        println("TRANSCRIPT_VD_LISTE: requetes=${durees.size} p50=${p50} p95=${p95} max=${max} (microsecondes)")
+        assertTrue(p95 < 30_000, "la liste codeAction tient le budget p95 < 30 ms (mesuré $p95 µs)")
     }
 }
