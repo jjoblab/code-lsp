@@ -40,6 +40,23 @@ public sealed interface ModCommande {
      *   — une action coquille vide ne sort pas du service).
      */
     public data class EditsTexte(public val editions: List<EditionTexte>) : ModCommande
+
+    /**
+     * Commande DIFFÉRÉE (vague V-D — ADR 0027 (f) : calcul différé des
+     * gros WorkspaceEdit via `codeAction/resolve`) : la liste des actions
+     * ne porte que la CLÉ et ses arguments sérialisables — les éditions
+     * se calculent à la résolution ([ServiceIntentions.resoudre]).
+     *
+     * Le contrat reste « calculé en lecture comme un plan déclaratif » :
+     * la clé désigne un GÉNÉRATEUR déterministe du moteur (même source →
+     * mêmes éditions), jamais une commande impérative.
+     *
+     * @property cle l'identifiant du générateur (p. ex.
+     *   « generer.getter »).
+     * @property arguments les arguments du générateur (positions dans la
+     *   source — p. ex. le début de la déclaration visée).
+     */
+    public data class Differee(public val cle: String, public val arguments: List<String>) : ModCommande
 }
 
 /**
@@ -52,7 +69,10 @@ public sealed interface ModCommande {
  * Kinds verrouillés par le cahier (fiche 063, notes de réécriture) :
  * `quickfix.remove.import`, `quickfix.semicolon`, `quickfix.remove.unused`,
  * `quickfix.surround.trycatch`, `quickfix.declare.throws`, `quickfix.cast`,
- * `quickfix.import.fqn`, `quickfix.create.method`.
+ * `quickfix.import.fqn`, `quickfix.create.method`. La vague V-D (ADR 0027)
+ * y AJOUTE les kinds hiérarchiques LSP `source.*` (organizeImports,
+ * generate.*) et `refactor.*` (intentions, extractions) — le kind moteur
+ * reste une forme hiérarchique LSP 3.17 consommable telle quelle.
  *
  * @property kind le kind machine (famille de correcteur).
  * @property titre le titre humain (« Supprimer l'import inutilisé »…).

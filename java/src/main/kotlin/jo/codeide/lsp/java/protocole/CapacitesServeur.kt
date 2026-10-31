@@ -230,9 +230,22 @@ public object CapacitesServeur {
         capacites.setFoldingRangeProvider(true)
 
         // Actions de code (étage N6 — fiches 063/064/065/051 ; fiche 055 :
-        // forme DÉTAILLÉE avec quickfix).
+        // forme DÉTAILLÉE ; vague V-D — ADR 0027 : kinds ÉTENDUS au-delà
+        // de quickfix : source (organizeImports M3), source.generate (les
+        // six capacités de génération), refactor (intentions, extract) ;
+        // resolveProvider VRAI — le calcul différé des générateurs passe
+        // par codeAction/resolve).
         val optionsActions = CodeActionOptions()
-        optionsActions.codeActionKinds = listOf(CodeActionKind.QuickFix)
+        optionsActions.codeActionKinds = listOf(
+            CodeActionKind.QuickFix,
+            CodeActionKind.Source,
+            CodeActionKind.SourceOrganizeImports,
+            "source.generate",
+            CodeActionKind.Refactor,
+            CodeActionKind.RefactorExtract,
+            CodeActionKind.RefactorRewrite,
+        )
+        optionsActions.resolveProvider = true
         capacites.setCodeActionProvider(optionsActions)
 
         // Lentilles (fiche 058 : resolve paresseux).

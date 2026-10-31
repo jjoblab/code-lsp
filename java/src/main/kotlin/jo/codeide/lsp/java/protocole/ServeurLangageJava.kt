@@ -1029,6 +1029,13 @@ public class ServeurLangageJava(
         val uri = params.textDocument.uri
         val document = documentDe(uri) ?: return CompletableFuture.completedFuture(emptyList())
         val (chemin, texte) = document
+        // V-D (ADR 0027) : le filtre `only` de LSP 3.17 — un kind est
+        // servi s'il ÉGALE une valeur demandée ou la PROLONGE (préfixe
+        // hiérarchique) ; sans `only`, tout est servi (quickfixes +
+        // intentions + générateurs).
+        val only = params.context.only
+        fun demande(kind: String): Boolean =
+            only == null || only.isEmpty() || correspondKind(kind, only)
         // Les diagnostics du contexte voyagent en forme moteur (le
         // service N6 consomme les diagnostics moteur).
         val diagnosticsMoteur = params.context.diagnostics.mapNotNull { diagnostic ->
@@ -1038,13 +1045,78 @@ public class ServeurLangageJava(
         // (rejeu au swap, jamais de correcteurs périmés).
         val actions = avecMoteurFrais(chemin) { moteur ->
             val m = moteur ?: return@avecMoteurFrais emptyList()
-            jo.codeide.lsp.java.actionscode.ServiceActionsCode(m).actions(chemin, texte, diagnosticsMoteur)
+            val resultat = mutableListOf<jo.codeide.lsp.java.actionscode.ActionCode>()
+            if (demande("quickfix")) {
+                resultat.addAll(jo.codeide.lsp.java.actionscode.ServiceActionsCode(m).actions(chemin, texte, diagnosticsMoteur))
+            }
+            if (demande("source.organizeImports")) {
+                m.organiserImportsEditions(chemin, texte)?.let { editions ->
+                    resultat.add(
+                        jo.codeide.lsp.java.actionscode.ActionCode(
+                            "source.organizeImports",
+                            "Organiser les imports",
+                            jo.codeide.lsp.java.actionscode.ModCommande.EditsTexte(editions),
+                        ),
+                    )
+                }
+            }
+            // Intentions + générateurs (V-D) : sans `only` tout est servi ;
+            // avec `only`, seules les actions dont le KIND correspond.
+            if (only == null || only.isEmpty()) {
+                val debut = offsetDe(texte, params.range.start)
+                val fin = offsetDe(texte, params.range.end)
+                resultat.addAll(m.intentions(chemin, texte, debut, fin))
+            } else {
+                val debut = offsetDe(texte, params.range.start)
+                val fin = offsetDe(texte, params.range.end)
+                resultat.addAll(m.intentions(chemin, texte, debut, fin).filter { correspondKind(it.kind, only) })
+            }
+            resultat
         } ?: return CompletableFuture.completedFuture(emptyList())
         val repere = ConvertisseurLsp.repere(texte)
         return CompletableFuture.completedFuture(
             actions.map { action -> Either.forRight(ConvertisseurLsp.actionCode(action, uri, repere)) },
         )
     }
+
+    override fun resolveCodeAction(unresolved: CodeAction): CompletableFuture<CodeAction> {
+        garde<CodeAction>()?.let { return it }
+        // V-D (ADR 0027 (f)) : la résolution d'une commande DIFFÉRÉE — la
+        // liste n'a transporté que (clé, arguments, uri) ; les éditions se
+        // recalculent DÉTERMINISTEMENT depuis la source courante. Une
+        // action EAGER (édits déjà portés) revient TELLE QUELLE.
+        val donnees = (unresolved.data as? com.google.gson.JsonObject)
+        val cle = donnees?.get("cle")?.takeIf { it.isJsonPrimitive }?.takeIf { p -> p.asJsonPrimitive.isString }?.asString
+        val uri = donnees?.get("uri")?.takeIf { it.isJsonPrimitive }?.takeIf { p -> p.asJsonPrimitive.isString }?.asString
+        val arguments = (donnees?.get("arguments") as? com.google.gson.JsonArray)
+            ?.mapNotNull { element -> (element as? com.google.gson.JsonPrimitive)?.takeIf { p -> p.isString }?.asString }
+            .orEmpty()
+        if (cle == null || uri == null) {
+            return CompletableFuture.completedFuture(unresolved)
+        }
+        val document = documentDe(uri) ?: return CompletableFuture.completedFuture(unresolved)
+        val (chemin, texte) = document
+        val editions = avecMoteurFrais(chemin) { moteur ->
+            moteur?.resoudreAction(chemin, texte, cle, arguments)
+        } ?: return CompletableFuture.completedFuture(unresolved)
+        if (editions == null || editions.isEmpty()) {
+            return CompletableFuture.completedFuture(unresolved)
+        }
+        val repere = ConvertisseurLsp.repere(texte)
+        unresolved.edit = org.eclipse.lsp4j.WorkspaceEdit().apply {
+            changes = java.util.Collections.singletonMap(uri, ConvertisseurLsp.editions(editions, repere))
+        }
+        return CompletableFuture.completedFuture(unresolved)
+    }
+
+    /**
+     * Vrai ssi le kind répond à une demande `only` de LSP 3.17 : égalité
+     * OU prolongement hiérarchique (« source » demande
+     * « source.organizeImports » ; « source.organizeImports » ne demande
+     * PAS « source.generate »).
+     */
+    private fun correspondKind(kind: String, only: List<String>): Boolean =
+        only.any { valeur -> kind == valeur || kind.startsWith("$valeur.") }
 
     /** Le diagnostic moteur d'un diagnostic LSP (aller-retour codeAction). */
     private fun diagnosticVersMoteur(diagnostic: Diagnostic): jo.codeide.lsp.java.diagnostics.Diagnostic? {

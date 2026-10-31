@@ -1204,6 +1204,75 @@ public class MoteurJava(
     }
 
     /**
+     * Les INTENTIONS et GÉNÉRATEURS de la vague V-D (ADR 0027, écarts
+     * G-014/G-015) : les ampoules SANS diagnostic au caret/sélection —
+     * conversions légères (EAGER, éditions portées) et générateurs
+     * (DIFFÉRÉS, clé + positions, éditions au resolve).
+     *
+     * @param chemin le chemin logique du document.
+     * @param source le texte Java complet (tampon ouvert).
+     * @param debut le début du caret/sélection (offsets absolus).
+     * @param fin la fin du caret/sélection.
+     * @return les actions applicables (vide en régime instantané — repli
+     *   honnête, jamais d'intention sur arbre non résolu).
+     */
+    public fun intentions(
+        chemin: String,
+        source: String,
+        debut: Int,
+        fin: Int,
+    ): List<jo.codeide.lsp.java.actionscode.ActionCode> {
+        // Périmètre MODULE (V-F2) : sonde de régime à chaud, la résolution
+        // se verrouille seule, les intentions sont des lectures d'arbre.
+        if (!regimePlein()) return emptyList()
+        val arbre = resolveUnit(chemin, source, genererCode = false)?.arbre ?: return emptyList()
+        return jo.codeide.lsp.java.actionscode.ServiceIntentions(arbre, source).intentions(debut, fin)
+    }
+
+    /**
+     * La RÉSOLUTION d'une commande différée V-D (ADR 0027 (f) : calcul
+     * différé des éditions au `codeAction/resolve`) — recalcul
+     * DÉTERMINISTE depuis la source courante.
+     *
+     * @param chemin le chemin logique du document.
+     * @param source le texte Java complet (tampon ouvert).
+     * @param cle la clé du générateur (p. ex. « generer.getter »).
+     * @param arguments les arguments sérialisés du générateur.
+     * @return les éditions, ou null (clé inconnue / cible disparue — le
+     *   document a bougé : le client re-demande la liste).
+     */
+    public fun resoudreAction(
+        chemin: String,
+        source: String,
+        cle: String,
+        arguments: List<String>,
+    ): List<jo.codeide.lsp.java.outils.EditionTexte>? {
+        if (!regimePlein()) return null
+        val arbre = resolveUnit(chemin, source, genererCode = false)?.arbre ?: return null
+        return jo.codeide.lsp.java.actionscode.ServiceIntentions(arbre, source).resoudre(cle, arguments)
+    }
+
+    /**
+     * Les éditions d'ORGANISATION des imports (vague V-D — ADR 0027 :
+     * exposer organizeImports, l'API moteur existante M3) : le bloc trié
+     * remplace la plage du bloc existant (ou s'insère à l'ancre).
+     *
+     * @param chemin le chemin logique du document.
+     * @param source le texte Java complet (tampon ouvert).
+     * @return l'édition unique, ou null (régime instantané / imparsable /
+     *   aucune proposition).
+     */
+    public fun organiserImportsEditions(chemin: String, source: String): List<jo.codeide.lsp.java.outils.EditionTexte>? {
+        val proposition = organiserImports(chemin, source) ?: return null
+        val edition = jo.codeide.lsp.java.outils.EditionTexte(
+            proposition.debutRemplacement,
+            proposition.finRemplacement - proposition.debutRemplacement,
+            proposition.bloc,
+        )
+        return listOf(edition)
+    }
+
+    /**
      * Indices inlay de l'unité (étage N3 — cahier fiches 002/003/030) :
      * paramètres « nom: » aux sites d'appel de méthodes SOURCE, types « : T »
      * des `var` et des paramètres lambda implicites, frontières de

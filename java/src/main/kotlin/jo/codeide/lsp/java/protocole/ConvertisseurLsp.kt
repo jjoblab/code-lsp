@@ -2,6 +2,7 @@ package jo.codeide.lsp.java.protocole
 
 import jo.codeide.lsp.java.actionscode.ActionCode
 import jo.codeide.lsp.java.actionscode.FamilleProbleme
+import jo.codeide.lsp.java.actionscode.ModCommande
 import jo.codeide.lsp.java.diagnostics.Diagnostic
 import jo.codeide.lsp.java.diagnostics.Plage
 import jo.codeide.lsp.java.diagnostics.Severite
@@ -333,7 +334,13 @@ public object ConvertisseurLsp {
      * HÉRITÉE `changes` (URI → éditions — le client cel-lsp n'annonce
      * pas `documentChanges`, convention N5).
      *
-     * @param action l'action moteur (editions JAMAIS vides — fiche 063).
+     * V-D (ADR 0027 (f)) : une commande DIFFÉRÉE ([ModCommande.Differee])
+     * ne porte PAS d'édition — elle voyage avec son `data`
+     * (cle + arguments + uri) que `codeAction/resolve` relit pour
+     * recalculer les éditions côté serveur.
+     *
+     * @param action l'action moteur (editions JAMAIS vides — fiche 063 ;
+     *   ou commande différée V-D sans éditions).
      * @param uri l'URI du document interrogé (les correcteurs N6 sont
      *   mono-fichier : les éditions vivent dans CE document).
      * @param repere le repère du document interrogé.
@@ -348,6 +355,15 @@ public object ConvertisseurLsp {
             val espace = org.eclipse.lsp4j.WorkspaceEdit()
             espace.changes = java.util.Collections.singletonMap(uri, editions(action.editions, repere))
             lsp.edit = espace
+        }
+        (action.commande as? ModCommande.Differee)?.let { differee ->
+            val arguments = com.google.gson.JsonArray()
+            differee.arguments.forEach { arguments.add(it) }
+            val donnees = com.google.gson.JsonObject()
+            donnees.addProperty("cle", differee.cle)
+            donnees.add("arguments", arguments)
+            donnees.addProperty("uri", uri)
+            lsp.data = donnees
         }
         return lsp
     }
