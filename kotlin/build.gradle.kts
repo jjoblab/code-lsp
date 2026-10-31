@@ -201,6 +201,17 @@ dependencies {
     // la porte qu'en runtime — insuffisant pour compiler les sources).
     "vendorImplementation"("org.jetbrains:annotations:26.0.2")
 
+    // ── Serveur LSP4J du module (étage 6 vague 6e — ADR 0118 option 1,
+    // miroir :java N8) : les liaisons du protocole LSP 3.17. Épinglée à la
+    // MÊME version que :java (0.21.2 — le câble cel-lsp étant commun, les
+    // deux serveurs partagent la pile ; EPL-2.0 côté Eclipse : les
+    // conditions binaires rejoignent P-K2, alerte du journal 09 §4).
+    // Runtime SEUL de la pile chaude : aucune dépendance de compilation
+    // n'est ajoutée au code moteur (les paquets moteur restent LIBRES de
+    // lsp4j — convention N1 Java, la conversion est le travail de la
+    // couche protocole).
+    implementation("org.eclipse.lsp4j:org.eclipse.lsp4j:0.21.2")
+
     // Décodage @Metadata (vague 1d — ADR 0108 : le décodeur vit côté :kotlin,
     // kotlinx-metadata-jvm en artefact ; Q-K2 documente l'alternative maison).
     // Épinglée à la chaîne d'outils (manifeste §4 — monte avec elle, ADR 0121).
