@@ -266,9 +266,10 @@ class InspectionsTest {
         // Le catalogue est servi par défaut.
         assertTrue(complet.any { it.source == SOURCE_INSPECTION }, "les inspections vivent par défaut")
         // Le catalogue complet est connu et dumb-aware (8 pilotes V-C1 +
-        // 3 contrôles lint V-C2 — tous AST pur, zéro index).
-        assertEquals(11, MoteurInspections.catalogue.size)
-        assertTrue(MoteurInspections.catalogue.all { it.dumbAware }, "les 11 contrôles sont dumb-aware")
+        // 3 contrôles lint V-C2 1re vague + 4 du complément de catalogue
+        // Range/ResourceType/CommitPrefEdits/Recycle — tous AST pur).
+        assertEquals(15, MoteurInspections.catalogue.size)
+        assertTrue(MoteurInspections.catalogue.all { it.dumbAware }, "les 15 contrôles sont dumb-aware")
     }
 
     @Test

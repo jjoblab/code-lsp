@@ -342,7 +342,9 @@ public object MoteurInspections {
     /**
      * Le catalogue (ordre stable du plan) : les 8 inspections pilotes V-C1
      * puis les contrôles LINT Android à valeur Java V-C2 (ADR 0024 —
-     * provenance "lint", muets sans contrat/minSdk quand ils l'exigent).
+     * provenance "lint", muets sans contrat/minSdk quand ils l'exigent) :
+     * première vague (NewApi…SetTextI18n) puis complément de catalogue
+     * (Range, ResourceType, CommitPrefEdits, Recycle).
      */
     public val catalogue: List<InspectionMoteur> = listOf(
         InspectionEgaliteChaines,
@@ -356,6 +358,10 @@ public object MoteurInspections {
         ControleNewApi,
         ControleSuperManquant,
         ControleTexteBrut,
+        ControleRange,
+        ControleResourceType,
+        ControleCommitPrefEdits,
+        ControleRecycle,
     )
 
     /** Kill-switch du plan de gouvernance (drapeau + repli documentés). */
