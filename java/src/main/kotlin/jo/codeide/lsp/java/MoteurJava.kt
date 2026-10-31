@@ -538,7 +538,7 @@ public class MoteurJava(
         // V-C1 (ADR 0023) : la passe d'INSPECTIONS suit la diagnose ecj du
         // fichier (même passe de fond, ADR 0025) — Warning/Info seulement,
         // provenance « inspection », jamais une erreur (règle ADR 0013).
-        val inspections = MoteurInspections.inspecter(reponse.arbre, source, chemin, diagnostics)
+        val inspections = MoteurInspections.inspecter(reponse.arbre, source, chemin, diagnostics, minSdk = projetAndroid?.minSdk)
         val toutes = if (inspections.isEmpty()) diagnostics else {
             (diagnostics + inspections).sortedWith(compareBy({ it.plage.debutOffset }, { it.plage.finOffset }))
         }
@@ -590,7 +590,7 @@ public class MoteurJava(
         // (déclarations, hors-corps) et le corps HÔTE sont intacts, les
         // signaux des corps MASQUÉS sont PORTÉS par [DiagnoseRapide.portables]
         // (isomorphie des offsets) : aucune divergence rapide/complet (P1).
-        val inspections = MoteurInspections.inspecter(reponse.arbre, masquee, chemin, frais)
+        val inspections = MoteurInspections.inspecter(reponse.arbre, masquee, chemin, frais, minSdk = projetAndroid?.minSdk)
         if (inspections.isNotEmpty()) {
             frais = (frais + inspections).sortedWith(compareBy({ it.plage.debutOffset }, { it.plage.finOffset }))
         }

@@ -51,6 +51,13 @@ public interface InspectionMoteur {
     public val dumbAware: Boolean get() = true
 
     /**
+     * La PROVENANCE des signalements (V-C2 — ADR 0024) : "inspection" pour
+     * la couche IDE générique, "lint" pour les contrôles Android à valeur
+     * Java (filtrage et rendu distincts côté hôte, G-023).
+     */
+    public val provenance: String get() = SOURCE_INSPECTION
+
+    /**
      * Inspecte l'unité résolue.
      *
      * @param contexte l'unité (arbre vivant, source, chemin, rouge ecj).
@@ -86,12 +93,16 @@ public enum class SeveriteInspection {
  * @property source la source Java complète ayant produit l'arbre.
  * @property chemin le chemin logique du document (paquet attendu).
  * @property erreursEcj les diagnostics ecj de sévérité ERREUR de la passe.
+ * @property minSdk le niveau d'API minimal du module Android (V-C2 —
+ *   ADR 0024 ; null = module sans contrat Android : les contrôles de
+ *   niveau d'API restent muets, repli honnête).
  */
 public class ContexteInspection(
     public val arbre: CompilationUnitDeclaration?,
     public val source: String,
     public val chemin: String,
     public val erreursEcj: List<Diagnostic>,
+    public val minSdk: Int? = null,
 )
 
 /**
@@ -129,7 +140,7 @@ public class RapporteurInspection internal constructor(
                 message = message,
                 plage = plage,
                 code = inspection.id,
-                source = SOURCE_INSPECTION,
+                source = inspection.provenance,
             ),
         )
         return true
@@ -253,18 +264,18 @@ internal class SuppresseurInspections(
                 ): Pair<Plage, Set<String>>? {
                     val tokens = mutableSetOf<String>()
                     for (annotation in annotations ?: emptyArray()) {
-                        if (String(annotation.type.getLastToken()) != "SuppressWarnings") continue
+                        val nomAnnotation = String(annotation.type.getLastToken())
+                        // V-C1 : @SuppressWarnings ; V-C2 (ADR 0024) :
+                        // @SuppressLint — mêmes portées, valeurs scalaires
+                        // OU tableaux {"NewApi", "SetTextI18n"}.
+                        if (nomAnnotation != "SuppressWarnings" && nomAnnotation != "SuppressLint") continue
                         when (annotation) {
                             is org.eclipse.jdt.internal.compiler.ast.SingleMemberAnnotation -> {
-                                (annotation.memberValue as? org.eclipse.jdt.internal.compiler.ast.StringLiteral)?.let {
-                                    tokens.add(String(it.source()))
-                                }
+                                extraireTokens(annotation.memberValue, tokens)
                             }
                             is org.eclipse.jdt.internal.compiler.ast.NormalAnnotation -> {
                                 for (paire in annotation.memberValuePairs ?: emptyArray()) {
-                                    (paire.value as? org.eclipse.jdt.internal.compiler.ast.StringLiteral)?.let {
-                                        tokens.add(String(it.source()))
-                                    }
+                                    extraireTokens(paire.value, tokens)
                                 }
                             }
                             else -> {}
@@ -293,6 +304,21 @@ internal class SuppresseurInspections(
             }
             return SuppresseurInspections(portees, commentaires, source)
         }
+
+        /** Extrait les tokens d'une valeur d'annotation (scalaire ou tableau). */
+        private fun extraireTokens(valeur: org.eclipse.jdt.internal.compiler.ast.Expression, tokens: MutableSet<String>) {
+            when (valeur) {
+                is org.eclipse.jdt.internal.compiler.ast.StringLiteral -> tokens.add(String(valeur.source()))
+                is org.eclipse.jdt.internal.compiler.ast.ArrayInitializer -> {
+                    for (element in valeur.expressions ?: emptyArray()) {
+                        (element as? org.eclipse.jdt.internal.compiler.ast.StringLiteral)?.let {
+                            tokens.add(String(it.source()))
+                        }
+                    }
+                }
+                else -> {}
+            }
+        }
     }
 }
 
@@ -313,7 +339,11 @@ public const val SOURCE_INSPECTION: String = "inspection"
  */
 public object MoteurInspections {
 
-    /** Le catalogue des inspections pilotes V-C1 (ordre stable du plan). */
+    /**
+     * Le catalogue (ordre stable du plan) : les 8 inspections pilotes V-C1
+     * puis les contrôles LINT Android à valeur Java V-C2 (ADR 0024 —
+     * provenance "lint", muets sans contrat/minSdk quand ils l'exigent).
+     */
     public val catalogue: List<InspectionMoteur> = listOf(
         InspectionEgaliteChaines,
         InspectionResultatIgnore,
@@ -323,6 +353,9 @@ public object MoteurInspections {
         InspectionChampStatiqueViaSousClasse,
         InspectionPaquetDeclare,
         InspectionChaineFormat,
+        ControleNewApi,
+        ControleSuperManquant,
+        ControleTexteBrut,
     )
 
     /** Kill-switch du plan de gouvernance (drapeau + repli documentés). */
@@ -349,6 +382,7 @@ public object MoteurInspections {
         chemin: String,
         diagnosticsEcj: List<Diagnostic>,
         profil: ProfilInspections = ProfilInspections.DEFAUT,
+        minSdk: Int? = null,
     ): List<Diagnostic> {
         if (DESACTIVE || arbre == null) return emptyList()
         if (diagnosticsEcj.any { it.severite == Severite.ERREUR && DiagnoseRapide.estErreurSyntaxe(it) }) {
@@ -359,6 +393,7 @@ public object MoteurInspections {
             source,
             chemin,
             diagnosticsEcj.filter { it.severite == Severite.ERREUR },
+            minSdk,
         )
         val suppresseur = SuppresseurInspections.de(arbre, source)
         val resultat = mutableListOf<Diagnostic>()
