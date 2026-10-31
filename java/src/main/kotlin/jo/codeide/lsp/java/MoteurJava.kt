@@ -237,18 +237,28 @@ public class MoteurJava(
     /**
      * Diagnostique une source du module.
      *
-     * Pipeline : mémo (source identique) → preuve de confinement (diagnose
-     * RAPIDE, fiche 014) → diagnose complet. En régime instantané, rend les
-     * diagnostics de SYNTAXE seuls (garanties ①/② de la fiche 028).
+     * Pipeline : mémo (source identique ET dépendances disque inchangées —
+     * fraîcheur inter-fichiers P8, ADR 0025) → preuve de confinement
+     * (diagnose RAPIDE, fiche 014) → diagnose complet. En régime instantané,
+     * rend les diagnostics de SYNTAXE seuls (garanties ①/② de la fiche 028).
+     *
+     * **Fraîcheur du mémo (écart G-003/H4, corrigé vague V-A)** : le mémo
+     * enregistre les fichiers SOURCES du module lus sur disque pendant la
+     * passe (empreinte STAT mtime+taille chacun) ; si l'API d'un fichier voisin
+     * change sur disque, le mémo n'est PLUS servi et un diagnose complet
+     * re-résout contre l'état frais — les diagnostics d'un document ouvert ne
+     * restent jamais périmés au-delà de la demande suivante (la REPUBLICATION
+     * sans demande reste du ressort de l'hôte, qui re-sollicite le moteur).
      *
      * @param chemin chemin logique du document (`/demo/Main.java`).
      * @param source le texte Java complet.
      * @return la liste de diagnostics (triée par offset croissant) ; JAMAIS nulle.
      */
     public fun diagnose(chemin: String, source: String): List<Diagnostic> = synchronized(this) {
-        // Mémo : republish post-debounce (fiche 014, memeSource).
+        // Mémo : republish post-debounce (fiche 014, memeSource) — servi
+        // uniquement si AUCUNE dépendance disque n'a changé (P8, ci-dessus).
         val etat = etatsRapides[chemin]
-        if (etat?.source == source) {
+        if (etat?.source == source && etat.dependancesInchangees()) {
             compteurFastDiagnose++
             return etat.diagnostics
         }
@@ -292,18 +302,27 @@ public class MoteurJava(
         // analysés — l'import inutilisé est un vrai signal publié au
         // client (tag Unnecessary côté protocole) ; le diagnose RAPIDE
         // (corps masqués) garde la table stricte (fiche 014).
-        val reponse = pontEcj().resoudre(unite(chemin, source), genererCode = true, analytique = true)
+        val environnement = environnementNoms()
+        val piste = environnement.ouvrirPiste()
+        val reponse = try {
+            pontEcj().resoudre(unite(chemin, source), genererCode = true, analytique = true)
+        } finally {
+            environnement.fermerPiste()
+        }
         var diagnostics = reponse.problemes().map { RegimeInstantane.convertir(it) }
             .sortedWith(compareBy({ it.plage.debutOffset }, { it.plage.finOffset }))
         diagnostics = enrichirHierarchie(diagnostics, reponse.arbre)
         val uniteResolue = UniteResolue(reponse.arbre, chemin, source, genererCode = true)
         cacheParse.ranger(chemin, source, uniteResolue, genererCode = true, focused = null)
+        val corps = ScannerCorps.corpsDeMethodes(source) ?: emptyList()
         etatsRapides[chemin] = DiagnoseRapide.Etat(
             source,
             diagnostics,
-            ScannerCorps.corpsDeMethodes(source) ?: emptyList(),
+            corps,
             arbreFocalise = null,
             corpsHote = null,
+            dependances = empreintes(piste),
+            analytiquesHorsCorps = analytiquesHorsCorps(diagnostics, corps),
         )
         return diagnostics
     }
@@ -314,20 +333,43 @@ public class MoteurJava(
      * 30/10/2026 : l'import inutilisé et le membre privé inutilisé restent
      * affichés PENDANT la frappe — la passe rapide ne peut pas les recalculer
      * honnêtement, le signal du dernier diagnose complet est PORTÉ).
+     *
+     * **Re-validation du portage hors-corps (vague V-A, ADR 0025 — P1)** :
+     * les signaux portés sont GABARITÉS par les règles du témoin neuf
+     * (mesurées ecj 3.40 : import inutilisé exige une unité sans AUCUNE
+     * erreur ; membre privé inutilisé exige une unité sans erreur de
+     * SYNTAXE) — l'état d'erreur pris en compte couvre le frais (corps hôte
+     * + hors-corps) ET les corps masqués portés, soit l'unité entière.
      */
     private fun diagnostiquerRapide(chemin: String, source: String, etat: DiagnoseRapide.Etat, hote: PlageCorps): List<Diagnostic> {
         val corps = ScannerCorps.corpsDeMethodes(source) ?: emptyList()
         val masquee = DiagnoseRapide.sourceMasquee(source, corps, hote)
+        val environnement = environnementNoms()
+        val piste = environnement.ouvrirPiste()
         // Table RAPIDE (locale inutilisée allumée — corps hôte intact) :
         // les usages d'une locale vivent dans SA méthode, aucun fallacieux.
-        val reponse = pontEcj().resoudre(unite(chemin, masquee), genererCode = true, rapide = true)
+        val reponse = try {
+            pontEcj().resoudre(unite(chemin, masquee), genererCode = true, rapide = true)
+        } finally {
+            environnement.fermerPiste()
+        }
         var frais = reponse.problemes().map { RegimeInstantane.convertir(it) }
             .sortedWith(compareBy({ it.plage.debutOffset }, { it.plage.finOffset }))
         frais = enrichirHierarchie(frais, reponse.arbre)
         val indexHote = corps.indexOf(hote)
-        val portables = DiagnoseRapide.portables(etat.diagnostics, etat.corps, corps, indexHote) +
-            DiagnoseRapide.portablesHorsCorps(etat.diagnostics, etat.corps, corps, indexHote)
-        val resultat = (frais + portables)
+        val portables = DiagnoseRapide.portables(etat.diagnostics, etat.corps, corps, indexHote)
+        // État d'erreur de l'unité ENTIÈRE (frais = hôte + hors-corps,
+        // portables = corps masqués) — l'entrée du gabarit du témoin.
+        val erreursUnite = (frais + portables).filter { it.severite == Severite.ERREUR }
+        val portage = DiagnoseRapide.portablesHorsCorps(
+            etat.analytiquesHorsCorps,
+            etat.corps,
+            corps,
+            indexHote,
+            aUneErreur = erreursUnite.isNotEmpty(),
+            aUneErreurSyntaxe = erreursUnite.any(DiagnoseRapide::estErreurSyntaxe),
+        )
+        val resultat = (frais + portables + portage.publies)
             .sortedWith(compareBy({ it.plage.debutOffset }, { it.plage.finOffset }))
         // L'arbre focalisé sert les features DANS le corps hôte (fiche 015) ;
         // le cache de parse n'est PAS rempli par un diagnose rapide.
@@ -337,6 +379,8 @@ public class MoteurJava(
             corps,
             arbreFocalise = UniteResolue(reponse.arbre, chemin, masquee, genererCode = true),
             corpsHote = hote,
+            dependances = empreintes(piste),
+            analytiquesHorsCorps = portage.portes,
         )
         return resultat
     }
@@ -1452,6 +1496,48 @@ public class MoteurJava(
     /** Unité de compilation en mémoire. */
     private fun unite(chemin: String, source: String): ICompilationUnit =
         UnitesSource.EnMemoire(chemin, source)
+
+    /**
+     * Les dépendances disque d'une passe, empreintées (P8 — fraîcheur du
+     * mémo) : chaque fichier source servi par l'environnement de noms pendant
+     * la fenêtre de pistage est empreinté par STAT (mtime+taille — coût
+     * microseconde, cf. [DiagnoseRapide.empreinteFichier]) — le mémo ne sera
+     * servi que si TOUTES ces empreintes restent valables (voir
+     * [DiagnoseRapide.Etat.dependancesInchangees]).
+     *
+     * @param piste l'ensemble des fichiers consignés par la passe.
+     * @return la carte chemin → empreinte (vide si la passe n'a rien lu).
+     */
+    private fun empreintes(piste: MutableSet<java.nio.file.Path>): Map<java.nio.file.Path, String> =
+        piste.associateWith { DiagnoseRapide.empreinteFichier(it) ?: "" }
+
+    /**
+     * Les signaux analytiques HORS CORPS d'un diagnose complet (vague V-A,
+     * ADR 0025) : les familles UNUSED (import, membre privé) hors de tout
+     * corps de méthode — la SOURCE DE PORTAGE persistante des passes
+     * rapides suivantes ([DiagnoseRapide.Etat.analytiquesHorsCorps]). Les
+     * signaux DANS un corps ne portent pas (recalculés frais ou portés par
+     * [DiagnoseRapide.portables] selon le corps).
+     *
+     * @param diagnostics le résultat frais du diagnose complet.
+     * @param corps les plages de corps de la même source.
+     * @return les seuls signaux analytiques hors corps.
+     */
+    private fun analytiquesHorsCorps(
+        diagnostics: List<Diagnostic>,
+        corps: List<PlageCorps>,
+    ): List<Diagnostic> = diagnostics.filter { diagnostic ->
+        val famille = jo.codeide.lsp.java.actionscode.FamilleProbleme.fromCode(diagnostic.code)
+        if (famille != jo.codeide.lsp.java.actionscode.FamilleProbleme.UNUSED_IMPORT &&
+            famille != jo.codeide.lsp.java.actionscode.FamilleProbleme.UNUSED_DECLARATION
+        ) {
+            return@filter false
+        }
+        corps.none { plage ->
+            plage.debutInterieur <= diagnostic.plage.debutOffset &&
+                diagnostic.plage.finOffset <= plage.finInterieur
+        }
+    }
 
     /**
      * Index des types du moteur (sondes fiche 039 : `find`, `hasBinarySource`).

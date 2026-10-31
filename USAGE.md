@@ -567,7 +567,19 @@ calculé à l'instant du tir sur l'instantané vivant — publication sous
 **analytique** (PontEcj) : l'import inutilisé est un `warning` avec le
 tag `Unnecessary` et le code ecj exact `ecj:<IProblem.UnusedImport>`
 (fiche 056). Le **chemin rapide** à corps masqués (frappe confinée)
-garde ses familles éteintes (fiche 014 — zéro régression).
+garde ses familles éteintes (fiche 014 — zéro régression) ; ses signaux
+analytiques hors corps (import/membre privé inutilisé) sont **portés** du
+dernier diagnose complet et **gabarités par le témoin** (vague V-A,
+ADR 0025 — règles mesurées sur ecj 3.40) : pendant une frappe
+syntaxiquement incomplète, l'import inutilisé n'est publié que si l'unité
+est sans AUCUNE erreur, le membre privé inutilisé que si elle est sans
+erreur de SYNTAXE — exactement ce qu'un diagnose complet de la même
+source publierait (propriété P1 : équivalence rapide/complet). Le
+**mémo** de diagnose (republish post-debounce) n'est servi que si les
+fichiers sources du module lus pendant la passe sont **inchangés sur
+disque** (empreintes STAT mtime+taille — P8/ADR 0025) : une édition de
+l'API d'un fichier voisin invalide le résultat périmé au prochain
+diagnostic demandé.
 
 Les imports `.databinding` non résolus d'un module sans classes générées
 sont **déclassés en HINT** par la couche de publication (« le remède est

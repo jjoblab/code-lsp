@@ -62,6 +62,39 @@ public class EnvironnementNoms(
         AnnuaireClasspath(racines, jars, accesJrt)
     }
 
+    /**
+     * Piste des fichiers sources servis pendant la passe courante (P8 —
+     * fraîcheur inter-fichiers, ADR 0025) : un ensemble propre au THREAD
+     * appelant, ouvert par [ouvrirPiste] et refermé par [fermerPiste] par
+     * le moteur autour d'une résolution. Chaque [reponseSource] servi
+     * pendant la fenêtre y est consigné — le moteur en dérive les
+     * DÉPENDANCES DISQUE du diagnostic produit (chemin → empreinte), et le
+     * mémo n'est plus servi si l'une d'elles change.
+     *
+     * Pourquoi un ThreadLocal : les API du moteur sont sérialisées par son
+     * moniteur, mais la piste ne doit pas fuiter entre threads hôtes ni
+     * entre passes imbriquées d'un même appel ( résolution → diagnostic
+     * enrichi ) — la fenêtre explicite ouvrir/fermer est la seule frontière.
+     */
+    private val piste = ThreadLocal<MutableSet<Path>?>()
+
+    /**
+     * Ouvre le pistage des lectures disque pour le thread appelant — la
+     * fenêtre vit jusqu'à [fermerPiste].
+     *
+     * @return l'ensemble récepteur des fichiers consignés.
+     */
+    public fun ouvrirPiste(): MutableSet<Path> {
+        val ensemble = mutableSetOf<Path>()
+        piste.set(ensemble)
+        return ensemble
+    }
+
+    /** Referme le pistage du thread appelant (toute lecture suivante est invisible). */
+    public fun fermerPiste() {
+        piste.set(null)
+    }
+
     /** Indique si une image jrt est chargée (sonde de plateforme). */
     public fun jrtDisponible(): Boolean = accesJrt != null
 
@@ -193,6 +226,7 @@ public class EnvironnementNoms(
 
     /** Enveloppe une réponse SOURCE (l'unité sera parsée par ecj à la demande). */
     private fun reponseSource(fichier: Path): NameEnvironmentAnswer {
+        piste.get()?.add(fichier)
         val unite: ICompilationUnit = jo.codeide.lsp.java.interne.UnitesSource.SurDisque(fichier)
         return NameEnvironmentAnswer(unite, null)
     }
