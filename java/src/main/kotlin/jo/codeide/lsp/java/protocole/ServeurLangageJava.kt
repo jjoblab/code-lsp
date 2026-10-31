@@ -1096,6 +1096,37 @@ public class ServeurLangageJava(
         }
         val document = documentDe(uri) ?: return CompletableFuture.completedFuture(unresolved)
         val (chemin, texte) = document
+        // V-D3 : la résolution MULTI-FICHIERS d'abord (change signature —
+        // les appelants, suppression hiérarchique — chaque maillon, inline
+        // de constante PROJET, création de champ — le type déclarant peut
+        // vivre ailleurs) : les éditions par fichier deviennent une map
+        // URI → éditions (le document courant sous SON URI, les autres
+        // sous `file://<chemin>`, convention du renommage N5).
+        val projet = avecMoteurFrais(chemin) { moteur ->
+            moteur?.resoudreActionProjet(chemin, texte, cle, arguments)
+        }
+        if (projet != null && projet.isNotEmpty()) {
+            val editionsParUri = java.util.LinkedHashMap<String, List<org.eclipse.lsp4j.TextEdit>>()
+            for ((fichier, editions) in projet) {
+                if (editions.isEmpty()) continue
+                val uriFichier = if (fichier == chemin) uri else "file://$fichier"
+                val repereFichier = if (fichier == chemin) {
+                    ConvertisseurLsp.repere(texte)
+                } else {
+                    val texteFichier = try {
+                        java.nio.file.Path.of(fichier).toFile().readText()
+                    } catch (_: Exception) {
+                        null
+                    }
+                    if (texteFichier != null) ConvertisseurLsp.repere(texteFichier) else continue
+                }
+                editionsParUri[uriFichier] = ConvertisseurLsp.editions(editions, repereFichier)
+            }
+            if (editionsParUri.isNotEmpty()) {
+                unresolved.edit = org.eclipse.lsp4j.WorkspaceEdit().apply { changes = editionsParUri }
+            }
+            return CompletableFuture.completedFuture(unresolved)
+        }
         val editions = avecMoteurFrais(chemin) { moteur ->
             moteur?.resoudreAction(chemin, texte, cle, arguments)
         } ?: return CompletableFuture.completedFuture(unresolved)

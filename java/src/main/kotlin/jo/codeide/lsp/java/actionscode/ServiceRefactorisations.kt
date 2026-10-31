@@ -157,6 +157,20 @@ public class ServiceRefactorisations(
             }
         } else {
             val position = debut.coerceIn(0, source.length)
+            // V-D3 — CHANGE SIGNATURE : le caret porte un PARAMÈTRE non
+            // utilisé, non varargs, hors hiérarchie (les gardes locales
+            // peu coûteuses ; le graphe des appelants se paie au resolve,
+            // ADR 0027 (f)).
+            if (ServiceChangeSignature(arbre, source, "").servable(position) != null) {
+                val nomParametre = nomParametreAu(position) ?: ""
+                resultat.add(
+                    ActionCode(
+                        "refactor.rewrite.signature",
+                        "Supprimer le paramètre « $nomParametre »",
+                        ModCommande.Differee(CLE_SUPPRIMER_PARAMETRE, listOf(position.toString())),
+                    ),
+                )
+            }
             // Inline VARIABLE : le caret porte une locale initialisée
             // (les RÉAFFECTATIONS ferment la porte — une variable écrite
             // ne se met pas en ligne).
@@ -166,17 +180,30 @@ public class ServiceRefactorisations(
                 resultat.add(ActionCode("refactor.inline.variable", titre, ModCommande.Differee(CLE_METTRE_EN_LIGNE, listOf(position.toString()))))
             }
             // Inline CONSTANTE : le caret porte un champ static final à
-            // initialisateur constant — la garde MULTI-FICHIERS vit au
-            // niveau moteur (resolve).
+            // initialisateur constant — la variante PROJET (multi-fichiers,
+            // V-D3) : chaque usage du PROJET reçoit la valeur, la garde
+            // mono-fichier de la tranche 2 est LEVÉE.
             if (mettreEnLigneConstanteEditions(position) != null) {
-                resultat.add(ActionCode("refactor.inline.constant", "Mettre la constante en ligne", ModCommande.Differee(CLE_METTRE_EN_LIGNE_CONSTANTE, listOf(position.toString()))))
+                resultat.add(ActionCode("refactor.inline.constant", "Mettre la constante en ligne", ModCommande.Differee(CLE_METTRE_EN_LIGNE_CONSTANTE_PROJET, listOf(position.toString()))))
             }
             // Safe DELETE : le caret porte une déclaration supprimable —
-            // la garde des USAGES (multi-fichiers, câreuse) vit au RESOLVE
+            // la garde des USAGES (multi-fichiers, exhaustive) vit au RESOLVE
             // (ADR 0027 (f) : rien d'eager).
             cibleSuppression(position)?.let { cible ->
                 if (cible.refus == null) {
                     resultat.add(ActionCode("refactor.rewrite.delete", "Supprimer « ${cible.nom} » sans danger", ModCommande.Differee(CLE_SUPPRIMER_SURE, listOf(position.toString()))))
+                } else if (cible.refus == "override") {
+                    // V-D3 — SUPPRESSION HIÉRARCHIQUE : la méthode
+                    // OUTREPASSE (refus tranche 2) — la chaîne ENTIÈRE se
+                    // supprime (la cible, sa outrépassée, ses
+                    // outrépassantes), la garde des usages au resolve.
+                    resultat.add(
+                        ActionCode(
+                            "refactor.rewrite.delete",
+                            "Supprimer « ${cible.nom} » et sa hiérarchie",
+                            ModCommande.Differee(CLE_SUPPRIMER_HIERARCHIQUE, listOf(position.toString())),
+                        ),
+                    )
                 }
             }
         }
@@ -223,9 +250,7 @@ public class ServiceRefactorisations(
     }
 
     /**
-     * La cible de suppression au caret : le nom lisible, le genre et le
-     * motif de refus honnête le cas échéant (l'ORACLE du banc : le critère
-     * « conflits safe-delete : 0 manqué »).
+     * La cible de suppression au caret (l'oracle du banc safe-delete).
      *
      * @param offset le caret.
      * @return la cible, ou null (rien de supprimable au caret).
@@ -1371,12 +1396,23 @@ public class ServiceRefactorisations(
         return segments
     }
 
+    /** Le nom du paramètre au caret (titre de l'action change signature). */
+    private fun nomParametreAu(position: Int): String? {
+        for (argument in structure.arguments) {
+            if (porteLeNom(argument.sourceStart, argument.name, position)) return String(argument.name)
+        }
+        return null
+    }
+
     private companion object {
         const val CLE_EXTRAIRE_VARIABLE = "refactor.extraireVariable"
         const val CLE_EXTRAIRE_CONSTANTE = "refactor.extraireConstante"
         const val CLE_EXTRAIRE_METHODE = "refactor.extraireMethode"
         const val CLE_METTRE_EN_LIGNE = "refactor.mettreEnLigne"
         const val CLE_METTRE_EN_LIGNE_CONSTANTE = "refactor.mettreEnLigneConstante"
+        const val CLE_METTRE_EN_LIGNE_CONSTANTE_PROJET = "refactor.mettreEnLigneConstanteProjet"
         const val CLE_SUPPRIMER_SURE = "refactor.supprimerSure"
+        const val CLE_SUPPRIMER_HIERARCHIQUE = "refactor.supprimerHierarchique"
+        const val CLE_SUPPRIMER_PARAMETRE = "refactor.supprimerParametre"
     }
 }

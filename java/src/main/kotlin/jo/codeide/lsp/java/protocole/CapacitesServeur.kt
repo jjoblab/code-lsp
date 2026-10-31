@@ -234,7 +234,8 @@ public object CapacitesServeur {
         // de quickfix : source (organizeImports M3), source.generate (les
         // six capacités de génération), refactor (intentions) ; V-D2 —
         // refactor.extract/inline en formes PRÉCISES + refactor.rewrite.delete
-        // (safe delete), consommables K2 par préfixe hiérarchique ;
+        // (safe delete) ; V-D3 — refactor.rewrite.signature (change
+        // signature), consommables K2 par préfixe hiérarchique ;
         // resolveProvider VRAI — le calcul différé des générateurs passe
         // par codeAction/resolve).
         val optionsActions = CodeActionOptions()
@@ -253,6 +254,7 @@ public object CapacitesServeur {
             "refactor.inline.constant",
             CodeActionKind.RefactorRewrite,
             "refactor.rewrite.delete",
+            "refactor.rewrite.signature",
         )
         optionsActions.resolveProvider = true
         capacites.setCodeActionProvider(optionsActions)

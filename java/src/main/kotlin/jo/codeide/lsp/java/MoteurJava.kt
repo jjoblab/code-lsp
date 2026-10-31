@@ -23,6 +23,7 @@ import jo.codeide.lsp.java.imports.PropositionImports
 import jo.codeide.lsp.java.navigation.CibleNavigation
 import jo.codeide.lsp.java.navigation.CibleSuper
 import jo.codeide.lsp.java.navigation.ChaineSelection
+import jo.codeide.lsp.java.navigation.CleUsages
 import jo.codeide.lsp.java.navigation.GenreSurbrillance
 import jo.codeide.lsp.java.navigation.IndexMotsSources
 import jo.codeide.lsp.java.navigation.ServiceDecompilation
@@ -1183,7 +1184,7 @@ public class MoteurJava(
         // Périmètre TEXTE (V-F2) : service SANS moteur — aucune prise du
         // verrou de compilation (l'index des noms est sûr par conception).
         val base = serviceActionsCode().actions(chemin, source, diagnostics)
-        return base + stubsAbstraites(chemin, source, diagnostics)
+        return base + stubsAbstraites(chemin, source, diagnostics) + creationsChamp(chemin, source, diagnostics)
     }
 
     /**
@@ -1202,7 +1203,31 @@ public class MoteurJava(
     ): List<jo.codeide.lsp.java.actionscode.ActionCode> {
         // Périmètre TEXTE (V-F2) : voir [actionsCode].
         val base = serviceActionsCode().actions(chemin, source, diagnostic)
-        return base + stubsAbstraites(chemin, source, listOf(diagnostic))
+        return base + stubsAbstraites(chemin, source, listOf(diagnostic)) + creationsChamp(chemin, source, listOf(diagnostic))
+    }
+
+    /**
+     * La passe d'APPOINT ARBRE de la création de champ (vague V-D3 —
+     * ADR 0027 : « création de champ sur UndefinedField ») : le
+     * récepteur (`this`, `x`) exige les BINDINGS pour connaître le type
+     * DÉCLARANT — le service TEXTE ne le touche pas. Uniquement quand le
+     * diagnostic UndefinedField est PRÉSENT — la passe ne résout JAMAIS
+     * pour rien ; l'action voyage DIFFÉRÉE (les éditions, possiblement
+     * dans un AUTRE fichier, se calculent au resolve).
+     */
+    private fun creationsChamp(
+        chemin: String,
+        source: String,
+        diagnostics: List<Diagnostic>,
+    ): List<jo.codeide.lsp.java.actionscode.ActionCode> {
+        val champs = diagnostics.filter {
+            it.code?.removePrefix("ecj:")?.toLongOrNull() == 33554502L // UndefinedField
+        }
+        if (champs.isEmpty()) return emptyList()
+        if (!regimePlein()) return emptyList()
+        return champs.mapNotNull { diagnostic ->
+            jo.codeide.lsp.java.actionscode.CorrecteurCreationChamp.action(diagnostic)
+        }
     }
 
     /**
@@ -1330,6 +1355,18 @@ public class MoteurJava(
         if (cible.refus != null) {
             return SuppressionSure(cible.nom, cible.genre, cible.refus, emptyList(), null)
         }
+        // V-D3 — la méthode EST-ELLE OUTREPASSÉE par un sous-type SOURCE ?
+        // La clé d'usages ne suit PAS la hiérarchie descendante (mesuré :
+        // un appel `sub.m()` sur une référence Sub résout vers Sub.m, pas
+        // vers Base.m) — un maillon orphelin ne compile pas. La chaîne se
+        // calcule ICI (resolve) ; sa suppression relève de la variante
+        // HIÉRARCHIQUE ([suppressionHierarchiqueSure]).
+        if (cible.genre == "method") {
+            val chain = serviceSuppressionHierarchique(arbre, source, chemin).hierarchieDe(offset)
+            if (chain.size > 1) {
+                return SuppressionSure(cible.nom, cible.genre, "hierarchie", emptyList(), null)
+            }
+        }
         val usages = references(chemin, source, offset, inclureDeclaration = true)
         val bloquants = usages.filter { !it.estDeclaration }
         if (bloquants.isNotEmpty()) {
@@ -1343,15 +1380,308 @@ public class MoteurJava(
      * courant (garde mono-fichier de l'inline de constante, V-D2).
      */
     private fun usagesHorsFichierCourant(chemin: String, source: String, offset: Int): Boolean {
-        val cheminCourant = runCatching {
-            val direct = java.nio.file.Path.of(chemin)
-            if (java.nio.file.Files.isRegularFile(direct)) direct else null
-        }.getOrNull() ?: racines.firstNotNullOfOrNull { racine ->
-            val candidat = racine.resolve(chemin)
-            if (java.nio.file.Files.isRegularFile(candidat)) candidat else null
-        }?.toString() ?: chemin
+        val cheminCourant = cheminDisqueDe(chemin)
         return references(chemin, source, offset, inclureDeclaration = true)
             .any { it.chemin != cheminCourant }
+    }
+
+    // ------------------------------------------------------------------ //
+    // Vague V-D tranche 3 — change signature, suppression hiérarchique,
+    // inline multi-fichiers, création de champ, rename de ressource
+    // ------------------------------------------------------------------ //
+
+    /**
+     * La RÉSOLUTION MULTI-FICHIERS d'une commande différée V-D3 (ADR 0027
+     * (f)) : les éditions recalculées DÉTERMINISTEMENT depuis la source,
+     * par FICHIER — change signature (les appelants), suppression
+     * hiérarchique (chaque maillon), inline de constante PROJET, création
+     * de champ (le type déclarant peut vivre ailleurs). Les clés
+     * mono-fichiers restent à [resoudreAction] (null ici = repli).
+     *
+     * @param chemin le chemin logique du document.
+     * @param source le texte Java complet (tampon ouvert).
+     * @param cle la clé du générateur.
+     * @param arguments les arguments (positions dans la source).
+     * @return les éditions par fichier DISQUE, ou null (clé inconnue /
+     *   refus honnête — la garde s'est refermée au resolve).
+     */
+    public fun resoudreActionProjet(
+        chemin: String,
+        source: String,
+        cle: String,
+        arguments: List<String>,
+    ): Map<String, List<jo.codeide.lsp.java.outils.EditionTexte>>? {
+        if (!regimePlein()) return null
+        val offset = arguments.firstOrNull()?.toIntOrNull()
+        when (cle) {
+            "refactor.supprimerParametre" -> {
+                if (offset == null) return null
+                val arbre = resolveUnit(chemin, source, genererCode = false)?.arbre ?: return null
+                val cheminDisque = cheminDisqueDe(chemin)
+                val service = jo.codeide.lsp.java.actionscode.ServiceChangeSignature(arbre, source, cheminDisque)
+                val cible = service.parametreAuCaret(offset) ?: return null
+                val sites = collecterSitesAppel(cible.cle, chemin, source, arbre, cheminDisque)
+                val verdict = service.supprimerParametre(offset, sites)
+                return if (verdict.refus != null) null else verdict.editions
+            }
+            "refactor.supprimerHierarchique" -> {
+                if (offset == null) return null
+                val verdict = suppressionHierarchiqueSure(chemin, source, offset) ?: return null
+                val editions = verdict.editions ?: return null
+                return if (verdict.bloquants.isNotEmpty() || editions.isEmpty()) null else editions
+            }
+            "refactor.mettreEnLigneConstanteProjet" -> {
+                if (offset == null) return null
+                val arbre = resolveUnit(chemin, source, genererCode = false)?.arbre ?: return null
+                val service = jo.codeide.lsp.java.actionscode.ServiceInlineConstanteProjet(
+                    arbre = arbre,
+                    source = source,
+                    cheminCourant = cheminDisqueDe(chemin),
+                    resoudre = { c, t -> resolveUnit(c, t, genererCode = false)?.arbre },
+                    fichiersPourMot = { mot -> indexMotsSources().fichiersPour(mot) },
+                )
+                return service.editions(offset)
+            }
+            jo.codeide.lsp.java.actionscode.CorrecteurCreationChamp.CLE_CREER_CHAMP -> {
+                if (offset == null) return null
+                val arbre = resolveUnit(chemin, source, genererCode = false)?.arbre ?: return null
+                return jo.codeide.lsp.java.actionscode.CorrecteurCreationChamp.editions(
+                    arbre = arbre,
+                    source = source,
+                    cheminCourant = cheminDisqueDe(chemin),
+                    resoudre = { c, t -> resolveUnit(c, t, genererCode = false)?.arbre },
+                    localiser = { fqcn -> localiserSource(fqcn) },
+                    debutNom = offset,
+                )
+            }
+            else -> return null
+        }
+    }
+
+    /**
+     * Le CHANGEMENT DE SIGNATURE au caret (vague V-D3 — ADR 0027 (e) :
+     * « change signature (graphe d'appelants) ») : la suppression d'un
+     * PARAMÈTRE et la re-écriture de TOUS les appelants (multi-fichiers,
+     * socle ADR 0028 — envois, sites `new X(…)`, appels explicites
+     * `this(…)`/`super(…)`). L'ORACLE du banc : les refus honnêtes
+     * (« utilise », « varargs », « hierarchie », « referenceMethode »)
+     * portent leur motif.
+     *
+     * @param chemin le chemin logique du document.
+     * @param source le texte Java complet (tampon ouvert).
+     * @param offset le caret (sur le nom du paramètre).
+     * @return le verdict, ou null (caret sans paramètre / régime instantané).
+     */
+    public fun changementSignatureSure(chemin: String, source: String, offset: Int): ChangementSignatureSure? {
+        if (!regimePlein()) return null
+        val arbre = resolveUnit(chemin, source, genererCode = false)?.arbre ?: return null
+        val cheminDisque = cheminDisqueDe(chemin)
+        val service = jo.codeide.lsp.java.actionscode.ServiceChangeSignature(arbre, source, cheminDisque)
+        val cible = service.parametreAuCaret(offset) ?: return null
+        val sites = collecterSitesAppel(cible.cle, chemin, source, arbre, cheminDisque)
+        val verdict = service.supprimerParametre(offset, sites)
+        return ChangementSignatureSure(
+            nomParametre = verdict.nom,
+            motifRefus = verdict.refus,
+            appelants = sites.count { !it.estReferenceMethode },
+            editions = if (verdict.refus == null) verdict.editions else null,
+        )
+    }
+
+    /**
+     * La SUPPRESSION HIÉRARCHIQUE au caret (vague V-D3 — ADR 0027 (e)) :
+     * la chaîne d'overrides ENTIÈRE (la cible, sa outrépassée par
+     * bindings, ses outrépassantes par balayage des sources) et la garde
+     * des usages par maillon — un site d'appel hors chaîne FERME la porte
+     * (les appels internes à la chaîne disparaissent avec elle).
+     *
+     * @param chemin le chemin logique du document.
+     * @param source le texte Java complet (tampon ouvert).
+     * @param offset le caret (sur le nom de la méthode).
+     * @return le verdict, ou null (caret sans méthode / régime instantané).
+     */
+    public fun suppressionHierarchiqueSure(chemin: String, source: String, offset: Int): SuppressionHierarchiqueSure? {
+        if (!regimePlein()) return null
+        val arbre = resolveUnit(chemin, source, genererCode = false)?.arbre ?: return null
+        val service = serviceSuppressionHierarchique(arbre, source, chemin)
+        val verdict = service.suppression(offset) ?: return null
+        return SuppressionHierarchiqueSure(
+            cible = verdict.nom,
+            membres = verdict.membres.map { MembreHierarchique(it.chemin, it.debut, it.fin, it.selecteur, it.estCible) },
+            bloquants = verdict.bloquants.map { Usage(it.chemin, it.plage, estDeclaration = false) },
+            editions = if (verdict.bloquants.isEmpty()) verdict.editions else null,
+        )
+    }
+
+    /** Le chemin DISQUE d'un chemin logique (lui-même si introuvable). */
+    private fun cheminDisqueDe(chemin: String): String {
+        try {
+            val direct = java.nio.file.Path.of(chemin)
+            if (java.nio.file.Files.isRegularFile(direct)) return direct.toString()
+        } catch (_: Exception) {
+            // Chemin non-chemin : résolution par les racines.
+        }
+        for (racine in racines) {
+            val candidat = racine.resolve(chemin)
+            if (java.nio.file.Files.isRegularFile(candidat)) return candidat.toString()
+        }
+        return chemin
+    }
+
+    /** Le fichier source d'un FQN (annuaire de noms — sous verrou compilation). */
+    private fun localiserSource(fqcn: String): java.nio.file.Path? = verrouCompilation.withLock {
+        (runCatching { environnementNoms().trouverFqcn(fqcn) }.getOrNull()
+            as? jo.codeide.lsp.java.classpath.EnvironnementNoms.Localisation.Source)?.fichier
+    }
+
+    /** Le service de suppression hiérarchique (dépendances du moteur). */
+    private fun serviceSuppressionHierarchique(
+        arbre: org.eclipse.jdt.internal.compiler.ast.CompilationUnitDeclaration,
+        source: String,
+        chemin: String,
+    ): jo.codeide.lsp.java.actionscode.ServiceSuppressionHierarchique =
+        jo.codeide.lsp.java.actionscode.ServiceSuppressionHierarchique(
+            arbre = arbre,
+            source = source,
+            cheminCourant = cheminDisqueDe(chemin),
+            resoudre = { c, t -> resolveUnit(c, t, genererCode = false)?.arbre },
+            fichiersPourMot = { mot -> indexMotsSources().fichiersPour(mot) },
+            toutesSources = { balayerToutesSources() },
+            localiser = { fqcn -> localiserSource(fqcn) },
+        )
+
+    /** L'énumération de TOUTES les sources des racines (balayage — chemin resolve, jamais la liste). */
+    private fun balayerToutesSources(): List<java.nio.file.Path> {
+        val fichiers = ArrayList<java.nio.file.Path>()
+        for (racine in racines) {
+            if (!java.nio.file.Files.isDirectory(racine)) continue
+            try {
+                java.nio.file.Files.walk(racine).use { flux ->
+                    flux.filter { it.fileName?.toString()?.endsWith(".java") == true }.forEach { fichiers.add(it) }
+                }
+            } catch (_: Exception) {
+                // Racine illisible : écartée.
+            }
+        }
+        return fichiers.sorted()
+    }
+
+    /**
+     * Le GRAPHE DES APPELANTS d'une clé de méthode (change signature,
+     * V-D3) : le document courant (source DONNÉE — overlay) puis les
+     * candidats de l'index de mots (texte disque) ; chaque site porte ses
+     * ARGUMENTS (le rang supprimé s'y retouche) et sa plage.
+     */
+    private fun collecterSitesAppel(
+        cle: CleUsages.Methode,
+        chemin: String,
+        source: String,
+        arbre: org.eclipse.jdt.internal.compiler.ast.CompilationUnitDeclaration,
+        cheminDisque: String,
+    ): List<jo.codeide.lsp.java.actionscode.ServiceChangeSignature.SiteAppel> {
+        val sites = ArrayList<jo.codeide.lsp.java.actionscode.ServiceChangeSignature.SiteAppel>()
+        val courant = jo.codeide.lsp.java.actionscode.ServiceChangeSignature.CollecteurSitesAppel(cle, cheminDisque, source)
+        jo.codeide.lsp.java.interne.LectureAst.traverserResilient(arbre, courant)
+        sites.addAll(courant.sites)
+        val disque = runCatching { java.nio.file.Path.of(cheminDisque) }.getOrNull()
+        for (fichier in indexMotsSources().fichiersPour(cle.selecteur)) {
+            if (disque != null && fichier == disque) continue // déjà servi (overlay)
+            val texte = try {
+                fichier.toFile().readText()
+            } catch (_: Exception) {
+                continue
+            }
+            val arbreFichier = runCatching { resolveUnit(fichier.toString(), texte, genererCode = false)?.arbre }.getOrNull() ?: continue
+            val collecteur = jo.codeide.lsp.java.actionscode.ServiceChangeSignature.CollecteurSitesAppel(cle, fichier.toString(), texte)
+            jo.codeide.lsp.java.interne.LectureAst.traverserResilient(arbreFichier, collecteur)
+            sites.addAll(collecteur.sites)
+        }
+        return sites
+    }
+
+    // ------------------------------------------------------------------ //
+    // Vague V-D tranche 3 — renommage de RESSOURCE (G-028)
+    // ------------------------------------------------------------------ //
+
+    /** Le service de renommage de ressources (paresseux — contrat actif seul). */
+    private var serviceRenommageRessources: jo.codeide.lsp.java.renommage.RenommageRessources? = null
+
+    /** Le service de renommage de ressources (null hors contrat Android actif). */
+    private fun renommageRessources(): jo.codeide.lsp.java.renommage.RenommageRessources? = verrouServices.withLock {
+        serviceRenommageRessources ?: runCatching {
+            val contrat = projetAndroid ?: return@runCatching null
+            if (!contrat.actif) return@runCatching null
+            jo.codeide.lsp.java.renommage.RenommageRessources(
+                racines = racines,
+                indexMots = indexMotsSources(),
+                resoudre = { c, t -> resolveUnit(c, t, genererCode = false)?.arbre },
+                referentiel = referentielRessources ?: return@runCatching null,
+                namespace = contrat.namespace,
+                dossiersRes = contrat.dossiersRes,
+            )
+        }.getOrNull()?.also { serviceRenommageRessources = it }
+    }
+
+    /**
+     * La RESSOURCE au caret (vague V-D3 — écart G-028) : un champ de
+     * classe light `R$&lt;type&gt;` — le type R, le nom, le jeton et le
+     * motif de refus honnête (« fichier » — ressource-fichier, le nom vit
+     * dans le nom du fichier ; « styleable » — attribut d'un
+     * declare-styleable).
+     *
+     * @param chemin le chemin logique du document Java.
+     * @param source le texte Java complet (tampon ouvert).
+     * @param offset le caret (sur le segment `<nom>` de `R.<type>.<nom>`).
+     * @return la cible, ou null (caret hors référence de ressource du
+     *   module / contrat inactif).
+     */
+    public fun cibleRessourceA(chemin: String, source: String, offset: Int): jo.codeide.lsp.java.renommage.RenommageRessources.CibleRessource? {
+        if (!regimePlein()) return null
+        return renommageRessources()?.cible(chemin, source, offset)
+    }
+
+    /**
+     * Les éditions du RENOMMAGE DE RESSOURCE (G-028 — propagation code +
+     * XML) : chaque référence `R.&lt;type&gt;.&lt;nom&gt;` du code Java et
+     * chaque occurrence XML (déclaration `name=`, références `@&lt;type&gt;/`,
+     * `@+&lt;type&gt;/`, `?&lt;type&gt;/`, expressions de data binding).
+     *
+     * @param chemin le chemin logique du document Java.
+     * @param source le texte Java complet (tampon ouvert).
+     * @param offset le caret (sur le nom de la ressource).
+     * @param nouveauNom le nouveau nom.
+     * @return les éditions par fichier DISQUE (vide = refus honnête /
+     *   contrat inactif).
+     */
+    public fun renommageRessource(
+        chemin: String,
+        source: String,
+        offset: Int,
+        nouveauNom: String,
+    ): Map<String, List<jo.codeide.lsp.java.outils.EditionTexte>> {
+        if (!regimePlein()) return emptyMap()
+        return renommageRessources()?.editions(chemin, source, offset, nouveauNom) ?: emptyMap()
+    }
+
+    /**
+     * Les COLLISIONS typées du renommage de ressource (identifiant
+     * invalide, nom déjà pris du même type — le référentiel est la source
+     * de vérité).
+     *
+     * @param chemin le chemin logique du document Java.
+     * @param source le texte Java complet.
+     * @param offset le caret.
+     * @param nouveauNom le nouveau nom proposé.
+     * @return les collisions (vide = renommage sûr).
+     */
+    public fun conflitsRessource(
+        chemin: String,
+        source: String,
+        offset: Int,
+        nouveauNom: String,
+    ): List<ConflitRenommage> {
+        if (!regimePlein()) return emptyList()
+        return renommageRessources()?.conflits(chemin, source, offset, nouveauNom) ?: emptyList()
     }
 
     /**
@@ -2114,4 +2444,64 @@ public data class SuppressionSure(
     public val motifRefus: String?,
     public val usagesBloquants: List<Usage>,
     public val editions: List<jo.codeide.lsp.java.outils.EditionTexte>?,
+)
+
+/**
+ * Le verdict de changement de signature (vague V-D3 — ADR 0027 (e) :
+ * suppression d'un paramètre + re-écriture des APPELANTS).
+ *
+ * @property nomParametre le nom du paramètre visé.
+ * @property motifRefus le motif de refus honnête (null = éditions
+ *   servies) : « utilise » (lu dans le corps), « varargs » (le rang d'un
+ *   argument ne se sait pas à l'appel), « hierarchie » (override —
+ *   famille suppression hiérarchique), « referenceMethode » (un `X::m`
+ *   fixe la forme), « parametre » (caret sans paramètre).
+ * @property appelants le nombre d'APPELANTS retouchables (v0 : sans
+ *   les références de méthode — elles refusent).
+ * @property editions les éditions par FICHIER (déclaration + appelants),
+ *   ou null (refus honnête).
+ */
+public data class ChangementSignatureSure(
+    public val nomParametre: String,
+    public val motifRefus: String?,
+    public val appelants: Int,
+    public val editions: Map<String, List<jo.codeide.lsp.java.outils.EditionTexte>>?,
+)
+
+/**
+ * Un maillon de la chaîne d'overrides (vague V-D3) : la déclaration
+ * localisée dans SON fichier.
+ *
+ * @property chemin le fichier DISQUE du maillon.
+ * @property debut le début de la déclaration (bornes complètes).
+ * @property fin la fin de la déclaration (inclusive).
+ * @property selecteur le sélecteur lisible.
+ * @property estCible vrai ssi le maillon EST la cible au caret.
+ */
+public data class MembreHierarchique(
+    public val chemin: String,
+    public val debut: Int,
+    public val fin: Int,
+    public val selecteur: String,
+    public val estCible: Boolean,
+)
+
+/**
+ * Le verdict de suppression hiérarchique (vague V-D3 — ADR 0027 (e)) :
+ * la chaîne d'overrides ENTIÈRE, les usages BLOQUANTS (hors chaîne) et
+ * — sans blocage — les éditions par fichier.
+ *
+ * @property cible le sélecteur de la cible au caret.
+ * @property membres la chaîne COMPLÈTE (la cible comprise, triée par
+ *   (fichier, offset)).
+ * @property bloquants les sites d'appel hors chaîne (non vide ⇒ la
+ *   suppression est fermée ; les appels INTERNES à la chaîne
+ *   disparaissent avec elle).
+ * @property editions les éditions par fichier, ou null (blocage).
+ */
+public data class SuppressionHierarchiqueSure(
+    public val cible: String,
+    public val membres: List<MembreHierarchique>,
+    public val bloquants: List<Usage>,
+    public val editions: Map<String, List<jo.codeide.lsp.java.outils.EditionTexte>>?,
 )

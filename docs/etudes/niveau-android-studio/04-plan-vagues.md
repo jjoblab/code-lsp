@@ -471,6 +471,67 @@ complètent la couverture.
 
 ### V-D — Actions de code
 
+> **TRANCHE 3 LIVRÉE le 01/11/2026 (v1.10.0 — ADR 0027 Accepté (trois
+> tranches), PV `mesures/2026-11-01-vd3-refactorings.txt`)** :
+>
+> - **CHANGE SIGNATURE** (kind `refactor.rewrite.signature`, DIFFÉRÉ —
+>   clé refactor.supprimerParametre) : la suppression d'un PARAMÈTRE
+>   réécrit la signature ET le GRAPHE DES APPELANTS multi-fichiers —
+>   envois, sites `new X(…)` et appels explicites `this(…)`/`super(…)`
+>   (socle ADR 0028, candidats de l'index de mots) ; le paramètre de
+>   TÊTE emmène sa virgule suivante, le TERMINAL part depuis la fin du
+>   précédent (`m(a, b)` retire `, b`, jamais un `a,` orphelin), l'argument
+>   SEUL part sans virgule. Refus honnêtes motivés : `utilise` (lu dans
+>   le corps), `varargs` (le rang d'un argument ne se sait pas à l'appel
+>   — MESURÉ : le drapeau vit sur le BINDING isVarargs, pas sur
+>   Argument.modifiers), `hierarchie` (override), `referenceMethode`
+>   (un `X::m` fixe la forme). L'oracle `changementSignatureSure` porte
+>   motif + appelants + éditions par fichier.
+> - **SUPPRESSION HIÉRARCHIQUE** (kind `refactor.rewrite.delete`, titre
+>   « et sa hiérarchie », servi au caret d'une méthode qui OUTREPASSE) :
+>   la chaîne d'overrides ENTIÈRE — la outrépassée par BINDINGS, les
+>   outrépassantes par BALAYAGE des sources (fermeture transitive) — la
+>   garde d'usages par MAILLON (chaque maillon porte sa clé) : un site
+>   d'appel hors chaîne FERME la porte, les appels INTERNES à la chaîne
+>   disparaissent avec elle. GARDE V-D3 : le safe delete SIMPLE refuse
+>   désormais `hierarchie` quand un sous-type outrepasse (la clé d'usages
+>   ne suit PAS la hiérarchie descendante — un maillon orphelin ne
+>   compile pas, MESURÉ : un appel `sub.m()` résout vers Sub.m).
+> - **INLINE MULTI-FICHIERS** (kind `refactor.inline.constant`, clé
+>   refactor.mettreEnLigneConstanteProjet) : la garde mono-fichier de la
+>   tranche 2 est LEVÉE — chaque lecture du champ `static final` dans
+>   TOUS les fichiers reçoit la valeur (référence qualifiée remplacée
+>   ENTIÈRE), la déclaration quitte son fichier.
+> - **CRÉATION DE CHAMP sur UndefinedField** (kind `quickfix.create.field`,
+>   DIFFÉRÉ) : `this.foo`/`x.foo` reçoit `private/package/public Type foo
+>   = <défaut>;` en tête des membres du type DÉCLARANT — qui peut vivre
+>   dans un AUTRE fichier (le WorkspaceEdit multi-URI du resolve) ; type
+>   inféré par BINDINGS de la valeur affectée, visibilité par paquet
+>   (MESURÉ : `private` depuis un autre type ne compile pas) ; récepteur
+>   BINAIRE = refus honnête.
+> - **RENOMMAGE DE RESSOURCE (G-028)** : `R.<type>.<nom>` au caret
+>   renomme la ressource dans le CODE Java (bindings des classes light —
+>   le type R départage les homonymes, MESURÉ : la « liaison unique » de
+>   ecj lie le DERNIER segment dans `binding`) ET dans les XML :
+>   déclarations `name=`, références `@type/`, `@+type/`, `?type/` et
+>   expressions `R.*` du data binding (MESURÉ : un `@{…}` de data binding
+>   n'est PAS une référence — le scan avance d'un caractère). Refus
+>   honnêtes : ressource-FICHIER (layout/drawable — le nom vit dans le
+>   nom du fichier, le rename de fichier appartient au client LSP),
+>   styleable ; collisions identifiant-invalide / nom-pris par le
+>   référentiel. Servi par `textDocument/rename` (prepareRename + conflits
+>   + formes négociées changes/documentChanges).
+>
+> **Critères éprouvés** : 23 cas V-D3 (WorkspaceEdit dorés multi-fichiers
+> + compilabilité re-diagnostiquée de CHAQUE fichier — esprit P5) ; oracles
+> motivés (utilise/varargs/hierarchie/referenceMethode ; chaîne 2 maillons
+> + usage bloquant ; refus fichier/styleable) ; oracle rename « 0 occurrence
+> manquée » (aucune trace de l'ancien nom ne survit, le nouveau `R.*`
+> résout sur moteur neuf) ; latence liste AVEC refactorings étendus
+> **p95 mesurée 442 µs** (< 30 ms, mémo chaud) ; 860 tests / 0 échec
+> (730 java dont 23 V-D3). **Le catalogue reste ouvert** : ajout/
+> réordonnancement de paramètres, rename depuis un XML.
+
 > **TRANCHE 2 LIVRÉE le 01/11/2026 (v1.9.0 — ADR 0027 Accepté-tranche 2,
 > PV `mesures/2026-11-01-vd2-refactorings.txt`)** :
 >
@@ -518,9 +579,9 @@ complètent la couverture.
 > « 0 manqué » (usage même fichier, autre fichier, sites `new`,
 > références `X::m` ; refus motivés override/paramètre) ; latence liste
 > AVEC refactorings **p95 mesurée 3 881 µs** (< 30 ms, mémo chaud) ;
-> 708 tests / 0 échec. **Reste la tranche 3** : change signature,
-> rename de ressource (G-028), création de champ sur UndefinedField,
-> suppression hiérarchique, inline multi-fichiers.
+> 708 tests / 0 échec. La tranche 3 (change signature, rename de
+> ressource G-028, création de champ sur UndefinedField, suppression
+> hiérarchique, inline multi-fichiers) est LIVRÉE ci-dessus.
 
 > **TRANCHE 1 LIVRÉE le 31/10/2026 au soir (v1.8.0 — ADR 0027
 > Accepté-tranche 1, PV `mesures/2026-10-31-vd-vc2-catalogue.txt`)** :

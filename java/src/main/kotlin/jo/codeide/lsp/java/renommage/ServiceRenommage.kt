@@ -100,6 +100,14 @@ public class ServiceRenommage(
      */
     public fun preparerRenommage(chemin: String, source: String, offset: Int): PreparationRenommage? {
         val moteur = moteur(chemin) ?: return null
+        // V-D3 (G-028) : une RESSOURCE Android au caret (`R.string.foo`)
+        // se prépare pareil — le placeholder EXACT, la plage EXACTE du
+        // jeton (celle du segment `<nom>`) ; un refus honnête (fichier,
+        // styleable) ferme la boîte de dialogue.
+        moteur.cibleRessourceA(chemin, source, offset)?.let { ressource ->
+            if (ressource.refus != null) return null
+            return PreparationRenommage(ressource.jeton, ressource.nom)
+        }
         val cible = moteur.cibleRenommageA(chemin, source, offset) ?: return null
         val placeholder = try {
             if (cible.jeton.debutOffset in 0..source.length && cible.jeton.finOffset <= source.length) {
@@ -137,18 +145,48 @@ public class ServiceRenommage(
         nouveauNom: String,
     ): EditionEspaceDeTravail {
         val moteur = moteur(chemin) ?: throw RenommageSansCible(positionSource(source, offset))
+
+        // V-D3 (G-028) : le RENOMMAGE DE RESSOURCE — propagation code Java
+        // (R.<type>.<nom>) ET XML (déclarations name=, références @type/,
+        // @+type/, ?type/, data binding). Un refus honnête (fichier,
+        // styleable) REJETE — jamais une édition vide silencieuse.
+        val cibleRessource = moteur.cibleRessourceA(chemin, source, offset)
+        if (cibleRessource != null) {
+            if (cibleRessource.refus != null) {
+                throw RenommageSansCible(positionSource(source, offset))
+            }
+            val parFichier = moteur.renommageRessource(chemin, source, offset, nouveauNom)
+            if (parFichier.isEmpty()) {
+                throw RenommageSansCible(positionSource(source, offset))
+            }
+            return formesNegociees(uri, chemin, parFichier.mapValues { (_, editions) -> editions })
+        }
+
         val cible = moteur.cibleRenommageA(chemin, source, offset)
             ?: throw RenommageSansCible(positionSource(source, offset))
 
         val parFichier = moteur.renommageProjet(chemin, source, offset)
-        val cheminCourant = cheminDeUri(uri)
+        return formesNegociees(uri, chemin, parFichier.mapValues { (_, occurrences) -> moteur.editionsRenommage(nouveauNom, occurrences) })
+    }
 
+    /**
+     * La construction des FORMES NÉGOCIÉES (changes héritée ou
+     * documentChanges versionnée) d'une map fichier → éditions : le
+     * document courant voyage sous SON URI, les autres sous
+     * `file://<chemin>` (convention du balayage).
+     */
+    private fun formesNegociees(
+        uri: String,
+        chemin: String,
+        editionsParFichier: Map<String, List<EditionTexte>>,
+    ): EditionEspaceDeTravail {
+        val cheminCourant = cheminDeUri(uri)
         if (!capacites.documentChanges) {
             // Forme héritée : URI → éditions (le client cel-lsp).
             val changes = LinkedHashMap<String, List<EditionTexte>>()
-            for ((fichier, occurrences) in parFichier) {
+            for ((fichier, editions) in editionsParFichier) {
                 val uriFichier = if (fichier == cheminCourant) uri else uriDeFichier(fichier)
-                changes[uriFichier] = moteur.editionsRenommage(nouveauNom, occurrences)
+                changes[uriFichier] = editions
             }
             return EditionEspaceDeTravail.formeChanges(changes)
         }
@@ -156,13 +194,13 @@ public class ServiceRenommage(
         // Forme versionnée : TextDocumentEdit par document, version
         // COURANTE du document ouvert (celle du didOpen), null sinon.
         val documentChanges = ArrayList<EditionDocumentVersionnee>()
-        for ((fichier, occurrences) in parFichier) {
+        for ((fichier, editions) in editionsParFichier) {
             val uriFichier = if (fichier == cheminCourant) uri else uriDeFichier(fichier)
             documentChanges.add(
                 EditionDocumentVersionnee(
                     uri = uriFichier,
                     version = versions[uriFichier],
-                    editions = moteur.editionsRenommage(nouveauNom, occurrences),
+                    editions = editions,
                 ),
             )
         }
@@ -187,8 +225,16 @@ public class ServiceRenommage(
         offset: Int,
         nouveauNom: String,
         suivreOverrides: Boolean = false,
-    ): List<ConflitRenommage> =
-        moteur(chemin)?.conflitsRenommage(chemin, source, offset, nouveauNom, suivreOverrides) ?: emptyList()
+    ): List<ConflitRenommage> {
+        val moteur = moteur(chemin) ?: return emptyList()
+        // V-D3 (G-028) : les collisions typées d'une RESSOURCE (identifiant
+        // invalide, nom déjà pris du même type — le référentiel tranche).
+        val cibleRessource = moteur.cibleRessourceA(chemin, source, offset)
+        if (cibleRessource != null) {
+            return moteur.conflitsRessource(chemin, source, offset, nouveauNom)
+        }
+        return moteur.conflitsRenommage(chemin, source, offset, nouveauNom, suivreOverrides)
+    }
 
     /**
      * L'APERÇU du renommage (preview = résultat, ADR 0014) : la source
@@ -216,6 +262,18 @@ public class ServiceRenommage(
      */
     public fun cible(chemin: String, source: String, offset: Int): CibleRenommage? =
         moteur(chemin)?.cibleRenommageA(chemin, source, offset)
+
+    /**
+     * La RESSOURCE au caret (V-D3 — G-028) : type R, nom, jeton et motif
+     * de refus honnête — le diagnostic client du rename de ressource.
+     *
+     * @param chemin le chemin logique du document.
+     * @param source le texte Java complet.
+     * @param offset la position du caret.
+     * @return la cible ressource, ou null (caret hors R.<type>.<nom>).
+     */
+    public fun cibleRessource(chemin: String, source: String, offset: Int): jo.codeide.lsp.java.renommage.RenommageRessources.CibleRessource? =
+        moteur(chemin)?.cibleRessourceA(chemin, source, offset)
 
     // ------------------------------------------------------------------ //
     // Outils internes

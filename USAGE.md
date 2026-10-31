@@ -1339,7 +1339,88 @@ les formes précises `refactor.extract.variable/constant/function`,
 
 Restent (tranche 3) : change signature (graphe d'appelants CIDX), rename de
 ressource (G-028), création de champ sur UndefinedField, suppression
-hiérarchique (override), inline multi-fichiers.
+hiérarchique (override), inline multi-fichiers — **TOUT LIVRÉ en §7.24**.
+
+### 7.24 Change signature, suppression hiérarchique, inline multi-fichiers, création de champ, rename de ressource (vague V-D tranche 3)
+
+**Change signature — suppression de paramètre** (kind
+`refactor.rewrite.signature`, DIFFÉRÉ) : au caret sur le nom d'un paramètre
+NON utilisé, NON varargs, d'une méthode HORS hiérarchie d'overrides (les
+gardes locales, peu coûteuses, se paient à la liste) ; au **resolve**, la
+signature perd le paramètre ET le **graphe des appelants** multi-fichiers
+perd l'argument au rang — les envois `m(…)`, les sites `new X(…)` et les
+appels explicites `this(…)`/`super(…)` (socle ADR 0028, candidats de
+l'index de mots). Le re-partage des virgules est exact : le paramètre de
+TÊTE emmène sa virgule suivante, le TERMINAL part depuis la fin du
+précédent (`m(a, b)` retire `, b`, jamais un `a,` orphelin), l'argument
+SEUL part sans virgule (`m()`). L'oracle moteur `changementSignatureSure`
+porte le `motifRefus` — `utilise` (lu dans le corps : sa suppression
+casserait la compilation), `varargs` (le rang d'un argument ne se sait pas
+à l'appel), `hierarchie` (override : la famille hiérarchique suit),
+`referenceMethode` (un `X::m` fixe la forme) — le nombre d'appelants et
+les éditions PAR FICHIER. Le resolve sert la forme **multi-URI** (map
+fichier → éditions, convention `file://` du renommage N5).
+
+**Suppression hiérarchique** (kind `refactor.rewrite.delete`, titre
+« Supprimer … et sa hiérarchie », servie au caret d'une méthode qui
+OUTREPASSE un supertype) : la chaîne d'overrides **ENTIÈRE** est calculée
+au resolve — la outrépassée par **bindings**, les outrépassantes par
+**balayage des sources** (fermeture transitive des sous-types). La garde
+d'usages est par **maillon** (chacun porte sa clé) : un site d'appel hors
+chaîne FERME la porte, les appels INTERNES à la chaîne disparaissent avec
+elle. L'oracle `suppressionHierarchiqueSure` rend la chaîne
+(`membres` : chemin + bornes), les `bloquants` et les éditions par
+fichier. Corollaire (garde V-D3) : le safe delete SIMPLE refuse désormais
+`hierarchie` quand un **sous-type** outrepasse la cible (la clé d'usages
+ne suit pas la hiérarchie descendante — un maillon orphelin ne compile
+pas) ; au caret d'une méthode simplement OUTREPASSÉE, l'action simple est
+servie mais son resolve refuse avec le motif, la variante hiérarchique
+reste accessible à l'hôte par l'oracle.
+
+**Inline de constante MULTI-FICHIERS** (kind `refactor.inline.constant`,
+clé `refactor.mettreEnLigneConstanteProjet`) : la garde mono-fichier de la
+tranche 2 est LEVÉE — chaque lecture du champ `static final` à
+initialisateur constant, dans **tous les fichiers du projet** (clé de
+champ, candidats de l'index de mots), reçoit la valeur (référence
+qualifiée remplacée ENTIÈRE, valeur négative parenthésée) ; la
+DÉCLARATION quitte son fichier.
+
+**Création de champ sur UndefinedField** (kind `quickfix.create.field`,
+DIFFÉRÉ) : au caret d'un diagnostic « The field T.foo is undefined »
+(`this.foo = …`, `x.foo` où le type de `x` est résolu), la déclaration
+`<visibilité> Type foo = <défaut>;` naît en tête des membres du type
+DÉCLARANT — le récepteur peut mener dans un **AUTRE fichier** (le
+WorkspaceEdit multi-URI du resolve) ; le TYPE est inféré par **bindings**
+de la valeur affectée (`this.foo = 3` → `int`), la VISIBILITÉ suit la
+portée (`private` dans le type courant, package/public sinon — un champ
+`private` écrit depuis un autre type ne compile pas), la valeur par
+défaut est compilable (`false`/`0`/`null`). Récepteur de type BINAIRE
+(`android.jar`, jrt) : refus honnête — jamais de champ dans `java.lang`.
+
+**Renommage de ressource** (G-028, `textDocument/rename`) : au caret sur
+le segment `<nom>` d'une référence `R.<type>.<nom>` (bindings des classes
+light — le type R départage les homonymes : `R.string.x` n'est jamais
+`R.layout.x`), le renommage propage dans le **code Java** (chaque
+référence, même qualifiée `demo.R.string.x`) et dans les **XML du
+module** : la DÉCLARATION (`name="…"` des `values*`, y compris les
+configurations `values-fr`…), les RÉFÉRENCES `@<type>/…`,
+`@+<type>/…` (déclaration inline des ids), `?<type>/…` (attributs de
+thème) et les expressions `R.<type>.<nom>` du **data binding**. Refus
+honnêtes : ressource-**FICHIER** (`layout`, `drawable`… — le nom vit dans
+le nom du fichier, le rename de fichier appartient au client LSP
+`RenameFile`), **styleable** (l'attribut appartient à la structure du
+`declare-styleable`). Collisions typées (`conflitsRessource`) :
+identifiant invalide (le nom devient un champ Java), nom déjà pris du
+MÊME type (le référentiel est la source de vérité). `prepareRename`
+sert le placeholder exact ; les formes négociées `changes`/
+`documentChanges` couvrent les fichiers Java ET XML.
+
+**Kinds et protocole** : `codeActionKinds` ajoute
+`refactor.rewrite.signature` (prolongement hiérarchique de
+`refactor.rewrite`, consommable K2 par préfixe) ; `codeAction/resolve`
+sert la forme multi-URI — les éditions par fichier deviennent une map
+URI → éditions (le document courant sous SON URI, les autres sous
+`file://<chemin>`, convention du renommage N5).
 
 ## 8. Capability maison `x-codeide.completionRanking`
 

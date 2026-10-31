@@ -1,6 +1,22 @@
 # ADR 0027 — Actions de code étendues (catalogue, source.\*, refactor.\*, codeAction/resolve)
 
-- **Statut** : Accepté — **TRANCHE 2 LIVRÉE le 01/11/2026** (V-D2 :
+- **Statut** : Accepté — **LIVRÉ EN TROIS TRANCHES** (tranche 3 le
+  01/11/2026, v1.10.0 : change signature — suppression de paramètre et
+  re-écriture du GRAPHE DES APPELANTS multi-fichiers (envois, sites
+  `new X(…)`, appels explicites `this(…)`/`super(…)` ; refus motivés
+  `utilise`/`varargs`/`hierarchie`/`referenceMethode`), suppression
+  HIÉRARCHIQUE (chaîne d'overrides entière — la outrépassée par bindings,
+  les outrépassantes par balayage des sources, garde d'usages par
+  maillon : les appels internes à la chaîne disparaissent avec elle),
+  inline de constante MULTI-FICHIERS (la garde mono-fichier de la
+  tranche 2 est levée), création de champ sur UndefinedField (`this.foo`/
+  `x.foo` — type inféré par bindings de la valeur affectée, visibilité
+  private/package/public selon le type déclarant, le fichier déclarant
+  peut être distant) et renommage de RESSOURCE (G-028 : propagation code
+  `R.<type>.<nom>` + XML — déclarations `name=`, références `@type/`,
+  `@+type/`, `?type/`, expressions `R.*` du data binding) ; PV dans
+  `mesures/2026-11-01-vd3-refactorings.txt`).
+  **TRANCHE 2 LIVRÉE le 01/11/2026** (V-D2 :
   refactorings lourds — extract variable/constant/méthode sur SÉLECTION
   (heuristiques §A5 : une sortie au plus, paramètres par ordre de première
   lecture, locales écrites-d'abord déclarées dans la méthode extraite,
@@ -16,12 +32,12 @@
   M3/G-020, kinds source.\*/refactor.\*, codeAction/resolve différé,
   génération de code — les 6 capacités, intentions sans diagnostic — 4
   conversions, familles ecj étendues +7 IDs avec P5 étendu ; PV dans
-  `mesures/2026-10-31-vd-vc2-catalogue.txt`). **Reste la tranche 3** :
-  change signature (graphe d'appelants CIDX), rename de ressource
-  (G-028), création de champ sur UndefinedField, suppression
-  hiérarchique (override), inline multi-fichiers.
-- **Date** : 2026-10-31 (tranche 2 : 2026-11-01)
-- **Écarts résolus** : G-014, G-015, G-016, G-020 (`01-audit-moteur.md` §1.7)
+  `mesures/2026-10-31-vd-vc2-catalogue.txt`). Le catalogue reste OUVERT
+  (famille = PR unitaire avec cas dorés) : l'ajout/réordonnancement de
+  paramètres et le rename de ressource DEPUIS un XML relèvent des
+  familles suivantes.
+- **Date** : 2026-10-31 (tranche 2 : 2026-11-01 ; tranche 3 : 2026-11-01)
+- **Écarts résolus** : G-014, G-015, G-016, G-020, G-028 (`01-audit-moteur.md` §1.7)
 
 ## Contexte
 

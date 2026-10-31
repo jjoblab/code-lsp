@@ -586,9 +586,19 @@ class RefactorisationsVd2Test {
         val verdict = moteur.suppressionSure(chemin, propre(source), position)!!
         assertEquals("override", verdict.motifRefus, "le refus honnête porte son motif")
         assertTrue(verdict.editions == null && verdict.usagesBloquants.isEmpty(), "pas d'éditions, pas de fausse garde")
-        // L'action n'est PAS servie (le resolve mourrait) — miroir liste.
+        // L'action SIMPLE n'est PAS servie (le resolve mourrait) — miroir
+        // liste ; V-D3 : la variante HIÉRARCHIQUE est désormais servie au
+        // caret d'un override (tranche 3 — le refus de la tranche 2 se
+        // débloque par la chaîne complète).
         val actions = moteur.intentions(chemin, propre(source), position, position)
-        assertTrue(actions.none { it.kind == "refactor.rewrite.delete" }, "pas d'action safe delete sur un override")
+        assertTrue(
+            actions.none { it.kind == "refactor.rewrite.delete" && !it.titre.contains("hiérarchie") },
+            "pas d'action safe delete SIMPLE sur un override",
+        )
+        assertTrue(
+            actions.any { it.kind == "refactor.rewrite.delete" && it.titre.contains("hiérarchie") },
+            "la suppression HIÉRARCHIQUE est servie sur un override (V-D3)",
+        )
     }
 
     @Test

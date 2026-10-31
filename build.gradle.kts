@@ -219,6 +219,43 @@ plugins {
 // Validation : 850 tests / 0 échec (684 java dont 15 V-C2 + 15 V-D ; 73
 // gates ignorées avec raison), build strict P1–P8 VERT ; latence liste
 // codeAction p95 MESURÉE 255 µs (budget < 30 ms TENU ×100).
+// 1.9.0 (01/11/2026, vague V-D tranche 2 — ADR 0027 Accepté-tranche 2) :
+// REFACTORINGS LOURDS — EXTRACT VARIABLE/CONSTANTE/MÉTHODE sur SÉLECTION
+// (kinds refactor.extract.*, tous différés), INLINE variable/constante,
+// SAFE DELETE par usages multi-fichiers exhaustifs (socle ADR 0028 étendu
+// aux sites new X(…) et X::m). NOTE D'HONNÊTETÉ : la livraison b0bbcaf a
+// documenté « version 1.9.0 » (PV, ADR, plan) SANS écrire la version ici —
+// l'omission est réparée à la présente livraison (les deux tranches
+// portent chacune leur entrée, la version courante saute à 1.10.0).
+// Validation tranche 2 : 22 cas dorés, oracle safe-delete « 0 manqué »,
+// latence liste p95 3 881 µs, 708 tests java / 0 échec.
+// 1.10.0 (01/11/2026, vague V-D tranche 3 — ADR 0027 Accepté (trois
+// tranches)) : CHANGE SIGNATURE (suppression de paramètre + re-écriture
+// du GRAPHE DES APPELANTS multi-fichiers : envois, sites new X(…), appels
+// explicites this(…)/super(…) ; refus motivés utilise/varargs/hierarchie/
+// referenceMethode), SUPPRESSION HIÉRARCHIQUE (chaîne d'overrides ENTIERE
+// — la outrépassée par bindings, les outrépassantes par balayage, garde
+// d'usages par maillon, les appels internes à la chaîne disparaissent
+// avec elle), INLINE DE CONSTANTE MULTI-FICHIERS (la garde mono-fichier
+// de la tranche 2 est levée), CRÉATION DE CHAMP sur UndefinedField
+// (`this.foo`/`x.foo` — type inféré par bindings de la valeur affectée,
+// visibilité private/package/public selon le type déclarant, le fichier
+// déclarant peut être DISTANT), RENOMMAGE DE RESSOURCE (G-028 :
+// propagation code Java `R.<type>.<nom>` + XML — déclarations name=,
+// références @type/, @+type/, ?type/, expressions R.* du data binding ;
+// refus honnêtes fichier/styleable, collisions identifiant/nom-pris par
+// le référentiel). resolveCodeAction sert la forme MULTI-URI (map
+// fichier → éditions, convention file:// du renommage N5) ; garde V-D3 :
+// le safe delete simple refuse désormais « hierarchie » quand un
+// sous-type OUTREPASSE (la clé d'usages ne suit pas la hiérarchie
+// descendante — un maillon orphelin ne compile pas, MESURÉ). Pièges ecj
+// consignés : le drapeau varargs vit sur le BINDING (isVarargs), pas sur
+// Argument.modifiers ; la « liaison unique » de R.<type>.<nom> lie le
+// DERNIER segment dans `binding` (otherBindings NULL) ; un '@' de data
+// binding n'est pas une référence (le scan XML avance d'un caractère).
+// Validation : 860 tests / 0 échec (730 java dont 23 V-D3 ; 73 gates
+// ignorées avec raison), build strict P1–P8 VERT ; latence liste AVEC
+// refactorings étendus p95 MESURÉE 442 µs (budget < 30 ms TENU ×67).
 // ---------------------------------------------------------------------------
 // VERSION DU DÉPÔT (fiche 059 I7 — serverInfo.version générée d'ICI).
 // 1.5.0 (31/10/2026, vague V-F1 — ADR 0029 phase 1) : DOUBLE-TAMPON +
@@ -237,5 +274,5 @@ plugins {
 // p95 35,96 ms), usages (1,000, p95 40,62 ms), parité et N1
 // (diagnose rapide p50 4,8 ms, tas 17 Mo) non régressés.
 allprojects {
-    version = "1.8.0"
+    version = "1.10.0"
 }

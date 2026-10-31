@@ -1,0 +1,192 @@
+PV DE MESURE — V-D tranche 3 (change signature, suppression
+hiérarchique, inline multi-fichiers, création de champ, rename de
+ressource G-028) — 01/11/2026
+====================================================================
+
+R5 : AUCUNE valeur fabriquée. Toutes les mesures ci-dessous proviennent
+des bancs et tests exécutés ce jour (JVM du bac à sable — CPU partagé
+plus bruyant que la CI ; les gates de latence y sont re-vérifiées par
+la CI, la valeur de référence reste la passe CI).
+
+--- Contenu livré (ADR 0027 (e) — « reste la tranche 3 » ; écarts
+    G-016 (solde) et G-028) ------------------------------------------
+
+(a) CHANGE SIGNATURE — SUPPRESSION DE PARAMÈTRE (kind
+  refactor.rewrite.signature, DIFFÉRÉ — clé refactor.supprimerParametre
+  + caret) : la signature perd le paramètre ET le GRAPHE DES APPELANTS
+  multi-fichiers perd l'argument au rang. Le graphe est servi par le
+  socle ADR 0028 (candidats de l'index de mots, correspondance par clé
+  de binding propriétaire-top-niveau + sélecteur + arité) : les envois
+  m(…), les sites new X(…) (le binding d'une allocation EST le
+  constructeur) et les appels explicites this(…)/super(…). Le
+  re-partage des virgules est EXACT : le paramètre de TÊTE emmène sa
+  virgule suivante et les blancs d'après, le TERMINAL part depuis la
+  FIN du précédent (m(a, b) retire « , b », jamais un « a, » orphelin),
+  l'argument SEUL part sans virgule (m()). REFUS HONNÊTES motivés
+  (oracle MoteurJava.changementSignatureSure) :
+   - « utilise » : le paramètre est LU dans le corps (sa suppression
+     casserait la compilation) ;
+   - « varargs » : le rang d'un argument ne se sait pas à l'appel —
+     MESURÉ : le drapeau varargs vit sur le BINDING (isVarargs), PAS
+     sur Argument.modifiers, et le paramètre varargs est TOUJOURS le
+     dernier ;
+   - « hierarchie » : la méthode outrepasse ou est outrépassée ;
+   - « referenceMethode » : un X::m fixe la forme de la méthode.
+  L'action est servie à la liste seulement si les gardes LOCALES
+  passent (paramètre au caret, non utilisé, non varargs terminal, hors
+  hiérarchie) — le graphe des appelants se paie au RESOLVE (ADR (f)).
+
+(b) SUPPRESSION HIÉRARCHIQUE (kind refactor.rewrite.delete, titre
+  « et sa hiérarchie », servie au caret d'une méthode qui OUTREPASSE —
+  le refus de liste de la tranche 2 se débloque) : la chaîne
+  d'overrides ENTIÈRE — la outrépassée par BINDINGS (superclasse et
+  interfaces du déclarant, localisées par l'annuaire), les
+  outrépassantes par BALAYAGE des sources (fermeture transitive des
+  sous-types directs). La garde d'usages est PAR MAILLON (chacun porte
+  SA clé) : un site d'appel hors chaîne FERME la porte (bloquants
+  listés), les appels INTERNES à la chaîne disparaissent avec elle —
+  un appel depuis une AUTRE méthode du sous-type reste bloquant,
+  MESURÉ. GARDE V-D3 (correctif de la tranche 2) : le safe delete
+  SIMPLE refuse désormais « hierarchie » quand un sous-type OUTREPASSE
+  la cible — la clé d'usages ne suit PAS la hiérarchie descendante
+  (mesuré : un appel sub.m() sur une référence Sub résout vers Sub.m,
+  pas vers Base.m) : un maillon orphelin ne compile pas. Au caret
+  d'une méthode OUTREPASSÉE (direction descendante), l'action simple
+  est servie et son resolve refuse avec le motif ; la variante
+  hiérarchique reste accessible à l'hôte par l'oracle
+  suppressionHierarchiqueSure (chaîne + bloquants + éditions par
+  fichier) — limite documentée, la détection descendante ne peut pas
+  être peu coûteuse à la liste.
+
+(c) INLINE DE CONSTANTE MULTI-FICHIERS (kind refactor.inline.constant,
+  clé refactor.mettreEnLigneConstanteProjet) : la garde mono-fichier de
+  la tranche 2 est LEVÉE — chaque lecture du champ static final à
+  initialisateur constant, dans TOUS les fichiers (clé de champ,
+  candidats de l'index de mots, le document courant sur la source
+  DONNÉE), reçoit la valeur (référence qualifiée remplacée ENTIÈRE —
+  demo.Main.MAX devient 42 —, valeur négative parenthésée) ; la
+  DÉCLARATION quitte son fichier. La clé mono-fichier de la tranche 2
+  (refactor.mettreEnLigneConstante) reste résolue avec SA garde
+  (contrat tranche 2 inchangé, test vert).
+
+(d) CRÉATION DE CHAMP SUR UndefinedField (kind quickfix.create.field,
+  DIFFÉRÉ — clé quickfix.creerChamp + début du jeton) : au caret d'un
+  diagnostic « The field T.foo is undefined » (ID ecj 33554502), la
+  déclaration naît en tête des membres RÉELS du type DÉCLARANT — le
+  récepteur this mène au type englobant, x au type RÉSOLU de x, X.foo
+  statique à X ; le type déclarant peut vivre dans un AUTRE fichier
+  (localisé par l'annuaire) — le WorkspaceEdit du resolve est
+  MULTI-URI. TYPE inféré par BINDINGS de la valeur affectée
+  (this.foo = 3 → int ; sinon java.lang.Object). VISIBILITÉ MESURÉE :
+  private depuis un autre type ne compile pas (« The field T.f is not
+  visible ») — private dans le type courant, package (même paquet) ou
+  public (paquet différent). Valeur par défaut compilable
+  (false/0/null). Récepteur BINAIRE (java.lang.String, android.jar) :
+  refus honnête (null) — jamais de champ dans un jar.
+
+(e) RENOMMAGE DE RESSOURCE (G-028 — textDocument/rename) : au caret
+  sur le segment <nom> de R.<type>.<nom>, la ressource est renommée
+  dans le CODE Java (bindings des classes light : la forme « liaison
+  unique » de ecj — MESURÉE V-B2 — lie le DERNIER segment dans
+  `binding` avec otherBindings NULL ; le type R$départage les
+  homonymes, R.string.x n'est jamais R.layout.x) et dans les XML du
+  module : déclarations name= des values* (TOUTES les configurations —
+  values-fr compris), références @<type>/, @+<type>/ (déclaration
+  inline des ids), ?<type>/ (attributs de thème) et expressions
+  R.<type>.<nom> du data binding. MESURÉ : un « @{…} » de data binding
+  n'est PAS une référence — le scan de valeur avance d'UN caractère
+  après un '@' non résolu (le saut à la fin de la valeur volait
+  l'expression R.* qui suit). REFUS HONNÊTES : ressource-FICHIER
+  (layout/drawable… — le nom vit dans le nom du fichier, le rename de
+  fichier appartient au client LSP RenameFile), styleable (l'attribut
+  appartient à la structure du declare-styleable). COLLISIONS typées
+  (conflitsRessource) : identifiant invalide, nom déjà pris du MÊME
+  type (le référentiel est la source de vérité). prepareRename sert le
+  placeholder exact ; les formes négociées changes/documentChanges
+  couvrent les fichiers Java ET XML (convention file:// du balayage).
+
+(f) PROTOCOLE : codeActionKinds ajoute refactor.rewrite.signature
+  (prolongement hiérarchique de refactor.rewrite, consommable K2 par
+  préfixe) ; codeAction/resolve sert la forme MULTI-URI — les éditions
+  par fichier (clé refactor.supprimerParametre, …Hierarchique,
+  …ConstanteProjet, quickfix.creerChamp) deviennent une map URI →
+  éditions (le document courant sous SON URI, les autres sous
+  file://<chemin>, miroir du renommage N5).
+
+--- Pièges ecj mesurés et consignés ----------------------------------
+
+ 1. Le drapeau VARARGS vit sur le BINDING de la méthode
+    (isVarargs()), PAS sur Argument.modifiers — et le paramètre varargs
+    est toujours le DERNIER.
+ 2. La « liaison unique » (V-B2) : pour R.<type>.<nom>, ecj lie le
+    DERNIER segment dans QualifiedNameReference.binding et laisse
+    otherBindings NULL — le collecteur doit lier le caret au DERNIER
+    segment, jamais au segment 0 (le jeton « R » n'est pas le champ).
+ 3. Le FQN déclarant d'un champ d'une classe LIGHT se lit en forme
+    BINAIRE (constantPoolName → ns.R$string, séparateurs '/') — la
+    forme compoundName sert de repli.
+ 4. Un « @ » de data binding (@{…}) n'est PAS une référence de
+    ressource : le scan de valeur avance d'un caractère, sinon il
+    saute à la fin et vole l'expression R.* qui suit.
+ 5. Le paquet explicite d'une référence (@ns:string/foo) se termine
+    par ':' AVANT le '/' du type — scanner « jusqu'à : ou / » consomme
+    le type quand il n'y a PAS de paquet (le typeLu sortait vide).
+ 6. Un champ private créé depuis un AUTRE type ne compile pas (« The
+    field T.f is not visible ») — la visibilité de la création suit la
+    portée : private / package / public.
+ 7. Le nom PUBLIC d'un type doit suivre son FICHIER dans les fixtures
+    (« The public type Sub must be defined in its own file » casse la
+    qualité des bindings multi-fichiers du banc).
+
+--- Critères éprouvés (plan 04 §V-D, R5 mesuré) ----------------------
+
+  - CAS DORÉS multi-fichiers : 15 tests V-D3 (RefactorisationsVd3Test)
+    + 7 tests (RenommageRessourcesTest) + 1 transcript de latence —
+    chaque WorkspaceEdit doré appliqué puis RE-DIAGNOSTIQUÉ fichier
+    par fichier sur un témoin NEUF (esprit P5) : 0 ERREUR partout
+    (Main/Client, Sub/Base, Main/Util).
+    Détail change signature : suppression de TÊTE (premier argument),
+    de TERMINAL (dernier — le re-partage exact des virgules), d'argument
+    SEUL (m()), de paramètre de CONSTRUCTEUR (les sites new X(…) et
+    this(…) retouchés), appelant DISTANT.
+  - ORACLE motifs : utilise / varargs / hierarchie / referenceMethode
+    (changementSignatureSure) ; chaîne 2 maillons + usage bloquant
+    hors chaîne (suppressionHierarchiqueSure) ; safe delete simple
+    « hierarchie » sur méthode outrépassée (garde V-D3) ; refus
+    fichier/styleable (cibleRessourceA) ; récepteur binaire
+    (quickfix.creerChamp → null).
+  - ORACLE rename « 0 occurrence manquée » : après renommage, plus
+    AUCUNE trace de l'ancien nom (code Java, values, values-fr,
+    layout, menu — le cas @demo:string/ à paquet explicite compris) ;
+    le nouveau R.string.<nom> RÉOUT sur un moteur NEUF reconstruit
+    sur les sources renommées (le référentiel rescanné sert la classe
+    light) : 0 ERREUR.
+  - LATENCE liste (LatenceRefactorissementsVd3Test, transcript) :
+    30 requêtes (5 positions × 6 tours — caret paramètre inutilisé,
+    override, constante, méthode morte, sélection d'expression) :
+    p50 = 234 µs, p95 = 442 µs, max = 459 µs — budget < 30 ms TENU
+    (×67). Les positions ciblées servent bien les actions V-D3
+    (change signature, hiérarchique, inline constant, safe delete).
+  - SUITE : 860 tests / 0 échec (730 java dont 23 V-D3 ; index 84 ;
+    model 42 ; testing 4) ; 73 gates environnementales ignorées avec
+    raison. `gradlew build` STRICT (BANC_COHERENCE_STRICT=true,
+    P1–P8) VERT.
+  - NON-RÉGRESSION V-D2 : le test « motif override » évolue avec le
+    contrat documenté — l'action SIMPLE n'est plus servie au caret
+    d'un override, la variante HIÉRARCHIQUE l'est (c'est la livraison
+    même de la tranche 3) ; la clé mono-fichier
+    refactor.mettreEnLigneConstante garde SA garde (test inchangé,
+    vert).
+
+--- Version et documents ---------------------------------------------
+
+  Version 1.10.0 (la vague V-D est COMPLÈTE — trois tranches).
+  NOTE D'HONNÊTETÉ : la tranche 2 (b0bbcaf) a documenté « version
+  1.9.0 » (PV, ADR, plan) SANS écrire la version dans build.gradle.kts
+  — l'omission est réparée ici : les deux entrées d'historique sont
+  posées, la version courante saute à 1.10.0.
+  Documents : USAGE §7.24 ; ADR 0027 Accepté (trois tranches) ;
+  plan 04 §V-D tranche 3 ; matrice G-016/G-028 RÉSOLUS ; synthèse.
+  Reste ouvert (catalogue ouvert, famille = PR unitaire) :
+  ajout/réordonnancement de paramètres, rename de ressource DEPUIS un
+  document XML.

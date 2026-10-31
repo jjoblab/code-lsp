@@ -177,7 +177,24 @@ sites `new X(…)` et références `X::m`, constructeurs identifiés au
 caret, égalité d'étendue de la fenêtre « +120 » corrigée ; 22 cas
 dorés compilables, latence liste p95 mesurée 3 881 µs (< 30 ms),
 708 tests / 0 échec — cf. `04-plan-vagues.md` §V-D et
-`mesures/2026-11-01-vd2-refactorings.txt`).
+`mesures/2026-11-01-vd2-refactorings.txt`) ; **V-D tranche 3 livrée le
+01/11 au soir (v1.10.0) — la vague V-D est COMPLÈTE** : **change
+signature** (suppression de paramètre + re-écriture du GRAPHE DES
+APPELANTS multi-fichiers : envois, `new X(…)`, `this(…)`/`super(…)`,
+refus motivés utilise/varargs/hierarchie/referenceMethode),
+**suppression HIÉRARCHIQUE** (chaîne d'overrides entière, garde
+d'usages par maillon ; le safe delete simple refuse désormais
+« hierarchie » sur un sous-type qui outrepasse), **inline de constante
+MULTI-FICHIERS**, **création de champ sur UndefinedField** (`this.foo`/
+`x.foo`, type inféré par bindings, fichier déclarant possiblement
+distant) et **renommage de RESSOURCE (G-028 RÉSOLU)** — propagation
+code `R.<type>.<nom>` + XML (déclarations `name=`, `@type/`, `@+type/`,
+`?type/`, data binding) avec refus honnêtes fichier/styleable et
+collisions par le référentiel ; G-016 RÉSOLU (catalogue ouvert :
+ajout/réordonnancement de paramètres) ; resolveCodeAction sert la forme
+MULTI-URI ; 23 cas V-D3 dorés multi-fichiers compilables, latence liste
+p95 mesurée 442 µs (< 30 ms), 860 tests / 0 échec — cf.
+`04-plan-vagues.md` §V-D et `mesures/2026-11-01-vd3-refactorings.txt`).
 
 | # | Décision | Recommandation |
 |---|---|---|
