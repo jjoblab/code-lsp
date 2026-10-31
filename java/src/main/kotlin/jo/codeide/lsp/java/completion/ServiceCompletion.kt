@@ -270,6 +270,9 @@ public class ServiceCompletion(
             val annuaire = environnementFournisseur().annuaire
             for (entree in annuaire.typesParPrefixe(contexte.prefixe, LIMITE_COLLECTE)) {
                 if (visibles.any { it.first == entree.nomSimple }) continue
+                // Accessibilité (P6/G-004, vague V-A) : jamais de type non
+                // public d'un AUTRE paquet proposé avec auto-import insoluble.
+                if (!annuaire.estProposablePourAutoImport(entree, contexte.paquetCourant)) continue
                 items.add(itemType(entree.nomSimple, entree.fqcn, autoImport = entree.fqcn))
             }
         }
@@ -301,6 +304,8 @@ public class ServiceCompletion(
         val annuaire = environnementFournisseur().annuaire
         val resultats = mutableMapOf<String, String>()
         contexte.paquetCourant?.let { paquet ->
+            // Même paquet : tout type direct est accessible (règle Java),
+            // package-privé compris — aucun filtre d'accessibilité ici.
             for (entree in annuaire.typesDirects(paquet)) {
                 resultats[entree.nomSimple] = entree.fqcn
             }
@@ -308,15 +313,25 @@ public class ServiceCompletion(
         for (fqcnImport in contexte.importsFqcn) {
             if (fqcnImport.endsWith(".*")) {
                 val paquet = fqcnImport.removeSuffix(".*")
+                // Balayage `import x.*` : seuls les types ACCESSIBLES sont
+                // proposés (P6/G-004 — un package-privé d'un autre paquet
+                // n'est pas joignable par l'import étoilé).
                 for (entree in annuaire.typesDirects(paquet)) {
+                    if (!annuaire.estProposablePourAutoImport(entree, contexte.paquetCourant)) continue
                     resultats[entree.nomSimple] = entree.fqcn
                 }
             } else {
+                // Import EXPLICIT du fichier : le nom est proposé tel quel
+                // (miroir de l'intention écrite — l'accessibilité de
+                // l'import écrit relève du diagnostic, pas de la complétion).
                 val nomSimple = fqcnImport.substringAfterLast('.')
                 resultats[nomSimple] = fqcnImport
             }
         }
+        // java.lang est visible SANS import : seuls les types PUBLICS sont
+        // réellement joignables depuis un paquet étranger (P6/G-004).
         for (entree in annuaire.typesDirects("java.lang")) {
+            if (!annuaire.estProposablePourAutoImport(entree, contexte.paquetCourant)) continue
             resultats[entree.nomSimple] = entree.fqcn
         }
         return resultats.map { (nom, fqcn) -> nom to fqcn }

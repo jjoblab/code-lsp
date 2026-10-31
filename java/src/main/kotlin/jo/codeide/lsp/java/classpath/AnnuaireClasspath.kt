@@ -125,6 +125,9 @@ public class AnnuaireClasspath(
     /** Genres mémorisés par FQCN (lecture à la demande). */
     private val genres = ConcurrentHashMap<String, GenreType?>()
 
+    /** Verdicts d'accessibilité mémorisés par FQCN (P6/G-004, vague V-A). */
+    private val accessibles = ConcurrentHashMap<String, Boolean>()
+
     /** Verdicts Throwable mémorisés par FQCN. */
     private val throwables = ConcurrentHashMap<String, Boolean>()
 
@@ -241,6 +244,95 @@ public class AnnuaireClasspath(
         }
         genres[fqcn] = genre
         return genre
+    }
+
+    /**
+     * L'ACCESSIBILITÉ d'une entrée pour la proposition AVEC AUTO-IMPORT depuis
+     * l'unité en cours de complétion (P6 — écart G-004, vague V-A).
+     *
+     * **Pourquoi ce filtre** : le banc P6 a mesuré que la complétion de type
+     * proposait des classes INTERNES NON PUBLIQUES de la plateforme
+     * (`java.util.concurrent.atomic.Striped64`, `java.util.stream.Streams`…)
+     * avec un auto-import INSOLUBLE depuis un autre paquet — le filtre
+     * `com.sun.*`/`jdk.*` de N2 couvre les paquets internes, pas les types
+     * non publics des paquets de surface. Règle d'accessibilité Java : un
+     * type proposé pour import depuis un AUTRE paquet doit être `public` ;
+     * depuis SON PROPRE paquet, tout type est accessible.
+     *
+     * La vérification est PARESSEUSE et MÉMORISÉE (comme [genreDe]) : les
+     * indicateurs d'accès du fichier de classe ne sont lus qu'à la demande,
+     * sur les courtes listes candidates. Un type introuvable ou illisible
+     * reste PROPOSÉ (verdict conservateur — le filtrage ne bloque jamais sur
+     * un statut inconnu, même doctrine que [genreDe]).
+     *
+     * @param entree l'entrée candidate à l'auto-import.
+     * @param paquetUnite le paquet de l'unité en cours de complétion (null =
+     *   inconnu, traité comme un paquet étranger).
+     * @return vrai ssi l'entrée est accessible depuis l'unité (même paquet,
+     *   ou type public).
+     */
+    public fun estProposablePourAutoImport(entree: EntreeType, paquetUnite: String?): Boolean {
+        val paquetEntree = if (entree.fqcn.contains('.')) entree.fqcn.substringBeforeLast('.') else ""
+        if (paquetEntree == (paquetUnite ?: "")) return true // même paquet : accessible même package-privé
+        return accessibles.getOrPut(entree.fqcn) { estPublicBrut(entree.fqcn, entree.origine) }
+    }
+
+    /**
+     * Le verdict `public` BRUT d'un type (binaire ou source), sans mémoire —
+     * conservateur (vrai) si le type est introuvable ou illisible.
+     */
+    private fun estPublicBrut(fqcn: String, origine: Origine): Boolean = try {
+        when (origine) {
+            Origine.SOURCE -> estPublicSource(fqcn)
+            else -> {
+                val octets = lireOctets(fqcn) ?: return true
+                (ClassFileReader.read(octets, "x.class").modifiers and ClassFileConstants.AccPublic) != 0
+            }
+        }
+    } catch (_: Exception) {
+        true
+    }
+
+    /**
+     * Le verdict `public` d'un type SOURCE : lit le `.java` sous les racines
+     * (paquet + nom simple) et cherche la déclaration de type de haut niveau —
+     * le modificateur `public` doit précéder le mot-clé de déclaration.
+     */
+    private fun estPublicSource(fqcn: String): Boolean {
+        val nomSimple = fqcn.substringAfterLast('.')
+        val paquet = if (fqcn.contains('.')) fqcn.substringBeforeLast('.') else ""
+        val chemin = if (paquet.isEmpty()) "$nomSimple.java" else "${paquet.replace('.', '/')}/$nomSimple.java"
+        for (racine in racines) {
+            val fichier = racine.resolve(chemin)
+            if (!Files.isRegularFile(fichier)) continue
+            return try {
+                typeDeHautNiveauPublic(Files.readString(fichier, Charsets.UTF_8), nomSimple)
+            } catch (_: Exception) {
+                true
+            }
+        }
+        return true // fichier introuvable : proposer (conservateur)
+    }
+
+    /**
+     * Vrai ssi la déclaration de type `nomSimple` du texte porte `public` :
+     * la PREMIÈRE occurrence du mot-clé de déclaration suivi du nom (borne
+     * précédente `;`/`{`/`}`) — les annotations de la déclaration font partie
+     * des modificateurs balayés. Sans occurrence : proposer (conservateur).
+     */
+    private fun typeDeHautNiveauPublic(texte: String, nomSimple: String): Boolean {
+        val occurrence = Regex("\\b(class|interface|enum|@interface)\\s+$nomSimple\\b").find(texte) ?: return true
+        var borne = 0
+        var i = occurrence.range.first - 1
+        while (i >= 0) {
+            val c = texte[i]
+            if (c == ';' || c == '{' || c == '}') {
+                borne = i + 1
+                break
+            }
+            i--
+        }
+        return texte.substring(borne, occurrence.range.first).split(Regex("\\s+")).any { it == "public" }
     }
 
     /**
