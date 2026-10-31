@@ -13,6 +13,13 @@
 |---|---|---|---|---|
 | D-K1 | **Aucune pour la Phase 0** — l'inventaire et le cahier n'exigent aucune évolution des modules partagés | — | — | — |
 
+> **Post-clôture (31/10)** : le programme d'exécution du plan §4 est clos
+> (journal 10) ; les actions de licence P-K1/P-K2 sont LEVÉES par décision
+> du propriétaire. Q-K1–Q-K6 demeurent OUVERTES (Q-K1/Q-K2 partiellement
+> arbitrées par la livraison — index dédié `.kidx`, ADR 0108). Le registre
+> des restes au propriétaire vit dans
+> [`11-decisions-proprio-post-cloture.md`](11-decisions-proprio-post-cloture.md) §2.
+
 ## Demandes anticipées (hors Phase 0 — à confirmer par les ADR de domaine)
 
 > Ces points sont des **questions ouvertes** consignées pendant l'étude ;

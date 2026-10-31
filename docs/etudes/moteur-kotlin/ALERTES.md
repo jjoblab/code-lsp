@@ -36,11 +36,24 @@
   de câblage sont documentées dans les diffs du commit de livraison ;
   la recommandation d'audit DEMEURE OUVERTE et s'exerce désormais a
   posteriori.
+  **Décision du propriétaire (31/10, canal de mission — post-clôture du
+  programme)** : l'audit est jugé **NON NÉCESSAIRE** — motif déclaré :
+  « aucune ligne de code de l'ancien projet n'a été copié ». L'action
+  propriétaire est **CLOSE** (consignation :
+  `11-decisions-proprio-post-cloture.md` §1) ; le présent bloc demeure
+  comme trace factuelle.
 - **P-K2 — Conditions des artefacts binaires intellij-dependencies** :
   miroir de l'alerte AL1 Java — les jars `org.jetbrains:syntax-api`
   n'embarquent pas de `META-INF/LICENSE` ; licence des sources
   Apache-2.0 ; l'hypothèse Apache-2.0 pour les **binaires** reste à
   confirmer par le propriétaire avant tout embarquement définitif.
+  **Décision du propriétaire (31/10, canal de mission — post-clôture du
+  programme)** : la vérification est jugée **NON NÉCESSAIRE** — les
+  conditions sont ACTÉES (Apache-2.0 pour les binaires `syntax-api` ;
+  l'extension aux binaires **lsp4j** EPL-2.0 du câble porté par l'hôte,
+  journal 09 §4, est couverte par la même décision) ; la PUBLICATION du
+  pack langue est **DÉBLOQUÉE** (consignation :
+  `11-decisions-proprio-post-cloture.md` §1).
 - **P-K3 — Conformité R6.2 de l'étude** : aucune source GPL/AGPL ni de
   licence non vérifiée consultée (terrains : `code-lsp` et `codeide-lsp`
   [proprio jjoblab], `JetBrains/kotlin` [Apache-2.0], artefacts publics
@@ -267,7 +280,9 @@
 
 - Comportement GC ART (SoftReference/ReferenceQueue) — appareil requis.
 - Conditions exactes des artefacts binaires intellij-dependencies
-  (P-K2) — action propriétaire.
+  (P-K2) — **CLOSE le 31/10 par décision du propriétaire**
+  (vérification jugée non nécessaire —
+  `11-decisions-proprio-post-cloture.md` §1).
 - État réel (à HEAD) des correctifs recommandés par le rapport faux
   positifs (AL-K1) — le cahier fixe le périmètre testé.
 - Fréquence réelle du `kt.syntax` sur code Kotlin 2.4+ en production —
