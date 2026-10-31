@@ -39,14 +39,16 @@ import org.junit.jupiter.api.Test
  * test jusqu'à `settings.gradle.kts`) ; `-Dparite.racineCorpus=<chemin>` la
  * force (utile pour un sweep externe, ex. un checkout du compilateur).
  * Répertoires exclus : `.git`, `build`, `.gradle`, `.kotlin`, `.oracle`,
- * artefacts de bancs (`jarres`, `bascule`, `kit-bascule`).
+ * artefacts de bancs (`jarres`, `bascule`, `kit-bascule`) et le corpus réel
+ * Android Kotlin (`corpus-android-kotlin` : le corpus téléchargé de vrais
+ * projets `.kt` ne fait pas partie du dépôt — il arrive par le script du banc).
  */
 class Fiche010PariteCorpusDepotTest {
 
     private companion object {
         private val EXCLUSIONS = setOf(
             ".git", "build", ".gradle", ".kotlin", ".oracle",
-            "jarres", "bascule", "kit-bascule",
+            "jarres", "bascule", "kit-bascule", "corpus-android-kotlin",
         )
 
         /** Le parseur est sans état : une instance partagée suffit. */
