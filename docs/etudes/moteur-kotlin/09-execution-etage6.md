@@ -271,7 +271,20 @@ l'abaque SANS rouvrir le recalage (série close au n° 3). **Reste à
 l'abaque : le transverse T (8–12 j-h — la fiche 021 et les recalages
 finaux).**
 
-**ATTESTATION CI (consignée après poussée)** : voir le commit de
-clôture — le run de TÊTE éprouve les livraisons 6a-6e ET la clôture
-ensemble (miroir étages 4/5).
+**ATTESTATION CI (consignée après poussée)** : le push de l'étage
+(`be35373` → `f017a14`, les six commits 6a/6b/6c/6d/6e/clôture) a
+déclenché le run **`41162022675`** — consulté le 31/10 via l'API GitHub
+Actions : **CI VERTE 10/10** sur le commit de clôture `f017a14` (le run
+porte le SHA de TÊTE du push : il éprouve les LIVRAISONS 6a-6e ET la
+clôture ensemble). Les dix jobs verts : Build et tests JDK 21, banc
+parité croisée T (oracle vendored épinglé), **suite du module Kotlin**
+(les 522 tests — fiches 001/015/018/051 et cas dorés protocole
+compris), banc qualité complétion (baseline signée Java), banc
+empreinte/latence Kotlin, **banc qualité complétion Kotlin étage 3**
+(baseline signée — p95 sous la baseline), **gates Android SDK 34**,
+banc empreinte/latence du noyau N1, **manifeste de provenance**
+(anti-fichier-hors-registre — les 14 fichiers neufs de l'étage sont du
+code NEUF, aucun hors registre), **scan ART + dexage d8** (6 × AUCUNE,
+26 590 méthodes / 4,10 Mo sous les seuils étage 0). Le flottant E-K6
+(périmètre Java) n'a pas frappé.
 
