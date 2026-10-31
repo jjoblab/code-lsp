@@ -201,6 +201,15 @@
     suivre)* : 2e 25 343 / 4 000 812 o (64 %) ; 2f 25 420 méthodes /
     4 030 652 o (3,84 Mo) — méthodes 78 % du plafond, taille **64 %** ;
     la marge tient pour la vague de clôture 2g, surveillance maintenue.
+  - *Actualisation vague 4a (31/10, étage 4 — occurrences prouvées)* : la
+    clôture 3e avait laissé le dex INCHANGÉ au octet près (25 636 /
+    4 090 064 o — aucun code main touché, §9.3 du journal étage 3) ; la
+    vague 4a (moteur d'occurrences + SPI navigation) le porte à
+    **25 751 méthodes / 4 124 124 o (3,93 Mo)** — méthodes **79 %** du
+    plafond 32 768, taille **66 %** du budget 6 Mo (+115 méthodes /
+    +34 060 o) ; la marge tient pour les vagues 4b-4d (navigation de
+    types et super : code moteur marginal attendu, miroir 4a),
+    surveillance maintenue.
 
 ## 5. Points restés « à vérifier » (non clos par l'étude)
 

@@ -1,8 +1,10 @@
 // CodeIDE — SPI du moteur Kotlin LSP : navigation et symboles (module
 // :kotlin, étage 2 vague 2e — fiches 031/025 du cahier : go-to-definition
 // de l'usage vers l'expect KMP, symboles de document, références d'une
-// fonction projet). Code NEUF jjoblab (clean-room — frontière D6 : les
-// genres sont NEUTRES, l'hôte les traduit en SymbolKind/Location LSP).
+// fonction projet ; étage 4 vague 4a — fiche 048 : le surlignage de
+// document ECRITURE/LECTURE et la plage renommable). Code NEUF jjoblab
+// (clean-room — frontière D6 : les genres sont NEUTRES, l'hôte les
+// traduit en SymbolKind/Location/DocumentHighlightKind LSP).
 package jo.codeide.lsp.kotlin.api
 
 import jo.codeide.lsp.kotlin.parse.kt.PlageTexte
@@ -67,4 +69,51 @@ public class SymboleDocumentKotlin(
     public val genre: GenreSymboleKotlin,
     public val plage: PlageTexte,
     public val plageNom: PlageTexte,
+)
+
+/**
+ * Le genre neutre d'un SURLIGNAGE de document (documentHighlight LSP —
+ * étage 4 vague 4a, fiche 048 : la déclaration se surligne en ÉCRITURE,
+ * chaque référence en LECTURE ; l'hôte traduit en `DocumentHighlightKind`
+ * LSP `Write`/`Read`).
+ */
+public enum class GenreSurlignageKotlin {
+
+    /** Le site de DÉCLARATION du symbole surligné (`Write` LSP). */
+    ECRITURE,
+
+    /** Une RÉFÉRENCE liée au symbole surligné (`Read` LSP). */
+    LECTURE,
+}
+
+/**
+ * Un SURLIGNAGE de document (fiche 048, comportement
+ * `documentHighlight---déclaration-en-écriture,-références-en-lecture,-ombrage-exclu`)
+ * : l'emplacement d'une occurrence LIÉE dans le document courant, avec son
+ * genre — les surlignages vivent EN ORDRE DU DOCUMENT, la déclaration (si
+ * le document la porte) en tête.
+ *
+ * @property plage l'emplacement de l'occurrence (offsets du texte du
+ * document) ;
+ * @property genre le genre du surlignage (ECRITURE pour le site de
+ * déclaration, LECTURE pour une référence).
+ */
+public class SurlignageDocumentKotlin(
+    public val plage: PlageTexte,
+    public val genre: GenreSurlignageKotlin,
+)
+
+/**
+ * La plage RENOMMABLE sous le point (prepareRename LSP — fiche 048,
+ * comportement `plageRenommable---placeholder-exact-sur-le-nom-déclaré`)
+ * : l'emplacement exact du nom désigné et le texte qui y vit — la matière
+ * du dialogue de renommage de l'hôte.
+ *
+ * @property plage l'emplacement du nom (offsets) ;
+ * @property placeholder le nom ÉCRIT sous le point (la valeur initiale
+ * du champ de saisie de l'hôte).
+ */
+public class PlageRenommableKotlin(
+    public val plage: PlageTexte,
+    public val placeholder: String,
 )

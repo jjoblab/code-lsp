@@ -287,6 +287,104 @@ public interface SessionLangageKotlin : AutoCloseable {
     public fun occurrences(uri: String, deplacement: Int): List<EmplacementKotlin>
 
     /**
+     * Rend les RÉFÉRENCES PROUVÉES du symbole sous le point (étage 4 vague
+     * 4a — fiche 048 : le contrat S2 « references » du plan de
+     * stabilisation LSP §3.2) : chaque usage LIÉ au symbole désigné, dans
+     * le document courant, les documents ouverts et les fichiers FERMÉS du
+     * scan des racines — multi-fichiers par la PREUVE DE LIAISON.
+     *
+     * ## La preuve de liaison (le cœur conservateur — jamais de faux usage)
+     *
+     * Un usage du nom dans un fichier n'entre dans la liste QUE si le nom
+     * y RÉSOUT vers la cible : par IMPORT EXACT (le segment du chemin
+     * importé — un alias rend l'usage sous son ALIAS, et la directive
+     * elle-même est une référence à éditer), par MÊME PAQUET sans
+     * homonyme top-level local (l'homonyme local du fichier d'usage
+     * PRIME — il désigne SA déclaration), ou par MÊME FICHIER déclarant
+     * (ADR 0204). Une locale ombrageante, un homonyme d'un autre paquet
+     * sans import, un sélecteur sans récepteur démontrable restent HORS
+     * liste — le silence n'est jamais de la complaisance (D3).
+     *
+     * Le curseur sur le MOT-CLÉ `fun`/`class` d'une déclaration vise la
+     * DÉCLARATION ENGLOBANTE (ADR 0218 — miroir du repli Android Studio) ;
+     * le curseur dans le CORPS d'une fonction ne vise RIEN (le corps
+     * n'est pas l'en-tête).
+     *
+     * @param uri l'identifiant du document ;
+     * @param deplacement l'offset du caret DANS le nom (usage ou
+     * déclaration), ou sur le mot-clé de la déclaration visée ;
+     * @param inclureDeclaration `true` pour inclure le site de déclaration
+     * en tête de liste (miroir Find Usages) ; `false` pour les seuls
+     * usages ;
+     * @return les emplacements des usages liés (déclaration en tête si
+     * demandée) ; liste VIDE pour un document inconnu/fermé, une position
+     * sans cible prouvable ou un symbole sans usage — jamais `null`,
+     * jamais d'exception.
+     */
+    public fun references(
+        uri: String,
+        deplacement: Int,
+        inclureDeclaration: Boolean,
+    ): List<EmplacementKotlin>
+
+    /**
+     * Rend les SURLIGNAGES de document au point (étage 4 vague 4a —
+     * fiche 048 : documentHighlight LSP) : les occurrences LIÉES du
+     * symbole dans le SEUL document courant — le site de déclaration en
+     * ÉCRITURE (si le document le porte), chaque référence en LECTURE,
+     * en ordre du document, ombrage exclu.
+     *
+     * Le curseur sur un usage rend les MÊMES occurrences que le curseur
+     * sur la déclaration (la cible se ré-résout depuis l'usage).
+     *
+     * @param uri l'identifiant du document ;
+     * @param deplacement l'offset du caret DANS le nom (usage ou
+     * déclaration) ;
+     * @return les surlignages en ordre du document ; liste VIDE pour un
+     * document inconnu/fermé ou une position sans cible — jamais `null`,
+     * jamais d'exception.
+     */
+    public fun surlignagesDocument(uri: String, deplacement: Int): List<SurlignageDocumentKotlin>
+
+    /**
+     * Rend la plage RENOMMABLE sous le point (étage 4 vague 4a —
+     * fiche 048 : prepareRename LSP) : l'emplacement EXACT du nom désigné
+     * et le texte qui y vit (le placeholder du dialogue de renommage).
+     *
+     * Conservateur (D3) : hors identifiant — littéral, mot-clé, blanc —
+     * ou sans cible prouvable, le rendu est `null` (jamais deviné : un
+     * renommage deviné est un renommage cassé).
+     *
+     * @param uri l'identifiant du document ;
+     * @param deplacement l'offset du caret DANS le nom renommable ;
+     * @return la plage et son placeholder ; `null` hors identifiant ou
+     * sans cible — jamais d'exception.
+     */
+    public fun plageRenommable(uri: String, deplacement: Int): PlageRenommableKotlin?
+
+    /**
+     * Rend les OCCURRENCES À ÉDITER du RENOMMAGE BORNÉ du symbole sous le
+     * point (étage 4 vague 4a — fiche 048 : rename LSP, miroir Java) : le
+     * site de déclaration et chaque usage LIÉ (usages ET segments
+     * d'import — multi-fichiers : document courant, documents ouverts,
+     * fichiers fermés du scan).
+     *
+     * La BORNE est la preuve : sans cible prouvée sous le point, la liste
+     * est VIDE (l'hôte en fait une erreur typée) — jamais un renommage
+     * partiel silencieux ; chaque édition vit dans SON fichier, l'hôte
+     * applique le nouveau nom partout (les usages d'un ALIAS d'import
+     * restent sous l'alias — seul le segment du chemin importé est édité,
+     * miroir IntelliJ).
+     *
+     * @param uri l'identifiant du document ;
+     * @param deplacement l'offset du caret DANS le nom (usage ou
+     * déclaration) ;
+     * @return les emplacements à éditer (déclaration en tête) ; liste
+     * VIDE sans cible prouvée — jamais `null`, jamais d'exception.
+     */
+    public fun renommage(uri: String, deplacement: Int): List<EmplacementKotlin>
+
+    /**
      * Pose le classpath de la session : entrées des bibliothèques et racines
      * des sources (fiche 042 — ADR 0211).
      *

@@ -11,11 +11,14 @@ import java.io.File
 import java.util.concurrent.locks.ReentrantReadWriteLock
 import jo.codeide.lsp.kotlin.api.ClasspathKotlin
 import jo.codeide.lsp.kotlin.api.DiagnosticKotlin
+import jo.codeide.lsp.kotlin.api.EmplacementKotlin
 import jo.codeide.lsp.kotlin.api.GenreContexteKotlin
 import jo.codeide.lsp.kotlin.api.PlagePliableKotlin
+import jo.codeide.lsp.kotlin.api.PlageRenommableKotlin
 import jo.codeide.lsp.kotlin.api.PropositionKotlin
 import jo.codeide.lsp.kotlin.api.ReponseCompletionKotlin
 import jo.codeide.lsp.kotlin.api.SessionLangageKotlin
+import jo.codeide.lsp.kotlin.api.SurlignageDocumentKotlin
 import jo.codeide.lsp.kotlin.api.SurvolKotlin
 import jo.codeide.lsp.kotlin.index.IndexAppelablesKotlin
 import jo.codeide.lsp.kotlin.parse.ParseurKotlin
@@ -588,12 +591,125 @@ internal class SessionLangageKotlinDocuments(
      * d'une fonction projet) : le site de déclaration puis chaque référence
      * du même nom dans le document, en ordre du document.
      */
-    override fun occurrences(uri: String, deplacement: Int): List<jo.codeide.lsp.kotlin.api.EmplacementKotlin> {
+    override fun occurrences(uri: String, deplacement: Int): List<EmplacementKotlin> {
         return verrou.read {
             if (fermee) return@read emptyList()
             val document = documents[uri] ?: return@read emptyList()
             NavigationDocuments.occurrences(document, uri, deplacement)
         }
+    }
+
+    // ------------------------------------------------------------------
+    // Occurrences prouvées (étage 4 vague 4a — fiche 048).
+    // ------------------------------------------------------------------
+
+    /**
+     * Le MONTAGE des occurrences prouvées (étage 4 — fiche 048) : les
+     * documents OUVERTS (arbres vifs, l'ordre d'ouverture), les fichiers
+     * Kotlin du scan NON OUVERTS (re-parsés paresseusement à la demande),
+     * les contributions au modèle (ouvertes vives PRIMANT leurs doublons
+     * scannés) et le guichet de classpath. Assemblé HORS verrou : la
+     * lecture des fichiers fermés et leur parse ne tiennent JAMAIS le
+     * verrou de session (ADR 0212) — les instantanés sont immuables.
+     */
+    private fun montageOccurrences(): OccurrencesProuvees.Montage {
+        val ouverts = verrou.read {
+            if (fermee) return@read emptyList()
+            documents.entries.map { it.key to it.value }
+        }
+        val contributions = contributionsAuConsult("")
+        val guichet = indexSiPret()
+        val urisScan = scanneur.snapshotAuConsult()?.contributions
+            ?.map { it.uri }
+            ?.filter { it.endsWith(".kt") || it.endsWith(".kts") }
+            ?.distinct()
+            .orEmpty()
+        return OccurrencesProuvees.Montage(
+            documents = ouverts.toMap(),
+            ordreDocuments = ouverts.map { it.first },
+            urisScan = urisScan,
+            contributions = contributions,
+            index = guichet?.vue,
+            vueJvm = guichet?.vueJvm,
+            etatScan = etatScanAuConsult(),
+        )
+    }
+
+    /**
+     * Rend les RÉFÉRENCES PROUVÉES du symbole sous le point (étage 4 —
+     * fiche 048 : le contrat S2 multi-fichiers par la preuve de liaison —
+     * import exact, même paquet sans homonyme, même fichier déclarant,
+     * typage du récepteur ; repli mot-clé ADR 0218).
+     */
+    override fun references(
+        uri: String,
+        deplacement: Int,
+        inclureDeclaration: Boolean,
+    ): List<EmplacementKotlin> {
+        val document = verrou.read {
+            if (fermee) return@read null
+            documents[uri]
+        } ?: return emptyList()
+        return OccurrencesProuvees.references(
+            document = document,
+            uri = uri,
+            deplacement = deplacement,
+            inclureDeclaration = inclureDeclaration,
+            montage = montageOccurrences(),
+        )
+    }
+
+    /**
+     * Rend les SURLIGNAGES de document au point (étage 4 — fiche 048 :
+     * documentHighlight — déclaration ECRITURE, usages LECTURE, ombrage
+     * exclu, en ordre du document).
+     */
+    override fun surlignagesDocument(uri: String, deplacement: Int): List<SurlignageDocumentKotlin> {
+        val document = verrou.read {
+            if (fermee) return@read null
+            documents[uri]
+        } ?: return emptyList()
+        return OccurrencesProuvees.surlignages(
+            document = document,
+            uri = uri,
+            deplacement = deplacement,
+            montage = montageOccurrences(),
+        )
+    }
+
+    /**
+     * Rend la PLAGE RENOMMABLE sous le point (étage 4 — fiche 048 :
+     * prepareRename — placeholder exact, `null` hors identifiant, jamais
+     * deviné).
+     */
+    override fun plageRenommable(uri: String, deplacement: Int): PlageRenommableKotlin? {
+        val document = verrou.read {
+            if (fermee) return@read null
+            documents[uri]
+        } ?: return null
+        return OccurrencesProuvees.plageRenommable(
+            document = document,
+            deplacement = deplacement,
+            montage = montageOccurrences(),
+        )
+    }
+
+    /**
+     * Rend les occurrences à ÉDITER du RENOMMAGE BORNÉ (étage 4 —
+     * fiche 048 : déclaration + usages + segments d'import, multi-fichiers —
+     * liste VIDE sans cible prouvée, l'hôte en fait une erreur typée).
+     */
+    override fun renommage(uri: String, deplacement: Int): List<EmplacementKotlin> {
+        val document = verrou.read {
+            if (fermee) return@read null
+            documents[uri]
+        } ?: return emptyList()
+        return OccurrencesProuvees.renommage(
+            document = document,
+            uri = uri,
+            deplacement = deplacement,
+            montage = montageOccurrences(),
+        )
     }
 
     /**
