@@ -95,8 +95,12 @@ conditionne — elle peut s'exécuter dès maintenant.**
 
 ## 7. Ce qui n'a pas pu être vérifié (et protocole)
 
-1. **Mesures appareil** (latences §0.1, mémoire, thermique) → gabarit
-   `07-gabarit-mesure-appareil.md` (passe moto g06 par le propriétaire).
+1. **Mesures appareil** (latences §0.1, mémoire, thermique) → **passe 1
+   consignée le 31/10** (moto g06, moteur in-process, plateforme jrt :
+   S2/S3, F1/F3-F6, C1/C2, Q3, M1/M2 — verdict §8 : cibles §0.1
+   **partiellement atteintes**, F1 ≈ 4× le budget, cf. ALERTES AL9) ; restent
+   le perçu écran 60 i/s, la passe android.jar, S1/M3/M4 (hôte) — gabarit
+   `07-gabarit-mesure-appareil.md` + transcript `mesures/`.
 2. **Captures Android Studio** (comportements NV de la référence) → protocole
    `06-protocole-captures-android-studio.md` (lots A–D).
 3. **Exécution du banc sur corpus réel** → le banc P1–P8 a été **joué en local**
@@ -115,7 +119,7 @@ conditionne — elle peut s'exécuter dès maintenant.**
 | **D2** | **Étendre le contrat `:model`** (champs B10) **et le producteur côté hôte**, avec dérivation disque par défaut dans le moteur | **OUI** — l'axe « intelligent avant la première sync » (§0.1-2) l'exige (ADR 0020) |
 | **D3** | **Périmètre Kotlin→Java** : indexer les déclarations publiques `.kt` (scanner lexical, index partagé) sans toucher au moteur Kotlin | **OUI, borné ainsi** — instruction du 30/10 respectée (ADR 0022) |
 | **D4** | **Conditions d'usage des artefacts JetBrains** (java-syntax, ADR 0017) : confirmer avant la vague incrémentalité | **confirmer quand possible** — ne conditionne QUE l'ADR 0019 option 2/G-031, aucune vague P0/P1 |
-| **D5** | **Seuils des métriques « niveau AS »** (FP/1 000 < 0,5 ; top-1 ≥ 0,80 ; P6 ≥ 99 %…) et **cibles de vitesse §0.1** (< 100 ms p95 perçu ; < 300 ms diagnostics ; démarrage chaud < 3 s) | **valider ou corriger après la première mesure** (V-0 CI + gabarit 07) — ADR 0030/0029 |
+| **D5** | **Seuils des métriques « niveau AS »** (FP/1 000 < 0,5 ; top-1 ≥ 0,80 ; P6 ≥ 99 %…) et **cibles de vitesse §0.1** (< 100 ms p95 perçu ; < 300 ms diagnostics ; démarrage chaud < 3 s) | **valider ou corriger après la première mesure** (V-0 CI + gabarit 07) — **passe 1 reçue** (gabarit 07 §8 : partiellement atteintes ; F1 ≈ 4× le budget — re-passe android.jar conseillée avant figement, AL9) — ADR 0030/0029 |
 | **D6** | **Retirer `DeclassementDatabinding`** au profit de la résolution réelle du binding (amende la fiche 051) | **OUI à V-B3** (ADR 0021) |
 | **D7** | **Amender la fiche 007** (mots-clés `extends`/`implements` en tête de déclaration avec les stubs — M1) | **OUI à V-C** (ADR 0026) |
 | **D8** | **Enveloppe/ordre des vagues** (145–241 j-h agent, séquence V-A→V-G avec V-F1 remontée) | **approuver l'enveloppe et la séquence**, recalages fin V-A/fin V-B |

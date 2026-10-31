@@ -1,0 +1,158 @@
+==============================================================
+ banc-mesure — gabarit 07 première passe (2026-10-30 22:48:39)
+ hôte : aarch64 / 15 / moto g06
+ java : openjdk version "17.0.19" 2026-04-21
+==============================================================
+android.jar détecté : non — plateforme jrt du runtime
+passes : 3 (gabarit §1 : 3 espacées de 30 s ; PASSES=1 pour une passe rapide)
+
+########## PASSE 1/3 ##########
+==============================================================
+ banc-mesure — gabarit 07, première passe
+ plateforme : jrt du runtime (aucun android.jar passé)
+ java : 17.0.19 · aarch64
+==============================================================
+== S2. démarrage à froid → première complétion utile
+   1re complétion (construction env incluse) : 7646.43 ms — 1 items
+   isLikelyUsable() après échauffement : 0.06 ms → true
+== S3. sonde import (import java.u¦) pendant/après construction
+   sonde 2 : 4.98 ms — 1 items
+   sonde 3 : 2.93 ms — 1 items
+   sonde 4 : 3.02 ms — 1 items
+   lecture : rien n'est servi PENDANT la construction (la 1re requête bloque ;
+   dégradation partielle = à re-mesurer après V-B, cf. gabarit S3/S4)
+== F1. complétion de membres (s.le¦) — 20 itérations
+   p50=219.81 ms  p95=461.50 ms  p99=461.50 ms  max=461.50 ms (n=20)
+== F3. hover (usage w.zAdd()) — 20 itérations (rendu : 22 caractères)
+   p50=0.26 ms  p95=1.17 ms  p99=1.17 ms  max=1.17 ms (n=20)
+== F4. aide de signature (greet(¦) — 1 signatures rendues)
+   p50=39.18 ms  p95=88.58 ms  p99=88.58 ms  max=88.58 ms (n=20)
+== F5. diagnostics de frappe (succession s.¦→s.lengt¦, 3 tours)
+   p50=50.03 ms  p95=168.85 ms  max=168.85 ms (n=18 frappes)
+   (mesure moteur : borne basse du perçu — le perçu ajoute le debounce 50 ms)
+== F6. fichier Grand.java (1356 lignes, 150 méthodes)
+   diagnose  : p50=485.27 ms  p95=1154.13 ms  p99=1154.13 ms  max=1154.13 ms (fige le plus long)
+   complétion: p50=107.45 ms  p95=252.96 ms  p99=252.96 ms  max=252.96 ms (items=1)
+== C1. complétion de Main pendant diagnose de Grand (verrou global)
+   nominal  : p95=461.50 ms (F1)
+   concurrent: p95=459.04 ms (×1.0) — 16 diagnose(B) servis pendant la fenêtre
+== Q3. suppression de zAdd dans Widget → diagnostics de Main
+   délai moteur : 27.82 ms — diagnostics rendus : 1, ciblant zAdd : 1
+   (0 = diagnostics périmés inter-fichiers — écart G-003, mesure P8 en CI)
+== M1/M2. tas (System.gc, mesures in-process)
+   M1 tas au repos après indexation : 15.4 Mo
+   M2 tas après 500 éditions diagnostiquées : 15.0 Mo (delta -0.4 Mo)
+   (tas JVM du banc −Xmx2g : composant moteur, pas le produit intégré)
+== lignes du gabarit NON couvertes par ce banc (raisons)
+   S1  démarrage à chaud : caches disque = intégration hôte/CIDX (CodeIDE)
+   S4  R.string. pendant indexation : capacité V-B (à re-mesurer après)
+   S5  workDoneProgress : capacité V-G
+   F2  complétion smart : capacité V-C
+   R1-R3 sync Gradle / double-tampon : hôte CodeIDE + V-F1
+   M3  onTrimMemory : runtime Android (hôte)
+   M4  taille d'APK : chaîne de build complète (hôte)
+   Q1/Q2 corpus réel P3/P6 : gates CI (CORPUS_ANDROID, banc P1-P8)
+==============================================================
+ passe terminée — reporter ces valeurs dans le gabarit 07 (R5)
+(pause 30 s — thermique, gabarit 07 §1)
+
+########## PASSE 2/3 ##########
+==============================================================
+ banc-mesure — gabarit 07, première passe
+ plateforme : jrt du runtime (aucun android.jar passé)
+ java : 17.0.19 · aarch64
+==============================================================
+== S2. démarrage à froid → première complétion utile
+   1re complétion (construction env incluse) : 9363.86 ms — 1 items
+   isLikelyUsable() après échauffement : 0.06 ms → true
+== S3. sonde import (import java.u¦) pendant/après construction
+   sonde 2 : 4.57 ms — 1 items
+   sonde 3 : 3.09 ms — 1 items
+   sonde 4 : 2.97 ms — 1 items
+   lecture : rien n'est servi PENDANT la construction (la 1re requête bloque ;
+   dégradation partielle = à re-mesurer après V-B, cf. gabarit S3/S4)
+== F1. complétion de membres (s.le¦) — 20 itérations
+   p50=174.22 ms  p95=404.87 ms  p99=404.87 ms  max=404.87 ms (n=20)
+== F3. hover (usage w.zAdd()) — 20 itérations (rendu : 22 caractères)
+   p50=0.33 ms  p95=1.16 ms  p99=1.16 ms  max=1.16 ms (n=20)
+== F4. aide de signature (greet(¦) — 1 signatures rendues)
+   p50=30.74 ms  p95=81.39 ms  p99=81.39 ms  max=81.39 ms (n=20)
+== F5. diagnostics de frappe (succession s.¦→s.lengt¦, 3 tours)
+   p50=27.65 ms  p95=178.63 ms  max=178.63 ms (n=18 frappes)
+   (mesure moteur : borne basse du perçu — le perçu ajoute le debounce 50 ms)
+== F6. fichier Grand.java (1356 lignes, 150 méthodes)
+   diagnose  : p50=553.45 ms  p95=1102.36 ms  p99=1102.36 ms  max=1102.36 ms (fige le plus long)
+   complétion: p50=112.14 ms  p95=497.92 ms  p99=497.92 ms  max=497.92 ms (items=1)
+== C1. complétion de Main pendant diagnose de Grand (verrou global)
+   nominal  : p95=404.87 ms (F1)
+   concurrent: p95=725.05 ms (×1.8) — 17 diagnose(B) servis pendant la fenêtre
+== Q3. suppression de zAdd dans Widget → diagnostics de Main
+   délai moteur : 52.09 ms — diagnostics rendus : 1, ciblant zAdd : 1
+   (0 = diagnostics périmés inter-fichiers — écart G-003, mesure P8 en CI)
+== M1/M2. tas (System.gc, mesures in-process)
+   M1 tas au repos après indexation : 15.4 Mo
+   M2 tas après 500 éditions diagnostiquées : 15.1 Mo (delta -0.3 Mo)
+   (tas JVM du banc −Xmx2g : composant moteur, pas le produit intégré)
+== lignes du gabarit NON couvertes par ce banc (raisons)
+   S1  démarrage à chaud : caches disque = intégration hôte/CIDX (CodeIDE)
+   S4  R.string. pendant indexation : capacité V-B (à re-mesurer après)
+   S5  workDoneProgress : capacité V-G
+   F2  complétion smart : capacité V-C
+   R1-R3 sync Gradle / double-tampon : hôte CodeIDE + V-F1
+   M3  onTrimMemory : runtime Android (hôte)
+   M4  taille d'APK : chaîne de build complète (hôte)
+   Q1/Q2 corpus réel P3/P6 : gates CI (CORPUS_ANDROID, banc P1-P8)
+==============================================================
+ passe terminée — reporter ces valeurs dans le gabarit 07 (R5)
+(pause 30 s — thermique, gabarit 07 §1)
+
+########## PASSE 3/3 ##########
+==============================================================
+ banc-mesure — gabarit 07, première passe
+ plateforme : jrt du runtime (aucun android.jar passé)
+ java : 17.0.19 · aarch64
+==============================================================
+== S2. démarrage à froid → première complétion utile
+   1re complétion (construction env incluse) : 10709.61 ms — 1 items
+   isLikelyUsable() après échauffement : 0.08 ms → true
+== S3. sonde import (import java.u¦) pendant/après construction
+   sonde 2 : 14.42 ms — 1 items
+   sonde 3 : 7.02 ms — 1 items
+   sonde 4 : 7.05 ms — 1 items
+   lecture : rien n'est servi PENDANT la construction (la 1re requête bloque ;
+   dégradation partielle = à re-mesurer après V-B, cf. gabarit S3/S4)
+== F1. complétion de membres (s.le¦) — 20 itérations
+   p50=154.68 ms  p95=331.99 ms  p99=331.99 ms  max=331.99 ms (n=20)
+== F3. hover (usage w.zAdd()) — 20 itérations (rendu : 22 caractères)
+   p50=1.35 ms  p95=2.63 ms  p99=2.63 ms  max=2.63 ms (n=20)
+== F4. aide de signature (greet(¦) — 1 signatures rendues)
+   p50=49.48 ms  p95=83.78 ms  p99=83.78 ms  max=83.78 ms (n=20)
+== F5. diagnostics de frappe (succession s.¦→s.lengt¦, 3 tours)
+   p50=23.24 ms  p95=119.24 ms  max=119.24 ms (n=18 frappes)
+   (mesure moteur : borne basse du perçu — le perçu ajoute le debounce 50 ms)
+== F6. fichier Grand.java (1356 lignes, 150 méthodes)
+   diagnose  : p50=423.97 ms  p95=1181.32 ms  p99=1181.32 ms  max=1181.32 ms (fige le plus long)
+   complétion: p50=182.57 ms  p95=419.35 ms  p99=419.35 ms  max=419.35 ms (items=1)
+== C1. complétion de Main pendant diagnose de Grand (verrou global)
+   nominal  : p95=331.99 ms (F1)
+   concurrent: p95=943.44 ms (×2.8) — 20 diagnose(B) servis pendant la fenêtre
+== Q3. suppression de zAdd dans Widget → diagnostics de Main
+   délai moteur : 44.60 ms — diagnostics rendus : 1, ciblant zAdd : 1
+   (0 = diagnostics périmés inter-fichiers — écart G-003, mesure P8 en CI)
+== M1/M2. tas (System.gc, mesures in-process)
+   M1 tas au repos après indexation : 15.3 Mo
+   M2 tas après 500 éditions diagnostiquées : 15.0 Mo (delta -0.3 Mo)
+   (tas JVM du banc −Xmx2g : composant moteur, pas le produit intégré)
+== lignes du gabarit NON couvertes par ce banc (raisons)
+   S1  démarrage à chaud : caches disque = intégration hôte/CIDX (CodeIDE)
+   S4  R.string. pendant indexation : capacité V-B (à re-mesurer après)
+   S5  workDoneProgress : capacité V-G
+   F2  complétion smart : capacité V-C
+   R1-R3 sync Gradle / double-tampon : hôte CodeIDE + V-F1
+   M3  onTrimMemory : runtime Android (hôte)
+   M4  taille d'APK : chaîne de build complète (hôte)
+   Q1/Q2 corpus réel P3/P6 : gates CI (CORPUS_ANDROID, banc P1-P8)
+==============================================================
+ passe terminée — reporter ces valeurs dans le gabarit 07 (R5)
+
+banc-mesure terminé — reporter les valeurs dans le gabarit 07 (R5 : aucune déduction)
