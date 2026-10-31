@@ -128,3 +128,27 @@
 | 2026-10-31 | **ÉTAGE 5 OUVERT — vague 5a (moteurs bornés), REPRISES R6/R7 EFFECTUÉES** : l'ordre de poursuite reçu du propriétaire (« Go étage 5 », 31/10) ouvre le confort éditeur. Re-contrôles R9.4 au moment des copies (en-têtes/KDoc relus sur le clone à bc11253 — AUCUNE mention tierce, AUCUN écart). Destinations : `kotlin/src/main/kotlin/jo/codeide/lsp/kotlin/format/FormateurKotlin.kt` (R6) et `…/plis/PlisDocumentKotlin.kt` (R7) (§3 mis à jour avec les chemins et les adaptations de câblage listées). Le calcul neuf 1b `session/PlagesPliablesDocuments.kt` est RETIRÉ (périmètre fiche 049 = sous-ensemble exact de la reprise R7, non-régression prouvée). Tests NEUFS fiches 014/019 (16 comportements). `verifier-provenance.sh` rc=0. |
 | 2026-10-31 | **REPRISE R8 EFFECTUÉE (vague 5b — moteur de KDoc)** : re-contrôle R9.4 PASSÉ. Destination : `kotlin/src/main/kotlin/jo/codeide/lsp/kotlin/documentation/DocumentationKotlin.kt` (§3 actualisé). Câblée au survol in-vivo ET au scan (rendu KDoc unifié, fiche 007 — 9 comportements neufs). `verifier-provenance.sh` rc=0. |
 | 2026-10-31 | **REPRISE R3 EFFECTUÉE (vague 5c — previews Compose)** : re-contrôle R9.4 PASSÉ. Destination : `kotlin/src/main/kotlin/jo/codeide/lsp/kotlin/preview/PreviewsDocumentKotlin.kt` (§3 actualisé). Le modèle SPI est NEUF (`api/PreviewsKotlin.kt`, fiche 050 en main — l'ancien `api/` est zone noyau en lecture interdite) ; le modèle neuf `AppelableProjet` gagne estFonction/debutNom (code neuf du dépôt, frontière C consignée §3 R3). Tests NEUFS fiche 050 (16 comportements). **R9 `symboles/` : reprise CADUQUE — NON copiée** : la capacité symboles de document vit déjà dans le code NEUF de la vague 2e (`NavigationDocuments.symboles()`, fiche 025 verte à l'étage 2) ; le registre le consigne ici, la ligne R9 §3 demeure pour mémoire sans copie. `verifier-provenance.sh` rc=0. |
+
+## 7. Corpus de mesure (mission « niveau Android Studio », 31/10/2026)
+
+Les dépôts suivants sont inscrits en qualité de **DONNÉES DE CORPUS**
+(cibles de mesure du banc P1–P9, jamais committées — téléchargement par
+`scripts/telecharger-corpus-kotlin.sh`, répertoire gitignoré
+`bancs/corpus-android-kotlin/`). Ce sont des données, pas des références
+de conception : la liste blanche §« Références externes » d'AGENTS.md ne
+s'applique pas à ce titre, mais leur nommage est limité au banc, à son
+LISEZMOI et à la documentation de la mission.
+
+| Dépôt | Licence | Rôle | Commit épinglé (ls-remote, 31/10/2026) |
+|---|---|---|---|
+| android/nowinandroid | Apache-2.0 | Compose M3, Hilt/Room (KSP), Retrofit + kotlinx-serialization, Flow, 40 `.kts` + catalogue | `2982e63cb691ad49cd009aab43dc206fee6699c2` |
+| android/sunflower | Apache-2.0 | Views + ViewBinding + Compose + Room | `2a357a31551bb53f3fe80382a9ce6d30bcc8b960` |
+| android/architecture-samples | Apache-2.0 | Views + ViewBinding MVVM (module `todoapp`) | `ee66e1526b84c026615df032c705842b7d2a521f` |
+| android/compose-samples | Apache-2.0 | Compose pur + Flow (modules `Jetcaster`, `Jetsnack`) | `25631e8f544a9a1e3f01e296eaf1b4c28428196c` |
+| android/views-widgets-samples | Apache-2.0 | **mixte Java/Kotlin** — interop réel | `2238cc873501f9cda63605051de11832bb736a8a` |
+| android/platform-samples | Apache-2.0 | Kotlin moderne, APIs plateforme | `177c3b92c387894648d0a2d42d238e265b05bbc3` |
+
+Écartés (raisons consignées à l'audit §5) : camera-samples, gh4a,
+thunderbird-android (MPL-2.0 — candidat secours si arbitrage propriétaire).
+Aucun fichier de ces dépôts n'est copié dans le code ou les tests du
+moteur — ils ne sont ni lus comme référence de conception, ni redistribués.
