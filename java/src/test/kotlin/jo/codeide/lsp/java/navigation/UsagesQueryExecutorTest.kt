@@ -55,6 +55,10 @@ class UsagesQueryExecutorTest {
                 public int rendu(Calc c) {
                     int total = c.ajouter(1, 2);
                     c.memoire = total;
+                    total += 3;
+                    total++;
+                    ++total;
+                    c.memoire += 1;
                     int relu = c.memoire;
                     return c.doubler(total);
                 }
@@ -181,6 +185,56 @@ class UsagesQueryExecutorTest {
         // Les plages désignent le JETON « total ».
         for (s in surbrillances) {
             assertEquals("total", source.substring(s.plage.debutOffset, s.plage.finOffset), "plage du jeton total")
+        }
+    }
+
+    /** Le genre de(s) l'occurrence(s) portée(s) par la LIGNE d'un extrait anchored. */
+    private fun genreDeLaLigne(source: String, surbrillances: List<Surbrillance>, ancre: String): GenreSurbrillance {
+        val indice = source.indexOf(ancre)
+        assertTrue(indice >= 0, "ancre absente de la fixture : $ancre")
+        val ligne = source.substring(0, indice).count { it == '\n' }
+        val genres = surbrillances
+            .filter { source.substring(0, it.plage.debutOffset).count { c -> c == '\n' } == ligne }
+            .map { it.genre }
+            .distinct()
+        assertEquals(1, genres.size, "un seul genre sur la ligne de « $ancre » — trouvé : $genres")
+        return genres.single()
+    }
+
+    /**
+     * documentHighlight_affectations_composées — `+=`, `x++` et `++x`
+     * ÉCRIVENT leur cible (vague V-E, G-026 — ADR 0028 (b)). La
+     * hiérarchie ecj (Assignment ← CompoundAssignment ← Postfix/Prefix)
+     * route ces nœuds hors du pont visit(Assignment) : sans ponts
+     * dédiés, une composée était typée LECTURE.
+     */
+    @Test
+    fun documentHighlightAffectationsComposeesEtIncrements() {
+        val source = texte("Vue.java")
+        val caret = offsetDe(source, "int total =") + "int ".length
+        val surbrillances = MOTEUR.surbrillances("demo/Vue.java", source, caret)
+
+        assertEquals(GenreSurbrillance.ECRITURE, genreDeLaLigne(source, surbrillances, "int total ="), "la déclaration est une ÉCRITURE")
+        assertEquals(GenreSurbrillance.ECRITURE, genreDeLaLigne(source, surbrillances, "total += 3"), "l'affectation composée += ÉCRIT total")
+        assertEquals(GenreSurbrillance.ECRITURE, genreDeLaLigne(source, surbrillances, "total++"), "le postfixe x++ ÉCRIT total")
+        assertEquals(GenreSurbrillance.ECRITURE, genreDeLaLigne(source, surbrillances, "++total"), "le préfixe ++x ÉCRIT total")
+        assertEquals(GenreSurbrillance.LECTURE, genreDeLaLigne(source, surbrillances, "c.memoire = total"), "l'opérande de DROITE est une LECTURE")
+        assertEquals(GenreSurbrillance.LECTURE, genreDeLaLigne(source, surbrillances, "doubler(total)"), "l'argument d'appel est une LECTURE")
+    }
+
+    /** documentHighlight_champ_composé — le segment écrit d'un champ qualifié (c.memoire += 1) est une ÉCRITURE. */
+    @Test
+    fun documentHighlightChampAffectationComposee() {
+        val source = texte("Vue.java")
+        val caret = offsetDe(source, "c.memoire += 1") + 2 // sur « memoire »
+        val surbrillances = MOTEUR.surbrillances("demo/Vue.java", source, caret)
+        assertEquals(3, surbrillances.size, "3 occurrences du champ dans le document SEUL (écriture simple, composée, lecture) : ${surbrillances.size}")
+        assertEquals(GenreSurbrillance.ECRITURE, genreDeLaLigne(source, surbrillances, "c.memoire = total"), "l'écriture simple du champ")
+        assertEquals(GenreSurbrillance.ECRITURE, genreDeLaLigne(source, surbrillances, "c.memoire += 1"), "l'affectation composée du champ ÉCRIT le segment")
+        assertEquals(GenreSurbrillance.LECTURE, genreDeLaLigne(source, surbrillances, "int relu = c.memoire"), "la lecture du champ")
+        // Les plages désignent le JETON « memoire » (le SEGMENT, pas « c.memoire »).
+        for (s in surbrillances) {
+            assertEquals("memoire", source.substring(s.plage.debutOffset, s.plage.finOffset), "plage du jeton memoire")
         }
     }
 

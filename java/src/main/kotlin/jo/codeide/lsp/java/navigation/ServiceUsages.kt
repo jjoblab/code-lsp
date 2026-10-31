@@ -4,11 +4,14 @@ import jo.codeide.lsp.java.diagnostics.Plage
 import jo.codeide.lsp.java.interne.LectureAst
 import org.eclipse.jdt.internal.compiler.ast.Assignment
 import org.eclipse.jdt.internal.compiler.ast.CompilationUnitDeclaration
+import org.eclipse.jdt.internal.compiler.ast.CompoundAssignment
 import org.eclipse.jdt.internal.compiler.ast.FieldDeclaration
 import org.eclipse.jdt.internal.compiler.ast.FieldReference
 import org.eclipse.jdt.internal.compiler.ast.LocalDeclaration
 import org.eclipse.jdt.internal.compiler.ast.MessageSend
 import org.eclipse.jdt.internal.compiler.ast.MethodDeclaration
+import org.eclipse.jdt.internal.compiler.ast.PostfixExpression
+import org.eclipse.jdt.internal.compiler.ast.PrefixExpression
 import org.eclipse.jdt.internal.compiler.ast.QualifiedNameReference
 import org.eclipse.jdt.internal.compiler.ast.SingleNameReference
 import org.eclipse.jdt.internal.compiler.ast.TypeDeclaration
@@ -470,6 +473,40 @@ public class ServiceUsages(
                 // Affectation malade : ignorée.
             }
             return true
+        }
+
+        // --- écritures composées et incréments (V-E, G-026 — ADR 0028 (b)) ---
+        // `x += y`, `x++` et `++x` ÉCRIVENT x : la cible (membre gauche)
+        // est enregistrée comme zone d'écriture AVANT la visite de la
+        // référence (même contrat que l'affectation simple). Le genre LSP
+        // est UNIQUE par plage : l'ÉCRITURE domine (la lecture implicite
+        // d'une composée est portée par le data flow, pas par le surlignage).
+
+        /** Cible d'une affectation composée (`+=`, `-=`, …) : une écriture. */
+        override fun visiteAffectationComposee(node: CompoundAssignment, scope: org.eclipse.jdt.internal.compiler.lookup.BlockScope?): Boolean {
+            enregistrerCibleEcriture(node.lhs)
+            return true
+        }
+
+        /** Cible d'un postfixe (`x++`) : une écriture. */
+        override fun visitePostfixe(node: PostfixExpression, scope: org.eclipse.jdt.internal.compiler.lookup.BlockScope?): Boolean {
+            enregistrerCibleEcriture(node.lhs)
+            return true
+        }
+
+        /** Cible d'un préfixe (`++x`) : une écriture. */
+        override fun visitePrefixe(node: PrefixExpression, scope: org.eclipse.jdt.internal.compiler.lookup.BlockScope?): Boolean {
+            enregistrerCibleEcriture(node.lhs)
+            return true
+        }
+
+        /** Enregistre la plage du membre gauche d'une écriture (résiliente). */
+        private fun enregistrerCibleEcriture(cible: org.eclipse.jdt.internal.compiler.ast.Expression?) {
+            try {
+                if (cible != null) ciblesAffectation.add(cible.sourceStart..cible.sourceEnd)
+            } catch (_: Exception) {
+                // Membre gauche malade : ignoré.
+            }
         }
 
         /** Considère une référence de type. */

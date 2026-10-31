@@ -6,6 +6,7 @@ import org.eclipse.jdt.internal.compiler.ast.AbstractMethodDeclaration
 import org.eclipse.jdt.internal.compiler.ast.AllocationExpression
 import org.eclipse.jdt.internal.compiler.ast.Argument
 import org.eclipse.jdt.internal.compiler.ast.CompilationUnitDeclaration
+import org.eclipse.jdt.internal.compiler.ast.CompoundAssignment
 import org.eclipse.jdt.internal.compiler.ast.ConstructorDeclaration
 import org.eclipse.jdt.internal.compiler.ast.FieldDeclaration
 import org.eclipse.jdt.internal.compiler.ast.FieldReference
@@ -14,6 +15,8 @@ import org.eclipse.jdt.internal.compiler.ast.LambdaExpression
 import org.eclipse.jdt.internal.compiler.ast.LocalDeclaration
 import org.eclipse.jdt.internal.compiler.ast.MessageSend
 import org.eclipse.jdt.internal.compiler.ast.MethodDeclaration
+import org.eclipse.jdt.internal.compiler.ast.PostfixExpression
+import org.eclipse.jdt.internal.compiler.ast.PrefixExpression
 import org.eclipse.jdt.internal.compiler.ast.QualifiedNameReference
 import org.eclipse.jdt.internal.compiler.ast.SingleNameReference
 import org.eclipse.jdt.internal.compiler.ast.TypeDeclaration
@@ -343,6 +346,9 @@ public object LectureAst {
         override fun visit(typeDeclaration: TypeDeclaration, scope: CompilationUnitScope?): Boolean = protege { visiteType(typeDeclaration, null) }
         override fun visit(argument: Argument, scope: BlockScope?): Boolean = protege { visiteArgument(argument, scope) }
         override fun visit(importReference: ImportReference, scope: CompilationUnitScope?): Boolean = protege { visiteImport(importReference, scope) }
+        override fun visit(compoundAssignment: CompoundAssignment, scope: BlockScope?): Boolean = protege { visiteAffectationComposee(compoundAssignment, scope) }
+        override fun visit(postfixExpression: PostfixExpression, scope: BlockScope?): Boolean = protege { visitePostfixe(postfixExpression, scope) }
+        override fun visit(prefixExpression: PrefixExpression, scope: BlockScope?): Boolean = protege { visitePrefixe(prefixExpression, scope) }
         override fun endVisit(methodDeclaration: MethodDeclaration, scope: ClassScope?): Unit = protegeUnit { finMethode(methodDeclaration, scope) }
         override fun endVisit(constructorDeclaration: ConstructorDeclaration, scope: ClassScope?): Unit = protegeUnit { finConstructeur(constructorDeclaration, scope) }
 
@@ -374,6 +380,17 @@ public object LectureAst {
         public open fun visiteType(node: TypeDeclaration, scope: ClassScope?): Boolean = true
         public open fun visiteArgument(node: Argument, scope: BlockScope?): Boolean = true
         public open fun visiteImport(node: ImportReference, scope: CompilationUnitScope?): Boolean = true
+
+        // --- écritures composées (V-E, G-026 — ADR 0028 (b)) ---
+        // La hiérarchie ecj : Assignment (x = y) est la SUPERCLASSE de
+        // CompoundAssignment (x += y), elle-même mère de PostfixExpression
+        // (x++) et PrefixExpression (++x). Le répartiteur statique d'ecj
+        // (surcharges visit) route chaque nœud vers SA signature : un
+        // override de visit(Assignment) ne voit JAMAIS les composées ni les
+        // incréments — d'où ces trois ponts dédiés.
+        public open fun visiteAffectationComposee(node: CompoundAssignment, scope: BlockScope?): Boolean = true
+        public open fun visitePostfixe(node: PostfixExpression, scope: BlockScope?): Boolean = true
+        public open fun visitePrefixe(node: PrefixExpression, scope: BlockScope?): Boolean = true
         public open fun finMethode(node: MethodDeclaration, scope: ClassScope?): Unit {}
         public open fun finConstructeur(node: ConstructorDeclaration, scope: ClassScope?): Unit {}
     }
