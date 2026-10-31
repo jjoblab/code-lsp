@@ -98,6 +98,10 @@ public class ServiceActionsCode(
                 // des candidats ») — et seulement sur le montage AVEC INDEX.
                 val fqns = moteur?.fqnsForSimpleName(diagnostic.arguments.firstOrNull() ?: "") ?: emptyList()
                 resultat.addAll(CorrecteursTexte.candidatsImport(source, diagnostic, fqns))
+                // Nom non résolu en POSITION DE VARIABLE (vague V-A, G-014) :
+                // la création de locale typée par le contexte — le banc P5 a
+                // mesuré l'absence d'action sur ce profil.
+                CorrecteurCreationVariable.creationVariable(source, diagnostic)?.let { resultat.add(it) }
             }
             FamilleProbleme.UNDEFINED_METHOD -> {
                 CorrecteurCreationMethode.creationMethode(source, diagnostic)?.let { resultat.add(it) }

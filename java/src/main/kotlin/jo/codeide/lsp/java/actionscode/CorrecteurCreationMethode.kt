@@ -24,8 +24,13 @@ import jo.codeide.lsp.java.outils.EditionTexte
  *  - le stub est TOUJOURS `private` (+ `static` si le site d'appel est
  *    statique), inséré APRÈS la méthode englobante ;
  *  - les paramètres se nomment `arg0`, `arg1`, … ;
- *  - le retour est `void` si l'appel EST l'instruction, `Object` si la
- *    valeur de l'appel est utilisée (affectation, retour, argument) ;
+ *  - le retour est `void` si l'appel EST l'instruction, le TYPE DE RETOUR
+ *    DE LA MÉTHODE ENGBLOBANTE si l'appel est l'EXPRESSION d'un `return`
+ *    (vague V-A, écart G-014 : `return formater(…)` dans une méthode
+ *    `String` crée un stub `String` — le banc P5 a mesuré l'erreur de type
+ *    laissée par le stub `Object` générique), sinon `Object` (affectation,
+ *    argument… — conforme fiche 064, l'extension à l'affectation attendra
+ *    l'amendement arbitré du cahier, vagues V-C/V-D) ;
  *  - le corps imposé est « throw new UnsupportedOperationException("TODO:
  *    &lt;nom&gt;"); » ;
  *  - les FQN de paramètres sont RACCOURCIS vers le nom simple, avec
@@ -70,7 +75,11 @@ internal object CorrecteurCreationMethode {
         val pointVirgule = AnalyseTexte.pointVirguleSuivant(source, debut) ?: return null
         val avantNom = source.substring(debut, diagnostic.plage.debutOffset)
         val estInstruction = avantNom.isBlank()
-        val retour = if (estInstruction) "void" else "Object"
+        val retour = if (estInstruction) {
+            "void"
+        } else {
+            typeRetourContextuel(avantNom, corps) ?: "Object"
+        }
 
         // Paramètres : le TROISIÈME argument est la chaîne JOINTE lisible des
         // types (« int, String ») — découpage profondeur-aware, puis
@@ -114,6 +123,37 @@ internal object CorrecteurCreationMethode {
             editions = editions,
             diagnostic = diagnostic,
         )
+    }
+
+    /**
+     * Le type de retour attendu par le CONTEXTE du site d'appel (vague V-A,
+     * écart G-014 — le banc P5 a mesuré le fix non contextuel : un stub
+     * `Object` laissait une erreur de type dans `return formater(…)` d'une
+     * méthode `String`).
+     *
+     * Contexte reconnu (borné, honnête) : la **position de retour** —
+     * l'instruction est `return &lt;appel&gt;` — rend le type de retour DECLARÉ de
+     * la méthode englobante ([CorpsMethode.typeRetour]). Tout autre contexte
+     * (affectation, argument, condition…) rend null → repli `Object` du
+     * caller : l'affectation est VOLONTAIREMENT laissée à `Object`, le
+     * cahier (fiche 064) verrouillant ce comportement — son extension
+     * contextuelle exigera un amendement arbitré (vagues V-C/V-D).
+     *
+     * Limites documentées : un `return` au sein d'un LAMBDA hériterait du type
+     * de la méthode englobante — approximation acceptée (le repli `Object`
+     * n'est pas plus juste) ; la sémantique fine relève des correcteurs
+     * sémantiques (vagues V-C/V-D).
+     *
+     * @param avantNom le texte de l'instruction avant le nom de l'appel.
+     * @param corps la méthode englobante du site.
+     * @return le type contextuel, ou null si le contexte ne dit rien.
+     */
+    private fun typeRetourContextuel(avantNom: String, corps: CorpsMethode): String? {
+        // Position de retour : « return » (et rien d'autre) avant l'appel.
+        if (avantNom.trim() != "return") return null
+        val type = corps.typeRetour ?: return null
+        if (type == "void") return null // `return valeur;` en méthode void : déjà fautive, repli générique
+        return type
     }
 
     /**

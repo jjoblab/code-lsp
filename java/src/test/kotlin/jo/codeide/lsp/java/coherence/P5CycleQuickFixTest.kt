@@ -13,6 +13,17 @@ import kotlin.test.assertTrue
  * erreur n'apparaît ; (c) le texte résultat reste compilable (zéro ERREUR sur des
  * fixtures par ailleurs valides).
  *
+ * **Précision d'implémentation (vague V-A, alignée sur la propriété ci-dessus)** :
+ * (b) compare les erreurs AVANT/APRÈS par SIGNATURE (sévérité + code + message,
+ * plage ignorée — une erreur qui se DÉPLACE n'est pas nouvelle) ; (c) ne s'applique
+ * qu'aux fixtures PAR AILLEURS VALIDES (une seule erreur avant : la cible) — une
+ * fixture portant DEUX problèmes indépendants (frappe interrompue : point-virgule
+ * + nom non résolu) ne peut être entièrement réparée par un fix qui n'en cible qu'un :
+ * l'erreur sœur PRÉEXISTANTE n'est pas une « nouvelle erreur » (b), et la fixture
+ * n'est pas « par ailleurs valide » (c). L'implémentation d'origine appliquait (c)
+ * inconditionnellement — plus stricte que la propriété écrite, elle comptait des
+ * violations hors de son périmètre (mesuré : Aventurier, correctif vague V-A).
+ *
  * **Mode** : les trois fixtures couvertes par le cahier (import inutilisé,
  * point-virgule manquant, création de méthode — fiches 063/064) sont **assertées
  * dures** ; le balayage exhaustif (tous diagnostics × toutes actions d'un corpus
@@ -57,6 +68,13 @@ class P5CycleQuickFixTest {
     """.trimIndent()
 
     /**
+     * La signature d'une erreur SANS plage — une erreur qui se DÉPLACE (édition
+     * en amont) n'est pas une « nouvelle » erreur (propriété (b)).
+     */
+    private fun signatureErreur(d: jo.codeide.lsp.java.diagnostics.Diagnostic): String =
+        "${d.severite}|${d.code}|${d.message}"
+
+    /**
      * Applique le cycle complet sur une fixture : diagnostiquer → collecter les
      * actions → appliquer CHAQUE action sur la source → re-diagnostiquer.
      *
@@ -67,17 +85,37 @@ class P5CycleQuickFixTest {
         val moteur = MoteurJava()
         val avant = moteur.diagnose(chemin, source)
         val actions = moteur.actionsCode(chemin, source, avant)
+        val erreursAvant = SocleCoherence.erreurs(avant)
+        val signaturesAvant = erreursAvant.groupingBy(::signatureErreur).eachCount()
+        // « Fixture par ailleurs valide » : la SEULE erreur avant est la cible —
+        // c'est le périmètre où la propriété exige un résultat COMPILABLE (c).
+        val parAilleursValide = erreursAvant.size <= 1
         for (action in actions) {
             val cible = action.diagnostic
             val apresSource = jo.codeide.lsp.java.outils.appliquerEditions(source, action.editions)
             val apres = SocleCoherence.temoinNeuf().diagnose(chemin, apresSource)
             val erreursApres = SocleCoherence.erreurs(apres)
 
-            // (c) compilable : zéro erreur sur une fixture valide corrigée.
-            if (erreursApres.isNotEmpty()) {
+            // (c) compilable : zéro erreur — fixtures PAR AILLEURS VALIDES
+            //     uniquement (propriété ci-dessus, précision vague V-A).
+            if (parAilleursValide && erreursApres.isNotEmpty()) {
                 rapport.violer(
                     "action « ${action.titre} » : ${erreursApres.size} erreur(s) après application " +
                         "(${erreursApres.joinToString { it.message }})",
+                    causeRacine,
+                )
+                continue
+            }
+
+            // (b) AUCUNE erreur NOUVELLE : compte par signature, plage ignorée.
+            val signaturesApres = erreursApres.groupingBy(::signatureErreur).eachCount()
+            val nouvelles = signaturesApres.filter { (signature, nombre) ->
+                (signaturesAvant[signature] ?: 0) < nombre
+            }
+            if (nouvelles.isNotEmpty()) {
+                rapport.violer(
+                    "action « ${action.titre} » : ${nouvelles.size} nouvelle(s) erreur(s) après application " +
+                        "(${nouvelles.keys.joinToString()})",
                     causeRacine,
                 )
                 continue

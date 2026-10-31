@@ -27,6 +27,11 @@ package jo.codeide.lsp.java.actionscode
  *   paramètres, clause throws existante éventuelle).
  * @property statique vrai ssi l'en-tête porte le modificateur « static »
  *   (mot entier) — le contexte du site d'appel pour le stub (fiche 064).
+ * @property typeRetour le type de retour DECLARÉ de la méthode (texte du
+ *   jeton de type avant le nom — génériques et tableaux inclus) ; null pour
+ *   un CONSTRUCTEUR (aucun type avant le nom). Le contexte typé des
+ *   correcteurs (P5/G-014, vague V-A : le stub de création tient compte du
+ *   type attendu par le site d'appel).
  */
 internal data class CorpsMethode(
     internal val ouverture: Int,
@@ -34,12 +39,19 @@ internal data class CorpsMethode(
     internal val finParams: Int,
     internal val enTete: String,
     internal val statique: Boolean,
+    internal val typeRetour: String?,
 )
 
 /** Mots-clés de contrôle dont le bloc ressemble à un corps de méthode. */
 private val MOTS_CLES_CONTROLE = setOf(
     "if", "for", "while", "switch", "catch", "synchronized", "do", "try", "else",
     "new", "return", "throw", "assert", "finally",
+)
+
+/** Mots-clés de MODIFICATION jamais un type de retour (extraction [CorpsMethode.typeRetour]). */
+private val MOTS_CLES_MODIFICATEURS = setOf(
+    "public", "private", "protected", "static", "final", "abstract",
+    "synchronized", "native", "strictfp", "default", "transient", "volatile",
 )
 
 /**
@@ -115,7 +127,26 @@ internal object ChercheurMethode {
             finParams = borne + finParams + 1,
             enTete = enTete,
             statique = statique,
+            typeRetour = extraireTypeRetour(utile.substring(0, debutNom)),
         )
+    }
+
+    /**
+     * Le type de retour déclaré d'un en-tête de méthode : le segment AVANT le
+     * nom, dépouillé de ses ANNOTATIONS (arguments compris) et de ses mots-clés
+     * de modification — le reste est le type (génériques et tableaux voyagent
+     * sans espace). Vide/absent → CONSTRUCTEUR (null). Jamais d'exception :
+     * une forme non reconnue rend null (le correcteur appelant replie).
+     *
+     * @param segment le texte des modificateurs (du début d'en-tête au nom).
+     * @return le type de retour textuel, ou null si aucun (constructeur).
+     */
+    private fun extraireTypeRetour(segment: String): String? {
+        val sansAnnotations = Regex("@[A-Za-z_$][A-Za-z0-9_$.]*(\\s*\\([^()]*\\))?").replace(segment, " ")
+        val type = sansAnnotations.split(Regex("\\s+")).
+            filter { it.isNotEmpty() && it !in MOTS_CLES_MODIFICATEURS }
+            .joinToString(" ")
+        return type.ifEmpty { null }
     }
 
     /**
