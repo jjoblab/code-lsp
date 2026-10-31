@@ -173,3 +173,34 @@ Vérification à la reprise : build complet vert ; **122 tests repris verts**
 | Chemin dans code-lsp | Rôle |
 |---|---|
 | `index/src/bench/kotlin/jo/codeide/lsp/index/banc/BancIndex.kt` | banc de mesure ADR 0111 (jeux petit/moyen/lourd ; jamais dans la chaîne de vérification) |
+
+---
+
+## Corpus de test — banc d'incohérences P1–P8 (mission « niveau Android Studio », 31/10/2026)
+
+> Enregistrement **R9** des cibles de test du corpus réel (mission §4.4). Ces
+> dépôts sont des **DONNÉES DE CORPUS** (code Java réel à diagnostiquer), pas des
+> reprises de code ni des références de conception : aucun fichier n'est copié
+> dans code-lsp — le contenu est **téléchargé à l'exécution** par
+> `scripts/telecharger-corpus-android.sh` (répertoire gitignoré
+> `bancs/corpus-android/`, cf. `bancs/corpus-android/LISEZMOI.md`). Commits
+> épinglés par `git ls-remote` le 31/10/2026.
+
+| Dépôt | Licence | Commit épinglé | Rôle corpus |
+|---|---|---|---|
+| `github.com/OpenTracksApp/OpenTracks` | Apache-2.0 | `3c23a9f5400c7b5b914a221469d76cc019a18296` | corpus principal : application Java (99,7 %), viewBinding, AndroidX/Material/ConstraintLayout — P3 (zéro FP), P4 (rappel), P7 (rename) |
+| `github.com/gsantner/markor` | Apache-2.0 | `7b15e66932f170c0b3f105c522111b0f32d6c73d` | application Java (99,7 %), vues classiques sans binding — diversité UI |
+| `github.com/slapperwan/gh4a` | Apache-2.0 | `39f03ffe122125e46a51de16d90881047ed4660e` | application Java (93,4 %), Retrofit/OkHttp/RxJava2/WorkManager — stress générics/callbacks |
+| `github.com/AnySoftKeyboard/AnySoftKeyboard` | Apache-2.0 | `8cf81a3a2f73e9914c8613d56390a933486f0c6b` | application Java multi-modules (~73,8 %) — résolution inter-modules |
+| `github.com/android/architecture-components-samples` (module `BasicSample`) | Apache-2.0 | `e849ce3004ccd1132a121cf513bbcb7996d95c30` | module Java 100 % : DataBinding + Room + annotationProcessor — couverture binding/AGP |
+| `github.com/dmfs/opentasks` (secours, non téléchargé par défaut) | Apache-2.0 | `3ccb6f9d0195795bd461c3e634bbb8b22c72932c` | réserve Java 100 % si un projet principal devient inutilisable |
+
+> **Consultations en lecture seule de la mission** (aucune reprise de code —
+> comportements décrits pour eux-mêmes, conformément à la liste blanche du
+> §Références externes d'`AGENTS.md`) : documentation officielle JetBrains
+> (help/idea, Inspectopedia, SDK docs), blog JetBrains, code public d'
+> `JetBrains/intellij-community` (Apache-2.0), code public du plugin Android
+> (dépôt des outils Android, Apache-2.0), documentation developer.android.com,
+> artefact SDK `platform-35_r02.zip` (`api-versions.xml` inspecté), YouTrack
+> JetBrains. Aucun autre projet tiers n'est nommé dans les livrables de la
+> mission (les projets de corpus ci-dessus sont des données de test).
