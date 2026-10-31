@@ -11,10 +11,12 @@ import java.io.File
 import java.nio.file.Files
 import java.util.concurrent.locks.ReentrantReadWriteLock
 import jo.codeide.lsp.kotlin.api.ClasspathKotlin
+import jo.codeide.lsp.kotlin.api.ChaineSelectionKotlin
 import jo.codeide.lsp.kotlin.api.DiagnosticKotlin
 import jo.codeide.lsp.kotlin.api.EditionTexteKotlin
 import jo.codeide.lsp.kotlin.api.EmplacementKotlin
 import jo.codeide.lsp.kotlin.api.GenreContexteKotlin
+import jo.codeide.lsp.kotlin.api.IndiceKotlin
 import jo.codeide.lsp.kotlin.api.PlagePliableKotlin
 import jo.codeide.lsp.kotlin.api.PlageRenommableKotlin
 import jo.codeide.lsp.kotlin.api.PlanActionKotlin
@@ -24,6 +26,7 @@ import jo.codeide.lsp.kotlin.api.ReponseCompletionKotlin
 import jo.codeide.lsp.kotlin.api.SessionLangageKotlin
 import jo.codeide.lsp.kotlin.api.SurlignageDocumentKotlin
 import jo.codeide.lsp.kotlin.api.SurvolKotlin
+import jo.codeide.lsp.kotlin.api.SymboleEspaceKotlin
 import jo.codeide.lsp.kotlin.format.FormateurKotlin
 import jo.codeide.lsp.kotlin.index.IndexAppelablesKotlin
 import jo.codeide.lsp.kotlin.parse.ParseurKotlin
@@ -929,6 +932,92 @@ internal class SessionLangageKotlinDocuments(
      */
     internal fun statsDernierPassageScan(): ScanProjetParesseux.StatsPassage =
         scanneur.statsDernierPassage()
+
+    // ------------------------------------------------------------------
+    // Capacités L2 (étage 6 vague 6b — fiche 015 : indices, symboles
+    // d'espace, chaînes de sélection).
+    // ------------------------------------------------------------------
+
+    /**
+     * Rend les indices en ligne de la plage (fiche 015) : l'univers des
+     * preuves se construit HORS verrou (miroir de la passe de survol) —
+     * le guichet d'index PEUT être absent (classpath non posé) : le modèle
+     * du document et du scan suffit aux preuves locales (littéraux,
+     * constructeurs, candidates projet), l'attente des lambdas ne consulte
+     * l'index que pour les attentes de bibliothèque.
+     */
+    override fun indices(uri: String, debutPlage: Int, finPlage: Int): List<IndiceKotlin> {
+        val document =
+            verrou.read {
+                if (fermee) return@read null
+                documents[uri]
+            } ?: return emptyList()
+        val guichet = indexSiPret()
+        val univers = universDePreuves(document, uri, guichet?.vue, guichet?.vueJvm)
+        return verrou.read {
+            if (fermee) return@read emptyList()
+            IndicesDocuments.indices(document, univers, debutPlage, finPlage)
+        }
+    }
+
+    /**
+     * Rend les symboles d'espace de la requête (fiche 015) : les arbres
+     * VIVANTS des documents ouverts priment leurs doublons périmés du scan
+     * (miroir de [contributionsAuConsult]) — le scan filtré des URI
+     * ouvertes complète.
+     */
+    override fun symbolesEspace(requete: String): List<SymboleEspaceKotlin> {
+        val documentsVivants: List<Pair<String, KtFichier>> =
+            verrou.read {
+                if (fermee) return@read emptyList()
+                documents.entries.map { (uri, document) -> uri to document.arbre }
+            }
+        val urisOuvertes = documentsVivants.map { it.first }.toSet()
+        val scan = verrou.read {
+            if (fermee) return@read emptyList()
+            scanPublie?.contributions?.filter { it.uri !in urisOuvertes }.orEmpty()
+        }
+        return SymbolesEspaceDocuments.symboles(documentsVivants, scan, requete)
+    }
+
+    /**
+     * Rend les chaînes de sélection des positions (fiche 015) : calcul pur
+     * sur l'arbre immuable, sous verrou de lecture.
+     */
+    override fun selections(uri: String, deplacements: List<Int>): List<ChaineSelectionKotlin> {
+        return verrou.read {
+            if (fermee) return@read emptyList()
+            val document = documents[uri] ?: return@read emptyList()
+            SelectionsDocuments.selections(document.arbre, deplacements)
+        }
+    }
+
+    /**
+     * Construit l'univers des preuves SANS exiger l'index (étage 6 —
+     * variante de [construireUnivers] pour les capacités L2 : les preuves
+     * LOCALES (littéraux, constructeurs, candidates projet, attentes des
+     * lambdas) ne consultent pas l'index — un classpath absent ne doit pas
+     * réduire au silence les indices d'un document sans bibliothèques).
+     */
+    private fun universDePreuves(
+        document: DocumentOuvert,
+        uri: String,
+        index: jo.codeide.lsp.kotlin.index.VueAppelables?,
+        vueJvm: jo.codeide.lsp.kotlin.resolve.VueJvmMembres?,
+    ): jo.codeide.lsp.kotlin.resolve.UniversPreuves {
+        val batisseur = ModeleProjet.Batisseur()
+        batisseur.ajouter(ModeleProjet.contributionKotlin(document.arbre, uri = ""))
+        contributionsAuConsult(uri).forEach(batisseur::ajouter)
+        return jo.codeide.lsp.kotlin.resolve.UniversPreuves(
+            arbre = document.arbre,
+            paquet = document.arbre.directivePackage()?.nomQualifie().orEmpty(),
+            modele = batisseur.figer(),
+            index = index,
+            etatScan = etatScanAuConsult(),
+            script = uri.endsWith(".kts"),
+            vueJvm = vueJvm,
+        )
+    }
 
     // ------------------------------------------------------------------
     // Fermeture (fiche 049 : tout abandonné, no-ops postérieurs).

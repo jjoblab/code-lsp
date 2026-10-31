@@ -547,6 +547,65 @@ public interface SessionLangageKotlin : AutoCloseable {
     public fun actions(uri: String, deplacement: Int): List<PlanActionKotlin>
 
     /**
+     * Rend les INDICES EN LIGNE de la PLAGE (étage 6 vague 6b — fiche 015,
+     * `textDocument/inlayHint`) : noms de paramètres aux appels
+     * positionnels PROUVÉS (ancrés sur l'argument), types CERTAINS des
+     * déclarations sans type écrit (ancrés sur le nom), `it` implicite des
+     * littéraux lambda dont l'attente se prouve (libellé complet
+     * `it: Type`, ancré sur l'accolade ouvrante).
+     *
+     * Le cœur du contrat est l'honnêteté D3 : un appel sans candidate
+     * prouvée ne rend AUCUN indice de paramètre ; une initialisation dont
+     * le type n'est pas certain (expression composée, référence, suffixe
+     * non modélisé) ne rend AUCUN indice de type ; les indices ne sortent
+     * JAMAIS de la plage demandée.
+     *
+     * @param uri l'identifiant du document ;
+     * @param debutPlage l'offset de DÉBUT de la plage interrogée (les
+     * ancres des indices rendus sont ≥ ce début) ;
+     * @param finPlage l'offset de FIN de la plage interrogée ;
+     * @return les indices en ordre du document ; liste VIDE pour un
+     * document inconnu/fermé ou une plage sans preuve — jamais `null`,
+     * jamais d'exception.
+     */
+    public fun indices(uri: String, debutPlage: Int, finPlage: Int): List<IndiceKotlin>
+
+    /**
+     * Rend les SYMBOLES D'ESPACE de la requête (étage 6 vague 6b — fiche
+     * 015, `workspace/symbol`) : les déclarations de PREMIER NIVEAU des
+     * documents OUVERTS et des fichiers du SCAN dont le nom CONTIENT la
+     * requête (insensible à la casse), en ordre de nom.
+     *
+     * Les LOCALES ne remontent JAMAIS (la palette parcourt le premier
+     * niveau seulement) ; une requête VIDE rend TOUT ; une requête sans
+     * réponse rend une liste VIDE (honnête).
+     *
+     * @param requete le texte cherché dans les noms (contient,
+     * insensible à la casse ; vide = tout) ;
+     * @return les symboles triés par nom ; liste VIDE sans correspondance
+     * — jamais `null`, jamais d'exception.
+     */
+    public fun symbolesEspace(requete: String): List<SymboleEspaceKotlin>
+
+    /**
+     * Rend les CHAÎNES DE SÉLECTION des positions (étage 6 vague 6b —
+     * fiche 015, `textDocument/selectionRange`) : pour chaque position,
+     * les maillons englobants du PLUS PROFOND au FICHIER ENTIER — chaque
+     * maillon contient le précédent, le dernier est toujours le fichier.
+     *
+     * Une position HORS arbre (au-delà de la fin) porte le FICHIER SEUL —
+     * rien n'est inventé (D3). Les chaînes reviennent dans l'ORDRE des
+     * positions demandées.
+     *
+     * @param uri l'identifiant du document ;
+     * @param deplacements les offsets des positions (une chaîne par
+     * position, dans l'ordre) ;
+     * @return une chaîne par position ; liste VIDE pour un document
+     * inconnu/fermé — jamais `null`, jamais d'exception.
+     */
+    public fun selections(uri: String, deplacements: List<Int>): List<ChaineSelectionKotlin>
+
+    /**
      * Pose le classpath de la session : entrées des bibliothèques et racines
      * des sources (fiche 042 — ADR 0211).
      *
