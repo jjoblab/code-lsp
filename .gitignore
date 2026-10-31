@@ -25,3 +25,11 @@ dex-sortie/
 # Sorties du sous-processus K2 du banc de fidélité (CWD du compilateur)
 kotlin/mondes/
 kotlin/META-INF/
+
+# Corpus réel Android Kotlin du banc de cohérence P1-P9 (téléchargé par
+# scripts/telecharger-corpus-kotlin.sh — jamais committé, miroir du corpus
+# Java) : sources des 6 projets épinglés + manifestes de classpath préparés
+# localement.
+bancs/corpus-android-kotlin/*
+# ... sauf la documentation du corpus (versionnée).
+!bancs/corpus-android-kotlin/LISEZMOI.md
