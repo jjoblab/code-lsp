@@ -1,6 +1,9 @@
 # ADR 0025 — Cohérence des diagnostics (pipeline unifié, inter-fichiers, provenance)
 
-- **Statut** : Proposé
+- **Statut** : Accepté (GO propriétaire du 31/10/2026 — vague V-A ; étapes 2
+  « re-validation du report » et 3 « fraîcheur inter-fichiers du mémo » livrées
+  le 31/10, cf. `04-plan-vagues.md` §V-A — l'étape 1 « étages du publicateur »
+  et le typage enrichi attendent les inspections V-C/V-G)
 - **Date** : 2026-10-31
 - **Écarts résolus** : G-002, G-003, G-023 (`01-audit-moteur.md` §1.4, §1.6, §1.15)
 

@@ -262,6 +262,14 @@ racine, imprimées dans les logs de test) :
 | P7 rename (mono + inter-fichiers) | 0 violation | le socle N5 tient |
 | **P8 inter-fichiers** | **1 violation** | **confirmé (H4)** : après édition de l'API de `A`, `B` (ouvert, inchangé) reste sans erreur (mémo périmé) alors qu'un moteur NEUF voit « The method taille() is undefined » — G-003 |
 
+> **Correctifs vague V-A (31/10/2026, PV dans `04-plan-vagues.md` §V-A)** : les
+> violations de ce tableau sont CORRIGÉES sur les scénarios intégrés — P1
+> frappe 18 → **0** (gabarit du témoin + portage persistant), P5 balayage
+> 2 → **0** (création contextuelle + création de variable + banc aligné sur sa
+> propriété), P6 TYPE 4 → **0** (filtre d'accessibilité de l'annuaire),
+> P8 1 → **0** (fraîcheur du mémo par empreintes) ; les mesures ci-dessus
+> restent la **baseline d'écart d'origine** (R5 : jamais réécrites).
+
 ### 1.13 H13 — Verrou global + worker unique `[CONFIRMÉ]`
 
 - **82 occurrences** de `synchronized` dans `java/src/main` (comptage `rg -o

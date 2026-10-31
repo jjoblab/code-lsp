@@ -55,6 +55,54 @@ complètent la couverture.
 
 ### V-A — Fiabilité (P0)
 
+> **EXÉCUTION démarrée le 31/10/2026 (GO propriétaire D1–D9)** — premier
+> segment livré (V-A1 : correctifs moteur + gates CI) :
+>
+> - **P1 (18 divergences → 0)** : le portage hors-corps des signaux
+>   analytiques est GABARITÉ par les règles du témoin neuf (mesurées sur
+>   ecj 3.40 : import inutilisé exige zéro erreur ; membre privé inutilisé
+>   exige zéro erreur de syntaxe) — la source de portage devient PERSISTANTE
+>   (`Etat.analytiquesHorsCorps`, traduite à chaque passe) pour qu'une frappe
+>   cassée ne détruise jamais le signal (mesuré : édition 27).
+> - **P8 (1 staleness → 0)** : le mémo de diagnose enregistre les fichiers
+>   sources lus sur disque (pistage thread-local dans l'environnement de
+>   noms) avec empreinte STAT mtime+taille (coût microseconde — un SHA-256 de
+>   contenu mesuré à 1,5 → 5 ms p50 sur le diagnose rapide, écarté) ; un
+>   voisin édité invalide le mémo (fraîcheur inter-fichiers, ADR 0025 —
+>   repli global existant : `jo.codeide.lsp.java.fastdiagnose.disabled`).
+> - **P6 (4 non-résolubles → 0)** : filtre d'accessibilité de l'annuaire
+>   (`estProposablePourAutoImport`) — plus aucun type non public d'un autre
+>   paquet proposé avec auto-import insoluble (G-004, `Striped64`,
+>   `Streams`…).
+> - **P5 (2 violations → 0)** : création de méthode CONTEXTUELLE en position
+>   de retour (G-014 : `return formater(…)` dans une méthode `String` crée
+>   un stub `String` — l'affectation reste `Object`, fiche 064 verrouillée,
+>   extension renvoyée à l'amendement arbitré V-C/V-D) ; nouveau correcteur
+>   « Créer la variable locale » (`quickfix.create.variable`) pour les noms
+>   non résolus en position de variable ; le banc P5 aligne son
+>   implémentation sur sa propriété écrite ((b) « aucune erreur NOUVELLE »
+>   par signature, (c) « compilable » scoped aux fixtures par ailleurs
+>   valides).
+> - **Gates CI (ADR 0030)** : `BANC_COHERENCE_STRICT=true` sur les jobs
+>   `build` et `gates-android` — P1/P2/P5/P6/P8 deviennent bloquants à
+>   chaque push.
+>
+> **PV de mesure (JVM, 31/10)** : 557 tests / 0 échec ; banc P1–P8
+> **0 violation** (P1 : 27+3+1+1 mesures ; P2 : 3 ; P3 synthétique : 5
+> fichiers, 0 FP ; P4 : 6/6 mutants ; P5 : 3 cas dorés + balayage 3
+> fixtures ; P6 : 4+16+12 insertions ; P7 : 0 ; P8 : scénario inter-fichiers
+> + garde-fous). Mode strict vérifié vert localement. **Latence (A/B même
+> machine, arbre d'origine vs V-A1)** : diagnose complet p50 13,4 → 10,8 ms,
+> diagnose rapide p50 4,95 → 4,3–4,8 ms, p95 28,9 → 30,1–32,5 ms (variance
+> inter-passes, RECALAGE-2 ±×1,5 — le « 1,5 ms » du README N1 est un chiffre
+> d'une autre ère corpus/machine, l'arbre d'origine mesure déjà 4,95) ; tas
+> 17 → 17 Mo ; banc qualité signé **d8 1,000/1,000/1,000, p95 33,25 ms,
+> 0 saut** (baseline tenue). **Reste V-A2** :
+> préparation du corpus réel (manifestes de classpath des 5 projets — exige
+> SDK Android + builds Gradle, côté CI nightly), gates P3/P4/P7 corpus et
+> rapport de divergences ecj↔javac (ADR 0030) ; recalage de vélocité fin de
+> vague.
+
 - **Périmètre** : exécution du banc P1–P8 sur corpus → correction des faux positifs
   et incohérences : pipeline unifié + re-validation du report rapide (ADR 0025),
   invalidation inter-fichiers des documents ouverts (ADR 0025), insertions de

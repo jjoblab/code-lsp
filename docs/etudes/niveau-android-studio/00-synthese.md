@@ -113,6 +113,14 @@ conditionne — elle peut s'exécuter dès maintenant.**
 
 ## 8. Décisions demandées au propriétaire (numérotées, avec recommandation)
 
+> **APPROUVÉES le 31/10/2026 — GO du propriétaire** (« Je suis d'accord
+> avec tes recommandations pour les décisions D1–D9. C'est un GO, tu peux
+> commencer les vagues ») : les neuf recommandations ci-dessous sont
+> entérinées telles quelles ; la **passe 1 du gabarit 07** (consignée le
+> 31/10) arbitre D5 — cibles §0.1 maintenues, la passe jrt devient la
+> baseline vague 0. L'exécution des vagues suit (V-A démarrée le 31/10,
+> cf. `04-plan-vagues.md` §V-A).
+
 | # | Décision | Recommandation |
 |---|---|---|
 | **D1** | **Abandonner la parité stricte sur `references`** (M4/fiche 054/§10.4) : le moteur est déjà multi-fichiers ; la levée = retirer le filtre + inverser la gate « taille = 1 » | **OUI** — gain immédiat maximal pour ~0,5 j-h (ADR 0028, fiche C-10) |

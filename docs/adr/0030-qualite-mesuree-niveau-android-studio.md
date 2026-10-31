@@ -1,6 +1,8 @@
 # ADR 0030 — Qualité mesurée « niveau Android Studio » (corpus, propriétés, métriques, baselines)
 
-- **Statut** : Proposé
+- **Statut** : Accepté (GO propriétaire du 31/10/2026, décision D5 arbitrée par
+  la passe 1 du gabarit 07 — cibles maintenues ; gates PR actives depuis V-A :
+  `BANC_COHERENCE_STRICT` dans la CI ; nightly corpus réel en préparation V-A2)
 - **Date** : 2026-10-31
 - **Écart résolu** : G-034, G-005 (`01-audit-moteur.md` §1.11, §1.12 — la vérité terrain manquante)
 

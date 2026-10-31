@@ -27,8 +27,15 @@ jobs:
           java-version: "21"
       - name: Gradle
         uses: gradle/actions/setup-gradle@v4
+      # Vague V-A (ADR 0030) : le banc de cohérence P1–P8 passe en GATE — les
+      # violations mesurées (baseline d'écart de la vague 0) sont désormais
+      # des ÉCHECS bloquants à chaque push (P1/P2/P5/P6/P8 sur les scénarios
+      # intégrés ; les gates corpus réel P3/P4/P7 restent conditionnées à
+      # CORPUS_ANDROID — ignorées annoncées, jamais vertes silencieusement).
       - name: Build
         run: ./gradlew build --no-daemon --stacktrace
+        env:
+          BANC_COHERENCE_STRICT: "true"
 
   banc-noyau:
     name: Banc empreinte/latence du noyau N1
@@ -86,6 +93,8 @@ jobs:
         run: bash scripts/preparer-projet-android.sh
       - name: Tests avec gates ouvertes (:java:test)
         run: BANC_ANDROID_LIBS="$PWD/bancs/projet-android-libs" ./gradlew :java:test --no-daemon --stacktrace
+        env:
+          BANC_COHERENCE_STRICT: "true"
 
   # Critère de sortie de l'étage N2 (PLAN-REECRITURE §4, ADR 0016 option 1) :
   # le banc de qualité de complétion compare recall/top-1/MRR + p95 + sauts
