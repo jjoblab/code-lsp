@@ -606,6 +606,32 @@ public interface SessionLangageKotlin : AutoCloseable {
     public fun selections(uri: String, deplacements: List<Int>): List<ChaineSelectionKotlin>
 
     /**
+     * Rend l'AIDE À LA SIGNATURE au point demandé (étage 6 vague 6d —
+     * fiches 051/018, `textDocument/signatureHelp`) : les candidates de
+     * l'appel englobant le PLUS PROFOND (surcharges comprises), la
+     * signature ACTIVE (l'arité compatible avec la place du caret) et le
+     * paramètre ACTIF (0 après la parenthèse ouvrante, +1 après chaque
+     * virgule, le compte des arguments pour un lambda FINAL).
+     *
+     * Les candidates viennent du PROJET (fonctions, constructeurs
+     * primaires, membres vifs de la classe englobante, fichiers croisés
+     * par le port) et du CLASSPATH (appelables de premier niveau par
+     * l'index réel, méthodes JVM du récepteur qualifié) ; la KDoc
+     * accompagne la candidate (l'arbre VIF d'un fichier tiers ouvert
+     * évince le disque périmé), la candidate du classpath reste muette.
+     *
+     * Le silence est conservateur (D3) : un curseur HORS appel ou après
+     * un appel FERMÉ, un document inconnu ou une session fermée rendent
+     * `null` — jamais une candidate inventée, jamais d'exception.
+     *
+     * @param uri l'identifiant du document ;
+     * @param deplacement l'offset du caret ;
+     * @return l'aide (candidates + signature active + paramètre actif) ;
+     * `null` hors appel ou sans preuve.
+     */
+    public fun signature(uri: String, deplacement: Int): AideSignatureKotlin?
+
+    /**
      * Pose le classpath de la session : entrées des bibliothèques et racines
      * des sources (fiche 042 — ADR 0211).
      *

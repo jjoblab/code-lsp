@@ -3,6 +3,7 @@ package jo.codeide.lsp.kotlin.session
 import java.nio.file.Path
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import jo.codeide.lsp.kotlin.api.ClasspathKotlin
@@ -52,6 +53,7 @@ class Fiche018FicheClasspathTest {
                 OutilsJarFixture.champ("texte", "Ljava/lang/CharSequence;"),
                 OutilsJarFixture.champPrive("cache", "Ljava/lang/String;"),
                 OutilsJarFixture.champ("\$observateur", "Ljava/lang/Object;"),
+                OutilsJarFixture.methode("setText", "(Ljava/lang/CharSequence;)V"),
             ),
         )
         // Interface publique à DEUX interfaces directes.
@@ -235,6 +237,160 @@ class Fiche018FicheClasspathTest {
             // interfaces se taisent (D3 — jamais une ligne inventée).
             assertEquals("public class demo.SansBinaire", survol.signature)
             assertEquals("Champs publics : String nom", survol.documentation)
+        } finally {
+            s.close()
+        }
+    }
+
+    // ── KDoc des candidates de l'aide à la signature ──────────────────
+
+    @Test
+    fun `signature---KDoc-du-document-courant-accompagne-la-candidate`() {
+        val s = session()
+        try {
+            val source =
+                "/**\n" +
+                    " * Additionne deux entiers.\n" +
+                    " * @param a le premier terme\n" +
+                    " */\n" +
+                    "fun ajouter(a: Int, b: Int): Int = a + b\n" +
+                    "fun usage(): Int = ajouter(1, 2)\n"
+            val uri = "file:///calcul.kt"
+            s.ouvrir(uri, source)
+            val aide = assertNotNull(s.signature(uri, source.indexOf("ajouter(1") + "ajouter(".length))
+            assertEquals("ajouter(a: Int, b: Int): Int", aide.signatures[aide.signatureActive].etiquette)
+            assertEquals(
+                "Additionne deux entiers.\n@param a — le premier terme",
+                aide.signatures[aide.signatureActive].documentation,
+            )
+        } finally {
+            s.close()
+        }
+    }
+
+    @Test
+    fun `signature---KDoc-cross-fichier-par-le-port,-fichier-tiers-FERME`() {
+        val bibli =
+            "package outils\n" +
+                "/**\n" +
+                " * Triple la valeur.\n" +
+                " */\n" +
+                "fun triple(x: Int): Int = x * 3\n"
+        val appelant =
+            "package outils\n" +
+                "fun essai(): Int = triple(2)\n"
+        val racine = dossier.resolve("src-f018-ferme").toFile().apply { mkdirs() }
+        java.io.File(racine, "Biblio.kt").writeText(bibli)
+        val moteur = ServiceMoteurLangageKotlin.unique as MoteurLangageKotlinNoyau
+        val classpath = ClasspathKotlin(
+            entrees = listOf(
+                EntreeClasspathKotlin(KindEntreeKotlin.JAR, jarFiche().path, "f018:ferme"),
+            ),
+            racinesSources = listOf(racine.path),
+        )
+        moteur.definirClasspath(classpath)
+        val s = moteur.creerSession() as SessionLangageKotlinDocuments
+        try {
+            s.definirClasspath(classpath)
+            s.rafraichirSources()
+            val uri = "fixture://Essai.kt"
+            s.ouvrir(uri, appelant)
+            val aide = assertNotNull(s.signature(uri, appelant.indexOf("triple(") + "triple(".length))
+            assertEquals("triple(x: Int): Int", aide.signatures[aide.signatureActive].etiquette)
+            assertEquals("Triple la valeur.", aide.signatures[aide.signatureActive].documentation)
+        } finally {
+            s.close()
+        }
+    }
+
+    @Test
+    fun `signature---KDoc-cross-fichier,-fichier-tiers-OUVERT,-arbre-vif-et-non-disque-perime`() {
+        val bibliDisque =
+            "package outils\n" +
+                "/**\n" +
+                " * Triple la valeur (version disque).\n" +
+                " */\n" +
+                "fun triple(x: Int): Int = x * 3\n"
+        val bibliVive =
+            "package outils\n" +
+                "/**\n" +
+                " * Triple la valeur (version vivante).\n" +
+                " */\n" +
+                "fun triple(x: Int): Int = x * 3\n"
+        val appelant =
+            "package outils\n" +
+                "fun essai(): Int = triple(2)\n"
+        val racine = dossier.resolve("src-f018-ouvert").toFile().apply { mkdirs() }
+        java.io.File(racine, "Biblio.kt").writeText(bibliDisque)
+        val moteur = ServiceMoteurLangageKotlin.unique as MoteurLangageKotlinNoyau
+        val classpath = ClasspathKotlin(
+            entrees = listOf(
+                EntreeClasspathKotlin(KindEntreeKotlin.JAR, jarFiche().path, "f018:ouvert"),
+            ),
+            racinesSources = listOf(racine.path),
+        )
+        moteur.definirClasspath(classpath)
+        val s = moteur.creerSession() as SessionLangageKotlinDocuments
+        try {
+            s.definirClasspath(classpath)
+            s.rafraichirSources()
+            val uriBibli = java.io.File(racine, "Biblio.kt").toURI().toString()
+            s.ouvrir(uriBibli, bibliVive)
+            val uri = "fixture://Essai.kt"
+            s.ouvrir(uri, appelant)
+            val aide = assertNotNull(s.signature(uri, appelant.indexOf("triple(") + "triple(".length))
+            val documentation = aide.signatures[aide.signatureActive].documentation
+            assertTrue(
+                documentation?.contains("version vivante") == true,
+                "la KDoc vient de l'arbre VIF du document tiers ouvert — obtenu : $documentation",
+            )
+        } finally {
+            s.close()
+        }
+    }
+
+    @Test
+    fun `signature---candidate-du-classpath-sans-documentation,-le-bytecode-est-muet`() {
+        val s = session()
+        try {
+            val source =
+                "import android.widget.TextView\n" +
+                    "fun regler(vue: TextView) {\n" +
+                    "  vue.setText(\"x\")\n" +
+                    "}\n"
+            val uri = "file:///reglage.kt"
+            s.ouvrir(uri, source)
+            val aide = assertNotNull(s.signature(uri, source.indexOf("setText(") + "setText(".length))
+            assertEquals("setText(CharSequence): Unit", aide.signatures[aide.signatureActive].etiquette)
+            assertEquals(
+                null,
+                aide.signatures[aide.signatureActive].documentation,
+                "la candidate JVM ne porte AUCUNE documentation (bytecode sans doc, D3)",
+            )
+        } finally {
+            s.close()
+        }
+    }
+
+    @Test
+    fun `signature---membre-vif-de-la-classe-englobante,-KDoc-vive`() {
+        val s = session()
+        try {
+            val source =
+                "class Machine {\n" +
+                    "  /**\n" +
+                    "   * Redémarre la machine.\n" +
+                    "   */\n" +
+                    "  fun redemarrer(force: Boolean) {}\n" +
+                    "  fun essai() {\n" +
+                    "    redemarrer(true)\n" +
+                    "  }\n" +
+                    "}\n"
+            val uri = "file:///machine.kt"
+            s.ouvrir(uri, source)
+            val aide = assertNotNull(s.signature(uri, source.indexOf("redemarrer(true)") + "redemarrer(".length))
+            assertEquals("redemarrer(force: Boolean)", aide.signatures[aide.signatureActive].etiquette)
+            assertEquals("Redémarre la machine.", aide.signatures[aide.signatureActive].documentation)
         } finally {
             s.close()
         }

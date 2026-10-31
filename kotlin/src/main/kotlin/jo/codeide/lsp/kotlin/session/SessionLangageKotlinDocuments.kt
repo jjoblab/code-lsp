@@ -10,6 +10,7 @@ package jo.codeide.lsp.kotlin.session
 import java.io.File
 import java.nio.file.Files
 import java.util.concurrent.locks.ReentrantReadWriteLock
+import jo.codeide.lsp.kotlin.api.AideSignatureKotlin
 import jo.codeide.lsp.kotlin.api.ClasspathKotlin
 import jo.codeide.lsp.kotlin.api.ChaineSelectionKotlin
 import jo.codeide.lsp.kotlin.api.DiagnosticKotlin
@@ -989,6 +990,36 @@ internal class SessionLangageKotlinDocuments(
             if (fermee) return@read emptyList()
             val document = documents[uri] ?: return@read emptyList()
             SelectionsDocuments.selections(document.arbre, deplacements)
+        }
+    }
+
+    /**
+     * Rend l'aide à la signature au point demandé (fiches 051/018) : la
+     * chaîne des appels ancêtres se parcourt du plus profond au plus
+     * externe ; les documents ouverts et le scan se consultent HORS verrou
+     * (miroir du survol), l'univers tolère un index absent (les candidates
+     * PROJET ne consultent pas le classpath).
+     */
+    override fun signature(uri: String, deplacement: Int): AideSignatureKotlin? {
+        val document =
+            verrou.read {
+                if (fermee) return@read null
+                documents[uri]
+            } ?: return null
+        val autres: List<Pair<String, DocumentOuvert>> =
+            verrou.read {
+                if (fermee) return@read emptyList()
+                documents.entries.filter { it.key != uri }.map { it.key to it.value }
+            }
+        val scan = verrou.read {
+            if (fermee) return@read null
+            scanPublie
+        }
+        val guichet = indexSiPret()
+        val univers = universDePreuves(document, uri, guichet?.vue, guichet?.vueJvm)
+        return verrou.read {
+            if (fermee) return@read null
+            SignatureDocuments.signature(document, autres, scan, deplacement, univers)
         }
     }
 
