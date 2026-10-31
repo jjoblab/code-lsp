@@ -50,6 +50,29 @@ complètent les ADR (`docs/adr/`) — en cas de doute, l'ADR prime.
   statut, décision, justification — jamais « en bloc »).
 - La CI refuse tout fichier hors registre (`scripts/verifier-provenance.sh`).
 
+## Références externes (liste blanche — décision propriétaire du 31/10/2026)
+
+- Les **seuls** projets tiers nommables dans le code, les KDoc, les ADR, les
+  commits et les rapports de ce dépôt sont : **IntelliJ Platform / Android
+  Studio / plugin Android / Android Lint** (comme *références de comportement*
+  — la cible de niveau demandée par le propriétaire), **ecj/JDT**, **lsp4j**,
+  **java-syntax**, et les artefacts déjà inscrits au registre de provenance
+  (`docs/PROVENANCE-REPRISE.md`).
+- **Aucun autre projet tiers ne doit être mentionné, nulle part** (code, KDoc,
+  ADR, CHANGELOG, commits, rapports, noms de tests). Si un design s'inspire d'un
+  projet hors liste, son nom ne s'écrit pas : le comportement et la décision de
+  conception se décrivent pour eux-mêmes.
+- **Aucune copie de code IntelliJ/Android Studio.** L'inspiration est celle des
+  *designs et comportements* (même régime que l'étude D1–D12 : lecture seule,
+  réécriture clean-room). Toute reprise littérale — même d'un fichier de test ou
+  de donnée de test — passe par `docs/PROVENANCE-REPRISE.md` + `NOTICE`
+  (Apache-2.0 : attribution et indication des modifications). Par défaut :
+  **extraire des comportements** (fiches du cahier), pas copier des fichiers.
+- Les projets servant de **corpus de test** (cibles du banc P1–P8) sont des
+  *données de corpus*, pas des références de conception : ils vivent au registre
+  de provenance §Corpus avec leur rôle et leurs commits épinglés — leur nom
+  n'apparaît nulle part ailleurs.
+
 ## Git et push — TRÈS IMPORTANT
 
 - **Avant CHAQUE push** : exécuter `GITHUB_TOKEN=<jeton> scripts/verifier-push.sh`.
