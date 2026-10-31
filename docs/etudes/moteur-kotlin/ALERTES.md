@@ -227,6 +227,29 @@
     clôture étage 4) ; L'ÉTAGE 5 EST CLOS sous ces seuils, la marge
     tient pour l'étage 6 (serveur LSP : code moteur attendu, miroir des
     étages 4-5), surveillance maintenue.
+  - *Actualisation clôture étage 6 (31/10, vagues 6a-6e — chargeur,
+    capacités L2, fiche classpath, signature, SERVEUR LSP4J)* : les
+    moteurs d'indices/symboles d'espace/sélections/fiche classpath/
+    signature, le SPI et la couche `protocole/` NEUVE (CycleVie,
+    EtatsDocuments époque, CapacitesServeur, ConvertisseurLsp,
+    PublicateurDiagnostics, ServeurLangageKotlin) portent le dex à
+    **26 590 méthodes / 4 294 236 o (4,10 Mo)** [mesuré, bac à sable, d8
+    build-tools 34, min-api 26, mêmes commandes que la CI] — méthodes
+    **81 %** du plafond 32 768, taille **68 %** du budget 6 Mo
+    (+550 méthodes / +97 512 o vs la clôture étage 5). **Le CÂBLE
+    lsp4j n'est PAS compté** : `org.eclipse.lsp4j:org.eclipse.lsp4j:0.21.2`
+    est en scope RUNTIME du module (miroir `:java` N8 — le jar du moteur
+    ne l'embarque PAS), le câble cel-lsp étant COMMUN et PORTÉ PAR
+    L'HÔTE (EPL-2.0 : les conditions binaires rejoignent P-K2, action
+    propriétaire du journal 09 §4). **Mesuré pour mémoire** [mesuré,
+    mêmes commandes + lsp4j + lsp4j.jsonrpc + gson 2.11.0 en entrée] :
+    la pile AVEC le câble entier ferait 32 643 méthodes / 4 974 608 o
+    (4,74 Mo) — **99,6 % du plafond méthodes** si l'hôte ne portait PAS
+    déjà le câble : le levier consigné si un jour le pack devait
+    embarquer lsp4j lui-même est la réduction du câble (gson est la
+    moitié du coût) ou l'arbitrage du budget. L'ÉTAGE 6 EST CLOS sous
+    les seuils (la CI mesure la même pile que ci-dessus — aucun changement
+    de job requis), surveillance maintenue pour le transverse T.
 
 ## 5. Points restés « à vérifier » (non clos par l'étude)
 
