@@ -20,6 +20,51 @@
 > tests sources anciens restent consultables (R9.5) pour les FIXTURES,
 > jamais copiés.
 >
+> **Mise à jour (31/10, vague 4b) — LA NAVIGATION DE TYPES EST LIVRÉE
+> avec la fiche 053 ENTIÈRE (7 comportements — `typeDefinition` et
+> `implementations`, plan 1.3.0 L2) : la DÉFINITION DE TYPE sous le
+> point (la référence de TYPE visée, le type ÉCRIT d'une propriété ou
+> d'un paramètre dont le nom est sous le caret, la CLASSE CONSTRUITE
+> d'un appel de constructeur — le type inféré d'un initialiseur n'est
+> pas de cette vague, D3) et ses IMPLÉMENTATIONS (les héritiers
+> PROUVÉS : le supertype ÉCRIT de chaque candidat résout PAR FQCN par
+> les IMPORTS de SON PROPRE fichier — l'import PRIME le paquet courant,
+> sémantique du compilateur — jamais par homonymie de nom simple : deux
+> `Base` de paquets distincts ne se confondent pas ; document courant EN
+> TÊTE, fermés du scan ensuite) — la PREUVE est PROJET : un type du
+> CLASSPATH sans source projet n'est jamais servi, l'incertain rend
+> VIDE.**
+>
+> **Mise à jour (31/10, vague 4c) — LE GO-TO SUPER EST LIVRÉ avec la
+> fiche 052 ENTIÈRE (10 comportements — ADR 0210,
+> `textDocument/superDefinition`, miroir des scénarios NavigationFacade
+> Test du LSP Java) : les DEUX chemins du picker — (1) MEMBRE au caret
+> (la déclaration OUTREPASSANTE, ou un usage RÉSOLU NON AMBIGU : le nom
+> doit vivre dans EXACTEMENT UN type de la chaîne du récepteur — deux
+> homonymes rendent le silence, borne O3, le moteur ne présage jamais)
+> → le MÊME-NOMMÉ dans chaque supertype TRANSITIF projet du déclarant
+> (`« run  ·  Base »`, triés par libellé) ; (2) la RETOMBÉE TYPE : le
+> type en contexte (la référence de type sous le caret, à défaut la
+> classe ENGLOBANTE) → ses supertypes DIRECTS ÉCRITS (`« Base  ·
+> demo »`) — chaque supertype prouvé PAR FQCN dans le fichier de SON
+> sous-type, un supertype classpath sans source projet est ABSENT,
+> jamais un faux jalon.**
+>
+> **Mise à jour (31/10, vague 4d — CLÔTURE DE L'ÉTAGE 4) — L'ÉTAGE EST
+> CLOS SUR PREUVE MÉCANIQUE : 38/38 comportements navigation (fiches
+> 048/053/052 — §5, §6, §7), les DEUX critères de sortie §2 attestés
+> (rappel usages = oracle : chaque usage réellement lié listé, ni plus
+> ni moins — homonymes, ombrages et copies fantômes écartés ; 0 conflit
+> manqué : le renommage couvre déclaration + usages + imports, liste
+> VIDE sans cible prouvée) ; suite 431 tests VERTS (393 + 38 —
+> exactement UN test par comportement, miroir du cahier), jar 821 750 o,
+> scan ART 6 × AUCUNE (moteur 289 classes / 307 méthodes déclarées), dex
+> d8 25 823 méthodes (79 % du plafond) / 3,95 Mo (66 % du budget 6 Mo),
+> bancs verts (déterminisme IDENTIQUE ; complétion p95 5,07 ms, 0 saut),
+> provenance rc=0 — et le RECALAGE N° 3 de l'effort (§8.4 : la
+> dominante navigation s'est révélée MOINS COÛTEUSE que l'abaque —
+> ~112 l. par comportement, l'étage 3 en coûtait ~135).**
+>
 > **Mise à jour (31/10, vague 4a) — LA PREUVE DE LIAISON DES OCCURRENCES
 > EST LIVRÉE avec la fiche 048 ENTIÈRE (21 comportements — le contrat S2
 > « references / documentHighlight / rename borné » du plan de
@@ -61,9 +106,9 @@
 
 | Critère | État | Preuve |
 |---|---|---|
-| 38 comportements navigation verts (fiches 048 + 052 + 053) | **21/38** (fiche 048 — §5 ; fiches 053/052 à venir) | `Fiche048SessionLangageKotlinOccurrencesTest` : 21 |
-| Rappel usages = oracle (chaque usage réellement lié listé, ni plus ni moins — homonymes et ombrages écartés) | **ATTEINT sur la fiche 048** (§5 : les 9 familles de references éprouvent le rappel ET la précision — l'homonyme sans preuve rend vide, l'ombrage exclut, la copie fantôme du scan n'entre pas) | idem |
-| 0 conflit manqué (le renommage couvre déclaration + usages + imports ; sans cible prouvée : liste vide, jamais un renommage partiel silencieux) | **ATTEINT sur la fiche 048** (§5 : renommage same-file / propriété de constructeur / multi-fichiers avec import / sans cible) | idem |
+| 38 comportements navigation verts (fiches 048 + 052 + 053) | **38/38** (fiche 048 — §5 ; fiche 053 — §6 ; fiche 052 — §7) | `Fiche048SessionLangageKotlinOccurrencesTest` : 21 ; `Fiche053TypesKotlinTest` : 7 ; `Fiche052SuperKotlinTest` : 10 |
+| Rappel usages = oracle (chaque usage réellement lié listé, ni plus ni moins — homonymes et ombrages écartés) | **ATTEINT** (§5 : les 9 familles de references éprouvent le rappel ET la précision — l'homonyme sans preuve rend vide, l'ombrage exclut, la copie fantôme du scan n'entre pas ; §6 : l'homonymie de supertypes par imports, jamais par nom simple) | idem |
+| 0 conflit manqué (le renommage couvre déclaration + usages + imports ; sans cible prouvée : liste vide, jamais un renommage partiel silencieux) | **ATTEINT** (§5 : renommage same-file / propriété de constructeur / multi-fichiers avec import / sans cible ; les cibles de types et super exigent une déclaration prouvée — §6/§7) | idem |
 
 ## 3. Plan de vagues (cahier en main — l'ordre suit la dépendance des mécanismes : la preuve de liaison d'abord, elle nourrit types et super ensuite)
 
@@ -168,9 +213,12 @@ CI 10 tâches verte + section du présent journal + commit/push.
 ### 5.4 Preuves du bac à sable (avant poussée)
 
 - **Suite** : **414 tests VERTS** sur la toolchain 17 (393 + 21 de la
-  fiche 048) ; baseline de parité RE-SIGNÉE **384 → 385 fichiers** (le
-  fichier de test 048 entre au corpus, protocole habituel
-  `-Dparite.majBase=true --rerun-tasks`).
+  fiche 048) ; baseline de parité RE-SIGNÉE **384 → 386 fichiers** (le
+  moteur `OccurrencesProuvees.kt` et le fichier de test 048 entrent au
+  corpus, les 3 fichiers main touchés re-hachés — protocole habituel
+  `-Dparite.majBase=true --rerun-tasks` ; le message du commit de
+  livraison 4a annonce « 385 » : COQUILLE corrigée ici, le compte réel
+  est 386 — miroir des coquilles corrigées à la vague suivante).
 - **Jar moteur** : 794 597 o (+39 902 vs 3e — le moteur d'occurrences :
   1 fichier main ~1 280 l. + le SPI).
 - **Scan ART pile complète** : 6 × « AUCUNE », rc=0 (moteur 281 classes /
@@ -192,3 +240,190 @@ CI 10 tâches verte + section du présent journal + commit/push.
   l'ajout des 4 méthodes d'interface ne casse rien).
 - **Provenance** : `verifier-provenance.sh` rc=0 (aucune reprise — code
   NEUF intégral, zones noyau anciennes jamais consultées R9.1).
+
+## 6. Vague 4b — la navigation de types (31/10, fiche 053 — 7 comportements)
+
+### 6.1 Périmètre exécuté
+
+| # | Item | État | Détail |
+|---|---|---|---|
+| 1 | Le moteur `session/NavigationTypes.kt` | **Fait** | `typeDefinition` : la DÉFINITION DE TYPE sous le point — la référence de TYPE visée (TYPE_REFERENCE, clause de supertype, type de retour), le type ÉCRIT de la déclaration NOMMÉE (propriété, paramètre — le type inféré d'un initialiseur n'est pas de cette vague, D3), la CLASSE CONSTRUITE d'un appel de constructeur ; la cible est la DÉCLARATION du type du projet (uri + plage du nom, par FQCN) ; `implementations` : les héritiers PROUVÉS — le supertype ÉCRIT de chaque type candidat résout PAR FQCN vers la cible (document courant en tête en ordre du document, puis ouverts et fermés du scan en ordre de marche) |
+| 2 | La RÉSOLUTION d'un nom écrit DANS UN FICHIER | **Fait** | Les imports EXACTS D'ABORD (l'import PRIME le paquet courant — sémantique du compilateur : `package z ; import o.Base` y désigne o.Base), puis le fichier LUI-MÊME (un type déclaré du même nom y prime), puis le paquet courant, puis l'unicité projet ; un nom QUALIFIÉ se résout par FQCN direct du modèle ; un nom du CLASSPATH ne résout pas (pas de source projet à servir — D3) |
+| 3 | Le SPI | **Fait** | `typeDefinition(uri, deplacement)` et `implementations(uri, deplacement)` : `List<EmplacementKotlin>` — le montage des occurrences est PARTAGÉ (`fichiersParContenu` : l'ordre courant → ouverts → scan, pré-filtré par contenu du nom) |
+| 4 | Tests neufs | **Fait** | 7 comportements aux noms exacts du cahier : `Fiche053TypesKotlinTest` — montage miroir de la fiche 048 (moteur réel, projet multi-fichiers sur disque, documents implementations sous URI DISQUE RÉELLE : le scan exclut les documents ouverts PAR URI, comme la production) |
+
+### 6.2 Décisions d'exécution consignées
+
+1. **L'IMPORT PRIME LE PAQUET COURANT** : la résolution d'un nom écrit
+   teste les imports EXACTS AVANT le paquet du fichier — c'est la
+   sémantique du compilateur (`package z ; import o.Base ; class H :
+   Base()` désigne o.Base), et c'est ce qui porte la preuve d'homonymie
+   du comportement `implementations-homonymie` : le `Base` de
+   HeritierZ (paquet z, sans import) résout vers z.Base, PAS vers la
+   cible o.Base — jamais d'homonymie acceptée.
+2. **Les héritiers sont DIRECTS, documenté honnête** : un candidat entre
+   s'il porte la cible dans SES supertypes ÉCRITS ; les héritiers
+   INDIRECTS (petits-enfants par la clôture transitive) relèvent du
+   suivi — la preuve par les imports ne s'appliquerait qu'aux clauses de
+   chaque maillon de la chaîne, la fiche ne l'exige pas (D3 : mieux
+   vaut sous-rapporter que deviner).
+3. **La cible de typeDefinition exige sa DÉCLARATION** : sans plage du
+   nom trouvée dans le fichier déclarant (type du modèle sans uri
+   lisible), la cible n'est pas servie — jamais un emplacement deviné.
+
+### 6.3 Preuves du bac à sable (avant poussée)
+
+- **Fiche** : `Fiche053TypesKotlinTest` **7/7 VERTS à la PREMIÈRE
+  exécution** (aucune retouche du moteur après son écriture).
+
+## 7. Vague 4c — le go-to super (31/10, fiche 052 — 10 comportements)
+
+### 7.1 Périmètre exécuté
+
+| # | Item | État | Détail |
+|---|---|---|---|
+| 1 | Le moteur `session/NavigationSuper.kt` | **Fait** | Le CHEMIN MEMBRE : la déclaration OUTREPASSANTE (le site de déclaration dans une classe — corps, constructeur primaire) ou un usage RÉSOLU NON AMBIGU (sélecteur qualifié par le typage du récepteur, nom nu par la pile des this — le nom doit vivre dans EXACTEMENT UN type de la chaîne du récepteur) → le MÊME-NOMMÉ dans chaque supertype TRANSITIF projet du déclarant (`« run  ·  Base »`, TRIÉS PAR LIBELLÉ — l'ordre du picker) ; la RETOMBÉE TYPE : le type EN CONTEXTE (référence de type sous le caret, à défaut la classe ENGLOBANTE) → ses supertypes DIRECTS ÉCRITS (`« Base  ·  demo »`) |
+| 2 | La CHAÎNE TRANSITIVE | **Fait** | La fermeture des supertypes ÉCRITS résolus PAR FQCN dans le fichier de CHAQUE sous-type (garde de cycle) — les maillons classpath sont ABSENTS, jamais devinés ; la même matière sert la garde d'ambiguïté (compter les porteurs du nom dans la chaîne du récepteur) et les cibles du même-nommé |
+| 3 | Le SPI | **Fait** | `CibleSuperKotlin` (uri + libellé picker + plage du nom) et `superDefinition(uri, deplacement)` — les libellés sont NEUTRES (`« nom  ·  déclarant »`, `« Simple  ·  pkg »`), l'hôte les affiche tels quels (miroir des libellés ecj, jamais interprétés) |
+| 4 | Tests neufs | **Fait** | 10 comportements aux noms exacts du cahier : `Fiche052SuperKotlinTest` — fixtures miroir de `NavigationFacadeTest` Java (Base/ImplA/ImplB, Greeter/EnGreeter, Main, Usage, MaVue : View du classpath sans source) |
+
+### 7.2 Décisions d'exécution consignées
+
+1. **La borne O3 est une GARDE D'AMBIGUÏTÉ, pas une absence de
+   résolution** : le chemin membre sur un USAGE exige que le nom vive
+   dans EXACTEMENT UN type de la chaîne du récepteur — deux homonymes
+   (un override ET sa déclaration) rendent le silence : le moteur ne
+   présage JAMAIS le membre d'un récepteur de type projet ; le chemin
+   usuel (curseur sur la DÉCLARATION outrepassante) n'a pas cette garde
+   — la cible y est la déclaration désignée, l'ambiguïté ne se pose
+   pas.
+2. **La retombée TYPE est le DEUXIÈME chemin, pas un repli de
+   complaisance** : après un chemin membre sans même-nommé (une
+   propriété NON outrepassante, un membre sans héritage), le picker
+   montre les supertypes DIRECTS du type en contexte — la classe
+   ENGLOBANTE du caret (miroir contextType ecj) ou la référence de type
+   sous le caret ; les supertypes IMPLICITES (Any) ne sont jamais
+   montrés (jamais écrits, jamais prouvables).
+3. **Les PARTAGES internes sont consignés** : `OccurrencesProuvees.siteMembreDe` et
+   `NavigationTypes.typeDuNomEcrit`/`plageNomDuType` passent `internal`
+   — les trois moteurs de navigation vivent du MÊME montage (documents
+   ouverts, scan re-parsé, modèle global), les partages sont nommés et
+   documentés, jamais copiés.
+
+### 7.3 Preuves du bac à sable (avant poussée)
+
+- **Fiche** : `Fiche052SuperKotlinTest` **10/10 VERTS** (trois écarts de
+  mise au vert, tous dans le FICHIER DE TEST : l'ordre des arguments
+  `assertEquals(message, …)` de kotlin.test — le moteur n'a exigé
+  AUCUNE retouche après sa première rédaction).
+
+## 8. Vague 4d — la clôture de l'étage 4 (31/10)
+
+### 8.1 Périmètre exécuté
+
+| # | Item | État | Détail |
+|---|---|---|---|
+| 1 | Preuves mécaniques complètes | **Fait** | §8.3 (suite, jar, scan ART pile, dexage d8, bancs JDK 17, banc de qualité, compilation croisée, provenance) |
+| 2 | Journal | **Fait** | Le présent document (en-tête des quatre vagues, §5–§7, la clôture §8) |
+| 3 | ALERTES | **Fait** | E-K8 actualisée (§4 : 4b+4c portent le dex à 25 823 méthodes / 3,95 Mo — 79 % / 66 %) |
+| 4 | Recalage n° 3 de l'effort | **Fait** | §8.4 (recommandé par le recalage n° 2 — la dominante navigation y est mesurée) |
+
+### 8.2 Ce que l'étage 4 a livré (synthèse)
+
+La NAVIGATION du moteur Kotlin est PROUVÉE : les occurrences
+multi-fichiers par la preuve de liaison (references au drapeau,
+documentHighlight ECRITURE/LECTURE, prepareRename, rename borné —
+déclaration + usages + segments d'import, l'homonyme sans preuve rend
+vide), la navigation de types (typeDefinition par les imports du
+fichier du curseur, implementations par FQCN — jamais par homonymie de
+nom simple), et le go-to super (les deux chemins du picker, la clôture
+transitive, les bornes O3 et D3). Le germe de la vague 2e
+(`definition`/`occurrences`/`symboles` périmètre document) demeure
+couvert — la navigation prouvée vit à côté, le contrat de chaque
+entrant est documenté au SPI.
+
+### 8.3 Preuves du bac à sable (avant poussée)
+
+- **Suite** : **431 tests VERTS** sur la toolchain 17 (393 + 21 + 7 + 10
+  — exactement UN test par comportement du cahier, miroir de
+  l'extraction) ; baseline de parité RE-SIGNÉE **386 → 390 fichiers**
+  (les moteurs `NavigationTypes.kt` et `NavigationSuper.kt`, les tests
+  052/053, et les 4 fichiers main re-hachés — 384 → 386 → 390 sur
+  l'étage).
+- **Jar moteur** : 821 750 o (+67 153 vs 3e : les trois moteurs de
+  navigation + le SPI étendu).
+- **Scan ART pile complète** : 6 × « AUCUNE », rc=0 (moteur 289 classes /
+  307 méthodes déclarées — borne basse ; ServiceLoader OK descripteur
+  vérifié).
+- **Dexage d8** (build-tools 34 local, min-api 26) : **25 823 références
+  de méthodes (79 % du plafond 32 768) / 4 146 236 o = 3,95 Mo (66 % du
+  budget 6 Mo)** — +187 méthodes / +56 172 o sur l'étage vs la clôture
+  3e ; seuils tenus (E-K8 : surveillance maintenue, ALERTES §4
+  actualisée).
+- **Banc JDK 17** (bac à sable, 2 cœurs) : froid 201,4/45,0 ms,
+  p50 6,0/21,5 ms, p95 35,4/49,6 ms, productions 5 448/31 368 et jetons
+  4 210/24 274 — déterminisme IDENTIQUE (la grammaire n'est pas
+  touchée), marqueurs d'erreur 0, tas 3 489 Kio.
+- **Banc de qualité** (`:kotlin:benchQualite`) : **VERT** — genres 16/16
+  déterministes, sauts 0, p95 5,07 ms (baseline signée 7,53 ms — sous
+  la baseline, tolérance ×1,5 tenue).
+- **Compilation croisée** : `testClasses` de TOUS les modules (les 3
+  méthodes d'interface ajoutées au SPI ne cassent rien — aucun autre
+  module ne l'implémente).
+- **Provenance** : `verifier-provenance.sh` rc=0 (aucune reprise — code
+  NEUF intégral, zones noyau anciennes jamais consultées R9.1).
+
+### 8.4 Clôture de la vague 4d, de l'ÉTAGE 4 — et recalage n° 3 de l'effort
+
+**LES TROIS CRITÈRES DE SORTIE DE L'ÉTAGE 4 (§2) SONT ATTESTÉS** :
+
+1. **38/38 comportements navigation verts** (fiches 048/053/052 — §5,
+   §6, §7) ;
+2. **Rappel usages = oracle** — chaque usage réellement lié est listé,
+   ni plus ni moins : l'homonyme sans preuve rend VIDE, la locale
+   ombrageante reste HORS liste, la copie fantôme du scan écartée par
+   sa propre déclaration, le supertype d'un héritier résout par les
+   IMPORTS de son fichier, jamais par nom simple ;
+3. **0 conflit manqué** — le renommage couvre déclaration + usages +
+   segments d'import multi-fichiers, et rend une liste VIDE sans cible
+   prouvée (l'hôte en fait une erreur typée) : jamais un renommage
+   partiel silencieux.
+
+**L'ÉTAGE 4 EST CLOS sur preuve mécanique.** L'étage 5 (confort
+éditeur : formatage borné, pliage, imports, membres manquants, previews,
+actions — 20–32 j-h [estimé]) est le suivant.
+
+#### Le recalage n° 3 de l'effort (miroir des recalages n° 1 et 2)
+
+**Ce que l'étage 4 a coûté** [mesuré — commandes : `git diff
+--shortstat 782abd8..HEAD`, comptes des tests des journaux §5–§7] :
+
+| Grandeur | Valeur | Détail |
+|---|---:|---|
+| Commits de l'étage | 3 | 4a (livraison poussée `9f95bf7`), 4b+4c (livraison conjointe — les deux vagues prêtes ensemble), 4d (clôture) — borne : clôture alertes étage 3 `782abd8` |
+| Fichiers touchés | 12 | +4 271 / −6 lignes (main, tests, journaux, digeste) |
+| `kotlin/` main | 6 fichiers, +2 602 / −3 | `OccurrencesProuvees.kt` (1 298 l.), `NavigationSuper.kt` (515 l.), `NavigationTypes.kt` (378 l.), SPI (`NavigationKotlin` +70, `SessionLangageKotlin` +169) et session (+172) |
+| `kotlin/` test | 3 fichiers, +1 222 | fiches 048/052/053 (553 + 378 + 291 l. — 21 + 10 + 7 tests) |
+| Tests du module | 393 → **431** | +38 pour 38 comportements — EXACTEMENT 1 test/comportement |
+| Tempo [mesuré-agent] | 31/10 ~00:00 → ~00:40 (UTC+8) | 4 vagues en ~40 min de séance continue (l'étage 3 : ~5 h — la navigation est une dominante DOCUMENTÉE plus légère) |
+
+**Comparaison à l'estimation** : la fourchette de l'étage 4 était
+**24–38 j-h [estimé]** (synthèse §4). Le rythme agent n'est pas
+transposable au jour-homme humain (miroir des recalages 1 et 2) : à
+**~112 lignes par comportement** (≈ 4 271 l. / 38 comport. — main,
+tests ET journaux compris) contre ~135 pour l'étage 3 et ~85 pour
+l'étage 2, la dominante navigation s'est révélée MOINS COÛTEUSE que
+l'abaque le postulait — le socle livré aux étages 1-3 (clôture
+d'héritage 2c, typage borné, pile des this, scan multi-fichiers) a
+porté les trois moteurs de navigation SANS aucun mécanisme neuf de
+fond : les trois écarts corrigés en 4a (§5.2) étaient des erreurs de
+rédaction, pas des découvertes d'architecture.
+
+**Re-projection** [estimé] : les étages restants (5 confort, 6 serveur
+LSP, T transverse) restent à l'abaque de la synthèse §4 — **44–70 j-h**
+cumulés. Le recalage n° 2 conditionnait un recalage n° 3 « si écart au
+rythme observé » : l'écart est À LA BAISSE, l'abaque tient (mieux :
+le coût marginal baisse à mesure que le socle s'épaissit) — aucun
+recalage supplémentaire n'est requis jusqu'à la clôture du programme.
+Les 3 recalages du plan sont faits (n° 1 étage 2, n° 2 étage 3, n° 3
+ici).

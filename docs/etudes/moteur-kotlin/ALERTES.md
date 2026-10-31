@@ -210,6 +210,14 @@
     +34 060 o) ; la marge tient pour les vagues 4b-4d (navigation de
     types et super : code moteur marginal attendu, miroir 4a),
     surveillance maintenue.
+  - *Actualisation clôture étage 4 (31/10, vagues 4b+4c — navigation de
+    types et go-to super)* : les deux moteurs (`NavigationTypes.kt`,
+    `NavigationSuper.kt`) portent le dex à **25 823 méthodes /
+    4 146 236 o (3,95 Mo)** — méthodes **79 %** du plafond 32 768,
+    taille **66 %** du budget 6 Mo (+72 méthodes / +22 112 o vs 4a ;
+    +187 / +56 172 sur l'étage complet) ; L'ÉTAGE 4 EST CLOS sous ces
+    seuils, la marge tient pour les étages 5-6 (confort et serveur LSP :
+    code moteur attendu, miroir de l'étage 4), surveillance maintenue.
 
 ## 5. Points restés « à vérifier » (non clos par l'étude)
 
