@@ -3,8 +3,12 @@
 - **Statut** : Accepté — **phase 1 (V-F1 : époque C + double-tampon +
   annulation fine de base) LIVRÉE le 31/10/2026 au soir** (PV dans
   `04-plan-vagues.md` §V-F1 et `mesures/2026-10-31-vf1-double-tampon.txt`) ;
-  phases 2–5 (verrous B, budgets/onTrim, priorité visible, incrémentalité)
-  restent à livrer dans la vague V-F finale.
+  **phase 2 (V-F2 : verrous B par périmètre + chaos tests) LIVRÉE le
+  31/10/2026 au soir** (PV dans `mesures/2026-10-31-vf2-vc1-vc2.txt` —
+  comptage `synchronized(` 99 → 0 pour la cible < 6, métrique CI portée
+  par `VerrousPerimetreTest` ; chaos 6 fils verts ; banc de charge
+  « complétion A ∥ diagnose B » TENU) ; phases 3–5 (budgets/onTrim,
+  priorité visible, incrémentalité) restent à livrer.
 - **Date** : 2026-10-31
 - **Écarts résolus** : G-029 (partiel — annulation fine + époques), G-030
   (double-tampon), G-031, G-033 (`01-audit-moteur.md` §1.13, §1.14)
@@ -135,9 +139,24 @@ plan 04 comme vague **V-F**, avec dépendance inversée : V-F1 **avant** V-C
   raison) ; `clean build` strict (P1–P8) VERT ; d8 1,000/1,000/1,000 p95
   35,96 ms ; usages rappel 1,000 p95 40,62 ms ; parité verte ; banc N1 tenu
   (diagnose rapide p50 4,8 ms, tas 17 Mo).
-- **Phases 2–5** : à livrer dans la vague V-F finale (verrous par périmètre +
-  chaos tests, budgets octets + onTrimMemory, plage prioritaire, incrémentalité
-  conditionnée ADR 0017/0006).
+- **V-F2 (31/10/2026) — LIVRÉE.** Schéma B de l'ADR 0010 enfin exécuté :
+  verrous NOMMÉS par périmètre (orchestration → compilation → services →
+  feuilles — le moniteur d'instance du moteur est retiré), comptage
+  `synchronized(` 99 → 0 (cible < 6) ; lectures parallèles de fichiers
+  distincts (mémo carte concurrente, complétion chaude sans verrou — les
+  lambdas pont/environnement re-verrouillent seules, sonde de régime sur
+  environnement VOLATILE, balayages hors verrou avec reprise par
+  résolution) ; `PontEcj` sans AUCUN état mutable partagé (options et
+  usine frais par passe) ; ordonnanceur en POOL plafonné (2 par défaut,
+  propriété bornée 1..3 — fiche 048 amendée : jamais deux tâches du même
+  fichier en vol). Chaos test multi-fils (dump des piles en échec) et
+  banc de charge ADR 0010 (complétion A ∥ diagnose B : p95 33 ms
+  concurrent vs 43 séquentiel — l'ancien moniteur échouait) — verts.
+  Note honnête différée à V-C3 : la collecte de membres sur type BINAIRE
+  jrt paie l'énumération à chaque appel (mesuré 15–26 ms).
+- **Phases 3–5** : à livrer dans la vague V-F finale (budgets octets +
+  onTrimMemory, plage prioritaire, incrémentalité conditionnée ADR
+  0017/0006).
 
 ## Tests de non-régression et critères de sortie
 

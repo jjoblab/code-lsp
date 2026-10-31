@@ -369,7 +369,77 @@ complètent la couverture.
 - **Effort [estimé]** : **8–14 j-h**. **Côté hôte** : signaler le moment de la sync
   (déjà le cas).
 
+### V-F2 — Performance : verrous par périmètre + chaos tests (remontée avant V-C)
+
+> **LIVRÉE le 31/10/2026 au soir** (ADR 0029 phase 2 — exécution du
+> schéma B de l'ADR 0010) :
+>
+> - **Verrous par périmètre** : le moniteur d'instance du moteur (51
+>   `synchronized` dans `MoteurJava.kt`, 99 dans `java/src/main`) est
+>   remplacé par des verrous NOMMÉS — `verrouCompilation` (le périmètre
+>   MODULE : tout ce qui touche le pont ecj, l'environnement de noms ou
+>   un arbre résolu ; la drainage de `dispose` est préservée),
+>   `verrouServices` (inits paresseuses), feuilles thread-sûres
+>   (annuaire, index de mots, cartes d'octets des classes light en
+>   cartes CONCURRENTES, documents par verrou propre). ORDRE GLOBAL
+>   documenté : orchestration → compilation → services → feuilles.
+>   **Comptage `synchronized(` : 99 → 0** (cible ADR 0010 < 6 — la
+>   métrique est portée en CI par `VerrousPerimetreTest`).
+> - **Lectures parallèles de fichiers distincts** : le MÉMO de diagnose
+>   (carte concurrente, instantanés immuables), la complétion CHAUDE
+>   (sonde sur l'arbre du cache — les lambdas pont/environnement
+>   re-verrouillent seules), la sonde de régime (environnement VOLATILE)
+>   et les balayages d'usages/renommage (lectures disque hors verrou,
+>   reprise par résolution) ne se mettent JAMAIS derrière la résolution
+>   d'un autre fichier ; `PontEcj` ne détient plus AUCUN état mutable
+>   partagé (options et usine de problèmes frais par passe).
+> - **Ordonnanceur en pool plafonné** (fiche 048 AMENDÉE) : 2 workers
+>   par défaut, propriété `jo.codeide.lsp.java.ordonnanceur.workers`
+>   bornée 1..3 (`=1` rétablit le worker unique) ; jamais deux tâches
+>   du MÊME fichier en vol, fichiers distincts en parallèle (prouvé par
+>   rendez-vous déterministe).
+> - **Chaos + charge (critères ADR 0010)** : chaos 6 fils × 90
+>   opérations mêlées (syncs/époques, XML, invalidations) — 0
+>   interblocement (dump des piles en échec), 0 exception non attendue,
+>   verdict fiche 012 préservé ; banc de charge « complétion A ∥
+>   diagnose B » : p95 complétion 33 ms concurrent vs 43 séquentiel,
+>   diagnose 25 vs 19 — critère ≤ +10 % + 10 ms TENU (l'ancien moniteur
+>   échouait : concurrent ≈ somme des deux).
+>
+> **PV complet** : `mesures/2026-10-31-vf2-vc1-vc2.txt` (R5). **Reste
+> V-F phases 3–5** : budgets octets + onTrimMemory, plage prioritaire,
+> incrémentalité conditionnée (ADR 0017/0006).
+
 ### V-C — Intelligence (inspections, lint, complétion smart)
+
+> **V-C1 et V-C2 LIVRÉES le 31/10/2026 au soir** ; **V-C3 reste à livrer**
+> (complétion smart/typedef/littéraux R.*/second appel/chain/statement/
+> stats — découpée, dépend de la lecture approfondie d'`AnalyseurContexte`).
+> Détail dans `mesures/2026-10-31-vf2-vc1-vc2.txt` :
+>
+> - **V-C1 (ADR 0023, G-010 RÉSOLU)** : contrat d'inspection (visitor
+>   résilient, dumb-aware par construction) + profil (Warning/Info,
+>   JAMAIS Error — règle ADR 0013) + suppressions
+>   (`@SuppressWarnings` portée déclaration ENTIÈRE, `//noinspection`,
+>   tokens javac alignés) + les 8 pilotes ; provenance
+>   `source="inspection"` sur le `Diagnostic` (G-023 préparé) ;
+>   exécution dans les DEUX régimes (complet ET rapide sur arbre masqué,
+>   signaux des corps masqués PORTÉS — équivalence P1 éprouvée) ; repli
+>   `jo.codeide.lsp.java.inspections.disabled`. Pièges mesurés et
+>   corrigés : elvis sur `indexOf` (rend -1, pas null — boucle infinie),
+>   portée `declarationSourceStart/End`, opérateur des `BinaryExpression`
+>   dans `bits`, effacement générique des collections.
+> - **V-C2 (ADR 0024, G-011 RÉSOLU en première vague)** : base
+>   `api-versions.xml` (parseur StAX en tâche de fond, < 2 s cible ;
+>   script `scripts/preparer-base-api.sh`, propriété
+>   `jo.codeide.lsp.java.lint.baseapi`, repli honnête MUET sans base) ;
+>   **NewApi** (échappatoires `@RequiresApi`/`@TargetApi` + gardes
+>   `SDK_INT`, le déclarant réel fait foi), **InlinedApi**,
+>   **ObsoleteSdkInt**, **MissingSuperCall** (fix suggéré),
+>   **SetTextI18n** ; `@SuppressLint` (scalaire ou tableau) ; garde du
+>   circuit annotator (erreur de résolution = silence). **Restent** :
+>   Range, ResourceType, CommitPrefEdits, Recycle, mode global différé,
+>   segment CIDX compact de la base.
 
 - **Périmètre** : contrat d'inspection + profil + suppressions + 8 inspections
   pilotes puis DFA nullité intra-méthode (ADR 0023) ; contrôles lint mono-fichier +

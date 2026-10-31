@@ -1064,6 +1064,64 @@ régimes. Bornes d'honnêteté du rejeu : 3 résultats périmés puis livraison
 du dernier (clause miroir des documents), 8 coupures puis erreur franche
 sous churn de syncs soutenu.
 
+### 7.20 Concurrence, inspections et lint Android (vagues V-F2/V-C1/V-C2)
+
+**Verrous par périmètre (V-F2 — ADR 0029 phase 2)** : le moniteur
+d'instance historique du moteur est remplacé par des verrous NOMMÉS, avec
+un ordre global documenté (orchestration → compilation → services →
+feuilles). Ce que voit le client :
+
+- la **frappe ne se met plus derrière le travail des autres fichiers** :
+  un hit de mémo de diagnose, une complétion CHAUDE (sonde sur l'arbre du
+  cache) ou un hover servi depuis le cache répondent PENDANT la diagnose
+  d'un autre fichier du module (banc de charge : complétion p95 33 ms
+  concurrent vs 43 ms séquentiel) ;
+- les **balayages longs** (usages, renommage projet) ne tiennent plus le
+  périmètre compilation pendant leurs lectures disque — chaque résolution
+  de candidat reprend le verrou individuellement ;
+- **deux modules vivent en parallèle complet** (isolation lot E intacte).
+
+Replis documentés : l'ordonnanceur (fiche 048 amendée) est un POOL
+plafonné — `jo.codeide.lsp.java.ordonnanceur.workers=1` rétablit le
+worker unique d'avant V-F2 (jamais deux tâches du même fichier en vol
+dans tous les régimes) ; les verrous par périmètre sont un refactor
+conservant la sémantique (aucun drapeau : le repli est le revert du
+commit). La métrique CI « comptage `synchronized(` < 6 » est portée par
+`VerrousPerimetreTest` (valeur mesurée : 0).
+
+**Inspections (V-C1 — ADR 0023)** : la couche IDE au-dessus du
+compilateur — 8 inspections pilotes (StringEquality, IgnoreResultOfCall
+`@CheckResult`, RedundantCast, EqualsHashCode appareillés,
+SizeReplaceableByIsEmpty, StaticFieldReferenceOnSubclass,
+WrongPackageStatement, FormatString). Règle ADR 0013 inchangée : **le
+rouge n'a qu'une source (ecj)** — les inspections ajoutent des
+Warning/Info, JAMAIS une erreur ; leur provenance est transportée par le
+champ `source` du diagnostic (`"inspection"` / `"lint"` — filtrage et
+rendu côté hôte, relatedInformation en V-G). Suppressions :
+`@SuppressWarnings("id")` (portée = déclaration entière), `//noinspection
+id` (ligne courante ou précédente), tokens javac alignés quand ils
+existent. Les signaux survivent à la frappe confinée (portage des corps
+masqués — équivalence P1 éprouvée). Repli :
+`jo.codeide.lsp.java.inspections.disabled=true` (retour au rouge ecj
+seul).
+
+**Lint Android (V-C2 — ADR 0024)** : contrôles à valeur Java,
+mono-fichier, provenance `"lint"`, Warning LSP par défaut — NewApi
+signale du code VALIDE en compilation mais cassé à l'exécution sur
+minSdk. Livrés : **NewApi** (avec les échappatoires `@RequiresApi(n)` /
+`@TargetApi(n)` et gardes `Build.VERSION.SDK_INT >= n`),
+**InlinedApi**, **ObsoleteSdkInt**, **MissingSuperCall** (fix
+`super.x();` suggéré dans le message), **SetTextI18n**. Suppression :
+`@SuppressLint("NewApi")` (valeurs scalaires ou tableaux). La base
+`api-versions.xml` du SDK (≈ 5,5 Mo, jamais committée) se prépare par
+`bash scripts/preparer-base-api.sh` et se pose via
+`-Djo.codeide.lsp.java.lint.baseapi=<chemin>` ; **repli honnête** : sans
+base ou sans contrat Android (minSdk inconnu), les contrôles de niveau
+d'API restent MUETS — jamais un faux silence non plus : la présence de
+la base est observable (`BaseApiAndroid.disponible()`), et la passe lint
+se tait sur une unité portant une erreur de résolution (garde du circuit
+annotator de la référence).
+
 ## 8. Capability maison `x-codeide.completionRanking`
 
 Le protocole riche de classement (ADR 0012/0015, design intégré N8) :
@@ -1285,6 +1343,11 @@ reconstruit » est devenu ASYNCHRONE.
 | `bash scripts/kit-bascule.sh` | assemble le **kit de passe bascule sur appareil** (§8.5) : classes du banc + du moteur, ecj patché, dépendances, `banc-bascule.sh` — protocole et tables dans `bancs/GABARIT-BASCULE-APPAREIL.md` (R5 : mesures réelles du propriétaire, jamais simulées) |
 | `ANDROID_JAR=… ./gradlew :java:test` | ouvre les gates Android (fiches 033/004/036/043/044/050/053) — la CI télécharge android.jar API 34 (zip officiel) + AAR appcompat |
 | `./gradlew :java:test --tests jo.codeide.lsp.java.BancDoubleTamponTest` | **banc V-F1** (R5) : latence nominale vs PENDANT reconstruction tenue (p50/p95 µs, budget ADR « p95 ≤ 2× » imprimé), reconstruction réelle, coût du rejeu (2 passes) — la suite `DoubleTamponTest` (8 tests) verrouille les invariants : 0 figage, 0 réponse périmée, coupures fines, syncs rapides, repli, republication au swap |
+| `./gradlew :java:test --tests jo.codeide.lsp.java.VerrousPerimetreTest` | **banc V-F2** : la MÉTRIQUE CI `synchronized(` < 6 dans `java/src/main` (mesuré : 0) + les chemins sans ecj répondent pendant qu'un fil détient le verrou de compilation (et un chemin ecj BLOQUE — la sémantique une-résolution-à-la-fois est réelle) |
+| `./gradlew :java:test --tests jo.codeide.lsp.java.ChaosConcurrenceTest` | **chaos test V-F2** (ADR 0010/0029) : 6 fils × 90 opérations mêlées (diagnoses, complétions, syncs/époques, XML, invalidations) — 0 interblocement (dump des piles en échec), 0 exception non attendue, verdict fiche 012 préservé |
+| `./gradlew :java:test --tests jo.codeide.lsp.java.ChargeConcurrenteTest` | **banc de charge V-F2** (critère ADR 0010) : complétion fichier A ∥ diagnose fichier B — p95 de chacun ≤ séquentiel + 10 % + 10 ms (l'ancien moniteur échouait : concurrent ≈ somme des deux) |
+| `./gradlew :java:test --tests 'jo.codeide.lsp.java.InspectionsTest'` | **banc V-C1** : 12 cas dorés des inspections (détection, non-détection, suppression, mutants P4, P3 zéro-erreur, P1 frappe confinée, dumb-aware) |
+| `./gradlew :java:test --tests 'jo.codeide.lsp.java.ControlesLintTest'` | **banc V-C2** : 8 cas dorés du lint (échappatoires NewApi une à une, @SuppressLint, base synthétique, repli honnête, garde erreurs) — gate android.jar du banc |
 
 Re-baseline : par **PR dédiée** uniquement (ADR 0016 — jamais en passant).
 Re-pin de l'oracle (montée de version du vendored) : PR dédiée de re-pin +
@@ -1309,7 +1372,7 @@ re-signature de `parite-completion.json` (les stubs de façade suivent).
   dit pas de quel module il vient — ADR 0215) ; une source décompilée
   pendant un swap peut donc refléter l'époque précédente — la requête
   suivante re-sonde (comportement d'aperçu, jamais un diagnostic).
-- **Version 1.0.0 = bascule §8.5 SIGNÉE (30/10/2026)** ; **version 1.1.0 = intégration CodeIDE (§4.4 : régime vivant, option B arbitrée ; superDefinition aligné contrat vendord ; fiche 066)** ; **version 1.3.0 = vague V-E (références multi-fichiers D1, surbrillances composées typées, RPC usagesGroupes ; le 1.2.0 est SAUTÉ : valeur fantôme du vendord proscrite par la fiche 059 I7)** ; **version 1.4.0 = vague V-B (projet Android : modèle v11 + dérivateur disque, référentiel de ressources, classes light R/BuildConfig/Binding/BR, navigation ressource, interop Kotlin — décisions D2/D3/D6 ; `declasserDatabinding` RETIRÉ, rupture d'API consignée)** ; **version 1.5.0 = vague V-F1 (double-tampon + époques de l'environnement : 0 figage / 0 réponse périmée, rejeu des requêtes coupées, annulation fine complétion + usages, republication au swap d'époque, repli `jo.codeide.lsp.java.doubletampon.disabled` — ADR 0029 phase 1, §7.19/§11.1)** : checklist 6/6 du
+- **Version 1.0.0 = bascule §8.5 SIGNÉE (30/10/2026)** ; **version 1.1.0 = intégration CodeIDE (§4.4 : régime vivant, option B arbitrée ; superDefinition aligné contrat vendord ; fiche 066)** ; **version 1.3.0 = vague V-E (références multi-fichiers D1, surbrillances composées typées, RPC usagesGroupes ; le 1.2.0 est SAUTÉ : valeur fantôme du vendord proscrite par la fiche 059 I7)** ; **version 1.4.0 = vague V-B (projet Android : modèle v11 + dérivateur disque, référentiel de ressources, classes light R/BuildConfig/Binding/BR, navigation ressource, interop Kotlin — décisions D2/D3/D6 ; `declasserDatabinding` RETIRÉ, rupture d'API consignée)** ; **version 1.5.0 = vague V-F1 (double-tampon + époques de l'environnement : 0 figage / 0 réponse périmée, rejeu des requêtes coupées, annulation fine complétion + usages, republication au swap d'époque, repli `jo.codeide.lsp.java.doubletampon.disabled` — ADR 0029 phase 1, §7.19/§11.1)** ; **version 1.6.0 = vagues V-F2 + V-C1/V-C2 (verrous par périmètre + chaos tests + banc de charge ADR 0010, comptage synchronized 99 → 0 ; inspections — contrat, profil, suppressions, 8 pilotes, provenance "inspection" ; lint Android — base api-versions en tâche de fond, NewApi/InlinedApi/ObsoleteSdkInt/MissingSuperCall/SetTextI18n, @SuppressLint, provenance "lint" — §7.20)** : checklist 6/6 du
   gabarit `bancs/GABARIT-BASCULE-APPAREIL.md` (passe appareil moto g06 —
   18/18, 0 saut, p50/p95 GLOBAL 42,93/73,01 ms ; deltas 165 arbitrés
   103/62/0 — `ANALYSE-DELTAS-BASCULE.md`) ; `serverInfo.version` rend

@@ -1,6 +1,9 @@
 # ADR 0023 — Moteur d'inspections et profil de sévérités
 
-- **Statut** : Proposé
+- **Statut** : Accepté — **LIVRÉ en première vague le 31/10/2026** (V-C1 :
+  contrat + profil + suppressions + les 8 inspections pilotes ; PV dans
+  `mesures/2026-10-31-vf2-vc1-vc2.txt` ; reste du catalogue : DFA nullité
+  intra-méthode, unused global — après V-C3)
 - **Date** : 2026-10-31
 - **Écart résolu** : G-010 (`01-audit-moteur.md` §1.5) — exécution de l'option 1b restée en proposition de l'ADR 0013
 

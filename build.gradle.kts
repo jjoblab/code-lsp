@@ -127,6 +127,22 @@ plugins {
 // scan p95 95 ms / MAJ ciblée 1,26 ms / peson 126 Ko (budgets ADR
 // tenus), bancs qualité (d8 p95 31–50 ms, 1,000) et usages (1,000,
 // < 100 ms) non régressés, P1–P8 strict 0 violation.
+// 1.6.0 (31/10/2026, vagues V-F2 + V-C1/V-C2) : VERROUS PAR PÉRIMÈTRE
+// (ADR 0029 phase 2 / ADR 0010 schéma B — le moniteur d'instance du moteur
+// est remplacé par des verrous nommés, ordre global documenté, comptage
+// synchronized 99 → 0 pour la cible < 6 ; ordonnanceur en POOL plafonné
+// 2 par défaut, propriété jo.codeide.lsp.java.ordonnanceur.workers 1..3 ;
+// chaos test multi-fils + banc de charge ADR 0010 : complétion A p95
+// 33 ms concurrent vs 43 séquentiel, diagnose B 25 vs 19 — TENU) ;
+// INSPECTIONS (ADR 0023 / G-010 : contrat + profil + suppressions + 8
+// pilotes, provenance "inspection", jamais Error — la règle ADR 0013
+// tient) ; LINT ANDROID (ADR 0024 / G-011 : base api-versions en tâche de
+// fond, NewApi + InlinedApi + ObsoleteSdkInt + MissingSuperCall +
+// SetTextI18n, @SuppressLint, provenance "lint", repli honnête sans
+// base/contrat). Validation : 792 tests / 0 échec (tous modules ; 626
+// java dont 41 gates ignorées avec raison), build strict P1–P8 VERT,
+// bancs d8 (1,000 — p95 34,52 ms), usages (1,000 — p95 47,08 ms),
+// qualité VERT.
 // ---------------------------------------------------------------------------
 // VERSION DU DÉPÔT (fiche 059 I7 — serverInfo.version générée d'ICI).
 // 1.5.0 (31/10/2026, vague V-F1 — ADR 0029 phase 1) : DOUBLE-TAMPON +
@@ -145,5 +161,5 @@ plugins {
 // p95 35,96 ms), usages (1,000, p95 40,62 ms), parité et N1
 // (diagnose rapide p50 4,8 ms, tas 17 Mo) non régressés.
 allprojects {
-    version = "1.5.0"
+    version = "1.6.0"
 }

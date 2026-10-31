@@ -1,0 +1,128 @@
+PV DE MESURE — V-F2 (verrous par périmètre + chaos) + V-C1 (inspections)
++ V-C2 (lint Android) — 31/10/2026 (fin de journée)
+=================================================================
+
+R5 : AUCUNE valeur fabriquée. Toutes les mesures ci-dessous proviennent des
+bancs exécutés ce jour, transcripts dans les sorties de test (JVM du banc,
+fixtures minimales — l'appareil paie le facteur ART 3–5× du spike, mesure
+au gabarit 07 du propriétaire, jamais simulée).
+
+--- V-F2 : verrous par périmètre (ADR 0029 phase 2 / ADR 0010 schéma B) ---
+
+Comptage synchronized( (métrique CI, VerrousPerimetreTest — portée par
+un test qui marche java/src/main) :
+  avant V-F2 : 99 occurrences (dont 51 dans MoteurJava.kt — le moniteur
+               d'instance ; audit initial : 82, croissance V-B/V-F1)
+  après V-F2 : 0 occurrence   (cible ADR 0010 : < 6 — TENUE)
+
+Chaos test (ChaosConcurrenceTest, JVM) : 6 fils × 90 itérations sur un
+  environnement à 2 modules, opérations mêlées : diagnose alternée (travail
+  réel, mémo impossible), hover, complétion, references, syncs
+  (remplacements effectifs → époques + double-tampon), rafraîchissement
+  XML, invalidations parse/présence, surbrillances, chaînes de sélection.
+  Résultats : 0 interblocement (borne 120 s, tous fils soldés), 0 exception
+  non attendue, coupures d'époque honnêtes observées : 0 (les swaps du banc
+  tombent entre les requêtes), verdict fiche 012 préservé après chaos
+  (MAIN_OK 0 erreur / MAIN_ERR ≥ 1 erreur sur l'époque courante après
+  attendreReconstructions).
+
+Banc de charge (ChargeConcurrenteTest, JVM — critère ADR 0010 « complétion
+  fichier A + diagnose fichier B concurrents ») : 40 itérations mesurées
+  après 10 de chauffe, p95 :
+    complétion A (récepteur SOURCE, sonde à chaud) : séquentiel 43 ms /
+      concurrent 33 ms — critère ≤ +10 % + 10 ms TENU (l'ancien régime
+      moniteur échouait : concurrent ≈ complétion + diagnose)
+    diagnose B (diagnoses complets alternés) : séquentiel 19 ms /
+      concurrent 25 ms — TENU (≤ 19 × 1,10 + 10 = 30,9 ms)
+  NOTE honnête (différée à V-C3) : la collecte de membres sur type
+  BINAIRE jrt paie l'énumération à CHAQUE appel — mesuré 15–26 ms par
+  appel (68 membres de java.lang.String), 62–68 ms à froid. La mémoïsation
+  par type est un reste V-C3 (le banc de charge ancre sur un récepteur
+  SOURCE pour mesurer le CONVOI DE VERROU, pas le coût de collecte).
+
+VerrousPerimetreTest (boîte blanche) : mémo de diagnose, sondes
+  observables, actions texte et complétion chaude répondent PENDANT qu'un
+  fil détient verrouCompilation (4/4 familles, borne 5 s) ; une diagnose
+  de source fraîche BLOQUE tant que le verrou est détenu puis se solde
+  après libération (la sémantique « une résolution à la fois » et la
+  drainage de dispose sont préservées).
+
+Fiche 048 (amendée V-F2, ordonnanceur) : plafond 1 → max en vol == 1
+  (contrat historique) ; plafond 2 → chevauchement de fichiers DISTINCTS
+  prouvé par RENDEZ-VOUS déterministe, jamais deux tâches du MÊME fichier
+  en vol (6 tâches, max par fichier == 1) ; supersession et analyses
+  intactes.
+
+--- V-C1 : inspections (ADR 0023 / G-010) -------------------------------
+
+Catalogue : 8 inspections pilotes livrées (StringEquality,
+  IgnoreResultOfCall @CheckResult, RedundantCast, EqualsHashCode,
+  SizeReplaceableByIsEmpty, StaticFieldReferenceOnSubclass,
+  WrongPackageStatement, FormatString) + profil + suppressions
+  (@SuppressWarnings portée déclaration ENTIÈRE + //noinspection ligne
+  courante/précédente + tokens javac alignés).
+Pièges mesurés et corrigés (consignés au commit) :
+  - indexOf/lastIndexOf rendent -1 (PAS null) : l'elvis ne quittait
+    jamais la boucle du suppresseur — boucle infinie mesurée au banc
+    (jstack : 59 s de CPU dans String.split) ;
+  - la portée d'une méthode annotée doit couvrir declarationSourceStart/
+    declarationSourceEnd (sourceStart/sourceEnd ne couvrent que
+    l'en-tête : suppression INOPÉRANTE mesurée, corrigée) ;
+  - l'opérateur d'un BinaryExpression vit dans bits (operator << 8) ;
+  - l'effacement générique est requis pour la hiérarchie Collection/Map
+    (List<String> → « java.util.List<…> » → nom effacé) ;
+  - l'annotation @CheckResult exige storeAnnotations=enabled (option ecj
+    posée dans les trois tables — uniforme, sinon divergence P1).
+Tests : 12 cas dorés — détection, non-détection, suppression, mutants
+  (P4 : chaque pilote attrape ≥ 1 mutant), P3 (zéro ERREUR ajoutée sur
+  code compilant), P1 (les signaux des corps MASQUÉS sont portés à
+  l'identique par l'isomorphie fiche 014 — survie à la frappe confinée),
+  dumb-aware (11/11 contrôles du catalogue).
+
+--- V-C2 : lint Android (ADR 0024 / G-011) -------------------------------
+
+Base API : parseur StAX d'api-versions.xml chargé en tâche de fond
+  (cible ADR « < 2 s, une fois ») ; base SYNTHÉTIQUE du banc chargée et
+  interrogée (sinceMethode/ sinceClasse/ niveauChamp.inlined exacts ;
+  collision de signature → null, silence honnête). Le segment CIDX
+  compact de l'ADR est DIFFÉRÉ (le parse direct tient la cible ; la
+  re-génération par script versionné reste la dette documentée).
+Contrôles livrés : NewApi (échappatoires @RequiresApi/@TargetApi + gardes
+  SDK_INT testées une à une ; le déclarant réel fait foi — mesuré :
+  setTextAlignment déclare sur android.view.View, hérité par TextView),
+  InlinedApi (champ inlined, signal faible), ObsoleteSdkInt (branche
+  morte sous minSdk), MissingSuperCall (@CallSuper, fix suggéré dans le
+  message), SetTextI18n (littéral sur TextView).
+  RESTENT au catalogue V-C2 (suivis au plan 04) : Range, ResourceType,
+  CommitPrefEdits, Recycle simple, mode global différé (UnusedResources).
+Tests : 8 cas dorés sur base synthétique + VRAI android.jar du banc
+  (android-34-ext12.jar, gate environnementale).
+
+--- Non-régression (tous modules, ce jour) -------------------------------
+
+Tests : 792 / 0 échec — java 626 (dont 41 gates environnementales
+  ignorées avec raison : corpus et bibliothèques hors dépôt), model 42,
+  index 84, testing 4, ecj-art 36.
+`build` strict (BANC_COHERENCE_STRICT=true, P1–P8) : VERT.
+Banc d8 (qualité complétion) : rappel/top-1/MRR 1,000 — p95 34,52 ms
+  (min 0,92 / max 44,54, 90 échantillons), sauts de liste 0.
+Banc usages : rappel vs oracle 1,000 (corpus 10 et 30 classes),
+  constructions d'index 1, p50 14,62–17,83 ms, p95 46,26–47,08 ms
+  (< 100 ms), Files.walk hors chemin chaud.
+Banc de qualité (corpus 18 positions) : VERT.
+Banc de parité croisée : oracle vendored absent localement (réseau) —
+  vérifié par la CI (inchangé par ces vagues : la sémantique de
+  complétion/diagnose n'est pas touchée, seule la concurrence change).
+Banc V-F1 (double-tampon) : 600 tests java d'alors → toujours vert dans
+  la suite (DoubleTamponTest, BancDoubleTamponTest intacts).
+
+--- Restes consignés -------------------------------------------------------
+
+V-F (phases 3–5) : budgets octets + onTrimMemory, plage prioritaire,
+  incrémentalité conditionnée (ADR 0017/0006).
+V-C2 (catalogue) : Range, ResourceType, CommitPrefEdits, Recycle,
+  mode global différé ; segment CIDX compact de la base.
+V-C3 (COMPLET) : complétion smart (type attendu par bindings),
+  typedef @IntDef/@StringDef, littéraux R.*, second appel + import
+  static, chain, statement, stats locales opt-in — ET la mémoïsation des
+  membres de types binaires (mesurée ci-dessus 15–26 ms par appel).

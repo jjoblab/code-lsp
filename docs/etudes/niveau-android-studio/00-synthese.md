@@ -132,7 +132,14 @@ moteur sert pendant la construction du neuf, G-030/H2), annulation fine de
 base (collecte de complétion + balayage d'usages), republication des documents
 ouverts à chaque swap d'époque, repli documenté
 `jo.codeide.lsp.java.doubletampon.disabled` — cf. `04-plan-vagues.md` §V-F1 et
-ADR 0029 « Suivi d'exécution »).
+ADR 0029 « Suivi d'exécution » ; **V-F2 + V-C1 + V-C2 livrées le 31/10 au
+soir (v1.6.0)** — V-F2 : verrous par périmètre + chaos tests + banc de
+charge ADR 0010 (G-029 RÉSOLU, comptage `synchronized(` 99 → 0 pour la
+cible < 6) ; V-C1 : moteur d'inspections + 8 pilotes (G-010 RÉSOLU) ;
+V-C2 : lint Android — base api-versions en tâche de fond, NewApi et 4
+autres contrôles (G-011 résolu en 1re vague) — cf.
+`04-plan-vagues.md` §V-F2/§V-C et `mesures/2026-10-31-vf2-vc1-vc2.txt` ;
+**V-C3 reste à livrer**).
 
 | # | Décision | Recommandation |
 |---|---|---|

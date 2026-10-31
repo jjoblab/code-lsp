@@ -30,6 +30,19 @@
 - **Bornes** : —
 - **Statut** : actif
 
+## Amendement V-F2 (31/10/2026 — ADR 0029 phase 2 / ADR 0010 schéma B)
+
+> Le scheduler est devenu un **POOL plafonné** (2 workers par défaut,
+> propriété `jo.codeide.lsp.java.ordonnanceur.workers` bornée 1..3 ; `=1`
+> rétablit le worker unique). Le contrat est amendé ainsi : les tâches
+> interactives d'un **MÊME fichier** ne se chevauchent **JAMAIS** (garanti
+> par clé, même à plafond 3) ; les tâches de fichiers **DISTINCTS** (et
+> les analyses) peuvent courir en parallèle dans la limite du plafond —
+> le « maximum d'exécutions en vol » observé vaut donc au plus le
+> plafond posé, et **exactement 1** au plafond 1 (contrat historique
+> intact, testé tel quel). La supersession par fichier, la durabilité des
+> analyses et le compteur `supersededCount()` sont inchangés.
+
 ## Notes pour la réécriture
 - La supersession est à clé de FICHIER et ne concerne QUE les tâches interactives (les tâches analyse sont durables : jamais annulées par une plus récente).
 - La garantie de sérialisation est testée par le maximum observé d'exécutions simultanées (doit rester à 1) — un worker unique, pas un pool.
