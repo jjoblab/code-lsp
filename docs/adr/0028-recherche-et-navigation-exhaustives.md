@@ -1,8 +1,12 @@
 # ADR 0028 — Recherche et navigation exhaustives (levée de la parité stricte, lecture/écriture, ressources)
 
-- **Statut** : Proposé
+- **Statut** : Accepté (décision D1 du propriétaire — GO D1–D9 du 31/10/2026)
 - **Date** : 2026-10-31
 - **Écarts résolus** : G-013, G-026, G-027, G-028 (`01-audit-moteur.md` §1.8, §3.5)
+- **Livraison** : vague **V-E** (31/10/2026) — points (a) levée du confinement,
+  (b) typage lecture/écriture, (e) usages groupés ; les points (c) navigation
+  ressource et (d) rename de ressource restent planifiés APRÈS ADR 0020/0021
+  (vague V-B), comme le prévoyait le plan de migration.
 
 ## Contexte
 
@@ -64,11 +68,31 @@ comportements selon le geste) ; rejeté au profit du comportement unique honnêt
 ## Décision proposée
 
 **Option 1.** La levée du confinement se fait **dans un commit unique** avec : tests
-de la gate « taille attendue = 1 » inversés (nouveau contrat : usages multi-fichiers),
+ de la gate « taille attendue = 1 » inversés (nouveau contrat : usages multi-fichiers),
 mise à jour de la fiche 054 (amendement cahier — décision D1), note dans
 `ECARTS-SERVEUR.md` (M4 → corrigé). L'implémentation protocole (repli si un client
 ancien exige le confinement) : capability maison versionnée — refus de complexifier :
 le client consomme ce qu'il veut de la liste.
+
+> **Exécution (V-E, 31/10/2026)** : décision D1 ACCEPTÉE par le propriétaire
+> (GO D1–D9). Le commit unique a bien emporté : retrait du filtre + repère du
+> FICHIER PORTEUR par usage (le texte disque analysé par le moteur, l'overlay
+> ouvert en repli — l'ancien confinement convertissait tout avec le repère du
+> document interrogé), gate inversée (borne « 2 exactement » : déclaration T.java
+> + appel U.java, plage du jeton vérifiée), amendement de la fiche 054 (les DEUX
+> comportements : references ET documentHighlight — la composée `total+=x` passe
+> en Write, lecture implicite = data flow), M4 rayé dans ECARTS-SERVEUR. La
+> capability versionnée est `x-codeide.usages` (champ `experimental` :
+> `multiFichiers`, `groupes`, `plafondRendu` — version 1). Nuance (b) découverte
+> à l'exécution : le typage LECTURE/ÉCRITURE existait déjà depuis l'étage N4
+> (`GenreSurbrillance` — l'affirmation d'audit « Surbrillance non typée » était
+> ERRONÉE, correction annotée dans l'audit §1.8) ; le trou RÉEL était les
+> écritures COMPOSÉES et les incréments : la hiérarchie ecj
+> (`Assignment` ← `CompoundAssignment` ← `PostfixExpression`/`PrefixExpression`)
+> route `+=`/`x++`/`++x` HORS du pont `visit(Assignment)` — trois ponts dédiés
+> posés dans `LectureAst.VisiteurResilient`. Le point « argument d'appel
+> mutateur » de l'option (b) N'EST PAS livré : il exige l'analyse de flux de la
+> vague V-C (DFA nullité intra-méthode) — renvoyé documenté, pas oublié.
 
 ## Conséquences
 

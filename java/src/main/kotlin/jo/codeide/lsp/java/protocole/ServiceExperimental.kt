@@ -69,6 +69,33 @@ public interface ServiceExperimental {
      */
     @JsonRequest("textDocument/decompiledSource")
     public fun decompiledSource(params: ParamsFqcnRpc): CompletableFuture<SourceDecompileeRpc>
+
+    /**
+     * Les usages du symbole au caret, GROUPÉS PAR FICHIER (vague V-E —
+     * ADR 0028 (e) : « métadonnées de regroupement dans la réponse, le
+     * rendu arborescent revient au client »).
+     *
+     * Même requête moteur que `textDocument/references` (usages
+     * multi-fichiers exhaustifs par clé de binding — la DÉCLARATION est
+     * TOUJOURS incluse : la vue arborescente « Find Usages » l'affiche
+     * comme racine), servie dans la forme groupée que la référence
+     * appelle « groupés par fichiers » : un groupe par fichier porteur,
+     * ordre de première apparition de la liste triée (chemin, offset).
+     *
+     * Le PLAFOND [PLAFOND_USAGES_RENDUS] borne le volume RENDU (risque R1
+     * de l'ADR 0028 : jamais de troncature silencieuse) : la réponse
+     * annonce TOUJOURS le `total` exact, le `plafond` appliqué et le
+     * drapeau `tronque` — un client peut affiner sa recherche sur cette
+     * information. Le plafond est annoncé dans la capability
+     * `x-codeide.usages` (champ `experimental` de `initialize`).
+     *
+     * @param params la position du caret (URI + position) sur le symbole.
+     * @return les groupes d'usages avec le total exact et l'état de
+     *   troncature (groupes vides honnêtes si le caret ne porte pas de
+     *   symbole — convention I9).
+     */
+    @JsonRequest("textDocument/usagesGroupes")
+    public fun usagesGroupes(params: TextDocumentPositionParams): CompletableFuture<ReponseUsagesGroupesRpc>
 }
 
 /**
@@ -120,3 +147,96 @@ public data class ParamsFqcnRpc(
 public data class SourceDecompileeRpc(
     public val source: String?,
 )
+
+/**
+ * Le plafond d'usages RENDUS par `textDocument/usagesGroupes` (ADR 0028,
+ * risque R1 : « ordre + plafond honnête documenté — jamais de troncature
+ * silencieuse : annoncer le total »). Au-delà, la réponse est tronquée
+ * DANS L'ORDRE TRIÉ (les premiers fichiers) et le porte l'annonce
+ * (`total`, `plafond`, `tronque`) ; la liste plate `references` standard
+ * reste EXHAUSTIVE (aucune troncature — un client standard consomme ce
+ * qu'il veut de la liste).
+ */
+public const val PLAFOND_USAGES_RENDUS: Int = 2000
+
+/**
+ * Un usage sur le fil de `usagesGroupes` — offsets ABSOLUS dans le texte
+ * du fichier porteur (même convention que `CibleSuperRpc` : jamais de
+ * conversion ligne/colonne, le client convertit s'il en a besoin).
+ *
+ * @property start l'offset du JETON de l'occurrence.
+ * @property end la fin (exclusive) du jeton.
+ * @property estDeclaration vrai ssi l'occurrence EST la déclaration (le
+ *   client l'épingle en tête de son groupe — racine de la vue).
+ */
+public data class UsageRpc(
+    public val start: Int,
+    public val end: Int,
+    public val estDeclaration: Boolean,
+)
+
+/**
+ * Un groupe d'usages : TOUTES les occurrences portées par UN fichier,
+ * dans l'ordre des offsets.
+ *
+ * @property path le chemin du fichier porteur (sans préfixe `file://` —
+ *   même convention que `CibleSuperRpc`).
+ * @property usages les occurrences triées par offset croissant.
+ */
+public data class GroupeUsagesRpc(
+    public val path: String,
+    public val usages: List<UsageRpc>,
+)
+
+/**
+ * La réponse de `usagesGroupes` : les groupes par fichier PLUS les
+ * métadonnées du plafond honnête (ADR 0028 R1).
+ *
+ * @property total le nombre EXACT d'usages trouvés (jamais plafonné).
+ * @property rendus le nombre d'usages effectivement rendus (≤ plafond).
+ * @property plafond le plafond appliqué (miroir de [PLAFOND_USAGES_RENDUS]).
+ * @property tronque vrai ssi des usages ont été écartés par le plafond.
+ * @property groupes un groupe par fichier porteur (ordre de première
+ *   apparition dans la liste triée chemin, offset).
+ */
+public data class ReponseUsagesGroupesRpc(
+    public val total: Int,
+    public val rendus: Int,
+    public val plafond: Int,
+    public val tronque: Boolean,
+    public val groupes: List<GroupeUsagesRpc>,
+)
+
+/**
+ * Regroupe les usages par fichier porteur et applique le plafond honnête
+ * (ADR 0028 R1) : les [plafond] PREMIERS usages de l'ordre rendu sont
+ * groupés, le total EXACT et le drapeau `tronque` annoncent le reste —
+ * jamais de troncature silencieuse.
+ *
+ * L'entrée est attendue TRIÉE (chemin, offset) — l'ordre du moteur — et
+ * l'ordre des groupes suit la première apparition (fichiers
+ * alphabétiques pour l'ordre du moteur).
+ *
+ * @param usages les usages triés du moteur (déclaration incluse ou non
+ *   — décision de l'appelant).
+ * @param plafond le nombre maximal d'usages rendus (≤ 0 : réponse vide
+ *   mais le total reste exact).
+ * @return la réponse groupée avec ses métadonnées de plafond.
+ */
+public fun grouperUsages(usages: List<jo.codeide.lsp.java.navigation.Usage>, plafond: Int): ReponseUsagesGroupesRpc {
+    val total = usages.size
+    val rendus = if (plafond > 0) usages.take(plafond) else emptyList()
+    val parFichier = LinkedHashMap<String, MutableList<UsageRpc>>()
+    for (usage in rendus) {
+        parFichier.getOrPut(usage.chemin) { ArrayList() }.add(
+            UsageRpc(usage.plage.debutOffset, usage.plage.finOffset, usage.estDeclaration),
+        )
+    }
+    return ReponseUsagesGroupesRpc(
+        total = total,
+        rendus = rendus.size,
+        plafond = plafond,
+        tronque = total > rendus.size,
+        groupes = parFichier.map { (chemin, occurrences) -> GroupeUsagesRpc(chemin, occurrences) },
+    )
+}

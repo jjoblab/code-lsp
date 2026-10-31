@@ -260,10 +260,25 @@ public object CapacitesServeur {
         // « source décompilée » à cette annonce — SANS elle, les boutons
         // disparaîtraient silencieusement (écart d'intégration, critère 2
         // de « tout connecté, cohérent »).
+        //
+        // `x-codeide.usages` (vague V-E — ADR 0028, décision D1) : le
+        // contrat USAGES versionné — la RUPTURE de parité stricte §10.4
+        // y est annoncée (`multiFichiers`) pour qu'un client ancien qui
+        // s'appuyait sur le confinement puisse s'adapter, le RPC groupé
+        // (`groupes`) et le plafond rendu (`plafondRendu`) complètent le
+        // contrat. Version 1 : posée À LA LEVÉE du confinement — toute
+        // évolution sémantique ultérieure montera la version (jamais de
+        // mutation silencieuse, ADR 0015 R1).
         capacites.setExperimental(
             mapOf(
                 "superDefinitionProvider" to true,
                 "decompiledSourceProvider" to true,
+                "x-codeide.usages" to mapOf(
+                    "version" to 1,
+                    "multiFichiers" to true,
+                    "groupes" to true,
+                    "plafondRendu" to PLAFOND_USAGES_RENDUS,
+                ),
             ),
         )
 

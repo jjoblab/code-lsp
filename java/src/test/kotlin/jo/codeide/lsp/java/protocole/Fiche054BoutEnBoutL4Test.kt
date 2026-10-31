@@ -3,6 +3,7 @@ package jo.codeide.lsp.java.protocole
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 import kotlin.test.fail
@@ -205,7 +206,14 @@ class Fiche054BoutEnBoutL4Test {
         )
     }
 
-    /** referencesDUneMéthodeTrouventLesAppels — références d'une méthode : déclaration seule (parité stricte §10.4). */
+    /**
+     * referencesDUneMéthodeTrouventLesAppels — références d'une méthode :
+     * déclaration + appel inter-fichiers (AMENDEMENT D1 du 31/10/2026 —
+     * ADR 0028). La gate « taille attendue = 1 » de la fiche d'origine
+     * (parité stricte §10.4 — l'appel U.java n'était PAS rendu) est
+     * INVERSÉE : la levée du confinement rend les usages MULTI-FICHIERS,
+     * borne « 2 exactement ».
+     */
     @Test
     fun referencesDUneMethodeTrouventLesAppels() {
         val t = ouvrir("T.java", sourceT)
@@ -217,14 +225,27 @@ class Fiche054BoutEnBoutL4Test {
         params.context = ReferenceContext(true) // includeDeclaration
         val references = boucle!!.client.textDocumentService.references(params).get()
         assertEquals(
-            1,
+            2,
             references.size,
-            "exactement 1 référence rendue — la déclaration, dans T.java (écart moteur assumé, parité stricte §10.4)",
+            "exactement 2 références — la déclaration (T.java) ET l'appel inter-fichiers (U.java) — amendement D1, ADR 0028",
         )
-        assertTrue(
-            references[0].uri.endsWith("demo/T.java"),
-            "la référence rendue vit dans T.java — trouvé : ${references[0].uri}",
+        assertEquals(
+            1,
+            references.count { it.uri.endsWith("demo/T.java") },
+            "la DÉCLARATION vit dans T.java",
         )
+        val appel = references.single { it.uri.endsWith("demo/U.java") }
+        // La plage de l'usage inter-fichiers est convertie avec le repère du
+        // FICHIER PORTEUR (U.java) : elle pointe le JETON « a » de t.a().
+        val indiceA = sourceU.indexOf("t.a()") + 2 // le « a » de l'appel
+        val ligne = sourceU.substring(0, indiceA).count { it == '\n' }
+        val debutLigne = sourceU.lastIndexOf('\n', indiceA - 1) + 1
+        assertEquals(
+            Position(ligne, indiceA - debutLigne),
+            appel.range.start,
+            "la plage pointe le JETON « a » de t.a() dans U.java (repère du porteur, pas du document interrogé)",
+        )
+        assertEquals(1, appel.range.end.character - appel.range.start.character, "le jeton « a » seul")
     }
 
     /** documentSymbolRendLaClasseEtSesMembres — documentSymbol : classe + membres. */
@@ -279,7 +300,16 @@ class Fiche054BoutEnBoutL4Test {
         )
     }
 
-    /** documentHighlightDUnChampDéclarationEtUsages — surlignage : déclaration + usage. */
+    /**
+     * documentHighlightDUnChampDéclarationEtUsages — surlignage : déclaration
+     * + usage, genres VERROUILLÉS (V-E, G-026) : la déclaration
+     * (`int total = 0`) est une ÉCRITURE (DocumentHighlightKind 3) et
+     * `total+=x` — affectation COMPOSÉE — est une ÉCRITURE elle aussi (le
+     * genre LSP est unique par plage : l'écriture domine, la lecture
+     * implicite d'une composée relève du data flow, pas du surlignage).
+     * Amendement V-E : la fiche d'origine décrivait l'usage « lecture » —
+     * comportement vendored amendé au niveau de la référence (ADR 0028 (b)).
+     */
     @Test
     fun documentHighlightDUnChampDeclarationEtUsages() {
         val document = ouvrir("T.java", sourceT)
@@ -289,7 +319,18 @@ class Fiche054BoutEnBoutL4Test {
         assertEquals(
             2,
             surlignages.size,
-            "exactement 2 occurrences surlignées — la déclaration (écriture) et l'usage (lecture)",
+            "exactement 2 occurrences surlignées — la déclaration et l'usage total+=x",
+        )
+        val triees = surlignages.sortedBy { it.range.start.line }
+        assertEquals(
+            3,
+            triees[0].kind.value,
+            "la déclaration (int total = 0) est une ÉCRITURE — DocumentHighlightKind.Write",
+        )
+        assertEquals(
+            3,
+            triees[1].kind.value,
+            "total+=x est une ÉCRITURE (affectation composée — amendement V-E/G-026)",
         )
     }
 
@@ -348,6 +389,50 @@ class Fiche054BoutEnBoutL4Test {
         assertTrue(
             "String" in reponse.source!!,
             "la source du JDK (attachée ou décompilée) contient « String »",
+        )
+    }
+
+    /**
+     * usagesGroupesParFichier — le RPC maison sert les usages GROUPÉS PAR
+     * FICHIER avec le plafond honnête annoncé (vague V-E — ADR 0028 (e)).
+     * Un groupe par porteur, déclaration incluse et signalée, offsets
+     * ABSOLUS du texte porteur, total exact même sous le plafond.
+     */
+    @Test
+    fun usagesGroupesParFichier() {
+        val t = ouvrir("T.java", sourceT)
+        ouvrir("U.java", sourceU)
+
+        val reponse = boucle!!.experimental.usagesGroupes(
+            org.eclipse.lsp4j.TextDocumentPositionParams(t, positionDe(sourceT, "a()")),
+        ).get()
+
+        assertEquals(2, reponse.total, "le TOTAL EXACT : déclaration + appel inter-fichiers")
+        assertEquals(2, reponse.rendus, "les 2 usages sont rendus (sous le plafond)")
+        assertFalse(reponse.tronque, "aucune troncature sous le plafond")
+        assertEquals(PLAFOND_USAGES_RENDUS, reponse.plafond, "le plafond annoncé est celui de la capability x-codeide.usages")
+        assertEquals(2, reponse.groupes.size, "un groupe par fichier porteur (T.java + U.java)")
+
+        val groupeT = reponse.groupes.single { it.path.endsWith("demo/T.java") }
+        val groupeU = reponse.groupes.single { it.path.endsWith("demo/U.java") }
+        assertEquals(1, groupeT.usages.size, "la déclaration seule dans T.java")
+        assertTrue(groupeT.usages[0].estDeclaration, "la DÉCLARATION est incluse et signalée (racine de la vue)")
+        assertEquals(1, groupeU.usages.size, "l'appel seul dans U.java")
+        assertFalse(groupeU.usages[0].estDeclaration, "l'appel de U.java n'est pas une déclaration")
+
+        // Les offsets désignent le JETON « a » dans le TEXTE DU PORTEUR
+        // (convention CibleSuperRpc : offsets absolus, jamais ligne/colonne).
+        val texteU = Files.readString(dossier.resolve("demo/U.java"))
+        assertEquals(
+            "a",
+            texteU.substring(groupeU.usages[0].start, groupeU.usages[0].end),
+            "start/end délimitent le JETON « a » de t.a() dans U.java",
+        )
+        val texteT = Files.readString(dossier.resolve("demo/T.java"))
+        assertEquals(
+            "a",
+            texteT.substring(groupeT.usages[0].start, groupeT.usages[0].end),
+            "start/end délimitent le JETON « a » de la déclaration dans T.java",
         )
     }
 }

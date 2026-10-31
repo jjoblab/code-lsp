@@ -30,15 +30,18 @@
 > preuve (`01-audit-moteur.md`) et l'ADR qui le résout (0019–0031). Le plan de
 > correction par vagues vit dans `04-plan-vagues.md` (V-A→V-G).
 
+> **Correction du 31/10 au soir (vague V-E)** : M4 est CORRIGÉ — la ligne est
+> conservée ci-dessous à titre historique, rayée.
+
 | # | Écart | Statut / effort estimé | Note |
 |---|---|---|---|
 | M1 | **Mot-clé `extends` pendant sa frappe en tête de déclaration** : `class Principal e\|` est capturé par la fiche 007 comme sélecteur de méthode (CORPS_CLASSE : stubs d'override + types) — Android Studio y propose aussi le mot-clé `extends` LUI-MÊME | ouvert, petit — G-024 (ADR 0026) | verrouillé par contrat fiche 007 ; le changer demande un arbitrage cahier (fusion mots-clés + stubs en tête de déclaration) — décision D7 |
 | M2 | **`semanticTokens` non annoncé** (règle matrice ADR 0015) : requête tolérante vide, le client garde sa coloration de repli | ouvert — G-019 (ADR 0031, vague V-G) | réouvert par la mission : P2 dans la matrice, avec banc de rendu préalable |
 | M3 | **`source.organizeImports` pas au fil LSP** : l'API moteur existe (USAGE §7.17), l'action de code n'est pas exposée | ouvert, ~0,5 j-h — G-020 (ADR 0027) | première brique de la vague V-D (coût minuscule) |
-| M4 | **`references` confiné au document courant** (parité stricte §10.4 avec le vendord) | **prêt à lever — G-013 (ADR 0028)** | l'audit a établi que le MOTEUR est déjà multi-fichiers exhaustif (rappel = oracle au banc) : le confinement est un FILTRE protocolaire — levée ≈ 0,5 j-h, décision D1 demandée |
+| M4 | ~~**`references` confiné au document courant** (parité stricte §10.4 avec le vendord)~~ | **CORRIGÉ le 31/10/2026 — vague V-E (G-013, ADR 0028, décision D1)** | confinement protocolaire retiré (commit unique ADR 0028) : usages multi-fichiers réels, repère du fichier PORTEUR par usage, gate fiche 054 inversée (borne 2), capability versionnée `x-codeide.usages`, RPC groupé `textDocument/usagesGroupes` (plafond honnête 2 000) ; le typage lecture/écriture des composées `+=`/`++` (G-026) est livré dans la même vague |
 | M5 | **Quick-fixes mono-fichier** (fiche 063) : le multi-fichiers passe par renommage/protocole seulement | ouvert — levé naturellement par `documentChanges` (ADR 0027) | — |
 | M6 | **Réparation niveau 4 avec lambda dans la queue** : une expression lambda ouverte APRÈS le caret peut refermer ses listes dans un ordre syntaxiquement invalide — la variante est alors rejetée (best effort, les autres littéraux/l'arbre direct compensent) | ouvert, très petit — G-025 (ADR 0019) | cas rare ; documenté dans `AideSignatures.refermer` ; mesuré par la propriété P6 |
-| M7 | **Pas d'invalidation inter-fichiers des diagnostics** (ajout 31/10) : `B.java` ouvert garde des diagnostics périmés après édition de l'API de `A.java` — la re-publication n'existe qu'au remplacement de contexte | ouvert — **G-003 (P0, ADR 0025)** | preuve et propriété P8 du banc livré (`java/src/test/…/coherence/`) |
+| M7 | ~~**Pas d'invalidation inter-fichiers des diagnostics** (ajout 31/10) : `B.java` ouvert garde des diagnostics périmés après édition de l'API de `A.java` — la re-publication n'existe qu'au remplacement de contexte~~ | **CORRIGÉ le 31/10/2026 — vague V-A1 (G-003, ADR 0025)** | le mémo de diagnose enregistre les sources lues sur disque (empreinte STAT mtime+taille) : un voisin édité invalide le mémo — propriété P8 du banc (1 staleness → 0, gate stricte CI) ; comptabilité de ligne mise à jour par la vague V-E |
 | M8 | **Projet Android invisible au moteur** (ajout 31/10) : ressources XML, classes générées (R/binding/BuildConfig), namespace/minSdk, déclarations Kotlin — aucunement connus | ouvert — **G-001/G-006/G-008/G-009 (P0/P1, ADR 0020–0022)** | la cause racine des « il ne connaît pas bien le code » ; vagues V-B |
 | M9 | **Verrou global + worker unique** (ajout 31/10) : 82 `synchronized` (46 dans `MoteurJava.kt`), pas de double-tampon d'environnement | ouvert — G-029/G-030 (ADR 0029) | ADR 0010 schéma B toujours non livré ; V-F1 (double-tampon) remontée AVANT la couche intelligence |
 

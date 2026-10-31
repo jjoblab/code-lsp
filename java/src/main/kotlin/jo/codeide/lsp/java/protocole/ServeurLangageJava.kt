@@ -669,27 +669,53 @@ public class ServeurLangageJava(
         val document = documentDe(uri) ?: return CompletableFuture.completedFuture(emptyList())
         val (chemin, texte) = document
         val moteur = moteurPour(chemin) ?: return CompletableFuture.completedFuture(emptyList())
-        // Parité stricte (§10.4, fiche 054) : le VENDORED ne rendait que
-        // les références du DOCUMENT COURANT (l'appel inter-fichiers
-        // U.java n'était PAS rendu — « écart moteur assumé, verrouillé
-        // tel quel ») ; la décision du 28/10 impose au moteur NEUF de
-        // reproduire l'écart PENDANT le programme (gate « taille
-        // attendue = 1 exactement » inchangée). La couche protocole
-        // CONFINTE donc la réponse au document interrogé — le moteur
-        // garde la capacité pleine ([MoteurJava.referencesParBalayageComplet],
-        // comptage des lentilles) et la correction (rendre l'appel
-        // inter-fichiers) reste une amélioration candidate post-bascule.
+        // LEVÉE DU CONFINEMENT (vague V-E — décision D1 du propriétaire,
+        // 31/10/2026 ; ADR 0028). La parité stricte §10.4 avec le vendored
+        // est FORMELLEMENT abandonnée pour `references` : le programme de
+        // réécriture est terminé, la bascule est signée (v1.0.0) et le
+        // propriétaire a amendé la décision du 28/10. La réponse rend les
+        // usages MULTI-FICHIERS réels du moteur (exhaustifs par clé de
+        // binding — rappel = oracle au banc :java:benchUsages), la gate
+        // « taille attendue = 1 » de la fiche 054 est INVERSÉE (borne
+        // « 2 exactement » : la déclaration T.java ET l'appel U.java).
+        // Un client ancien qui s'appuyait sur le confinement consomme ce
+        // qu'il veut de la liste (ADR 0028 : « refus de complexifier ») ;
+        // la capability maison versionnée `x-codeide.usages` (champ
+        // `experimental`) annonce le comportement multi-fichiers, et le
+        // RPC maison `textDocument/usagesGroupes` sert la vue groupée.
         val usages = moteur.references(chemin, texte, offsetDe(texte, params.position), params.context.isIncludeDeclaration)
-        val cheminCourant = Path.of(chemin).normalize()
-        val confine = usages.filter { usage ->
-            runCatching { Path.of(usage.chemin).normalize() == cheminCourant }.getOrDefault(false) ||
-                usage.chemin == chemin
-        }
-        val repere = ConvertisseurLsp.repere(texte)
-        val localisations = confine.map { usage ->
-            Location(ConvertisseurLsp.uriDeFichier(usage.chemin), repere.plage(usage.plage))
+        // Conversion offset → ligne/colonne : le repère du FICHIER
+        // PORTEUR de chaque usage (l'ancien confinement convertissait
+        // toujours avec le repère du document interrogé — cela ne restait
+        // vrai que pour lui). Les usages des AUTRES fichiers vivent sur
+        // leur texte DISQUE (celui que le moteur a analysé), l'overlay
+        // ouvert ne servant que de repli si le disque est illisible.
+        val repereCourant = ConvertisseurLsp.repere(texte)
+        val reperesPorteurs = HashMap<String, ConvertisseurLsp.Repere>()
+        val localisations = ArrayList<Location>(usages.size)
+        for (usage in usages) {
+            val repere = if (usage.chemin == chemin) repereCourant
+            else reperesPorteurs.getOrPut(usage.chemin) { repereDuPorteur(usage.chemin) }
+            localisations.add(Location(ConvertisseurLsp.uriDeFichier(usage.chemin), repere.plage(usage.plage)))
         }
         return CompletableFuture.completedFuture(localisations)
+    }
+
+    /**
+     * Le repère du FICHIER PORTEUR d'un usage inter-fichiers : le texte
+     * DISQUE d'abord (le moteur analyse les voisins sur disque — les plages
+     * rendues s'y réfèrent), l'overlay ouvert en repli, puis un repère VIDE
+     * (chaque position se borne à 0:0 — même repli que [localisationDe],
+     * jamais d'échec de requête pour un fichier disparu).
+     *
+     * @param cheminPorteur le chemin du fichier porteur de l'usage.
+     * @return le repère indexé du texte porteur.
+     */
+    private fun repereDuPorteur(cheminPorteur: String): ConvertisseurLsp.Repere {
+        val textePorteur = runCatching { Files.readString(Path.of(cheminPorteur)) }.getOrNull()
+            ?: etats.instantane(ConvertisseurLsp.uriDeFichier(cheminPorteur))?.texte
+            ?: return ConvertisseurLsp.repere("")
+        return ConvertisseurLsp.repere(textePorteur)
     }
 
     override fun documentHighlight(params: DocumentHighlightParams): CompletableFuture<List<DocumentHighlight>> {
@@ -1296,6 +1322,24 @@ public class ServeurLangageJava(
         val moteur = moteur
             ?: return CompletableFuture.completedFuture(SourceDecompileeRpc(null))
         return CompletableFuture.completedFuture(SourceDecompileeRpc(moteur.decompiledSource(params.fqcn)))
+    }
+
+    override fun usagesGroupes(params: TextDocumentPositionParams): CompletableFuture<ReponseUsagesGroupesRpc> {
+        garde<ReponseUsagesGroupesRpc>()?.let { return it }
+        val uri = params.textDocument.uri
+        // Vue VIDE honnête (convention I9) : symbole absent, document
+        // disparu ou moteur manquant → groupes vides, total 0.
+        val vide = ReponseUsagesGroupesRpc(0, 0, PLAFOND_USAGES_RENDUS, false, emptyList())
+        val document = documentDe(uri) ?: return CompletableFuture.completedFuture(vide)
+        val (chemin, texte) = document
+        val moteur = moteurPour(chemin) ?: return CompletableFuture.completedFuture(vide)
+        // Même requête moteur que `references` (usages multi-fichiers
+        // exhaustifs, ordre trié chemin+offset) ; la DÉCLARATION est
+        // TOUJOURS incluse : la vue arborescente « Find Usages » l'épingle
+        // en racine (ADR 0028 (e)). Le plafond honnête (R1) est appliqué
+        // par le regroupement — total exact et troncature annoncés.
+        val usages = moteur.references(chemin, texte, offsetDe(texte, params.position), true)
+        return CompletableFuture.completedFuture(grouperUsages(usages, PLAFOND_USAGES_RENDUS))
     }
 }
 
