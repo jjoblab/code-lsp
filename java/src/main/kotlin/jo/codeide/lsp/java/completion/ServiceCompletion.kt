@@ -289,6 +289,22 @@ public class ServiceCompletion(
     private val memoBindings = HashMap<String, ReferenceBinding?>()
 
     /**
+     * Un membre STATIQUE IMPORTABLE brut du mémo : l'item + son type
+     * d'expression (la compatibilité au type attendu se tamponne PAR APPEL).
+     */
+    private class StatiqueBrut(val item: ItemCompletion, val typeExpression: TypeBinding?)
+
+    /**
+     * Mémo des membres statiques par FQCN PORTEUR (2e appel, fiche C-08 D2) :
+     * le panneau est borné mais l'énumération ne doit pas se REJOUER à
+     * chaque invocation — un banc de charge qui ré-invoque la même ancre
+     * des dizaines de fois (mesuré : régression du p95 CONCURRENT de la
+     * diagnose voisine) doit payer UNE énumération, pas une par appel.
+     * clé par porteur, vide = non résolvable (négatif mémoïsé).
+     */
+    private val memoStatiques = HashMap<String, List<StatiqueBrut>>()
+
+    /**
      * Membres du récepteur (fiche 020 : la hiérarchie complète est balayée) —
      * depuis V-C3 : compatibilité au TYPE ATTENDU tamponnée (fiche C-03),
      * accessibilité des membres éprouvée (fiche C-08 D1 : 1er appel =
@@ -980,33 +996,79 @@ public class ServiceCompletion(
         }
         for (fqcn in porteurs.distinct().take(2 * MAX_TYPES_STATIQUES)) {
             pointDeControle()
-            val binding = bindingDeMemo(fqcn) ?: continue
-            for (champ in champsOuHerites(binding)) {
-                if (!champ.isStatic() || !champ.isPublic()) continue
+            for (brut in statiquesBruts(fqcn)) {
                 items.add(
-                    ItemCompletion(
-                        libelle = String(champ.name),
-                        nature = NatureItem.CHAMP,
-                        detail = fqcn,
-                        importStatiqueFqn = "$fqcn.${String(champ.name)}",
-                        compatibilite = TypeAttendu.compatibilite(champ.type, contexte.unionAttendus),
-                    ),
-                )
-            }
-            for (methode in methodesOuHeritees(binding)) {
-                if (methode.isConstructor() || !methode.isStatic() || !methode.isPublic()) continue
-                items.add(
-                    ItemCompletion(
-                        libelle = String(methode.selector),
-                        nature = NatureItem.METHODE,
-                        detail = signature(methode),
-                        importStatiqueFqn = "$fqcn.${String(methode.selector)}",
-                        compatibilite = TypeAttendu.compatibilite(methode.returnType, contexte.unionAttendus),
+                    brut.item.copy(
+                        compatibilite = TypeAttendu.compatibilite(brut.typeExpression, contexte.unionAttendus),
                     ),
                 )
             }
         }
         return items
+    }
+
+    /**
+     * Les membres STATIQUES PUBLICS d'un porteur — MÉMOÏSÉS par FQCN (voir
+     * [memoStatiques]) : l'énumération ne se paie qu'une fois par porteur
+     * et par moteur, la compatibilité au type attendu reste PAR APPEL.
+     */
+    private fun statiquesBruts(fqcn: String): List<StatiqueBrut> {
+        verrouEtat.withLock {
+            memoStatiques[fqcn]?.let { return it }
+        }
+        val bruts = mutableListOf<StatiqueBrut>()
+        val binding = try {
+            bindingDeMemo(fqcn)
+        } catch (_: Exception) {
+            null
+        }
+        if (binding != null) {
+            try {
+                for (champ in champsOuHerites(binding)) {
+                    if (!champ.isStatic() || !champ.isPublic()) continue
+                    bruts.add(
+                        StatiqueBrut(
+                            item = ItemCompletion(
+                                libelle = String(champ.name),
+                                nature = NatureItem.CHAMP,
+                                detail = fqcn,
+                                importStatiqueFqn = "$fqcn.${String(champ.name)}",
+                            ),
+                            typeExpression = try {
+                                champ.type
+                            } catch (_: Exception) {
+                                null
+                            },
+                        ),
+                    )
+                }
+                for (methode in methodesOuHeritees(binding)) {
+                    if (methode.isConstructor() || !methode.isStatic() || !methode.isPublic()) continue
+                    bruts.add(
+                        StatiqueBrut(
+                            item = ItemCompletion(
+                                libelle = String(methode.selector),
+                                nature = NatureItem.METHODE,
+                                detail = signature(methode),
+                                importStatiqueFqn = "$fqcn.${String(methode.selector)}",
+                            ),
+                            typeExpression = try {
+                                methode.returnType
+                            } catch (_: Exception) {
+                                null
+                            },
+                        ),
+                    )
+                }
+            } catch (_: Exception) {
+                // binding fautif : ce qui a été collecté suffit
+            }
+        }
+        verrouEtat.withLock {
+            if (memoStatiques.size >= MAX_TYPES_MEMO) memoStatiques.clear()
+            memoStatiques[fqcn] = bruts
+        }
+        return bruts
     }
 
     /**

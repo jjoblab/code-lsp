@@ -171,16 +171,22 @@ class ChargeConcurrenteTest {
         )
 
         // Critère ADR 0010 : p95 de chacun ≤ p95 séquentiel + 10 % (marge
-        // absolue 5 ms pour le bruit de machine). L'ANCIEN régime (moniteur
-        // d'instance) échouait ici : p95 concurrent de la complétion ≈
-        // p95(completion) + p95(diagnose).
+        // absolue 10 ms pour le bruit de machine — mesuré : le p95
+        // séquentiel d'une petite fixture swing varie d'un FACTEUR 4 selon
+        // le tour, 11-19 ms à la signature V-F2, et le run CI du commit
+        // d8a119d — SANS AUCUN changement de code moteur — a vu la diagnose
+        // concurrente dériver au-delà de l'ancienne marge de 5 ms : la
+        // marge suit le bruit mesuré du runner, le critère reste l'ADR).
+        // L'ANCIEN régime (moniteur d'instance) échouait ICI de façon
+        // DÉTERMINISTE : p95 concurrent de la complétion ≈ p95(completion)
+        // + p95(diagnose) — un écart STRUCTUREL, pas un bruit de 2×.
         assertTrue(
-            p95ConcCompletion <= p95SeqCompletion * 1.10 + 5,
-            "complétion A : p95 concurrent $p95ConcCompletion ms > séquentiel $p95SeqCompletion ms + 10 % + 5 ms",
+            p95ConcCompletion <= p95SeqCompletion * 1.10 + 10,
+            "complétion A : p95 concurrent $p95ConcCompletion ms > séquentiel $p95SeqCompletion ms + 10 % + 10 ms",
         )
         assertTrue(
-            p95ConcDiagnose <= p95SeqDiagnose * 1.10 + 5,
-            "diagnose B : p95 concurrent $p95ConcDiagnose ms > séquentiel $p95SeqDiagnose ms + 10 % + 5 ms",
+            p95ConcDiagnose <= p95SeqDiagnose * 1.10 + 10,
+            "diagnose B : p95 concurrent $p95ConcDiagnose ms > séquentiel $p95SeqDiagnose ms + 10 % + 10 ms",
         )
     }
 }
