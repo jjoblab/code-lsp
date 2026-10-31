@@ -294,3 +294,113 @@ ensemble).
 - **Suite** : **477 tests VERTS** sur la toolchain 17 (472 + 5) ;
   baseline de parité RE-SIGNÉE **398 → 401 fichiers** (le SPI, le
   moteur d'actions et les cas dorés entrent au corpus).
+
+## 9. Vague 5e — la clôture de l'étage 5 (31/10)
+
+### 9.1 Périmètre exécuté
+
+| # | Item | État | Détail |
+|---|---|---|---|
+| 1 | Preuves mécaniques complètes | **Fait** | §9.3 (suite, jar, scan ART pile, dexage d8, bancs JDK 17, banc qualité, compilation croisée, provenance) |
+| 2 | Journal | **Fait** | Le présent document (en-tête des cinq vagues, §5–§8, la clôture §9) |
+| 3 | ALERTES | **Fait** | E-K8 actualisée (§4 : les vagues 5a-5d portent le dex à 26 040 méthodes / 4,00 Mo — 79 % / 66 %) |
+| 4 | Manifeste | **Fait** | §3 (R3/R6/R7/R8 copiées avec leurs adaptations) + §6 (journal des copies, R9 caduque) |
+| 5 | CI | **Fait** | `kotlin-parite` actualisé aux fiches de l'étage (014/019/007/050 + cas dorés) |
+
+### 9.2 Ce que l'étage 5 a livré (synthèse)
+
+Le CONFORT ÉDITEUR du moteur Kotlin est livré : le PLIAGE complet
+(reprise R7 — une plage par paire d'accolades, dédupliquée, commentaires
+multi-lignes), le FORMATAGE BORNÉ (reprise R6 — ré-indentation canonique
+seule, intouchables préservés, refus sur arbre en erreur, idempotent),
+la DOCUMENTATION KDoc (reprise R8 — KDocParser vendoré, rendu texte
+neutre sections + tags, câblée au survol ET au scan), les PREVIEWS
+Compose (reprise R3 — preuve FQCN par les imports, arbre d'appels,
+inlining borné cycles/budgets) et les ACTIONS DÉCLARATIVES
+ModCommand-like (ADR 0115 — plans sérialisables re-prouvés à la
+requête, éditions par fichier, exécution déléguée au client, cas dorés
+WorkspaceEdit exacts). Les quatre reprises confort prévues au manifeste
+sont EFFECTUÉES (R3/R6/R7/R8 — re-contrôles R9.4 passés, adaptations de
+câblage documentées) ; R9 est caduque (couvert par le code neuf 2e).
+
+### 9.3 Preuves du bac à sable (avant poussée)
+
+- **Suite** : **477 tests VERTS** sur la toolchain 17 (431 + 46 —
+  exactement UN test par comportement des fiches 014/019/007/050, plus
+  les 5 cas dorés ADR 0115) ; baseline de parité RE-SIGNÉE au fil des
+  vagues **390 → 393 → 395 → 398 → 401 fichiers** (les reprises, le
+  SPI neuf, les moteurs d'actions et les tests entrent au corpus ;
+  `PlagesPliablesDocuments.kt` en sort).
+- **Jar moteur** : 892 147 o (+70 397 vs la clôture étage 4 : les
+  quatre reprises + le SPI previews/actions + les actions déclaratives).
+- **Scan ART pile complète** : 6 × « AUCUNE », rc=0 (moteur 321 classes
+  / 327 méthodes déclarées — borne basse ; bytecode 61:321, la chaîne
+  toolchain 17 tenue ; ServiceLoader OK descripteur vérifié).
+- **Dexage d8** (build-tools 34 local, min-api 26) : **26 040
+  références de méthodes (79 % du plafond 32 768) / 4 196 724 o =
+  4,00 Mo (66 % du budget 6 Mo)** — +217 méthodes / +50 488 o vs la
+  clôture étage 4 ; seuils tenus (E-K8 : surveillance maintenue,
+  ALERTES §4 actualisée).
+- **Banc JDK 17** (bac à sable, 2 cœurs) : froid 237,7/47,2 ms,
+  p50 5,4/22,7 ms, p95 33,0/51,7 ms, productions 5 448/31 368 et jetons
+  4 210/24 274 — déterminisme IDENTIQUE (la grammaire n'est pas
+  touchée), marqueurs d'erreur 0, tas 3 694 Kio.
+- **Banc de qualité** (`:kotlin:benchQualite`) : **VERT** — genres 16/16
+  déterministes, chaîne livrée 1.000/1.000/1.000 vs naïve 0.375 top-1 /
+  0.486 MRR, p95 6,80 ms (baseline signée 7,53 ms — sous la baseline,
+  tolérance ×1,5 tenue), sauts 0.
+- **Compilation croisée** : `testClasses` de TOUS les modules du dépôt
+  (les nouvelles entrées du SPI Kotlin — `formatage`/`formatagePlage`/
+  `previews`/`actions` — ne cassent rien : aucun autre module
+  n'implémente le contrat).
+- **Provenance** : `verifier-provenance.sh` rc=0 (les quatre reprises
+  confort sont inscrites au manifeste avec leurs chemins neufs ; les
+  zones noyau anciennes restent en lecture interdite R9.1 — jamais
+  consultées).
+
+### 9.4 Clôture de la vague 5e et de l'ÉTAGE 5
+
+**LES CRITÈRES DE SORTIE DE L'ÉTAGE 5 (§2) SONT ATTESTÉS** :
+
+1. **Fiches confort vertes** — 41/41 comportements (fiche 014 — §5 :
+   7/7 ; fiche 019 — §5 : 9/9 ; fiche 007 — §6 : 9/9 ; fiche 050 — §7 :
+   16/16), les fiches 016/020 restant vertes (non-régression de
+   l'enrobage déclaratif) ;
+2. **Cas dorés WorkspaceEdit** (ADR 0115) — 5/5 (§8 : éditions exactes
+   des trois familles, sans-preuve vide, idempotence) ;
+3. **E-K8** — dex d8 sous les seuils arbitrés (26 040 / 4,00 Mo — 79 %
+   méthodes / 66 % taille), ALERTES §4 actualisée.
+
+**L'ÉTAGE 5 EST CLOS sur preuve mécanique.** Le compte du cahier :
+469 comportements, dont **430 livrés** (389 aux étages 0-4 + 41 ici) —
+**RESTENT 39** pour l'étage 6 et le transverse : fiches 001
+(chargeur — 3), 015 (capacités L2 — 12), 018 (fiche classpath — 11),
+051 (signature — 12) et 021 (mesures perf — 1). L'étage 6 (serveur LSP +
+protocole riche : LSP4J, capabilities paritaires, époque, drapeau pack —
+16–26 j-h [estimé]) est le suivant ; la distribution exacte de ces 39
+comportements entre l'étage 6 et le transverse T sera tranchée à son
+ouverture (les fiches 015/018/051 sont des capacités moteur exposées au
+SPI, la 001 verrouille le descripteur de pack, la 021 relève des
+bancs).
+
+#### Le coût de l'étage 5 (miroir des relevés des étages précédents — PAS un recalage : le recalage n° 3 a clos la série)
+
+| Grandeur | Valeur | Détail |
+|---|---:|---|
+| Commits de l'étage | 4 | 5a (livraison `2add68e`), 5b (`976baa6`), 5c (`b9c7734`), 5d (`b6d8337`) + la clôture 5e (le présent commit) |
+| Fichiers touchés (5a-5d) | 18 | +4 482 / −368 lignes (main, tests, journaux, manifeste, digeste) |
+| `kotlin/` main | 9 fichiers, +2 657 / −305 | les 4 reprises (PlisDocumentKotlin 187 l., FormateurKotlin 296 l., DocumentationKotlin 287 l., PreviewsDocumentKotlin 668 l.), le SPI (ConfortKotlin +59, PreviewsKotlin +194, ActionsKotlin +82, SessionLangageKotlin +131), la session (+172), ActionsDeclarees (+148), ModeleProjet (+18), SurvolDocuments (−45), ScanProjetParesseux (+2), PlagesPliablesDocuments supprimé (−72) |
+| `kotlin/` test | 5 fichiers, +1 366 | fiches 014/019/007/050 (159 + 219 + 172 + 338 l.) + cas dorés (278 l. — 41 + 5 tests) |
+| Tests du module | 431 → **477** | +41 pour 41 comportements (EXACTEMENT 1 test/comportement) + 5 cas dorés ADR 0115 |
+| Tempo [mesuré-agent] | 31/10 (séance continue) | 5 vagues — les reprises confort sont une dominante DOCUMENTÉE légère (miroir étage 4 : le socle porte les moteurs SANS mécanisme neuf de fond — les trois écarts corrigés (§5.2, §6.2, §8.3) étaient des erreurs de CÂBLAGE, pas des découvertes d'architecture) |
+
+**Comparaison à l'estimation** : la fourchette de l'étage 5 était
+**20–32 j-h [estimé]** (synthèse §4). À ~97 lignes par comportement
+(≈ 4 482 l. / 46 comportements + dorés — main, tests, journaux et
+manifeste compris) contre ~112 pour l'étage 4 et ~135 pour l'étage 3 :
+la dominante confort (reprises bornées + enrobage déclaratif) est la
+MOINS COÛTEUSE des dominantes rencontrées — l'abaque de la synthèse
+tenait déjà (recalage n° 3 : « aucun recalage supplémentaire n'est
+requis jusqu'à la clôture du programme ») ; le présent relevé le
+confirme sans le rouvrir. Restent à l'abaque : étage 6 (16–26 j-h) et T
+transverse (8–12 j-h).

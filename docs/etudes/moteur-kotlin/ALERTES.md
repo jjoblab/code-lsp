@@ -218,6 +218,15 @@
     +187 / +56 172 sur l'étage complet) ; L'ÉTAGE 4 EST CLOS sous ces
     seuils, la marge tient pour les étages 5-6 (confort et serveur LSP :
     code moteur attendu, miroir de l'étage 4), surveillance maintenue.
+  - *Actualisation clôture étage 5 (31/10, vagues 5a-5d — confort
+    éditeur : reprises R7/R6/R8/R3 + actions déclaratives)* : les
+    reprises pliage/formateur/KDoc/previews, le SPI previews/actions et
+    les actions déclaratives portent le dex à **26 040 méthodes /
+    4 196 724 o (4,00 Mo)** — méthodes **79 %** du plafond 32 768,
+    taille **66 %** du budget 6 Mo (+217 méthodes / +50 488 o vs la
+    clôture étage 4) ; L'ÉTAGE 5 EST CLOS sous ces seuils, la marge
+    tient pour l'étage 6 (serveur LSP : code moteur attendu, miroir des
+    étages 4-5), surveillance maintenue.
 
 ## 5. Points restés « à vérifier » (non clos par l'étude)
 
