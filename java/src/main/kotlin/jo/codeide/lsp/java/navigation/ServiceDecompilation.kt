@@ -22,7 +22,8 @@ import java.nio.file.Paths
  *
  * La sonde [estTypeBinaire] (fiche 005 : `isBinaryType`) identifie les
  * types BINAIRES : tout FQCN résolu par l'annuaire hors des SOURCES du
- * projet (jar, jrt, stub intrinsèque) ; null, vide, inconnu ou source
+ * projet (jar, jrt, stub intrinsèque, classe LIGHT synthétique — V-B :
+ * `R`/`BuildConfig`/`Binding` fabriqués) ; null, vide, inconnu ou source
  * projet → faux.
  *
  * Sortie honnête : null pour un FQCN null/vide (sortie anticipée, AUCUN
@@ -64,6 +65,7 @@ public class ServiceDecompilation(
             EnvironnementNoms.Localisation.Jar,
             EnvironnementNoms.Localisation.Jrt,
             EnvironnementNoms.Localisation.Stub,
+            EnvironnementNoms.Localisation.Synthetique,
             -> true
             else -> false
         }
@@ -107,10 +109,14 @@ public class ServiceDecompilation(
     // Stub décompilé (octets de la classe)
     // ------------------------------------------------------------------ //
 
-    /** Les octets de la classe (jar, jrt, stub intrinsèque — null sinon). */
+    /** Les octets de la classe (jar, jrt, stub intrinsèque, light V-B — null sinon). */
     private fun octetsDe(fqcn: String): ByteArray? = try {
         val env = environnement()
-        env.cacheLocalisation.octetsPour(fqcn) ?: env.accesJrt?.octets(fqcn)
+        env.cacheLocalisation.octetsPour(fqcn)
+            ?: env.accesJrt?.octets(fqcn)
+            ?: env.synthetiques.firstNotNullOfOrNull { fournisseur ->
+                runCatching { fournisseur.octetsPour(fqcn) }.getOrNull()
+            }
     } catch (_: Exception) {
         null
     }

@@ -278,6 +278,33 @@ internal open class CollecteurSymbole(
                 }
             }
         }
+        // Forme « liaison unique » (V-B2) : pour `Type.Nested.champ`, ecj
+        // lie le DERNIER segment dans `binding` et laisse `otherBindings`
+        // NULL — le caret sur le dernier jeton désigne quand même le champ
+        // (latence de navigation comblée pour TOUTE référence qualifiée
+        // statique, `R.layout.x` compris).
+        if (autres == null && positions.isNotEmpty()) {
+            runCatching {
+                val b = node.binding
+                if (b is FieldBinding) {
+                    val p = positions[positions.size - 1]
+                    val debut = (p ushr 32).toInt()
+                    val fin = p.toInt()
+                    if (offset in debut..fin) {
+                        val proprietaire = fqnTopDe(b.declaringClass)
+                        if (proprietaire != null) {
+                            considerer(
+                                debut, fin, NatureSymbole.CHAMP,
+                                CleUsages.Champ(proprietaire, String(b.name)),
+                                proprietaire,
+                                fqnDeType(b.type),
+                                b,
+                            )
+                        }
+                    }
+                }
+            }
+        }
         return true
     }
 

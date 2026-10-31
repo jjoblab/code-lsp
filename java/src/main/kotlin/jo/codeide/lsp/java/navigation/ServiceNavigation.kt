@@ -49,11 +49,15 @@ import kotlin.io.path.readText
  * @param localiser localise un FQN (annuaire de noms du moteur).
  * @param sousTypesDeFqn les sous-types DIRECTS d'un FQN (balayage des
  *   racines — le service de hiérarchies N7).
+ * @param cibleChampSynthetique résout la cible XML d'un champ d'une classe
+ *   light (V-B2 — `R.layout.x` → le fichier déclarant + la plage du jeton) ;
+ *   null = aucun champ synthétique sur ce moteur.
  */
 public class ServiceNavigation(
     private val resoudre: (String, String) -> CompilationUnitDeclaration?,
     private val localiser: (String) -> EnvironnementNoms.Localisation?,
     private val sousTypesDeFqn: (String) -> List<CibleTypeHierarchie>,
+    private val cibleChampSynthetique: ((fqcnDeclarant: String, champ: String) -> jo.codeide.lsp.java.classpath.TypesSynthetiques.CibleChampSynthetique?)? = null,
 ) {
 
     // ------------------------------------------------------------------ //
@@ -303,8 +307,35 @@ public class ServiceNavigation(
             }
         }
 
+        // 1b. Champ d'une classe LIGHT (V-B2) : `R.layout.x` vise le XML
+        // déclarant — la cible EXACTE du référentiel, avant tout repli
+        // projet/binaire (le déclarant synthétique n'a pas de source).
+        // Le FQCN déclarant est pris en forme BINAIRE (constantPoolName —
+        // `ns.R$layout`) : la clé d'usages remonte au type TOP (l'imbriquée
+        // y serait perdue).
+        val cle = symbole.cleUsages as? CleUsages.Champ
+        cibleChampSynthetique?.let { resoudre ->
+            val fqnDeclarant = runCatching {
+                binding.declaringClass?.constantPoolName()?.let { nom -> String(nom).replace('/', '.') }
+            }.getOrNull() ?: cle?.fqnProprietaire
+            if (fqnDeclarant != null) {
+                val cible = runCatching { resoudre(fqnDeclarant, nom) }.getOrNull()
+                if (cible != null) {
+                    return listOf(
+                        CibleNavigation(
+                            genre = GenreCible.SOURCE_PROJET,
+                            chemin = cible.fichier,
+                            uri = "file://${cible.fichier}",
+                            plage = Plage(cible.offset, cible.offset + cible.longueur),
+                            nomSimple = nom,
+                        ),
+                    )
+                }
+            }
+        }
+
         // 2. Projet / 3. binaire.
-        val cle = symbole.cleUsages as? CleUsages.Champ ?: return emptyList()
+        if (cle == null) return emptyList()
         return cibleDepuisFqnProprietaire(chemin, cle.fqnProprietaire, nom) { fichier, texte, arbreFichier ->
             val declaration = trouverChamp(arbreFichier, nom) ?: return@cibleDepuisFqnProprietaire null
             Plage(declaration.sourceStart, declaration.sourceStart + nom.length)

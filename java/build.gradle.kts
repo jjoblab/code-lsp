@@ -221,6 +221,18 @@ tasks.register<JavaExec>("benchUsages") {
     jvmArgs("-Xmx2g", "-XX:+UseSerialGC")
 }
 
+// Banc des RESSOURCES de la vague V-B (ADR 0020/0021) : scan res/ p95 <
+// 150 ms, MAJ ciblée < 5 ms, peson compact < 2 Mo/projet — mesures sur la
+// fixture mini, le banc monip et le corpus réel (présent = mesuré, absent
+// = ignoré avec raison affichée) ; ÉCHOUE si un budget ADR est dépassé.
+tasks.register<JavaExec>("benchRessources") {
+    group = "verification"
+    description = "Banc des ressources V-B (scan p95 < 150 ms, MAJ ciblée < 5 ms, peson < 2 Mo/projet)."
+    mainClass.set("jo.codeide.lsp.java.banc.BancRessourcesKt")
+    classpath = bancSourceSet.runtimeClasspath
+    jvmArgs("-Xmx2g", "-XX:+UseSerialGC")
+}
+
 // Banc de PARITÉ CROISÉE (étage T — cœur historique, ADR 0016) : le même
 // corpus rejoué contre le vendored (oracle en boîte noire, sous-processus
 // JVM isolé piloté par DriverOracle) et le moteur neuf (in-process) ;

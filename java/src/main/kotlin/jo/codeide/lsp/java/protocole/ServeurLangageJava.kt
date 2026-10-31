@@ -432,6 +432,17 @@ public class ServeurLangageJava(
         val identifiant = params.textDocument
         // Sync PLEINE : le dernier changement porte le texte intégral.
         val texte = params.contentChanges.lastOrNull()?.text ?: return
+        // V-B — MAJ ciblée des ressources : un didChange XML (le client
+        // édite un layout/menu/values) rafraîchit le référentiel du module
+        // SANS rescan complet et invalide le mémo de diagnose (les champs
+        // de R changent). Le document XML n'entre PAS dans les tampons
+        // Java (filtré par etats.changer — aucun diagnostic Java publié).
+        if (identifiant.uri.endsWith(".xml")) {
+            val cheminXml = ConvertisseurLsp.cheminDeUri(identifiant.uri)
+            if (cheminXml != null) {
+                moteurPour(cheminXml)?.rafraichirFichierXml(java.nio.file.Path.of(cheminXml))
+            }
+        }
         etats.changer(identifiant.uri, texte, identifiant.version.toLong())
         serviceRenommage?.ouvrirDocument(identifiant.uri, identifiant.version.toLong())
         publicateur?.demander(identifiant.uri)

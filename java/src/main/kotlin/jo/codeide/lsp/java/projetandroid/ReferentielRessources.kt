@@ -169,6 +169,55 @@ public class ReferentielRessources(dossiers: List<Path>) {
         scannerFichier(fichier)
     }
 
+    /**
+     * La SÉRIALISATION COMPACTE du référentiel (V-B2 — budget CIDX,
+     * ADR 0020 : « < 2 Mo par projet moyen ») : format binaire minimal
+     * (DataOutputStream : UTF modifié, varint manuels) couvrant les tables
+     * de noms, les fichiers déclarants et les métadonnées de binding —
+     * le PESON du futur segment CIDX (le câblage du segment vit côté
+     * index partagé, documenté au PV : la mesure prouve le budget).
+     *
+     * @return les octets du référentiel sérialisé (chemins RELATIFS au
+     *   premier dossier `res/` — la forme persistable).
+     */
+    public fun octetsCompacts(): ByteArray {
+        val sortie = java.io.ByteArrayOutputStream(4096)
+        val w = java.io.DataOutputStream(sortie)
+        val racine = dossiers.firstOrNull()
+        fun cheminRelatif(fichier: Path): String =
+            racine?.let { r -> runCatching { r.relativize(fichier).toString() }.getOrDefault(fichier.toString()) }
+                ?: fichier.toString()
+        w.writeInt(FORMAT_COMPACT)
+        w.writeInt(types.size)
+        for ((type, table) in types) {
+            w.writeUTF(type)
+            w.writeInt(table.size)
+            for ((nom, ressource) in table) {
+                w.writeUTF(nom)
+                w.writeInt(ressource.offsetNom)
+                w.writeInt(ressource.fichiers.size)
+                for (fichier in ressource.fichiers) w.writeUTF(cheminRelatif(fichier))
+            }
+        }
+        w.writeInt(layouts.size)
+        for ((nom, binding) in layouts) {
+            w.writeUTF(nom)
+            w.writeBoolean(binding.estDataBinding)
+            w.writeInt(binding.vues.size)
+            for ((idVue, type) in binding.vues) {
+                w.writeUTF(idVue)
+                w.writeUTF(type)
+            }
+            w.writeInt(binding.variables.size)
+            for ((nomVar, typeVar) in binding.variables) {
+                w.writeUTF(nomVar)
+                w.writeUTF(typeVar)
+            }
+        }
+        w.flush()
+        return sortie.toByteArray()
+    }
+
     // ------------------------------------------------------------------ //
     // Scan
     // ------------------------------------------------------------------ //
@@ -315,7 +364,9 @@ public class ReferentielRessources(dossiers: List<Path>) {
                             vues[nomId] = type
                             typeParId.getOrPut(nomId) { mutableSetOf() }.add(type)
                         }
-                        enregistrer("id", nomId, fichier, evenement.positionsValeurs["id"] ?: 0)
+                        // Offset du NOM dans la valeur (`@+id/nom`) — la
+                        // plage de navigation couvre exactement le nom.
+                        enregistrer("id", nomId, fichier, positionDuNom(evenement, id))
                     }
                 }
             }
@@ -352,9 +403,15 @@ public class ReferentielRessources(dossiers: List<Path>) {
             val id = evenement.attributs["id"] ?: continue
             if (!id.startsWith("@+id/")) continue
             val nomId = id.substringAfterLast('/')
-            enregistrer("id", nomId, fichier, evenement.positionsValeurs["id"] ?: 0)
+            enregistrer("id", nomId, fichier, positionDuNom(evenement, id))
         }
     }
+
+    /** L'offset du NOM dans la valeur d'un attribut id (`@+id/nom`). */
+    private fun positionDuNom(
+        evenement: LecteurXmlTolerant.EvenementXml.Debut,
+        id: String,
+    ): Int = (evenement.positionsValeurs["id"] ?: 0) + (id.length - id.substringAfterLast('/').length)
 
     /** Enregistre une ressource (la première occurrence gagne en doublon).
      *
@@ -399,6 +456,9 @@ public class ReferentielRessources(dossiers: List<Path>) {
     }
 
     private companion object {
+        /** La version du format compact (invalide les vieux octets). */
+        private const val FORMAT_COMPACT: Int = 1
+
         /** Les dossiers XML dont aapt collecte les `@+id` (hors layout). */
         private val ENSEMBLE_TYPES_AVEC_IDS: Set<String> = setOf("menu", "xml", "preference")
 

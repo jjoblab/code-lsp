@@ -196,8 +196,8 @@ class ModeleAndroidDeriveTest {
         val (fichierId, offsetId) = referentiel.cible("id", "text_titre")!!
         val texte = Files.readString(fichierId)
         assertTrue(
-            texte.startsWith("@+id/text_titre", offsetId) || texte.regionMatches(offsetId, "@+id/text_titre", 0, 15),
-            "l'offset désigne la valeur de android:id",
+            texte.regionMatches(offsetId, "text_titre", 0, "text_titre".length),
+            "l'offset désigne le NOM dans la valeur de android:id (@+id/…)",
         )
 
         val (fichierString, offsetString) = referentiel.cible("string", "app_nom")!!

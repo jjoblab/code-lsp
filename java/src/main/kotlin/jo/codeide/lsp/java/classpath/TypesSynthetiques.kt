@@ -48,14 +48,31 @@ public interface TypesSynthetiques {
 
     /**
      * La cible de NAVIGATION d'un CHAMP synthétique : `R.layout.x` → le
+     * fichier XML déclarant + la plage EXACTE du jeton cible.
+     *
+     * @property fichier le fichier XML déclarant.
+     * @property offset la position du jeton cible dans le fichier (0 pour
+     *   une ressource FICHIER — layout/drawable : le nom n'est pas dans le
+     *   XML, la plage est vide et le client ouvre simplement le fichier).
+     * @property longueur la longueur du jeton cible (0 = plage vide).
+     */
+    public data class CibleChampSynthetique(
+        public val fichier: Path,
+        public val offset: Int,
+        public val longueur: Int,
+    )
+
+    /**
+     * La cible de NAVIGATION d'un CHAMP synthétique : `R.layout.x` → le
      * fichier XML déclarant + l'offset exact du nom.
      *
      * @param fqcnDeclarant le FQCN du type déclarant (`ns.R$layout`).
      * @param champ le nom du champ (`activity_main`).
-     * @return (fichier, offset du jeton cible) ou null si non applicable.
+     * @return la cible (fichier, offset, longueur du jeton) ou null si non
+     *   applicable.
      */
     public fun cibleChamp(
         fqcnDeclarant: String,
         champ: String,
-    ): Pair<Path, Int>?
+    ): CibleChampSynthetique?
 }

@@ -96,19 +96,37 @@ public class ClassesLegereAndroid(
      * layout, `R.id.x` → la déclaration `@+id/x`, `R.string.x` → le
      * `<string name="x">` (référence §B8 : la navigation ressource est
      * EXACTE, jamais approximative).
+     *
+     * Le FQCN déclarant arrive en forme BINAIRE (`ns.R$layout`) ou en
+     * forme SOURCE (`ns.R.layout`) selon l'appelant — les deux sont
+     * normalisées ici.
      */
     override fun cibleChamp(
         fqcnDeclarant: String,
         champ: String,
-    ): Pair<Path, Int>? {
-        if (!fqcnDeclarant.startsWith("${contrat.namespace}.R$")) return null
-        val type = fqcnDeclarant.substringAfterLast('$')
+    ): jo.codeide.lsp.java.classpath.TypesSynthetiques.CibleChampSynthetique? {
+        val prefixeR = "${contrat.namespace}.R"
+        val type = when {
+            fqcnDeclarant.startsWith("$prefixeR$") -> fqcnDeclarant.substringAfterLast('$')
+            fqcnDeclarant.startsWith("$prefixeR.") -> fqcnDeclarant.removePrefix("$prefixeR.")
+            else -> return null
+        }
         if (type == "styleable" && champ.contains('_')) {
             val styleable = champ.substringBefore('_')
             val attribut = champ.substringAfter('_')
-            return referentiel.cibleStyleable(styleable, attribut)
+            val cible = referentiel.cibleStyleable(styleable, attribut) ?: return null
+            // Le jeton visé est le nom de l'ATTRIBUT — pas le champ X_a.
+            return jo.codeide.lsp.java.classpath.TypesSynthetiques.CibleChampSynthetique(cible.first, cible.second, attribut.length)
         }
-        return referentiel.cible(type, champ)
+        val cible = referentiel.cible(type, champ) ?: return null
+        val fichier = cible.first
+        return if (cible.second <= 0) {
+            // Ressource FICHIER (layout, drawable…) : le nom n'est pas DANS
+            // le XML — plage vide, le client ouvre le fichier.
+            jo.codeide.lsp.java.classpath.TypesSynthetiques.CibleChampSynthetique(fichier, 0, 0)
+        } else {
+            jo.codeide.lsp.java.classpath.TypesSynthetiques.CibleChampSynthetique(fichier, cible.second, champ.length)
+        }
     }
 
     // ------------------------------------------------------------------ //

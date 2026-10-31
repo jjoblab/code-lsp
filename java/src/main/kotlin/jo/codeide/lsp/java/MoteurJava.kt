@@ -1453,6 +1453,9 @@ public class MoteurJava(
             resoudre = { chemin, source -> resolveUnit(chemin, source, genererCode = false)?.arbre },
             localiser = { fqcn -> runCatching { environnementNoms().trouverFqcn(fqcn) }.getOrNull() },
             sousTypesDeFqn = { fqn -> serviceHierarchies().sousTypesDeFqn(fqn) },
+            cibleChampSynthetique = { fqcnDeclarant, champ ->
+                fabriqueLegere?.cibleChamp(fqcnDeclarant, champ)
+            },
         )
         serviceNavigation = service
         return service
