@@ -31,14 +31,24 @@
   `architecture-components-samples` (BasicSample) utilise Gradle 7.5 — la vérification
   « compile avec Gradle récent » de P3 doit tolérer ce cas (JDK 17 OK documenté) ou
   l'épingler sur une branche plus récente ; à trancher à la première exécution CI.
+
+- **AL4bis — Découvertes du banc P1–P8 (mesures du 31/10, JVM bureau)** : outre les
+  confirmations H4/H6, le banc a mis au jour un **bug inconnu jusque-là** : la
+  complétion de types propose des classes **internes non publiques du JDK**
+  (`java.util.concurrent.atomic.Striped64`, `java.util.stream.StreamShape`,
+  `StreamOpFlag`, `Streams`) avec auto-import insoluble — le filtre des internes
+  livré en N2 (`com.sun.*`/`jdk.*`) ne couvre pas les non-public de `java.util.*`.
+  Écart à ajouter au registre : G-004 (complétion) — correction candidate vague
+  V-A. De même : le quick-fix « création de méthode » en contexte typé (`return
+  f()` dans une méthode `String`) insère un stub de retour `Object` et laisse une
+  erreur de type — G-014, le fix n'est pas contextuel.
 - **AL4 — Rate-limit Maven Central rencontré pendant l'étude** : la compilation
   locale de `:java:compileTestKotlin` a échoué trois fois sur des 429 (Too Many
-  Requests) au téléchargement des dépendances — l'environnement d'étude (2 cœurs /
-  4 Go) n'a **pas** permis d'exécuter le banc P1–P8 localement avant push ;
-  la **CI GitHub** (plus de RAM, réseau sain) reste le lieu d'exécution prévu (§1.5).
-  Les tests sont livrés **compilables par construction** (API du dépôt uniquement)
-  mais leur exécution n'est pas attestée ici — `[NON VÉRIFIÉ]`, traçable au run CI
-  du push.
+  Requests) au téléchargement des dépendances (rafales parallèles de Gradle). Le
+  build a **finalement réussi** en sérialisant les requêtes (`--max-workers=1`) :
+  le banc P1–P8 a donc bien été **exécuté en local** (23 tests / 0 échec / 1 gate
+  corpus ignorée) — les mesures sont consignées dans l'audit §1.12. La gate corpus
+  réel (P3/P4/P7) reste à jouer en CI après préparation des classpaths.
 - **AL5 — `Thunderbird-android` éliminé du corpus** : le projet (ex-K-9 Mail) est
   passé à 82,8 % Kotlin au HEAD épinglé — l'hypothèse du prompt (K-9 = bon corpus
   Java) est périmée ; remplacé par gh4a/AnySoftKeyboard. Les candidats GPL éliminés

@@ -236,18 +236,31 @@ sont **au niveau** ; c'est la **couverture des contextes** qui est en retrait
   des tests de l'ancien moteur : c'est le **contrat de réécriture**, pas une vérité
   terrain « niveau Android Studio ». **Il manque** : corpus réel, métriques FP/FN,
   positions de complétion réelles étiquetées → c'est l'objet de l'ADR « Qualité mesurée »
-  (0029) et de la vague 0 livrée.
+  (0030) et de la vague 0 livrée.
 
-### 1.12 H12 — Incohérences par propriétés `[CONFIRMÉ — banc livré]`
+### 1.12 H12 — Incohérences par propriétés `[CONFIRMÉ — banc livré ET exécuté]`
 
 Aucun test de propriété/métamorphique n'existait (audit de `java/src/test` : tests de
 parité cahier uniquement). Le banc P1–P8 est **livré** en vague 0
-(`java/src/test/kotlin/jo/codeide/lsp/java/coherence/`, exécutable en CI) : P1
-équivalence rapide/complet, P2 idempotence/stabilité, P3 zéro faux positif sur code
-compilable, P4 vrais positifs par mutation, P5 cycle quick-fix, P6 complétion résoluble,
-P7 rename sûr, P8 cohérence inter-fichiers. Résultats d'exécution sur corpus réel :
-rapportés dans le PV de la vague 0 (le corpus arrive par script, §4.4 — voir
-`07-gabarit-mesure-appareil.md` et le script `scripts/telecharger-corpus-android.sh`).
+(`java/src/test/kotlin/jo/codeide/lsp/java/coherence/`) et a été **exécuté** (JVM
+de bureau, 23 tests / 0 échec / 1 gate ignorée — corpus réel absent en local,
+raison affichée). **Baseline d'écart mesurée** (violations classées par cause
+racine, imprimées dans les logs de test) :
+
+| Propriété | Mesure (31/10/2026, JVM bureau) | Lecture |
+|---|---|---|
+| P1 éditions confinées / usage tardif de champ / repli hors-corps | 0 violation (5 mesures) | la fiche 014 tient sur ces chemins |
+| **P1 frappe lettre à lettre (27 éditions)** | **18 divergences rapide/complet** | **confirmé (H6)** : pendant la frappe, le chemin rapide diverge du complet — tailles différentes (ex. 5 contre 4), la matière première de l'ADR 0025 |
+| P2 déterminisme / chaud-froid / neutralité blancs et commentaires | 0 violation | stable |
+| P3 corpus synthétique (5 fichiers valides, 142 lignes) | **0 FP — FP/1 000 = 0,0** | pas de faux positif sur du code valide hors Android |
+| P3 corpus réel (5 projets) | gate ignorée (`CORPUS_ANDROID` absent — préparation classpath requise, LISEZMOI) | à jouer en CI |
+| P4 mutants (6 familles) | **6/6 détectés à la bonne plage** (codes : 16777218, 570425394, 16777233, 1610612976, 67108964, 33554515) | rappel intégral sur l'échantillon |
+| P5 cas dorés (import, `;`, création en appel-instruction) | 0 violation | le cycle tient sur les contrats fiches 063/064 |
+| **P5 balayage élargi (3 fixtures)** | **2 violations** | fix création non contextuel (retour `Object` laissé dans un contexte `String`) + fixture sans action — G-014 |
+| P6 position NOM / MEMBRE | 0 violation (20 insertions) | suggestions résolubles |
+| **P6 position TYPE (12 types)** | **4 violations** | **découverte** : la complétion propose des classes INTERNES non publiques du JDK (`Striped64`, `StreamShape`, `StreamOpFlag`, `Streams`) avec auto-import insoluble — G-004 (le filtre `com.sun.*`/`jdk.*` de N2 ne couvre pas les non-public de `java.util.*`) |
+| P7 rename (mono + inter-fichiers) | 0 violation | le socle N5 tient |
+| **P8 inter-fichiers** | **1 violation** | **confirmé (H4)** : après édition de l'API de `A`, `B` (ouvert, inchangé) reste sans erreur (mémo périmé) alors qu'un moteur NEUF voit « The method taille() is undefined » — G-003 |
 
 ### 1.13 H13 — Verrou global + worker unique `[CONFIRMÉ]`
 
@@ -448,15 +461,18 @@ relatives annoncées par l'étude PSI (D9 : fidélité compilateur = atout diff�
 - **Exécutées (statique, reproductible)** : comptages (`synchronized` = 82 ; lignes du
   module = 22 649 ; tailles par répertoire), lectures fichier:ligne citées, épingle des
   commits du corpus (§5), lecture intégrale des baselines signées.
+- **Exécutées (dynamique, 31/10/2026, JVM de bureau — borne basse)** : le banc
+  P1–P8 livré a été joué (`./gradlew :java:test --tests
+  'jo.codeide.lsp.java.coherence.*'` — 23 tests, 0 échec, 1 gate corpus ignorée) :
+  résultats consolidés §1.12 — **26 violations mesurées**, toutes classées par cause
+  racine (P1 frappe : 18 ; P5 balayage : 2 ; P6 types : 4 ; P8 : 1 ; les autres
+  propriétés à 0).
 - **Héritées (bancs signés, dates dans les sources)** : latences N1/S17/S20, 18/18
   bascule, 165 deltas parité.
 - **[NON VÉRIFIÉ] (et protocole)** : toute mesure **appareil** (gabarit
-  `07-gabarit-mesure-appareil.md`) ; divergences ecj ↔ javac sur corpus réel (à jouer
-  en P3 : le corpus compile avec javac via Gradle — tout écart ecj est un FP potentiel) ;
-  captures Android Studio (protocole `06-protocole-captures-android-studio.md`) ;
-  exécution complète du banc P1–P8 sur les 5 projets du corpus (CI : la machine locale
-  de l'étude est bornée à 2 cœurs / 4 Go — les tests P1–P8 sont livrés exécutables,
-  la CI les jouera).
+  `07-gabarit-mesure-appareil.md`) ; divergences ecj ↔ javac **sur corpus réel** (la
+  gate P3-corpus exige la préparation des classpaths — LISEZMOI du corpus) ; captures
+  Android Studio (protocole `06-protocole-captures-android-studio.md`).
 
 ## 5. Corpus réel (§4.4 du prompt) — livré en vague 0
 

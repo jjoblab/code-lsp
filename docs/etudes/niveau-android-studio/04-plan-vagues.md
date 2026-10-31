@@ -23,10 +23,13 @@
   `bancs/GABARIT-BASCULE-APPAREIL.md`).
 - ADR 0030 (cadre qualité) + cette étude (audit, référence, matrice, ADR).
 
-**Critères de sortie de la vague 0** : CI verte avec le banc P1–P8 compilé ; première
-exécution sur corpus = **baseline d'écart** consignée (PV de mesure) ; captures AS
-retournées par le propriétaire. **Elle peut démarrer dès le STOP — aucune décision
-d'architecture ne la conditionne.**
+**Critères de sortie de la vague 0** : ~~CI verte avec le banc P1–P8 compilé~~ **atteint
+en local** (23 tests / 0 échec / 1 gate corpus ignorée — mesures consignées audit
+§1.12 : 26 violations, dont 18 divergences rapide/complet en frappe, 4 types JDK
+internes proposés en complétion, 1 staleness inter-fichiers) ; restent : la première
+exécution **CI** du push, la gate corpus réel (manifestes de classpath à préparer) et
+les captures AS retournées par le propriétaire. **Elle ne dépend d'aucune décision
+d'architecture.**
 
 **Dépendances** : propriétaire (captures AS, passe appareil). **Effort** : livré
 (~1 séance) ; exécution/analyse : 0,5–1 séance.
