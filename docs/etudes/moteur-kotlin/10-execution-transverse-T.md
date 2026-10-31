@@ -316,8 +316,20 @@ futurs. **STOP** : aucun chantier du plan §4 n'est ouvert ; ce journal est
 le dernier de la série d'exécution. L'attestation CI du push de clôture
 est consignée ci-dessous après consultation du run (miroir des étages 4–6).
 
-**ATTESTATION CI (consignée après poussée)** : à compléter par le commit
-d'attestation, miroir des journaux 07 §8.4 / 08 §9.4 / 09 §9.4.
+**ATTESTATION CI (consignée après poussée)** : le push du transverse T
+(`1878563` → `92315c5`, les deux commits vague T-a `164ace6` et clôture
+T-b) a déclenché le run **`41165869078`** — consulté le 31/10 via l'API
+GitHub Actions : **CI VERTE 10/10 sur le commit de clôture `92315c5`,
+PREMIÈRE TENTATIVE** (le run porte le SHA de TÊTE du push : il éprouve la
+livraison T-a ET la clôture T-b ensemble). Les dix jobs verts : Build et
+tests JDK 21, banc parité croisée T (oracle vendored épinglé), **suite du
+module Kotlin — les 523 tests, la fiche 021 comprise : cahier 469/469**
+(le nom du job porte désormais « cahier COMPLET 469/469 »), banc qualité
+complétion (baseline signée Java), banc empreinte/latence Kotlin, banc
+qualité complétion Kotlin étage 3 (baseline signée — p95 sous tolérance),
+gates Android SDK 34, banc empreinte/latence du noyau N1, manifeste de
+provenance (anti-fichier-hors-registre), scan ART + dexage d8 sous seuils
+étage 0. Le flottant E-K6 (périmètre Java) n'a pas frappé.
 
 ### 8.5 Post-scriptum d'exécution (le point d'honnêteté final)
 
