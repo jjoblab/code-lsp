@@ -23,3 +23,10 @@ local.properties
 # scripts/preparer-projet-android.sh — jamais committées, R6.4) :
 # android.jar, AARs et classes.jar extraits.
 bancs/projet-android-libs/
+
+# Corpus réel Android Java du banc P1–P8 (téléchargé par
+# scripts/telecharger-corpus-android.sh — jamais committé, R6.4) :
+# sources des 5 projets épinglés + manifestes de classpath préparés localement.
+bancs/corpus-android/*
+# ... sauf la documentation du corpus (versionnée).
+!bancs/corpus-android/LISEZMOI.md
