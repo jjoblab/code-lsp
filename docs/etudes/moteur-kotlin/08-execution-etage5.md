@@ -157,3 +157,55 @@ ensemble).
   collectées à la CLÔTURE de l'étage (§9.3) — le push unique porte
   livraisons et clôture ensemble (miroir étage 4 : le run de TÊTE
   éprouve l'ensemble).
+
+## 6. Vague 5b — le moteur de KDoc (31/10, reprise R8 — fiche 007, 9 comportements)
+
+### 6.1 Périmètre exécuté
+
+| # | Item | État | Détail |
+|---|---|---|---|
+| 1 | La REPRISE R8 `documentation/DocumentationKotlin.kt` | **Fait** | Copiée depuis `codeide-lsp` @ bc11253 vers `kotlin/src/main/kotlin/jo/codeide/lsp/kotlin/documentation/` (re-contrôle R9.4 : PASSÉ). Adaptations de câblage SEULEMENT (manifeste §3 R8) : paquet neuf, déclaration = façade neuve `KtDeclaration` + jetons de commentaire REÇUS (le modèle neuf les porte à la racine — l'ancien attachait le KDoc comme jeton enfant de la déclaration, le neuf le retrouve par la règle blancs-seuls avec l'ANCRE premier jeton propre OU premier enfant — une MODIFIER_LIST d'annotations précède le mot-clé, le KDoc les précède toutes, comportement `kdoc-avant-annotations`), reconstruction par `ArbreSyntaxique.construire` avec une VUE du parseur KDoc aux trivia vides (§6.3), marche des sections fusionnant enfants et jetons propres triés par position. Le cœur est repris TEL QUEL : lex + parse KDocLexer/KDocParser vendorés, rendu texte neutre (sections libres en paragraphes, tags `@param nom — texte` / `@return texte`), tolérance D3 (vide/bloc → `null`, rien ne lève) |
+| 2 | Le CÂBLAGE session + scan | **Fait** | Le survol IN-VIVO (`SurvolDocuments.rendu`) et le SCAN des sources (`ScanProjetParesseux` — la documentation des déclarations externes) passent par la reprise : le rendu KDoc est UNIFIÉ (l'ancienne chaîne 1b — retrait des marqueurs et astérisques à la main — est RETIRÉE : `kdocPrecedente`/`corpsKDoc` supprimés, non-régression prouvée par les fiches 049/045 restées vertes) |
+| 3 | Tests neufs | **Fait** | 9 comportements aux noms exacts du cahier : `Fiche007DocumentationKotlinTest` — moteur R8 en chemin direct (miroir du test source), la façade `KtClasse.membres()` pour le KDoc d'un membre |
+
+### 6.2 Un écart découvert et corrigé pendant la mise au vert
+
+1. **Le rendu du KDoc vit de la STRUCTURE des blancs, que le modèle neuf
+   EXCLUT des jetons propres** : la première rédaction reconstruisait
+   l'arbre KDoc avec le `KDocParser` tel quel — ses `WHITE_SPACE` étant
+   des trivia, la reconstruction les écartait des jetons propres : les
+   paragraphes fusionnaient en une ligne (`La vue de rendu. Un
+   paragraphe de plus.` sans retour) et les tags perdaient l'espace
+   entre référence et description (`@param xle — nombre de colonnes`).
+   Corrigé : la reconstruction passe par une VUE du parseur aux ensembles
+   de trivia VIDES (`KDocVuePleine` — même `parse`, blancs rendus jetons
+   pleins) ; le rendu retrouve la structure (comportements
+   `kdoc-simple` et `kdoc-avec-tags` verts).
+
+### 6.3 Décisions d'exécution consignées
+
+1. **L'ancre du KDoc « porté par la déclaration » est le premier jeton
+   propre OU le premier enfant, au plus tôt des deux** : `/** doc */
+   @Deprecated class Vieux` — la MODIFIER_LIST (enfant) précède le
+   mot-clé (jeton propre) ; ancrer sur le seul jeton propre laisserait
+   les annotations entre le commentaire et l'ancre, la séparation
+   blancs-seuls échouerait et la doc serait perdue (le comportement
+   `kdoc-avant-annotations` l'exige).
+2. **Le rendu KDoc est UNIFIÉ entre survol in-vivo et scan** : les
+   déclarations externes du scan reçoivent le MÊME rendu que les
+   déclarations ouvertes (sections + tags) — l'ancienne chaîne 1b
+   (retrait naïf des marqueurs) ne rendait pas les tags ; la fiche 045
+   (KDoc tierce au survol qualifié) et la fiche 049 (KDoc externe au
+   rafraîchissement) restent vertes (leurs KDoc sont simples, rendus
+   identiques).
+
+### 6.4 Preuves du bac à sable (avant commit)
+
+- **Fiche** : `Fiche007DocumentationKotlinTest` **9/9** (un écart de
+  mise au vert corrigé — §6.2, aucune retouche du cœur repris) ;
+  `Fiche049SessionLangageKotlinParseTest` **26/26** et
+  `Fiche045SessionLangageKotlinK3Test` **21/21** — non-régression du
+  survol (in-vivo et KDoc tierce).
+- **Suite** : **456 tests VERTS** sur la toolchain 17 (447 + 9) ;
+  baseline de parité RE-SIGNÉE **393 → 395 fichiers** (la reprise R8 et
+  le test 007 entrent au corpus).

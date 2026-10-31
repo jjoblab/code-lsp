@@ -118,7 +118,6 @@
 41dd468adfcd1afdea47b115a848bc7242d6d7db9095399c6bf249e0c3d050c8  index/src/test/kotlin/jo/codeide/lsp/index/NettoyageSegmentsTest.kt
 4277305fc68da4ee2c94f18f939493d8150ac1647eec0fd13359e431254fe659  spike-kotlin/src/test/kotlin/spikekotlin/BancS2Test.kt
 43398eef12ca9a14fe1b3c7606e86eea0262d9053aafcccab53b330ecd91e85f  testing/src/test/kotlin/jo/codeide/lsp/testing/IntegrationMoteurIndexTest.kt
-43e1cc2112f5983bd5000c47ca198e5b31505117eaadf2876a4a4363cb02233c  kotlin/src/main/kotlin/jo/codeide/lsp/kotlin/session/ScanProjetParesseux.kt
 444d53886b540dd691cf26d07390525d9804e5cb5cd4126fe728d0c7c062f873  java/src/main/kotlin/jo/codeide/lsp/java/protocole/EtatsDocuments.kt
 44c447416121aa968eb36c467f1a9aaf8d2766c5b91606c7c094d3af9269dcf0  index/src/test/kotlin/jo/codeide/lsp/index/AnalyseurClasspathSystemeTest.kt
 44e79dac1faeea41a69a4e51ce835d58ffc79bbb00f873305e3912c8f438e0b2  java/src/test/kotlin/jo/codeide/lsp/java/Fiche001DiagnosticServiceTest.kt
@@ -152,6 +151,7 @@
 53e9ac84fb5f5a95880877f79d71d33821028e4c7c11d8b5c1add221513dae08  kotlin/src/main/vendor/org/jetbrains/kotlin/kmp/lexer/KtTokens.kt
 53e9ac84fb5f5a95880877f79d71d33821028e4c7c11d8b5c1add221513dae08  spike-kotlin/src/main/vendor/org/jetbrains/kotlin/kmp/lexer/KtTokens.kt
 53eed89450a2a89793e0b3d4182271a0d5e94561eeb68d795120d23669dc45d6  kotlin/src/main/kotlin/jo/codeide/lsp/kotlin/index/AppelableKotlin.kt
+545468a26911ac5c462464b613ebae3649ecc7e41e787531ebfba02aa22e97d5  kotlin/src/main/kotlin/jo/codeide/lsp/kotlin/documentation/DocumentationKotlin.kt
 54cb623d7636f2d6a20cf8485c51cfaab75ad82fe446d0f2b1830034e01fbeba  kotlin/src/test/kotlin/jo/codeide/lsp/kotlin/session/Fiche039ReproductionViewBindingTest.kt
 54f818b50b4b3cf2aaaae9397a373d32d2b53525388663e26df64d61839cd9c0  java/src/main/kotlin/jo/codeide/lsp/java/actionscode/CorrecteursTexte.kt
 57132cfccdcc01329109261130ea3866a109a7bd887200a17fb65bb27db2fda9  index/src/main/kotlin/jo/codeide/lsp/index/TypesEtatIndexEtendus.kt
@@ -183,6 +183,7 @@
 6bda75aa90e2a3417a2f6696826adfc9ba913c967ec46fc9191dc614f5aff842  spike/scripts/ExplorateurV2.kt
 6cbf44afaad1833d8f054d1ac0893b3cd35d27dc07348790f78569e63fc5ba63  kotlin/src/test/kotlin/jo/codeide/lsp/kotlin/index/Fiche008IndexAppelablesKotlinTest.kt
 6cc7422d6de082c90c92d9f27cdf6a1379b2a10dc97b38ae8671e3866d34a692  java/src/main/kotlin/jo/codeide/lsp/java/survol/NettoyeurJavadocMarkdown.kt
+6e7ee2c7ac5162632452f1d76cea05dfb8969cddc2d2418e81c9324204dee2f8  kotlin/src/test/kotlin/jo/codeide/lsp/kotlin/documentation/Fiche007DocumentationKotlinTest.kt
 6ec045ef3f00dda8963b7f60863c2897b27d5484ea6752dfa02596a262438166  java/src/test/kotlin/jo/codeide/lsp/java/pliage/Fiche052PliageFaçadeTest.kt
 6f5cb0c1d57379c2ed5161d0efc0de2aa316ff1ee5e0c84e399dc34bcca7ef3a  java/src/test/kotlin/jo/codeide/lsp/java/signature/Fiche023InlayAndSignatureTest.kt
 6fe5c536d52f1baf75ffef3916686e4dd1f44718f49185f2d472120cc8855ccb  kotlin/src/main/kotlin/jo/codeide/lsp/kotlin/session/CompletionPipeline.kt
@@ -327,7 +328,6 @@ cc25df77e0236c02d22274b9bccc5d0f14d0db010219632ee88271777842c90a  java/src/main/
 ccbe1670099e94838c03c7e899965af302e4c0a30382bd2dc1b021d010947900  java/src/main/kotlin/jo/codeide/lsp/java/actionscode/FamillesProbleme.kt
 cd8aa334ee2fe96fce33ffda9eaf9f3ec48a744e2caf07f979095233326917e6  kotlin/src/main/vendor/gen/KotlinFlexLexer.kt
 cd8aa334ee2fe96fce33ffda9eaf9f3ec48a744e2caf07f979095233326917e6  spike-kotlin/src/main/vendor/gen/KotlinFlexLexer.kt
-cda02e8fbbbda70559afec6e979ff3ef182f97b07b3609287defe38607a8f65b  kotlin/src/main/kotlin/jo/codeide/lsp/kotlin/session/SurvolDocuments.kt
 cdd4962ddb2456cf441e0dc9821fc20fbf41931fb1177be8ae4787f66a66b160  kotlin/src/main/kotlin/jo/codeide/lsp/kotlin/parse/kt/KtDirectives.kt
 cddcf48908dfacfec3b6a19c1ce465735bc03d2e07aaae91f173803b3a5d964d  kotlin/src/main/kotlin/jo/codeide/lsp/kotlin/parse/kt/KtNoeud.kt
 ce1e3df7eb352b4b3ed71eca5fb0561f596777357d3cf8b1d34b44b5bf0592d2  kotlin/src/main/kotlin/jo/codeide/lsp/kotlin/classpath/DecodeurMetadonnees.kt
@@ -342,6 +342,7 @@ d25864c7727a1b04dab27b3a19fa76c80b3c9f2aa0ca5ed7f7c46c3944e75355  index/src/test
 d2c7d3672647e9901658c992fd9f1c57377b7ac5aa9ea023503f567564b9f925  java/src/formatBanc/kotlin/jo/codeide/lsp/java/banc/FormatEchange.kt
 d2ca9c46ded86f36438cc9f48147f7ddfaffac44079260b4f1c09903935e3d27  java/src/bench/kotlin/jo/codeide/lsp/java/banc/BancBasculeAppareil.kt
 d5b074a5d4b434355092c7f545839e742ab9893f89585838c106d5ca08220e68  index/src/main/kotlin/jo/codeide/lsp/index/EntrepotSegments.kt
+d656a049ede73871c09b6648f61050230aacaef43b4463ccd10f6ecba3948386  kotlin/src/main/kotlin/jo/codeide/lsp/kotlin/session/ScanProjetParesseux.kt
 d660f534347804adaca7825f0299c29541a5acadc09c8202d295dc331e1745b0  java/src/main/kotlin/jo/codeide/lsp/java/classpath/FabriqueClasseBinaire.kt
 d67caab0ccdc1e23e043c613ff07283699730b4a22ff5b59e77467a3a8472126  kotlin/src/main/kotlin/jo/codeide/lsp/kotlin/api/EntreeClasspathKotlin.kt
 d74a5cf560b1e22f30c0528a12fd43c96b95f650ef32f83724179c1d889222c2  java/src/test/kotlin/jo/codeide/lsp/java/Fiche013MoteurDiagnosticsTest.kt
@@ -381,6 +382,7 @@ f153d092bcf96f7d22b2ffb1047523f1013a05704c11f84830e125423f8b4189  kotlin/src/mai
 f153d092bcf96f7d22b2ffb1047523f1013a05704c11f84830e125423f8b4189  spike-kotlin/src/main/vendor/org/jetbrains/kotlin/kmp/parser/KDocLinkParser.kt
 f53038d037eba2f747ea160b684fff9fd23644091c73c313c3a571c032904110  ecj-art/src/test/kotlin/jo/codeide/lsp/ecjart/PatcheurEcjTest.kt
 f56d3a3d7d236cf88431cfceaabacc8328e499895350a8f2d367ca9a385e34a2  java/src/main/kotlin/jo/codeide/lsp/java/classpath/AccesJrt.kt
+f5d821e6880e0846ce9172fbbb7bab7c1e537dda5fa5bada0c47f83c80496fc2  kotlin/src/main/kotlin/jo/codeide/lsp/kotlin/session/SurvolDocuments.kt
 f60ea210a97ef9084982adfb7bf759468109680e4eea7b8a19f4f8eb6399775f  java/src/test/kotlin/jo/codeide/lsp/java/Fiche039ClasspathReelTest.kt
 f62b13452bef706494c2453a85c85e6a9eb0066273a3690817d82b41d40f8d31  kotlin/src/main/kotlin/jo/codeide/lsp/kotlin/parse/ArbreSyntaxique.kt
 f62eb6861890e0018bd14fa41a58804b20421d8e67816b68f39369ed18e1323e  java/src/main/kotlin/jo/codeide/lsp/java/imports/OrganisateurImports.kt

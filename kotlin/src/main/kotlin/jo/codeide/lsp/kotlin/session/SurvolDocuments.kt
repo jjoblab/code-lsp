@@ -7,6 +7,7 @@
 package jo.codeide.lsp.kotlin.session
 
 import jo.codeide.lsp.kotlin.api.SurvolKotlin
+import jo.codeide.lsp.kotlin.documentation.DocumentationKotlin
 import jo.codeide.lsp.kotlin.parse.JetonBrut
 import jo.codeide.lsp.kotlin.parse.NoeudArbre
 import jo.codeide.lsp.kotlin.parse.kt.FabriqueKt
@@ -272,6 +273,11 @@ internal object SurvolDocuments {
      * Rend le survol d'une déclaration IN-VIVO (document ouvert) : signature
      * + KDoc qui précède.
      *
+     * La documentation passe par le MOTEUR DE KDOC repris R8 (étage 5
+     * vague 5b — fiche 007 : lex + parse KDocParser vendorés, rendu
+     * texte neutre, sections libres et tags) ; le KDoc d'une déclaration
+     * du SCAN externe voyage avec le SNAPSHOT (rendu au scan, inchangé).
+     *
      * @param declaration la déclaration visée (`null` admis — rend `null`) ;
      * @param commentaires les jetons de commentaire du document la portant ;
      * @return le survol ; `null` si la déclaration est absente ou tronquée
@@ -279,7 +285,7 @@ internal object SurvolDocuments {
      */
     private fun rendu(declaration: KtDeclaration?, commentaires: List<JetonBrut>): SurvolKotlin? {
         val signature = renduSignature(declaration ?: return null) ?: return null
-        val documentation = kdocPrecedente(declaration, commentaires)
+        val documentation = DocumentationKotlin.kdocDe(declaration, commentaires)
         return SurvolKotlin(signature = signature, documentation = documentation)
     }
 
@@ -372,59 +378,6 @@ internal object SurvolDocuments {
         val supertypes = classe.noeud.enfants
             .firstOrNull { it.genre == KtNodeTypes.SUPER_TYPE_LIST }?.texteCanonique
         return if (supertypes == null || supertypes.isEmpty()) "$genre $nom" else "$genre $nom : $supertypes"
-    }
-
-    /**
-     * Extrait la documentation KDoc qui précède IMMÉDIATEMENT la déclaration
-     * (des blancs seuls séparent) — un commentaire simple ou un commentaire
-     * bloc non-KDoc ne compte pas.
-     *
-     * Le point de départ est le PREMIER JETON PROPRE de la déclaration : la
-     * politique de liaison de la grammaire attache les trivia de marge aux
-     * plages des productions (sonde : le KDoc précédent fait partie de la
-     * plage de la déclaration) — chercher avant la plage inclurait le KDoc
-     * dans la déclaration elle-même et ne le trouverait jamais.
-     *
-     * @param declaration la déclaration visée ;
-     * @param commentaires les jetons de commentaire du document (ordre du
-     * document) ;
-     * @return le corps du KDoc, marqueurs et astérisques de marge retirés ;
-     * `null` si aucun KDoc ne précède immédiatement la déclaration.
-     */
-    internal fun kdocPrecedente(declaration: KtDeclaration, commentaires: List<JetonBrut>): String? {
-        // Début SIGNIFICATIF de la déclaration : le premier jeton propre
-        // (commentaires/blancs de tête exclus de la recherche).
-        val debut = declaration.noeud.jetonsPropres.firstOrNull()?.debut
-            ?: declaration.noeud.debut
-        // Le commentaire le plus proche qui FINIT avant la déclaration.
-        val candidat = commentaires.lastOrNull { it.fin <= debut } ?: return null
-        // Séparation : uniquement des blancs entre la fin du commentaire et
-        // le début de la déclaration (testé sur le SOURCE du document).
-        for (indice in candidat.fin until debut) {
-            if (indice < declaration.source.length &&
-                !declaration.source[indice].isWhitespace()
-            ) {
-                return null
-            }
-        }
-        if (!candidat.texte.startsWith("/**") || candidat.texte.length <= 4) return null
-        return corpsKDoc(candidat.texte)
-    }
-
-    /**
-     * Rend le CORPS nettoyé d'un bloc KDoc : marqueurs `/**`/`*/` retirés,
-     * astérisques de marge retirés ligne à ligne, bords taillés.
-     *
-     * @param texte le texte intégral du jeton KDoc ;
-     * @return le corps lisible ; `null` si le corps est vide ou blanc.
-     */
-    private fun corpsKDoc(texte: String): String? {
-        val corps = texte.removePrefix("/**").removeSuffix("*/")
-        val lignes = corps.split('\n').map { ligne ->
-            ligne.trim().removePrefix("*").trim()
-        }
-        val rendu = lignes.joinToString("\n").trim()
-        return rendu.ifEmpty { null }
     }
 
     // ------------------------------------------------------------------

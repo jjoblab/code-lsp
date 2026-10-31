@@ -18,6 +18,7 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.FutureTask
+import jo.codeide.lsp.kotlin.documentation.DocumentationKotlin
 import jo.codeide.lsp.kotlin.parse.ParseurKotlin
 import jo.codeide.lsp.kotlin.resolve.ContributionFichier
 import jo.codeide.lsp.kotlin.resolve.LecteurDeclarationsJava
@@ -529,7 +530,7 @@ internal class ScanProjetParesseux(
                     nom = nom,
                     uri = uri,
                     signature = signature,
-                    documentation = SurvolDocuments.kdocPrecedente(declaration, commentaires),
+                    documentation = DocumentationKotlin.kdocDe(declaration, commentaires),
                     plageNom = SurvolDocuments.plageNomDe(declaration),
                 ),
             )
