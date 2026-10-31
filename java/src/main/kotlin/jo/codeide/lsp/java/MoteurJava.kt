@@ -1182,7 +1182,8 @@ public class MoteurJava(
     ): List<jo.codeide.lsp.java.actionscode.ActionCode> {
         // Périmètre TEXTE (V-F2) : service SANS moteur — aucune prise du
         // verrou de compilation (l'index des noms est sûr par conception).
-        return serviceActionsCode().actions(chemin, source, diagnostics)
+        val base = serviceActionsCode().actions(chemin, source, diagnostics)
+        return base + stubsAbstraites(chemin, source, diagnostics)
     }
 
     /**
@@ -1200,7 +1201,36 @@ public class MoteurJava(
         diagnostic: Diagnostic,
     ): List<jo.codeide.lsp.java.actionscode.ActionCode> {
         // Périmètre TEXTE (V-F2) : voir [actionsCode].
-        return serviceActionsCode().actions(chemin, source, diagnostic)
+        val base = serviceActionsCode().actions(chemin, source, diagnostic)
+        return base + stubsAbstraites(chemin, source, listOf(diagnostic))
+    }
+
+    /**
+     * La passe d'APPOINT ARBRE des familles étendues V-D : les stubs des
+     * méthodes abstraites manquantes (famille METHODES_ABSTRAITES — ADR
+     * 0027 (a)) exigent les BINDINGS de la hiérarchie, le service TEXTE
+     * ne les touche pas. Uniquement quand le diagnostic est PRÉSENT — la
+     * passe ne résout JAMAIS pour rien.
+     */
+    private fun stubsAbstraites(
+        chemin: String,
+        source: String,
+        diagnostics: List<Diagnostic>,
+    ): List<jo.codeide.lsp.java.actionscode.ActionCode> {
+        val abstraites = diagnostics.filter {
+            jo.codeide.lsp.java.actionscode.FamilleProbleme.fromCode(it.code) ==
+                jo.codeide.lsp.java.actionscode.FamilleProbleme.METHODES_ABSTRAITES
+        }
+        if (abstraites.isEmpty()) return emptyList()
+        // Périmètre MODULE (V-F2) : la résolution se verrouille seule.
+        if (!regimePlein()) return emptyList()
+        val arbre = resolveUnit(chemin, source, genererCode = false)?.arbre ?: return emptyList()
+        val service = jo.codeide.lsp.java.actionscode.ServiceIntentions(arbre, source)
+        return abstraites.mapNotNull { diagnostic ->
+            val selecteur = diagnostic.arguments.firstOrNull() ?: return@mapNotNull null
+            val nomType = diagnostic.arguments.getOrNull(3) ?: return@mapNotNull null
+            service.stubAbstraites(nomType, selecteur, diagnostic)
+        }
     }
 
     /**

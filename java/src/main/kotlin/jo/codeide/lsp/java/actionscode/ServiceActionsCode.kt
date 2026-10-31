@@ -106,6 +106,24 @@ public class ServiceActionsCode(
             FamilleProbleme.UNDEFINED_METHOD -> {
                 CorrecteurCreationMethode.creationMethode(source, diagnostic)?.let { resultat.add(it) }
             }
+            FamilleProbleme.METHODES_ABSTRAITES -> {
+                // V-D : les stubs exigent l'ARBRE RÉSOLU — servis par la passe
+                // d'appoint de MoteurJava.actionsCode (stubAbstraites) ; le
+                // service TEXTE n'y touche jamais.
+                Unit
+            }
+            FamilleProbleme.CORPS_MANQUANT -> {
+                CorrecteursEtendus.corpsManquant(source, diagnostic)?.let { resultat.add(it) }
+            }
+            FamilleProbleme.RETOUR_VOID -> {
+                resultat.add(CorrecteursEtendus.retourVoid(source, diagnostic))
+            }
+            FamilleProbleme.IMPORT_CONFLIT -> {
+                CorrecteursEtendus.importEnConflit(source, diagnostic)?.let { resultat.add(it) }
+            }
+            FamilleProbleme.CAST_INUTILE -> {
+                CorrecteursEtendus.castInutile(source, diagnostic)?.let { resultat.add(it) }
+            }
             FamilleProbleme.UNKNOWN -> Unit
         }
         return resultat

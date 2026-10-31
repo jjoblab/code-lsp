@@ -210,9 +210,41 @@ class P5CycleQuickFixTest {
                     }
                 }
             """.trimIndent(),
+            // V-D — familles étendues (ADR 0027 (a)) : le balayage P5 couvre
+            // l'ENSEMBLE EXPOSÉ (critère de sortie de la vague).
+            "/app/Incomplete.java" to """
+                package app;
+
+                public class Incomplete implements Runnable {
+                }
+            """.trimIndent(),
+            "/app/SansCorps.java" to """
+                package app;
+
+                public class SansCorps {
+                    void avancer();
+                }
+            """.trimIndent(),
+            "/app/RetourVoid.java" to """
+                package app;
+
+                public class RetourVoid {
+                    void avancer() { return 3; }
+                }
+            """.trimIndent(),
+            "/app/ImportConflit.java" to """
+                package app;
+
+                import java.util.List;
+                import java.awt.List;
+
+                public class ImportConflit {
+                    private List<String> noms;
+                }
+            """.trimIndent(),
         )
         for ((chemin, source) in corpus) {
-            val sousRapport = cycle(chemin, source, "action hors cas dorés (G-014 — catalogue 7 familles, fix non contextuel)")
+            val sousRapport = cycle(chemin, source, "action hors cas dorés (G-014 — catalogue étendu V-D, fix non contextuel)")
             for (i in 0 until sousRapport.nbViolations) {
                 rapport.violer("$chemin : violation #$i", "balayage élargi (G-014)")
             }

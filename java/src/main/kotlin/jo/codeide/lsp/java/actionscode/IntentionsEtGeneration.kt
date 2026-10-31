@@ -96,6 +96,45 @@ public class ServiceIntentions(
         }
     }
 
+    /**
+     * Les STUBS des méthodes abstraites manquantes d'un diagnostic ecj
+     * (famille [jo.codeide.lsp.java.actionscode.FamilleProbleme.METHODES_ABSTRAITES],
+     * V-D — ADR 0027 (a)) : le type visé et le sélecteur manquant sont
+     * portés par les ARGUMENTS STRUCTURÉS du diagnostic (sonde mesurée :
+     * args = [run, , java.lang.Runnable, demo.Main]) — la signature
+     * complète vient des BINDINGS de la hiérarchie.
+     *
+     * @param nomType le nom LIISIBLE du type visé (args[3], « demo.Main »).
+     * @param selecteur le sélecteur de la méthode manquante (args[0]).
+     * @param diagnostic le diagnostic ecj source (l'action le porte — le
+     *   cycle P5 vérifie sa disparition).
+     * @return l'action EAGER du stub, ou null (type introuvable dans le
+     *   fichier / méthode introuvable dans la hiérarchie).
+     */
+    public fun stubAbstraites(nomType: String, selecteur: String, diagnostic: jo.codeide.lsp.java.diagnostics.Diagnostic): ActionCode? {
+        if (arbre == null) return null
+        val types = mutableListOf<TypeDeclaration>()
+        val collecteur = object : LectureAst.VisiteurResilient() {
+            override fun visiteType(node: TypeDeclaration, scope: org.eclipse.jdt.internal.compiler.lookup.ClassScope?): Boolean {
+                types.add(node)
+                return true
+            }
+        }
+        LectureAst.traverserResilient(arbre, collecteur)
+        val type = types.firstOrNull { noeud ->
+            runCatching { noeud.binding?.readableName()?.let { nom -> String(nom) } }.getOrNull() == nomType
+        } ?: types.firstOrNull { noeud -> String(noeud.name) == nomType.substringAfterLast('.') } ?: return null
+        val manquante = manquantesDe(type).firstOrNull { paire -> String(paire.first.selector) == selecteur } ?: return null
+        val editions = genererStub(type, manquante.first)
+        if (editions.isEmpty()) return null
+        return ActionCode(
+            "quickfix.implement.methods",
+            "Implémenter « $selecteur » (stub)",
+            ModCommande.EditsTexte(editions),
+            diagnostic,
+        )
+    }
+
     // ------------------------------------------------------------------ //
     // Intentions légères (EAGER — une édition chacune)
     // ------------------------------------------------------------------ //

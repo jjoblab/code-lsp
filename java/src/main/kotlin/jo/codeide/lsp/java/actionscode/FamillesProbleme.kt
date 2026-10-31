@@ -51,6 +51,26 @@ public enum class FamilleProbleme {
     /** Point-virgule manquant (constante historique + ID réellement émis). */
     MISSING_SEMI,
 
+    /**
+     * Méthodes abstraites non implémentées (V-D — ADR 0027 (a)) : le type
+     * doit implémenter les abstraites héritées — fix = STUBS générés
+     * (passe ARBRE de [MoteurJava.actionsCode], via
+     * [ServiceIntentions.stubAbstraites]).
+     */
+    METHODES_ABSTRAITES,
+
+    /** Méthode sans corps (V-D) : « ; » au lieu d'un corps — fix = insertion. */
+    CORPS_MANQUANT,
+
+    /** Retour de valeur en méthode void (V-D) — fix = suppression du return. */
+    RETOUR_VOID,
+
+    /** Import en conflit/dupliqué (V-D) — fix = suppression de la ligne. */
+    IMPORT_CONFLIT,
+
+    /** Cast redondant — le signal de l'INSPECTION V-C1 (code nommé) — fix = retrait. */
+    CAST_INUTILE,
+
     /** ID non mappé — ne déclenche AUCUN quick-fix ID-FIRST (fiche 065). */
     UNKNOWN;
 
@@ -114,6 +134,21 @@ public enum class FamilleProbleme {
             // réellement émis par ecj (découverte figée ci-dessus).
             put(1610612960L, MISSING_SEMI) // MissingSemiColon (montage synthétique)
             put(1610612976L, MISSING_SEMI) // ParsingErrorInsertToComplete (vivants)
+
+            // Méthodes abstraites non implémentées (V-D — stubs générés).
+            put(67109264L, METHODES_ABSTRAITES) // AbstractMethodMustBeImplemented
+            put(67109282L, METHODES_ABSTRAITES) // AbstractMethodMustBeImplementedOverConcreteMethod
+            put(67109622L, METHODES_ABSTRAITES) // EnumAbstractMethodMustBeImplemented
+
+            // Corps de méthode manquant (V-D).
+            put(603979883L, CORPS_MANQUANT) // MethodRequiresBody
+
+            // Retour de valeur en méthode void (V-D).
+            put(67108969L, RETOUR_VOID) // VoidMethodReturnsValue
+
+            // Imports en conflit/dupliqués (V-D — suppression de ligne).
+            put(268435841L, IMPORT_CONFLIT) // ConflictingImport
+            put(268435842L, IMPORT_CONFLIT) // DuplicateImport (collides with another import)
         }
 
         /**
@@ -124,6 +159,16 @@ public enum class FamilleProbleme {
          *   d'exception : un ID inconnu ne déclenche aucun quick-fix).
          */
         public fun fromId(id: Long): FamilleProbleme = TABLE[id] ?: UNKNOWN
+
+        /**
+         * Les codes NOMMÉS de nos propres INSPECTIONS (source
+         * « inspection ») qui portent un quick-fix V-D : le code n'est pas
+         * numérique — l'alias s'applique APRÈS l'échec du parse ID (un ID
+         * numérique garde TOUJOURS la priorité, fiche 065 intacte).
+         */
+        private val ALIAS_NOMMES: Map<String, FamilleProbleme> = mapOf(
+            "RedundantCast" to CAST_INUTILE,
+        )
 
         /**
          * Mapping d'un code de diagnostic vers la famille (fiche 065).
@@ -145,8 +190,9 @@ public enum class FamilleProbleme {
             } else {
                 code
             }
-            val id = brut.toLongOrNull() ?: return UNKNOWN
-            return fromId(id)
+            val id = brut.toLongOrNull()
+            if (id != null) return fromId(id)
+            return ALIAS_NOMMES[brut] ?: UNKNOWN
         }
     }
 }
