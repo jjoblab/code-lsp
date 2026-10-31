@@ -784,6 +784,8 @@ internal class MembresDeclaresJvm(
     internal val proprietesDerivees: List<ProprieteDeriveeJvm>,
     internal val superFqcn: String?,
     internal val interfaces: List<String>,
+    /** Les DRAPEAUX D'ACCÈS de la CLASSE (étage 6 — fiche 018 : le genre `public class/interface/enum` de la fiche structurelle, ACC_INTERFACE 0x0200, ACC_ENUM 0x4000, ACC_FINAL 0x0010). */
+    internal val accesClasse: Int = 0,
 )
 
 /**
@@ -799,6 +801,8 @@ internal class MembreJvm(
     internal val estChamp: Boolean,
     /** Le membre est ABSTAIT au bytecode (ACC_ABSTRACT — vague 2f : les membres à implémenter d'un supertype classpath). */
     internal val estAbstrait: Boolean = false,
+    /** Les DRAPEAUX D'ACCÈS du membre (étage 6 — fiche 018 : public/privé/statique/final de la fiche structurelle). */
+    internal val acces: Int = 0,
 ) {
     /** Les types FQCN Kotlin des PARAMÈTRES (`null` si tableau/illisible). */
     internal fun parametres(): List<String>? = DescripteursJvm.parametres(descripteur)
@@ -1067,7 +1071,8 @@ private object LecteurMembresClasse {
             return utf8[classes[index]]?.replace('/', '.')
         }
 
-        flux.skipBytes(4) // access_flags + this_class.
+        val accesClasse = flux.readUnsignedShort() // access_flags (fiche 018 : le genre).
+        flux.skipBytes(2) // this_class.
         val superIndex = flux.readUnsignedShort()
         val superFqcn = if (superIndex == 0) null else nomClasse(superIndex)
         val nbInterfaces = flux.readUnsignedShort()
@@ -1091,7 +1096,7 @@ private object LecteurMembresClasse {
                 }
                 if (nom == "<init>" || nom == "<clinit>") return@repeat
                 if (acces and (ACC_SYNTHETIC or ACC_BRIDGE) != 0) return@repeat
-                membres.add(MembreJvm(nom, descripteur, estChamp, acces and ACC_ABSTRACT_METHODE != 0))
+                membres.add(MembreJvm(nom, descripteur, estChamp, acces and ACC_ABSTRACT_METHODE != 0, acces))
             }
         }
 
@@ -1116,7 +1121,7 @@ private object LecteurMembresClasse {
                 inscrireDerivee(derivees, propriete, parametres.single(), estVar = true)
             }
         }
-        return MembresDeclaresJvm(membres, derivees.values.toList(), superFqcn, interfaces)
+        return MembresDeclaresJvm(membres, derivees.values.toList(), superFqcn, interfaces, accesClasse)
     }
 
     /** Inscrire une dérivation (getter+setter → VAR, getter seul → VAL). */

@@ -120,6 +120,16 @@ internal object SurvolDocuments {
             }
         }
 
+        // 3-ter. La FICHE STRUCTURELLE d'un type du CLASSPATH (étage 6 —
+        // fiche 018 : genre, héritage direct, interfaces, constantes,
+        // champs publics, plafonds) : le nom désigné résout en TYPE ÉCRIT
+        // de bibliothèque (import ou défaut) et la vue JVM le sert —
+        // l'en-tête voyage en signature, les sections en documentation.
+        val typeClasspath = univers?.resoudreTypeEcrit(nom)
+        if (typeClasspath is TypeValeur.Jvm) {
+            univers.vueJvm?.let { vue -> CarteTypeClasspath.carte(vue, typeClasspath.fqcn) }?.let { return it }
+        }
+
         // 4. Résolution des membres HÉRITÉS de bibliothèque (vague 2c —
         // fiche 040 : le survol IMPLICITE `layoutInflater` rend `val
         // layoutInflater: LayoutInflater` avec son propriétaire déclarant,
