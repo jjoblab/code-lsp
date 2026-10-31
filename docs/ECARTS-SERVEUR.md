@@ -24,14 +24,23 @@
 
 ## 2. Moteur (`code-lsp`) — écarts OUVERTS, non étudiés
 
+> **Mise à jour du 31/10/2026 (mission « niveau Android Studio »)** : chaque
+> écart moteur ouvert est désormais **numéroté et priorisé** dans la matrice
+> `docs/etudes/niveau-android-studio/03-matrice-ecarts.md` (G-###), avec sa
+> preuve (`01-audit-moteur.md`) et l'ADR qui le résout (0019–0031). Le plan de
+> correction par vagues vit dans `04-plan-vagues.md` (V-A→V-G).
+
 | # | Écart | Statut / effort estimé | Note |
 |---|---|---|---|
-| M1 | **Mot-clé `extends` pendant sa frappe en tête de déclaration** : `class Principal e\|` est capturé par la fiche 007 comme sélecteur de méthode (CORPS_CLASSE : stubs d'override + types) — Android Studio y propose aussi le mot-clé `extends` LUI-MÊME | ouvert, petit | verrouillé par contrat fiche 007 ; le changer demande un arbitrage cahier (fusion mots-clés + stubs en tête de déclaration) |
-| M2 | **`semanticTokens` non annoncé** (règle matrice ADR 0015) : requête tolérante vide, le client garde sa coloration de repli | assumé (USAGE §13) | à réouvrir si la coloration sémantique devient un sujet utilisateur |
-| M3 | **`source.organizeImports` pas au fil LSP** : l'API moteur existe (USAGE §7.17), l'action de code n'est pas exposée | ouvert, petit | l'action existe côté vendord (fiche 022) — portage à étudier |
-| M4 | **`references` confiné au document courant** (parité stricte §10.4 avec le vendord) | assumé | multi-fichiers passerait par l'index de mots (N4) — coût réel à mesurer |
-| M5 | **Quick-fixes mono-fichier** (fiche 063) : le multi-fichiers passe par renommage/protocole seulement | assumé | — |
-| M6 | **Réparation niveau 4 avec lambda dans la queue** : une expression lambda ouverte APRÈS le caret peut refermer ses listes dans un ordre syntaxiquement invalide — la variante est alors rejetée (best effort, les autres littéraux/l'arbre direct compensent) | ouvert, très petit | cas rare ; documenté dans `AideSignatures.refermer` |
+| M1 | **Mot-clé `extends` pendant sa frappe en tête de déclaration** : `class Principal e\|` est capturé par la fiche 007 comme sélecteur de méthode (CORPS_CLASSE : stubs d'override + types) — Android Studio y propose aussi le mot-clé `extends` LUI-MÊME | ouvert, petit — G-024 (ADR 0026) | verrouillé par contrat fiche 007 ; le changer demande un arbitrage cahier (fusion mots-clés + stubs en tête de déclaration) — décision D7 |
+| M2 | **`semanticTokens` non annoncé** (règle matrice ADR 0015) : requête tolérante vide, le client garde sa coloration de repli | ouvert — G-019 (ADR 0031, vague V-G) | réouvert par la mission : P2 dans la matrice, avec banc de rendu préalable |
+| M3 | **`source.organizeImports` pas au fil LSP** : l'API moteur existe (USAGE §7.17), l'action de code n'est pas exposée | ouvert, ~0,5 j-h — G-020 (ADR 0027) | première brique de la vague V-D (coût minuscule) |
+| M4 | **`references` confiné au document courant** (parité stricte §10.4 avec le vendord) | **prêt à lever — G-013 (ADR 0028)** | l'audit a établi que le MOTEUR est déjà multi-fichiers exhaustif (rappel = oracle au banc) : le confinement est un FILTRE protocolaire — levée ≈ 0,5 j-h, décision D1 demandée |
+| M5 | **Quick-fixes mono-fichier** (fiche 063) : le multi-fichiers passe par renommage/protocole seulement | ouvert — levé naturellement par `documentChanges` (ADR 0027) | — |
+| M6 | **Réparation niveau 4 avec lambda dans la queue** : une expression lambda ouverte APRÈS le caret peut refermer ses listes dans un ordre syntaxiquement invalide — la variante est alors rejetée (best effort, les autres littéraux/l'arbre direct compensent) | ouvert, très petit — G-025 (ADR 0019) | cas rare ; documenté dans `AideSignatures.refermer` ; mesuré par la propriété P6 |
+| M7 | **Pas d'invalidation inter-fichiers des diagnostics** (ajout 31/10) : `B.java` ouvert garde des diagnostics périmés après édition de l'API de `A.java` — la re-publication n'existe qu'au remplacement de contexte | ouvert — **G-003 (P0, ADR 0025)** | preuve et propriété P8 du banc livré (`java/src/test/…/coherence/`) |
+| M8 | **Projet Android invisible au moteur** (ajout 31/10) : ressources XML, classes générées (R/binding/BuildConfig), namespace/minSdk, déclarations Kotlin — aucunement connus | ouvert — **G-001/G-006/G-008/G-009 (P0/P1, ADR 0020–0022)** | la cause racine des « il ne connaît pas bien le code » ; vagues V-B |
+| M9 | **Verrou global + worker unique** (ajout 31/10) : 82 `synchronized` (46 dans `MoteurJava.kt`), pas de double-tampon d'environnement | ouvert — G-029/G-030 (ADR 0029) | ADR 0010 schéma B toujours non livré ; V-F1 (double-tampon) remontée AVANT la couche intelligence |
 
 ## 3. Hôte (`codeide-lsp`) — écarts OUVERTS (la cause racine des « retards » appareil)
 
@@ -61,7 +70,7 @@
 | D1 | **Passe appareil moto g06 attendue sur 0.204.5** (le banc garantit le comportement MOTEUR sur classpath réel — les écarts restants se lisent côté hôte, §3) | PV §13.5 |
 | D2 | **Retrait du vendord** : `:lsp:java` vendord reste au build de codeide-lsp, gelé, publiable jusqu'au retrait (retour arrière = substitution inverse en 1 ligne) | ADR 0233 de codeide-lsp ; §6 du plan d'intégration |
 | D3 | **Périmètre Kotlin/XML** : les moteurs Kotlin et XML ne migrent PAS dans ce plan — habitat unique Java seulement | instruction du 30/10/2026 |
-| D4 | **Génération data binding post-sync** (le HINT diagnostic reste jusqu'au premier build) | vendord §17.3 — à re-évaluer côté hôte |
+| D4 | **Génération data binding post-sync** (le HINT diagnostic reste jusqu'au premier build) | vendord §17.3 — à re-évaluer côté hôte ; **mis à jour 31/10** : l'ADR 0021 (classes light) supprime le besoin — le binding résout AVANT build côté moteur, `DeclassementDatabinding` est retiré à la vague V-B3 (décision D6) |
 
 ---
 *Inventaire établi le 31/10/2026 (état v1.1.5 + vague v1.1.6 §1). Toute
