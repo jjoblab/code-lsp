@@ -252,3 +252,45 @@ ensemble).
 - **Suite** : **472 tests VERTS** sur la toolchain 17 (456 + 16) ;
   baseline de parité RE-SIGNÉE **395 → 398 fichiers** (la reprise R3,
   le SPI neuf et le test 050 entrent au corpus).
+
+## 8. Vague 5d — les actions déclaratives ModCommand-like (31/10, ADR 0115 — 5 cas dorés)
+
+### 8.1 Périmètre exécuté
+
+| # | Item | État | Détail |
+|---|---|---|---|
+| 1 | Le modèle SPI `api/ActionsKotlin.kt` | **Fait** | Code NEUF jjoblab (ADR 0115 option 1 — miroir ModCommand, ADR 0013 Java : LE MODÈLE, PAS LE CODE) : `PlanActionKotlin` (titre, genre, éditions PAR FICHIER), `EditionFichierKotlin` (uri + éditions), `GenreActionKotlin` (RAPIDE/SOURCE — l'hôte traduit en CodeActionKind). Un plan est SÉRIALISABLE, calculé en LECTURE (re-prouvé à la requête : un plan périmé n'existe pas), prévisualisable (le client applique les éditions sur une copie) et son EXÉCUTION est déléguée au client (le moteur n'écrit jamais) |
+| 2 | Le moteur `session/ActionsDeclarees.kt` | **Fait** | Trois familles, chacune RE-PROUVÉE : **IMPORT** (fiche 047 — `importsCandidats` : un plan PAR FQCN candidate, l'édition insérant la directive `import <fqcn>` après la DERNIÈRE existante, sinon après le package `\n\n`, sinon en tête) ; **MEMBRES MANQUANTS** (fiche 020 — le plan d'insertion des stubs de la déclaration visée) ; **CORRECTIFS DE TEXTE** (fiche 016 — les correctifs dont la plage COUVRE le caret). Ordre STABLE : imports, membres, correctifs en ordre du document |
+| 3 | Le CÂBLAGE session | **Fait** | `actions(uri, deplacement)` au contrat [SessionLangageKotlin] : le point d'insertion d'une directive d'import se calcule sous verrou de LECTURE (pur, arbre immuable) ; les preuves passent par les entrées EXISTANTES du contrat (`importsCandidats`, `membresManquants`, `correctifsTexte`) — chacune gère SON verrou et ses consultations HORS verrou (ADR 0212 : jamais de scan sous le verrou — la première rédaction appelait les entrées SOUS le verrou de lecture, restructurée avant commit) |
+| 4 | Les CAS DORÉS WorkspaceEdit | **Fait** | `CasDoresActionsKotlinTest` (5 cas, ADR 0115 : « cas dorés des WorkspaceEdit exacts au banc ») : (1) plan d'IMPORT — édition EXACTE (plage vide à la fin de la dernière directive, texte `\nkotlin.coroutines.Continuation`) ; (2) plan MEMBRES MANQUANTS — l'insertion des stubs avec la signature substituée ; (3) plan CORRECTIF au caret — accès sûr, la plage du POINT remplacée par `?.` ; (4) SANS PREUVE : liste VIDE (nom résolu par import exact, caret dans un blanc, document inconnu) ; (5) IDEMPOTENCE — deux calculs, mêmes plans (mêmes titres, mêmes éditions) |
+
+### 8.2 Décisions d'exécution consignées
+
+1. **Le plan d'action ne RE-PROUVE pas lui-même : il ENROBE les preuves
+   existantes** (`importsCandidats` vague 2b, `membresManquants` et
+   `correctifsTexte` vague 2f) — les contrats des fiches 016/020/047
+   sont inchangés et restent verts (non-régression : la suite entière,
+   477 tests) ; l'apport de la vague est le MODÈLE déclaratif
+   (sérialisable, prévisualisable, exécution déléguée), pas de
+   nouvelles preuves.
+2. **L'ancrage du caret pour un correctif est la PLAGE du correctif** :
+   le plan « Accès sûr » vit sur le POINT du sélecteur (la plage
+   remplacée), pas sur l'identifiant du récepteur — le cas doré 3
+   l'épingle ; un caret hors de toute plage prouvée ne rend RIEN (D3).
+3. **`GenreActionKotlin.SOURCE` est réservé** (aucun plan ne l'emploie
+   à cette vague) : l'action de source « organiser les imports »
+   (retraits + insertions) exigera de TRANCHER entre candidates
+   ambiguës — décision à prendre quand une fiche la demandera, pas
+   avant (l'invention d'action n'est pas de ce dépôt).
+
+### 8.3 Preuves du bac à sable (avant commit)
+
+- **Cas dorés** : `CasDoresActionsKotlinTest` **5/5** (deux écarts de
+  rédaction du CAS DORÉ corrigés — le nom du cas 1 devait être NON
+  résolu au sens du moteur : `Regex` vit dans le paquet par défaut
+  `kotlin.text` (KP8), remplacé par `Continuation` de
+  `kotlin.coroutines` ; le caret du cas 3 devait vivre sur le POINT,
+  la plage du correctif).
+- **Suite** : **477 tests VERTS** sur la toolchain 17 (472 + 5) ;
+  baseline de parité RE-SIGNÉE **398 → 401 fichiers** (le SPI, le
+  moteur d'actions et les cas dorés entrent au corpus).

@@ -17,6 +17,7 @@ import jo.codeide.lsp.kotlin.api.EmplacementKotlin
 import jo.codeide.lsp.kotlin.api.GenreContexteKotlin
 import jo.codeide.lsp.kotlin.api.PlagePliableKotlin
 import jo.codeide.lsp.kotlin.api.PlageRenommableKotlin
+import jo.codeide.lsp.kotlin.api.PlanActionKotlin
 import jo.codeide.lsp.kotlin.api.PreviewKotlin
 import jo.codeide.lsp.kotlin.api.PropositionKotlin
 import jo.codeide.lsp.kotlin.api.ReponseCompletionKotlin
@@ -27,6 +28,7 @@ import jo.codeide.lsp.kotlin.format.FormateurKotlin
 import jo.codeide.lsp.kotlin.index.IndexAppelablesKotlin
 import jo.codeide.lsp.kotlin.parse.ParseurKotlin
 import jo.codeide.lsp.kotlin.parse.kt.KtDirectiveImport
+import jo.codeide.lsp.kotlin.parse.kt.PlageTexte
 import jo.codeide.lsp.kotlin.parse.kt.KtFichier
 import jo.codeide.lsp.kotlin.preview.PreviewsDocumentKotlin
 import jo.codeide.lsp.kotlin.resolve.ModeleProjet
@@ -870,6 +872,53 @@ internal class SessionLangageKotlinDocuments(
                 port = port,
             )
         return PreviewsDocumentKotlin.collecter(contexte, document.arbre.noeud, paquet)
+    }
+
+    /**
+     * Rend les plans d'action déclaratifs au point demandé (étage 5 vague
+     * 5d — ADR 0115 : [ActionsDeclarees] assemble les plans des preuves
+     * COURANTES — import, membres manquants, correctifs au caret ; la
+     * session fournit le point d'insertion d'une nouvelle directive
+     * d'import, calculé sous verrou de lecture).
+     */
+    override fun actions(uri: String, deplacement: Int): List<PlanActionKotlin> {
+        // Le point d'insertion d'une NOUVELLE directive d'import : sous
+        // verrou de lecture (calcul pur sur l'arbre immuable) — après la
+        // DERNIÈRE directive existante, sinon après le package, sinon en
+        // tête du document.
+        val ancrage: Triple<PlageTexte, String, String>? =
+            verrou.read {
+                if (fermee) return@read null
+                val document = documents[uri] ?: return@read null
+                val imports = document.arbre.imports()
+                if (imports.isNotEmpty()) {
+                    val borne = imports.last().noeud.fin
+                    return@read Triple(PlageTexte(borne, borne), "\n", "")
+                }
+                val packageDirective = document.arbre.directivePackage()
+                if (packageDirective != null && packageDirective.noeud.fin > 0) {
+                    val borne = packageDirective.noeud.fin
+                    return@read Triple(PlageTexte(borne, borne), "\n\n", "")
+                }
+                return@read Triple(PlageTexte(0, 0), "", "\n")
+            }
+        if (ancrage == null) return emptyList()
+
+        // Les PREUVES : chaque entrée du contrat gère SON verrou et ses
+        // consultations HORS verrou (index, scan en vol — ADR 0212 :
+        // jamais de scan sous le verrou de session) ; les plans
+        // assemblés re-prouvent le document à la requête.
+        val (insertion, prefixe, suffixe) = ancrage
+        return ActionsDeclarees.calculer(
+            uri = uri,
+            deplacement = deplacement,
+            importsCandidats = importsCandidats(uri, deplacement),
+            membresManquants = membresManquants(uri, deplacement),
+            correctifs = correctifsTexte(uri),
+            insertionImport = insertion,
+            prefixeImport = prefixe,
+            suffixeImport = suffixe,
+        )
     }
 
     /**

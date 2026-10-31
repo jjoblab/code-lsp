@@ -524,6 +524,29 @@ public interface SessionLangageKotlin : AutoCloseable {
     public fun previews(uri: String): List<PreviewKotlin>
 
     /**
+     * Rend les PLANS D'ACTION déclaratifs au point demandé (étage 5 vague
+     * 5d — ADR 0115 option 1, miroir ModCommand) : le titre, le genre et
+     * les ÉDITIONS PAR FICHIER de chaque action prouvable — un plan
+     * sérialisable, calculé en LECTURE (re-prouvé à la requête), dont
+     * l'exécution est DÉLÉGUÉE au client (l'hôte applique le
+     * WorkspaceEdit, le moteur n'écrit jamais).
+     *
+     * Les familles : l'IMPORT du nom non résolu (un plan par FQCN
+     * candidate — la directive s'insère après la dernière existante), les
+     * MEMBRES MANQUANTS de la déclaration visée (fiche 020) et les
+     * CORRECTIFS DE TEXTE dont la plage couvre le point (fiche 016).
+     * Sans preuve au point : liste VIDE — jamais une action inventée
+     * (D3).
+     *
+     * @param uri l'identifiant du document ;
+     * @param deplacement l'offset du caret ;
+     * @return les plans en ordre stable (imports, membres, correctifs) ;
+     * liste VIDE pour un document inconnu/fermé ou un point sans preuve —
+     * jamais `null`, jamais d'exception.
+     */
+    public fun actions(uri: String, deplacement: Int): List<PlanActionKotlin>
+
+    /**
      * Pose le classpath de la session : entrées des bibliothèques et racines
      * des sources (fiche 042 — ADR 0211).
      *
