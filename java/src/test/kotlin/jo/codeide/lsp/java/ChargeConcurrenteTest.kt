@@ -47,7 +47,7 @@ class ChargeConcurrenteTest {
         append("package demo;\n")
         append("public class B {\n")
         append("    public void travail() {\n")
-        for (i in 0 until 30) {
+        for (i in 0 until 60) {
             append("        int v$i = $i * ${variante + 1};\n")
         }
         append("        String s = \"x\";\n")
@@ -116,44 +116,55 @@ class ChargeConcurrenteTest {
 
         // Phase CONCURRENTE : deux fils, la complétion de A en rafale PENDANT
         // les diagnoses complets de B — l'entrelacement de l'écart G-029.
-        val concCompletion = java.util.Collections.synchronizedList(mutableListOf<Long>())
-        val concDiagnose = java.util.Collections.synchronizedList(mutableListOf<Long>())
-        val pret = CountDownLatch(2)
-        val fini = CountDownLatch(2)
-        val erreurs = AtomicInteger(0)
-        Thread {
-            pret.countDown(); pret.await(5, TimeUnit.SECONDS)
-            repeat(iterations) {
-                val debut = System.nanoTime()
-                try {
-                    moteur.completer(cheminA, sourceA, ancre)
-                } catch (_: Throwable) {
-                    erreurs.incrementAndGet()
+        // TROIS tours, P95 MÉDIAN : le bruit de GC/JIT d'une machine partagée
+        // swing d'un facteur 4 sur de petites fixtures (mesuré : diagnose
+        // p95 séquentiel 11–19 ms selon le tour) — la médiane des tours tue
+        // le bruit SANS tuer le signal : le CONVOI de l'ancien moniteur
+        // (+1 résolution entière par requête) survit à CHAQUE tour.
+        val p95ConcCompletionTours = mutableListOf<Long>()
+        val p95ConcDiagnoseTours = mutableListOf<Long>()
+        repeat(3) { tour ->
+            val concCompletion = java.util.Collections.synchronizedList(mutableListOf<Long>())
+            val concDiagnose = java.util.Collections.synchronizedList(mutableListOf<Long>())
+            val pret = CountDownLatch(2)
+            val fini = CountDownLatch(2)
+            val erreurs = AtomicInteger(0)
+            Thread {
+                pret.countDown(); pret.await(5, TimeUnit.SECONDS)
+                repeat(iterations) {
+                    val debut = System.nanoTime()
+                    try {
+                        moteur.completer(cheminA, sourceA, ancre)
+                    } catch (_: Throwable) {
+                        erreurs.incrementAndGet()
+                    }
+                    concCompletion.add((System.nanoTime() - debut) / 1_000_000)
                 }
-                concCompletion.add((System.nanoTime() - debut) / 1_000_000)
-            }
-            fini.countDown()
-        }.apply { isDaemon = true }.start()
-        Thread {
-            pret.countDown(); pret.await(5, TimeUnit.SECONDS)
-            repeat(iterations) { i ->
-                val debut = System.nanoTime()
-                try {
-                    moteur.diagnose(cheminB, sourceB(i % 2))
-                } catch (_: Throwable) {
-                    erreurs.incrementAndGet()
+                fini.countDown()
+            }.apply { isDaemon = true }.start()
+            Thread {
+                pret.countDown(); pret.await(5, TimeUnit.SECONDS)
+                repeat(iterations) { i ->
+                    val debut = System.nanoTime()
+                    try {
+                        moteur.diagnose(cheminB, sourceB(i % 2))
+                    } catch (_: Throwable) {
+                        erreurs.incrementAndGet()
+                    }
+                    concDiagnose.add((System.nanoTime() - debut) / 1_000_000)
                 }
-                concDiagnose.add((System.nanoTime() - debut) / 1_000_000)
-            }
-            fini.countDown()
-        }.apply { isDaemon = true }.start()
-        assertTrue(fini.await(120, TimeUnit.SECONDS), "aucun interblocement au banc de charge")
-        assertEquals(0, erreurs.get(), "zéro erreur sous charge concurrente")
+                fini.countDown()
+            }.apply { isDaemon = true }.start()
+            assertTrue(fini.await(120, TimeUnit.SECONDS), "aucun interblocement au banc de charge (tour $tour)")
+            assertEquals(0, erreurs.get(), "zéro erreur sous charge concurrente (tour $tour)")
+            p95ConcCompletionTours.add(p95(concCompletion))
+            p95ConcDiagnoseTours.add(p95(concDiagnose))
+        }
 
         val p95SeqCompletion = p95(seqCompletion)
-        val p95ConcCompletion = p95(concCompletion)
+        val p95ConcCompletion = p95ConcCompletionTours.sorted()[1] // médiane de 3 tours
         val p95SeqDiagnose = p95(seqDiagnose)
-        val p95ConcDiagnose = p95(concDiagnose)
+        val p95ConcDiagnose = p95ConcDiagnoseTours.sorted()[1]
         println(
             "Banc de charge V-F2 : complétion A p95 séquentiel ${p95SeqCompletion} ms / concurrent $p95ConcCompletion ms ; " +
                 "diagnose B p95 séquentiel $p95SeqDiagnose ms / concurrent $p95ConcDiagnose ms",
