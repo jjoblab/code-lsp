@@ -136,10 +136,18 @@ Fiche 007 AMENDÉE (décision D7 — M1/G-024) : les mots-clés
   leur frappe (v1.1.6 TOP_NIVEAU — le verrou de la fiche est levé : le
   comportement livré est désormais le comportement attendu ; amendement
   consigné dans la fiche).
-Banc de parité croisée : oracle vendored absent localement (réseau) —
-  vérifié par la CI (la sémantique de complétion change sur les NOUVELLES
-  positions smart : les 18 positions historiques du corpus de parité sont
-  inchangées, verdicts et gagnants mesurés identiques ci-dessus).
+Banc de parité croisée (oracle vendored RECONSTRUIT localement —
+  scripts/preparer-oracle.sh, jar 13 Mo, empreintes consignées) :
+  couverture cahier neuf 1,000 INTACTE (24 positions + 4 frappes),
+  pertes vs oracle 165 → 314, re-signées et ARBITRÉES dans la baseline :
+  (1) l'accessibilité JLS 6.6 éprouvée dès le 1er appel (membres
+  package-privés/privés du jrt non proposés : valueOfCodePoint sur
+  statique-valueOf, hash/coder/value sur la succession — fiche C-08 D1) ;
+  (2) les positions smart NOUVELLES (l'oracle n'y propose ni les types ni
+  le typedef — gains informationnels du neuf) ; (3) gabarits de l'oracle
+  absents du neuf (sout/serr/notnull/field/cast/who — restes V-D). Les 18
+  positions historiques : verdicts et gagnants inchangés (banc qualité
+  ci-dessus).
 
 --- Pièges mesurés et corrigés (consignés au commit) ---------------------
 
