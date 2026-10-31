@@ -148,14 +148,28 @@ hôte/client/Java au [plan](04-plan-vagues.md).
 ## 9. État de la CI et des livrables
 
 - CI de l'état audité : **VERTE 10/10** (run `41170597847` sur `7b2f972`,
-  attestée au doc 11 §4). La CI après cette mission : suite
-  `:kotlin:test` rejouée dans l'environnement (verdict au compte-rendu),
-  aucune baseline de qualité re-signée, baseline de parité re-signée
-  (E-K9, ajouts seuls).
+  attestée au doc 11 §4).
+- **Attestation CI de la mission (31/10/2026)** : run **`41195132011`** sur
+  le commit de clôture **`c650186b3d553dee77b8daf0f52713c162f5180b`** —
+  **CI VERTE 10/10** (les dix jobs verts : Build et tests JDK 21, banc
+  empreinte/latence noyau, banc qualité complétion Java baseline signée,
+  gates Android SDK 34, banc parité croisée T, suite du module Kotlin
+  — 523 tests du cahier + 11 tests du banc P1–P9 —, scan ART + dexage d8
+  sous les seuils étage 0, manifeste de provenance anti-fichier-hors-
+  registre, bancs empreinte/latence et qualité complétion Kotlin baseline
+  signée). Les deux premiers jobs (`kotlin-parite`, `build`) avaient
+  échoué sur **rate-limit Maven Central (429)** — même classe de panne
+  transitoire que l'alerte AL4 de la mission Java (artefact
+  `annotations:26.0.2` résolu localement le même jour) — relancés une
+  fois, **verts à la première relance, aucune reprise de code**.
+- Vérifications locales préalables (R5) : `./gradlew :kotlin:test` complet
+  **BUILD SUCCESSFUL en 5 min 45 s** (534 tests) ; banc P1–P9
+  **BUILD SUCCESSFUL en 5 min 02 s** (11 tests, mesures consignées à
+  l'audit §4.3) ; `verifier-push.sh` concluant avant chaque push.
 - Livrables : documents `00` à `07` + `ALERTES` + 12 fiches `KC-01…12` +
   kit/gabarits de captures + ADR `0122`–`0136` (Proposé) + 8 amendements
   datés + banc P1–P9 + corpus épinglé + DEMANDES-INTERFACE/PROVENANCE/
-  AGENTS mis à jour — inventaire exhaustif au commit de clôture.
+  AGENTS mis à jour — 32 commits `lsp-kotlin(…)` sur `df3cf85..c650186`.
 
 **STOP** — conformément au §10 du prompt : aucune vague d'implémentation
 n'est lancée au-delà de la V0 (outillage de mesure). Les prompts
