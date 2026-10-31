@@ -24,6 +24,24 @@
 > lecture image par image (≈ 16,7 ms/image) entre l'appui touche et
 > l'affichage complet du popup/soulignement ; 3 passes minimum espacées de
 > ≥ 30 s, mode avion (§11), aucune autre application active.
+>
+> **Kit d'exécution (vague 0, livré)** : sur le poste de bureau,
+> `bash scripts/kit-mesure.sh` produit `build/kit-mesure.zip` (jamais
+> committé). Le transférer sur l'appareil (Termux, OpenJDK 17) puis :
+>
+> ```bash
+> unzip -o kit-mesure.zip -d mesure && cd mesure
+> bash banc-mesure.sh > resultats-mesure.txt
+> ```
+>
+> Le banc joue **3 passes espacées de 30 s** (`PASSES=1` pour une passe
+> rapide) et couvre **S2/S3, F1, F3, F4, F5, F6, C1, Q3, M1/M2** ; les
+> autres lignes du gabarit sont listées dans le transcript avec leur raison
+> (hôte CodeIDE, vague future ou CI corpus). Poser un `android.jar` à côté
+> du script fait passer la plateforme du jrt au jar (optionnel). Les
+> latences rendues sont des **mesures moteur in-process** : des bornes
+> basses du perçu (celui-ci ajoute le debounce hôte 50 ms et la
+> publication) — le protocole écran 60 i/s reste la mesure du perçu.
 
 - [ ] Appareil : ____________ (modèle, Android, RAM libre au repos : ______ Mo)
 - [ ] Version du moteur : `lspjava` v________ (tag/commit : __________)
