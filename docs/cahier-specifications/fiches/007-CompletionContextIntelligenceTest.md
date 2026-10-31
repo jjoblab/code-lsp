@@ -66,6 +66,25 @@
 - **Bornes** : —
 - **Statut** : actif (hypothèse android.jar)
 
+### declarationHeadKeywordsProposedWhileTyping — mots-clés de tête de déclaration (AMENDEMENT D7, V-C3/G-024)
+- **Préconditions / entrée** : `public class Principal e|` — caret après le
+  préfixe `e`, la déclaration n'a pas encore ouvert son accolade (tête
+  TOP LEVEL).
+- **Comportement attendu** : la liste propose le MOT-CLÉ `extends`
+  (pareillement `implements`/`permits` pendant leur frappe), **fusionnés**
+  aux stubs d'override de la hiérarchie du type en cours de déclaration
+  (genre `TOP_NIVEAU`). La clause APRÈS le mot-clé (`implements Ru|`) reste
+  une position de TYPE (interfaces seules). AVANT l'amendement : la
+  position capturait le sélecteur de méthode (CORPS_CLASSE) et les
+  mots-clés étaient muets — l'écart ECARTS-SERVEUR M1, résolu par la
+  décision D7 (31/10/2026).
+- **Bornes** : une tête LOCALE (classe déclarée dans un corps de méthode)
+  reste un artefact de recovery d'ecj — mots-clés non proposés (borne
+  documentée USAGE §7.21).
+- **Statut** : actif (amendement D7 — le verrou « muets » est LEVÉ : le
+  comportement livré est le comportement attendu ; test amendé
+  `RetoursAppareilV116Test.motCleExtendsDansLaTeteDeDeclaration`)
+
 ### caseLabelProposesEnumConstants — labels de switch sur enum
 - **Préconditions / entrée** : `switch (c)` sur `enum Color { RED, GREEN, BLUE }`, label partiel `case RE|:`.
 - **Comportement attendu** : « RED » présent ET l'item « RED » voyage avec le kind `ENUM` (`CompletionItem.Kind.ENUM`).

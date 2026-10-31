@@ -139,7 +139,22 @@ cible < 6) ; V-C1 : moteur d'inspections + 8 pilotes (G-010 RÉSOLU) ;
 V-C2 : lint Android — base api-versions en tâche de fond, NewApi et 4
 autres contrôles (G-011 résolu en 1re vague) — cf.
 `04-plan-vagues.md` §V-F2/§V-C et `mesures/2026-10-31-vf2-vc1-vc2.txt` ;
-**V-C3 reste à livrer**).
+**V-C3 livrée le 31/10 au soir (v1.7.0)** — complétion « niveau Android
+Studio » (ADR 0026 Accepté-livré) : **smart** par bindings ecj (filtrage
+GRADUÉ — compatible en tête, jamais caché ; union des surcharges à l'arité
+de l'appel), **typedef** `@IntDef`/`@StringDef` en tête avec import
+statique, **littéraux R.\*** par `@…Res` + référentiel, **second appel**
+(inaccessibles marqués + imports statiques) et **3ᵉ appel** (projet entier
+par CIDX), **chaîne** à deux sauts, **statement completion** (moteur +
+RPC `textDocument/statementCompletion`), **stats locales opt-in** à fenêtre
+glissante, **mémoïsation des membres binaires** (reste PV 1.6.0) et
+**mots-clés de tête de déclaration** (décision D7 exécutée — G-024, fiche
+007 amendée, ECARTS-SERVEUR M1 fermé). G-012/G-017/G-018/G-024 RÉSOLUS.
+Banc qualité **v2** : 24 positions, split train/éval (ADR 0030) — d8
+1,000/1,000/1,000, **ÉVAL 1,000/1,000** (cibles ≥ 0,95/≥ 0,80 dépassées),
+naïf ÉVAL top-1 0,000 (la preuve de valeur). Capability
+`x-codeide.completionRanking` **v2**. Cf. `04-plan-vagues.md` §V-C et
+`mesures/2026-10-31-vc3-completion.txt`).
 
 | # | Décision | Recommandation |
 |---|---|---|

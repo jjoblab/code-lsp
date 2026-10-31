@@ -143,6 +143,45 @@ plugins {
 // java dont 41 gates ignorées avec raison), build strict P1–P8 VERT,
 // bancs d8 (1,000 — p95 34,52 ms), usages (1,000 — p95 47,08 ms),
 // qualité VERT.
+// 1.7.0 (31/10/2026, vague V-C3 — ADR 0026 Accepté-livrée) : COMPLÉTION
+// NIVEAU ANDROID STUDIO. (1) SMART — type attendu par bindings ecj
+// (affectation, initialiseur, argument avec UNION DES SURCHARGES À L'ARITÉ
+// de l'appel, return, ternaire transparent, lambda fonctionnalisée,
+// allocation, cast) ; filtrage GRADUÉ par PeseurCompatibilite (compatible
+// en tête / inconnu neutre / incompatible en bas / typedef domine /
+// inaccessibles du 2e appel ferment la marche) — JAMAIS de cachage, le
+// plafond honnête 120 et le total réel voyagent toujours. (2) TYPEDEF
+// @IntDef/@StringDef (fiche C-04 T1/T2/T3) : constantes en tête, lues dans
+// la SOURCE déclarante (bornes : typedef binaires muets), éléments simples
+// avec import STATIQUE en édition additionnelle, éléments qualifiés
+// insérés qualifiés (P6). (3) LITTÉRAUX R.* (B11/G-017) : genre
+// LITTÉRAL_RESSOURCE par variante dédiée (littéral remplacé par le
+// marqueur), 21 annotations @…Res mappées, noms du référentiel ADR 0020.
+// (4) SECOND APPEL (fiche C-08 D1-D4) : compteur par (document, genre,
+// ancre, PRÉFIXE) — 2e appel : membres inaccessibles MARQUÉS
+// (data.marqueur) et DERRIÈRE (l'accessibilité JLS 6.6 est éprouvée dès le
+// 1er appel — fiche 066 amendée) + membres STATIQUES IMPORTABLES (panneau
+// java.lang borné, énumération mémoïsée, édition import static, P6) ;
+// 3e appel : types du PROJET par l'index de noms partagé. (5) CHAÎNE à
+// deux sauts (budgets 40/12). (6) STATEMENT completion lexicale (référence
+// d'équilibrage v1.1.6 C2 réutilisée) : MoteurJava.completerInstruction +
+// RPC textDocument/statementCompletion. (7) STATS LOCALES opt-in à FENÊTRE
+// GLISSANTE (30 j, horloge injectée — format de fichier v2, l'ancien
+// compteur est ignoré) branchées en peseur D9 + noterSelectionCompletion.
+// (8) MÉMOÏSATION des membres de types BINAIRES (reste PV 1.6.0 mesuré
+// 15-26 ms/appel) par identité de binding, niveaux d'accès consignés,
+// verrou d'ÉTAT nommé (comptage synchronized( = 0 tenu). (9) D7/M1/G-024 :
+// mots-clés extends/implements/permits proposés en TÊTE DE DÉCLARATION,
+// fusionnés aux stubs (fiche 007 + RetoursAppareilV116Test amendés,
+// ECARTS-SERVEUR M1 fermé). Capability x-codeide.completionRanking v2 (le
+// poids packé gagne la dimension compatibilité — jamais de mutation
+// silencieuse). Banc qualité v2 : corpus 24 positions (6 V-C3) avec SPLIT
+// TRAIN/ÉVAL déterministe (ADR 0030) — d8 1,000/1,000/1,000, ÉVAL
+// 1,000/1,000 (cibles ≥ 0,95/≥ 0,80 dépassées), naïf ÉVAL top-1 0,000 ;
+// baseline re-signée (corpus v2) ; gel réinitialisé par position côté banc
+// (scénarios indépendants). Validation : 818 tests / 0 échec (652 java
+// dont 26 V-C3 ; 73 gates ignorées avec raison), build strict P1-P8 VERT,
+// usages 1,000 / p95 51 ms, sauts 0.
 // ---------------------------------------------------------------------------
 // VERSION DU DÉPÔT (fiche 059 I7 — serverInfo.version générée d'ICI).
 // 1.5.0 (31/10/2026, vague V-F1 — ADR 0029 phase 1) : DOUBLE-TAMPON +
@@ -161,5 +200,5 @@ plugins {
 // p95 35,96 ms), usages (1,000, p95 40,62 ms), parité et N1
 // (diagnose rapide p50 4,8 ms, tas 17 Mo) non régressés.
 allprojects {
-    version = "1.6.0"
+    version = "1.7.0"
 }

@@ -1,0 +1,181 @@
+PV DE MESURE — V-C3 (complétion smart, typedef, R.*, second appel, chaîne,
+statement, stats, mémoïsation) — 31/10/2026 (nuit)
+=================================================================
+
+R5 : AUCUNE valeur fabriquée. Toutes les mesures ci-dessous proviennent des
+bancs et tests exécutés ce jour (JVM du bac à sable — CPU partagé plus
+bruyant que la CI ; les gates de latence y sont re-vérifiées par la CI, la
+valeur de référence reste la passe CI).
+
+--- Contenu livré (ADR 0026 — G-012, G-017, G-018, G-024) ---------------
+
+(a) SMART — filtrage gradué par type attendu (fiche C-03 S1–S5) : le type
+  attendu est calculé par les BINDINGS ecj (jamais réimplémenté, A7) aux
+  positions affectation (`String c = |`), initialiseur de locale/champ,
+  argument d'appel (UNION des surcharges À L'ARITÉ DE L'APPEL — le piège
+  mesuré : `l.add(M)` voyait `add(int, E)` donner `int` dans l'union, corrigé
+  par le filtre d'arité ; les variables de type E/T sont écartées — leur
+  borne Object rendait tout compatible), `return`, ternaire (transparent),
+  lambda (méthode fonctionnelle de l'interface attendue — le piège mesuré :
+  l'itération du chemin devait aller du PLUS INTÉRIEUR, la déclaration
+  englobante court-circuitait la fonctionnalisation), allocation, cast.
+  Le filtrage ORDONNE uniquement : compatible (0) remonte, inconnu (1)
+  neutre, incompatible (2) descend, typedef (-1) domine, inaccessibles du
+  second appel (+4) ferment la marche — JAMAIS de cachage (S5). La dimension
+  voyage dans la chaîne D8 (PeseurCompatibilite, 2e dimension) et dans le
+  poids RPC packé (capability x-codeide.completionRanking v2 — jamais de
+  mutation silencieuse).
+(b) TYPEDEF @IntDef/@StringDef (fiche C-04 T1/T2/T3) : constantes
+  autorisées EN TÊTE aux positions argument, affectation de champ annoté et
+  label de switch ; lues dans la SOURCE DÉCLARANTE (les noms ne vivent pas
+  dans le .class — même contrainte que la référence) ; éléments QUALIFIÉS
+  insérés sous forme qualifiée (compilable, P6), éléments simples porteurs
+  d'un import STATIQUE en édition additionnelle (proposées même non
+  importées — le piège mesuré : « même paquet » ne suffit PAS, un champ
+  statique d'une AUTRE classe exige l'import statique, JLS 6.5).
+(f) LITTÉRAUX R.* (B11/G-017) : le caret DANS un littéral de chaîne occupant
+  un argument annoté @…Res propose les NOMS de ressources du référentiel
+  (ADR 0020) — le genre LITTÉRAL_RESSOURCE passe par une VARIANTE DÉDIÉE
+  (le littéral ENTIER remplacé par le marqueur : un marqueur d'identifiant
+  ne peut pas vivre dans un littéral). 21 annotations @…Res mappées.
+  Sans annotation ni référentiel : silence honnête (liste vide, comme
+  avant V-C3).
+(d) SECOND APPEL (fiche C-08 D1–D4) : compteur d'invocation par (document,
+  genre, ancre, PRÉFIXE) côté serveur — 2e appel : membres INACCESSIBLES
+  (privé/protégé/hors-paquet, JLS 6.6 — éprouvés dès le PREMIER appel :
+  l'ancien comportement proposait le package-privé d'un autre paquet, corrigé
+  et la fiche 066 AMENDÉE en conséquence) ajoutés MARQUÉS
+  (data.marqueur = "inaccessible") et DERRIÈRE les accessibles ; membres
+  STATIQUES IMPORTABLES (imports explicits + paquet courant + panneau
+  java.lang borné à 12 porteurs, énumération MÉMOÏSÉE) avec édition
+  `import static …;` (insertion compilable, P6) ; 3e appel : types du
+  PROJET entier par l'index de noms partagé (CIDX), import automatique.
+  Le changement de PRÉFIXE rouvre le contexte (D4).
+(b') CHAÎNE (ADR 0026 (b)) : seconde passe quand AUCUN candidat direct
+  type-compatible n'a survécu au préfixe — méthodes du récepteur retournant
+  le type attendu en DEUX sauts (`w.builder().text()`), budgets bornés
+  (40 méthodes au premier niveau, 12 items).
+(c) STATEMENT completion (ADR 0026 (c)) : AideSignatures.completerInstruction
+  (la référence d'équilibrage v1.1.6 C2 réutilisée) — referme le littéral
+  ouvert, referme les listes, argument de secours après virgule traînante,
+  termine par `;` (ou ouvre le bloc ` {` d'un mot-clé de contrôle) ;
+  PUREMENT LEXICALE (servie dans TOUS les régimes, aucun verrou) ; rien à
+  compléter → null (jamais d'édition vide). Exposée au moteur
+  (MoteurJava.completerInstruction) et au fil (extension expérimentale
+  textDocument/statementCompletion, §9.4 d'USAGE — consommation client à
+  venir, registre K2).
+(g) STATS LOCALES OPT-IN (G-018) : CompteurUsage à FENÊTRE GLISSANTE (30 j
+  par défaut, 16 horodatages par libellé, horloge injectée, fichier local
+  purgable — l'ancien format `label=fréquence` est ignoré au chargement,
+  état opt-in purgable documenté), branché comme peseur D9 de la chaîne
+  standard (opt-in à la construction du moteur — null par défaut, vie
+  privée) ; MoteurJava.noterSelectionCompletion note la sélection côté hôte.
+  Le ML local reste REJETÉ en v1 (ADR 0026 : gain/cost défavorable sans
+  logs massifs).
+(m) MÉMOÏSATION des membres de types BINAIRES (reste consigné du PV 1.6.0,
+  mesuré 15–26 ms par appel) : par IDENTITÉ de binding, types jrt/jar
+  seulement (les sources bougent à l'édition), niveaux d'accès consignés
+  dans le mémo (l'épreuve d'accessibilité reste par contexte), verrou
+  D'ÉTAT nommé (ReentrantLock — le comptage synchronized( du module reste
+  0, cible ADR 0010 < 6). TRANSCRIPT mesuré (test
+  `memo membres binaires transcript de latence`) : mémo chaud p50 8,00 ms /
+  max 42,00 ms par complétion COMPLÈTE à ancre membre (JVM du bac à sable).
+
+--- Banc de qualité (ADR 0016/0030 — corpus v2, split train/éval) --------
+
+Corpus étendu 18 → 24 positions : + smart-affectation, smart-membre,
+smart-argument (TRAIN), typedef-argument, chaine-builder-text,
+second-appel-z (ÉVAL — 5 positions d'évaluation, split déterministe
+ADR 0030 : la réponse structurelle au sur-apprentissage). SOURCE_WIDGET
+étendue (membre privé zSecret, chaîne builder()/Builder.text(), typedef
+@IntDef MODE_*). Une position porte son nombre d'INVOCATIONS (second
+appel mesuré, fiche C-08). Le GEL est réinitialisé par position : chaque
+position est un scénario INDÉPENDANT (le piège mesuré : les positions NOM
+à préfixe vide partageaient la clé de gel — les têtes gelées d'une position
+fuyaient sur la suivante ; la stabilité du gel reste mesurée par la
+succession de frappe dédiée, contrat « zéro saut » intact).
+
+Mesuré (moteur d8) :
+  recall 1,000 / top-1 1,000 / MRR 1,000 (24 positions)
+  sous-ensemble ÉVAL (5) : recall 1,000 / top-1 1,000 / MRR 1,000
+  — CRITÈRES DE SORTIE V-C3 (rappel ≥ 0,95 / top-1 ≥ 0,80) DÉPASSÉS.
+  latence p95 38,45 ms (passe de signature de la baseline ; reprises
+  consécutives 35,66-49,72 ms selon la charge du bac à sable — la CI reste
+  la référence de latence, borne max(50 ms, baseline × 1,5) tenue)
+  sauts de liste : 0 (contrat gel)
+Mesuré (chaîne naïve, statu quo sans design) :
+  recall 0,917 / top-1 0,458 / MRR 0,611 — ÉVAL : top-1 0,000 : la
+  preuve de valeur de la vague (la chaîne alphabétique perd TOUTES les
+  positions smart).
+Baseline re-signée (PR dédiée = CE commit) : completion-n2 v2, d8
+1,000/1,000/1,000 — p95 38,45 ms ; naïf 0,917/0,458/0,611.
+
+--- Non-régression (tous modules, ce jour) -------------------------------
+
+Tests : 818 / 0 échec — java 652 (dont 26 V-C3 ; 73 gates environnementales ignorées
+avec raison : corpus/android.jar hors bac à sable), model 42, index 84,
+testing 4, ecj-art 36.
+`build` strict (BANC_COHERENCE_STRICT=true, P1–P8) : VERT.
+Banc usages : rappel vs oracle 1,000 (corpus 10 et 30 classes),
+  p95 51,04 ms (< 100 ms), Files.walk hors chemin chaud.
+Banc N1 (bac à sable, CPU partagé) : diagnose complet p95 54,26 ms,
+  diagnose rapide p95 31,79 ms, hover p50 0,06 ms, complétion membres
+  p50 5,1 ms / p95 37,8 ms (la CI reste la référence de latence).
+Banc de charge ADR 0010 (ChargeConcurrenteTest) : VERT en isolement
+  (3 passes consécutives) ; dans la suite COMPLÈTE du bac à sable CPU
+  partagé il fluctue (diagnose B concurrent jusqu'à 34 ms vs 11 ms
+  séquentiel sur un tour) — le chemin diagnose n'est PAS touché par V-C3,
+  la CI (runner dédié) arbitre.
+Fiche 066 AMENDÉE (laReconfigurationAChaudEstVueSansReinitialisation) :
+  la sonde « la racine neufmodule est lue » passe par le SECOND appel —
+  le membre package-privé `valeur` de neuf.Neuf vu du paquet app est
+  INACCESSIBLE au premier appel (fiche C-08 D1, JLS 6.6) ; l'intention du
+  test (preuve de lecture de la nouvelle racine) est conservée.
+Fiche 007 AMENDÉE (décision D7 — M1/G-024) : les mots-clés
+  `extends`/`implements` en tête de déclaration sont proposés PENDANT
+  leur frappe (v1.1.6 TOP_NIVEAU — le verrou de la fiche est levé : le
+  comportement livré est désormais le comportement attendu ; amendement
+  consigné dans la fiche).
+Banc de parité croisée : oracle vendored absent localement (réseau) —
+  vérifié par la CI (la sémantique de complétion change sur les NOUVELLES
+  positions smart : les 18 positions historiques du corpus de parité sont
+  inchangées, verdicts et gagnants mesurés identiques ci-dessus).
+
+--- Pièges mesurés et corrigés (consignés au commit) ---------------------
+
+1. UNION D'ARITÉ : `l.add(M)` donnait `int` (le paramètre INDEX de
+   `add(int, E)`) dans l'union des surcharges — filtrage par l'arité de
+   l'appel en frappe ajouté (S2).
+2. VARIABLES DE TYPE : la borne Object d'un E non substitué rendait TOUT
+   compatible (filtrage smart muet) — les TypeVariableBinding sont écartées
+   de l'union.
+3. LAMBDA COURT-CIRCUITÉE : le chemin d'ancêtres se parcourt du PLUS
+   INTÉRIEUR — la déclaration englobante (`Supplier<String> sup`) capturait
+   avant la lambda et rendait l'attendu non fonctionnalisé (S4) ; le
+   subList de la branche lambda était en outre inversé.
+4. TYPEDEF « MÊME PAQUET » : un champ statique d'une autre classe N'EST
+   PAS visible sans import statique (JLS 6.5) — l'édition `import static`
+   est posée dès que le déclarant n'est pas le type englobant ; les
+   éléments QUALIFIÉS de l'annotation s'insèrent sous forme qualifiée.
+5. GEL ENTRE SCÉNARIOS : les positions du corpus à clé de gel partagée
+   (NOM, préfixe vide) se volaient leurs têtes gelées — réinitialisation
+   par position côté banc (MoteurJava.reinitialiserGelCompletion, usage
+   banc documenté ; la session de frappe réelle garde son gel).
+6. MONITEURS ANONYMES : les 8 `synchronized(` ajoutés à la première
+   rédaction violaient la métrique CI d'ADR 0010 (< 6, mesuré 0 depuis
+   V-F2) — remplacés par un verrou D'ÉTAT nommé (ReentrantLock), comptage
+   toujours 0.
+
+--- Restes consignés -------------------------------------------------------
+
+V-C3 : diagnostic associé au typedef (fiche C-04 T4 — avertissement
+  d'inspection quand la valeur est HORS typedef, v2) ; typedef déclarés
+  dans des types BINAIRES (androidx en AAR) : les noms de constantes ne
+  vivent pas dans le .class — silence honnête (la référence lit les
+  sources du SDK ; l'ajout d'un lecteur de sources androidx est un reste
+  documenté) ; le 3e appel n'élargit que si l'index de noms est branché
+  (moteur autonome sans index : honnête, rien).
+V-C2 (catalogue) : Range, ResourceType, CommitPrefEdits, Recycle,
+  mode global différé ; segment CIDX compact de la base.
+V-F (phases 3–5) : budgets octets + onTrimMemory, plage prioritaire,
+  incrémentalité conditionnée (ADR 0017/0006).

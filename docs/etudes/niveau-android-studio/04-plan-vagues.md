@@ -412,10 +412,13 @@ complètent la couverture.
 
 ### V-C — Intelligence (inspections, lint, complétion smart)
 
-> **V-C1 et V-C2 LIVRÉES le 31/10/2026 au soir** ; **V-C3 reste à livrer**
-> (complétion smart/typedef/littéraux R.*/second appel/chain/statement/
-> stats — découpée, dépend de la lecture approfondie d'`AnalyseurContexte`).
-> Détail dans `mesures/2026-10-31-vf2-vc1-vc2.txt` :
+> **V-C1, V-C2 et V-C3 LIVRÉES le 31/10/2026 au soir** (V-C3 = v1.7.0 :
+> complétion smart/typedef/littéraux R.*/second appel + import static +
+> 3ᵉ appel projet/chaîne/statement/stats opt-in/mémoïsation binaires/
+> mots-clés de tête D7 — G-012, G-017, G-018, G-024 RÉSOLUS ; banc
+> qualité v2 24 positions split train/éval, ÉVAL 1,000/1,000 ; PV
+> `mesures/2026-10-31-vc3-completion.txt`).
+> Détail V-C1/V-C2 dans `mesures/2026-10-31-vf2-vc1-vc2.txt` :
 >
 > - **V-C1 (ADR 0023, G-010 RÉSOLU)** : contrat d'inspection (visitor
 >   résilient, dumb-aware par construction) + profil (Warning/Info,

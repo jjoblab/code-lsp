@@ -1,6 +1,15 @@
 # ADR 0026 — Complétion niveau Android Studio (smart, chain, statement, second appel, classement enrichi)
 
-- **Statut** : Proposé
+- **Statut** : **Accepté — LIVRÉ (vague V-C3, 31/10/2026)** — option 1
+  complète : smart (affectation/initialiseur/argument-avec-union-à-l'arité/
+  return/ternaire/lambda/allocation/cast, filtrage gradué JAMAIS caché),
+  typedef (e), littéraux R.* (f), second appel + import static + 3e appel
+  projet (d), chaîne à deux sauts (b), statement (c), stats opt-in à
+  fenêtre glissante (g — ML rejeté v1), mémoïsation des membres binaires
+  (reste PV 1.6.0). Amendement D7 (M1/G-024) exécuté : mots-clés de tête
+  de déclaration fusionnés aux stubs. PV : `mesures/2026-10-31-vc3-completion.txt`
+  (banc qualité v2 24 positions split train/éval — ÉVAL recall 1,000 /
+  top-1 1,000 ; naïf ÉVAL top-1 0,000).
 - **Date** : 2026-10-31
 - **Écarts résolus** : G-012, G-017, G-018, G-024 (`01-audit-moteur.md` §1.10)
 

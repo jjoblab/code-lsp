@@ -1122,6 +1122,80 @@ la base est observable (`BaseApiAndroid.disponible()`), et la passe lint
 se tait sur une unité portant une erreur de résolution (garde du circuit
 annotator de la référence).
 
+### 7.21 Complétion smart, typedef, R.*, second appel, chaîne, statement (vague V-C3)
+
+**Smart — filtrage gradué par type attendu** (ADR 0026 (a), fiches C-03) :
+aux positions où un type attendu est calculable par les **bindings ecj**
+(affectation, initialiseur, argument d'appel — union des surcharges **à
+l'arité de l'appel**, `return`, ternaire, lambda, allocation, cast), les
+candidats **type-compatibles remontent**, les autres **descendent** —
+**jamais cachés** (la liste plafonnée à 120 et le filtrage par préfixe
+restent intacts, le total réel voyage toujours). La dimension rejoint la
+chaîne D8 (`PeseurCompatibilite`, 2ᵉ dimension) et le poids RPC packé —
+capability **`x-codeide.completionRanking` v2** (§8).
+
+**Typedef `@IntDef`/`@StringDef`** (fiche C-04) : les constantes
+AUTORISÉES sont proposées **en tête** aux positions argument annoté,
+affectation de champ annoté et label de `switch` — même non importées :
+l'élément simple porte une édition `import static …;`, l'élément qualifié
+s'insère sous sa forme qualifiée (insertion **compilable**, P6). Les noms
+sont lus dans la **source déclarante** : un typedef déclaré dans un type
+**binaire** (androidx en AAR) reste muet — les noms ne vivent pas dans le
+`.class` (même contrainte que la référence).
+
+**Littéraux `R.*`** (B11) : le caret **dans un littéral de chaîne**
+occupant un argument annoté `@…Res` (21 annotations mappées) propose les
+**noms de ressources** du référentiel (ADR 0020) — genre
+`LITTÉRAL_RESSOURCE`, insertion du nom, détail `R.<type>.<nom>`. Sans
+annotation ou sans référentiel : liste vide honnête (comme avant V-C3).
+
+**Second appel** (fiche C-08) : compteur d'invocation par (document,
+genre, ancre, **préfixe**) côté serveur — un changement de préfixe **rouvre
+le contexte**. **2ᵉ appel** : les membres **inaccessibles** (JLS 6.6 —
+éprouvés dès le 1ᵉʳ appel, ils n'y figurent plus) s'ajoutent **marqués**
+(`data.marqueur = "inaccessible"`) et **derrière** les accessibles ;
+les membres **statiques importables** (imports explicits + paquet courant +
+panneau java.lang borné, énumération mémoïsée) portent une édition
+`import static …;`. **3ᵉ appel** : types du **projet entier** par l'index
+de noms partagé (CIDX), import automatique — moteur sans index : rien
+d'ajouté (honnête).
+
+**Chaîne** (ADR 0026 (b)) : quand AUCUN candidat direct type-compatible ne
+survit au préfixe, les méthodes du récepteur **retournant le type attendu
+en deux sauts** sont proposées (`w.builder().text()`) — budgets bornés
+(40 méthodes au premier niveau, 12 items).
+
+**Statement completion** (ADR 0026 (c) — le geste Ctrl+Shift+Enter) :
+`MoteurJava.completerInstruction` et l'extension expérimentale
+`textDocument/statementCompletion` (§9.4) équilibrent l'instruction au
+caret — littéral ouvert refermé, listes refermées, argument de secours
+après virgule traînante, `;` final (ou bloc ` {` d'un mot-clé de
+contrôle). **Purement lexicale** : servie dans tous les régimes, aucun
+verrou ; rien à compléter → null (jamais d'édition vide).
+
+**Stats locales opt-in** (G-018) : `CompteurUsage` à **fenêtre
+glissante** (30 jours, 16 horodatages par libellé, horloge injectée,
+fichier local purgable — l'ancien format `label=fréquence` est ignoré au
+chargement), branché en peseur D9 de la chaîne standard : passer le
+compteur à la construction du moteur (`null` par défaut — vie privée) et
+noter les sélections par `MoteurJava.noterSelectionCompletion`. Le ML
+local reste **rejeté** en v1 (ADR 0026 : gain/cost défavorable sans logs
+massifs).
+
+**Mémoïsation des membres binaires** (reste consigné du PV 1.6.0) : les
+membres des types **jrt/jar** se mémoïsent par identité de binding (les
+sources bougent à l'édition, elles ne s'y mémoïsent pas) ; les niveaux
+d'accès sont consignés dans le mémo — l'épreuve d'accessibilité reste par
+contexte. Verrou d'état **nommé** (le comptage `synchronized(` du module
+reste 0, cible ADR 0010 < 6).
+
+**Mots-clés de tête de déclaration** (décision D7 — G-024/M1, l'écart
+consigné ECARTS-SERVEUR M1) : `extends`/`implements`/`permits` sont
+proposés **pendant leur frappe** en tête de déclaration, **fusionnés**
+aux stubs d'override de la hiérarchie du type en cours (fiche 007
+amendée). Borne : une tête **locale** (classe déclarée dans un corps de
+méthode) reste un artefact de recovery d'ecj (mots-clés non proposés).
+
 ## 8. Capability maison `x-codeide.completionRanking`
 
 Le protocole riche de classement (ADR 0012/0015, design intégré N8) :
@@ -1134,11 +1208,18 @@ Annonce (voyage via le sérialiseur dédié — §4.3) :
 
 ```json
 "x-codeide.completionRanking": {
-  "version": 1,
+  "version": 2,
   "poidsItem": "x-codeide.poids",
   "correspondanceItem": "x-codeide.correspondance"
 }
 ```
+
+**v2 = vague V-C3** (ADR 0026 (a), jamais de mutation silencieuse) : le
+poids packé gagne la dimension **compatibilité** au type attendu, entre la
+correspondance et la nature — le re-filtrage local du client reproduit
+l'ordre **smart** du serveur (compatible en tête, jamais caché). Les clés
+du payload sont inchangées ; un client v1 qui trie par le poids packé
+reste cohérent (l'ordre du poids EST l'ordre serveur).
 
 Payload par item (clés stables, versionnées par la capability) :
 
@@ -1237,6 +1318,33 @@ annoncé dans la capability `x-codeide.usages` (`plafondRendu`).
 
 Vue VIDE honnête si le caret ne porte pas de symbole (I9).
 
+### 9.4 `statementCompletion` — compléter l'instruction (V-C3)
+
+Le geste Ctrl+Shift+Enter de la référence (ADR 0026 (c)) : équilibre
+l'instruction au caret — referme le littéral ouvert, referme les listes
+ouvertes, pose un argument de secours après une virgule traînante, termine
+par `;` (ou ouvre le bloc ` {` d'un mot-clé de contrôle). Calcul
+**purement lexical** (aucune résolution — servi dans tous les régimes).
+Rien à compléter → `edition: false` (jamais d'édition vide).
+
+```json
+{"jsonrpc":"2.0","id":41,"method":"textDocument/statementCompletion","params":{
+  "textDocument":{"uri":"file:///projet/demo/src/demo/Main.java"},
+  "position":{"line":8,"character":24}}}
+```
+
+```json
+{"jsonrpc":"2.0","id":41,"result":{
+  "offset":214,"longueur":0,"texte":"0);","caret":217,"edition":true}}
+```
+
+Les offsets sont **absolus** (même convention que `superDefinition` : jamais
+de conversion ligne/colonne). Le client applique l'édition puis pose le
+caret à `caret`. Le texte tapé APRÈS le caret sur la même instruction reste
+à la charge de la frappe (borne honnête). Consommation client à venir
+(registre K2) — l'appel par un client standard qui ne connaît pas la
+méthode est simplement absent.
+
 ## 10. Utilisation in-process du moteur
 
 Le moteur pur (`jo.codeide.lsp.java.MoteurJava`) s'utilise sans boucle
@@ -1334,7 +1442,7 @@ reconstruit » est devenu ASYNCHRONE.
 | Commande | Rôle |
 |---|---|
 | `./gradlew :java:bench` | banc empreinte/latence du noyau (JVM séparée) : diagnose complet p50 11,7 ms / p95 39,8 ms, **diagnose rapide p50 1,5 ms**, hover p50 0,12 ms, complétion membres p50 0,04 ms, tas au repos 16 Mo |
-| `./gradlew :java:benchQualite` | banc qualité complétion (ADR 0016) — corpus versionné 18 positions, baseline signée `bancs/baselines/completion.json` : **recall 1,000 / top-1 1,000 / MRR 1,000** (naïf : 0,611/0,715), zéro saut de liste, p95 31 ms — **ÉCHOUE sur régression** |
+| `./gradlew :java:benchQualite` | banc qualité complétion (ADR 0016/0030) — corpus versionné **v2 : 24 positions** (dont 6 V-C3 smart/typedef/chaîne/second appel, split **train/éval** déterministe), baseline signée `bancs/baselines/completion.json` : **recall 1,000 / top-1 1,000 / MRR 1,000**, sous-ensemble **ÉVAL : 1,000/1,000/1,000** (cibles V-C3 ≥ 0,95/≥ 0,80), naïf 0,917/0,458/0,611 (ÉVAL top-1 0,000 — la preuve de valeur de la vague), zéro saut de liste, p95 ~38 ms — **ÉCHOUE sur régression** |
 | `./gradlew :java:benchUsages` | banc usages (ADR 0014) — rappel 1,000 (oracle), p95 ~62 ms < 100 ms, **CI-bloquant** |
 | `bash scripts/preparer-oracle.sh` | construit l'**oracle vendored** du banc croisé (clone `codeide-lsp` épinglé cb809e14 + `:lsp:java:jar`, JVM pur — aucun SDK Android) → `.oracle/` (jamais committé, R6.4) |
 | `bash scripts/preparer-projet-android.sh` | télécharge le **projet Android réel du banc** (android.jar 34-ext12 + 16 AARs/jars androidx/material, fermeture transitive vérifiée) → `bancs/projet-android-libs/` (jamais committé, R6.4) |
@@ -1348,6 +1456,7 @@ reconstruit » est devenu ASYNCHRONE.
 | `./gradlew :java:test --tests jo.codeide.lsp.java.ChargeConcurrenteTest` | **banc de charge V-F2** (critère ADR 0010) : complétion fichier A ∥ diagnose fichier B — p95 de chacun ≤ séquentiel + 10 % + 10 ms (l'ancien moniteur échouait : concurrent ≈ somme des deux) |
 | `./gradlew :java:test --tests 'jo.codeide.lsp.java.InspectionsTest'` | **banc V-C1** : 12 cas dorés des inspections (détection, non-détection, suppression, mutants P4, P3 zéro-erreur, P1 frappe confinée, dumb-aware) |
 | `./gradlew :java:test --tests 'jo.codeide.lsp.java.ControlesLintTest'` | **banc V-C2** : 8 cas dorés du lint (échappatoires NewApi une à une, @SuppressLint, base synthétique, repli honnête, garde erreurs) — gate android.jar du banc |
+| `./gradlew :java:test --tests 'jo.codeide.lsp.java.completion.CompletionVagueC3Test'` | **banc V-C3** : 26 cas dorés (smart S1–S5, typedef T1–T3, second appel D1–D4 avec imports statiques et index projet, chaîne, statement completion, stats à fenêtre glissante, mémo binaire avec transcript de latence, littéral `R.string.*` sur la fixture mini, mots-clés de tête de déclaration D7) |
 
 Re-baseline : par **PR dédiée** uniquement (ADR 0016 — jamais en passant).
 Re-pin de l'oracle (montée de version du vendored) : PR dédiée de re-pin +
@@ -1372,7 +1481,7 @@ re-signature de `parite-completion.json` (les stubs de façade suivent).
   dit pas de quel module il vient — ADR 0215) ; une source décompilée
   pendant un swap peut donc refléter l'époque précédente — la requête
   suivante re-sonde (comportement d'aperçu, jamais un diagnostic).
-- **Version 1.0.0 = bascule §8.5 SIGNÉE (30/10/2026)** ; **version 1.1.0 = intégration CodeIDE (§4.4 : régime vivant, option B arbitrée ; superDefinition aligné contrat vendord ; fiche 066)** ; **version 1.3.0 = vague V-E (références multi-fichiers D1, surbrillances composées typées, RPC usagesGroupes ; le 1.2.0 est SAUTÉ : valeur fantôme du vendord proscrite par la fiche 059 I7)** ; **version 1.4.0 = vague V-B (projet Android : modèle v11 + dérivateur disque, référentiel de ressources, classes light R/BuildConfig/Binding/BR, navigation ressource, interop Kotlin — décisions D2/D3/D6 ; `declasserDatabinding` RETIRÉ, rupture d'API consignée)** ; **version 1.5.0 = vague V-F1 (double-tampon + époques de l'environnement : 0 figage / 0 réponse périmée, rejeu des requêtes coupées, annulation fine complétion + usages, republication au swap d'époque, repli `jo.codeide.lsp.java.doubletampon.disabled` — ADR 0029 phase 1, §7.19/§11.1)** ; **version 1.6.0 = vagues V-F2 + V-C1/V-C2 (verrous par périmètre + chaos tests + banc de charge ADR 0010, comptage synchronized 99 → 0 ; inspections — contrat, profil, suppressions, 8 pilotes, provenance "inspection" ; lint Android — base api-versions en tâche de fond, NewApi/InlinedApi/ObsoleteSdkInt/MissingSuperCall/SetTextI18n, @SuppressLint, provenance "lint" — §7.20)** : checklist 6/6 du
+- **Version 1.7.0 = vague V-C3 (complétion niveau Android Studio — ADR 0026 Accepté-livré : smart par bindings avec filtrage gradué jamais caché, typedef @IntDef/@StringDef en tête avec import statique, littéraux R.* par @…Res + référentiel, second appel — inaccessibles marqués + imports statiques — et 3ᵉ appel projet par CIDX, chaîne à deux sauts, statement completion lexicale moteur + RPC textDocument/statementCompletion, stats locales opt-in à fenêtre glissante, mémoïsation des membres binaires, mots-clés de tête de déclaration D7/G-024 avec fusion stubs ; capability completionRanking **v2** ; corpus qualité **v2 24 positions split train/éval** — ÉVAL 1,000/1,000 ; fiches 066 et 007 amendées, ECARTS-SERVEUR M1 résolu — §7.21/§8/§9.4)** ; **version 1.0.0 = bascule §8.5 SIGNÉE (30/10/2026)** ; **version 1.1.0 = intégration CodeIDE (§4.4 : régime vivant, option B arbitrée ; superDefinition aligné contrat vendord ; fiche 066)** ; **version 1.3.0 = vague V-E (références multi-fichiers D1, surbrillances composées typées, RPC usagesGroupes ; le 1.2.0 est SAUTÉ : valeur fantôme du vendord proscrite par la fiche 059 I7)** ; **version 1.4.0 = vague V-B (projet Android : modèle v11 + dérivateur disque, référentiel de ressources, classes light R/BuildConfig/Binding/BR, navigation ressource, interop Kotlin — décisions D2/D3/D6 ; `declasserDatabinding` RETIRÉ, rupture d'API consignée)** ; **version 1.5.0 = vague V-F1 (double-tampon + époques de l'environnement : 0 figage / 0 réponse périmée, rejeu des requêtes coupées, annulation fine complétion + usages, republication au swap d'époque, repli `jo.codeide.lsp.java.doubletampon.disabled` — ADR 0029 phase 1, §7.19/§11.1)** ; **version 1.6.0 = vagues V-F2 + V-C1/V-C2 (verrous par périmètre + chaos tests + banc de charge ADR 0010, comptage synchronized 99 → 0 ; inspections — contrat, profil, suppressions, 8 pilotes, provenance "inspection" ; lint Android — base api-versions en tâche de fond, NewApi/InlinedApi/ObsoleteSdkInt/MissingSuperCall/SetTextI18n, @SuppressLint, provenance "lint" — §7.20)** : checklist 6/6 du
   gabarit `bancs/GABARIT-BASCULE-APPAREIL.md` (passe appareil moto g06 —
   18/18, 0 saut, p50/p95 GLOBAL 42,93/73,01 ms ; deltas 165 arbitrés
   103/62/0 — `ANALYSE-DELTAS-BASCULE.md`) ; `serverInfo.version` rend
