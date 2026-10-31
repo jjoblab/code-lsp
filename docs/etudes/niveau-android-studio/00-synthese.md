@@ -125,7 +125,14 @@ conditionne — elle peut s'exécuter dès maintenant.**
 > D2/D3/D6 exécutées : modèle v11 + dérivateur disque, référentiel de
 > ressources, classes light R/BuildConfig/Binding/BR, navigation
 > ressource exacte, interop Kotlin conservatrice, retrait
-> `DeclassementDatabinding`, cf. `04-plan-vagues.md` §V-B).
+> `DeclassementDatabinding`, cf. `04-plan-vagues.md` §V-B ; **V-F1 livrée
+le 31/10 au soir** — époques de l'ENVIRONNEMENT (« 0 réponse périmée », rejeu
+des requêtes coupées par le swap), double-tampon (« 0 figage » — l'ancien
+moteur sert pendant la construction du neuf, G-030/H2), annulation fine de
+base (collecte de complétion + balayage d'usages), republication des documents
+ouverts à chaque swap d'époque, repli documenté
+`jo.codeide.lsp.java.doubletampon.disabled` — cf. `04-plan-vagues.md` §V-F1 et
+ADR 0029 « Suivi d'exécution »).
 
 | # | Décision | Recommandation |
 |---|---|---|

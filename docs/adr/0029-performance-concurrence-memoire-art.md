@@ -1,8 +1,13 @@
 # ADR 0029 — Performance, concurrence, mémoire sur ART
 
-- **Statut** : Proposé
+- **Statut** : Accepté — **phase 1 (V-F1 : époque C + double-tampon +
+  annulation fine de base) LIVRÉE le 31/10/2026 au soir** (PV dans
+  `04-plan-vagues.md` §V-F1 et `mesures/2026-10-31-vf1-double-tampon.txt`) ;
+  phases 2–5 (verrous B, budgets/onTrim, priorité visible, incrémentalité)
+  restent à livrer dans la vague V-F finale.
 - **Date** : 2026-10-31
-- **Écarts résolus** : G-029, G-030, G-031, G-033 (`01-audit-moteur.md` §1.13, §1.14)
+- **Écarts résolus** : G-029 (partiel — annulation fine + époques), G-030
+  (double-tampon), G-031, G-033 (`01-audit-moteur.md` §1.13, §1.14)
 
 ## Contexte
 
@@ -98,6 +103,41 @@ Vagues F1 (époque/double-tampon), F2 (verrous B + chaos), F3 (budgets/onTrim), 
 (annulation fine/priorité visible), F5 (incrémentalité si conditions) — intégrées au
 plan 04 comme vague **V-F**, avec dépendance inversée : V-F1 **avant** V-C
 (intelligence) pour que la couche IDE n'hérite pas du verrou global.
+
+## Suivi d'exécution
+
+- **V-F1 (31/10/2026) — LIVRÉE.** Époque copy-on-write de l'ENVIRONNEMENT de
+  noms (l'extension aux environnements du design N8 des documents) : chaque
+  remplacement effectif de contexte incrémente la GÉNÉRATION du module ;
+  `EnvironnementCompilation.calculerFraisse` capture atomiquement le couple
+  (moteur, génération), calcule, et ne livre que si l'époque n'a pas tourné —
+  sinon REJEU sur l'époque courante (bornes 3 résultats périmés / 8 coupures,
+  clause d'honnêteté « dernier résultat » miroir des documents). Double-tampon :
+  le moteur neuf est construit et RÉCHAUFFÉ (environnement + sonde de
+  plateforme) sur un fil démon unique PENDANT QUE L'ANCIEN SERT ; swap atomique
+  sous le verrou d'orchestration ; l'ancien est alors RETIRÉ (jeton d'époque
+  annulé → coupure fine, puis dispose qui attend la drainage par le moniteur du
+  moteur). Annulation fine DE BASE : points de contrôle dans la collecte de
+  complétion (hiérarchies de membres, traversée de l'annuaire, filtres de
+  paquetage) et le balayage d'usages (un par FICHIER) — l'exception
+  `EpoqueRetiree` TRAVERSE la frontière « jamais null » de la complétion (elle
+  n'est pas un échec interne mais un signal de rejeu). Le serveur route TOUS
+  ses chemins de RÉPONSE par le protocole frais (`avecMoteurFrais`) et
+  REPUBLIE les documents ouverts à chaque swap d'époque (auditeur d'époque —
+  les diagnostics suivent l'époque sans attendre la frappe suivante). Repli
+  documenté : `jo.codeide.lsp.java.doubletampon.disabled=true` rétablit le
+  dispose immédiat synchrone (le protocole d'époque reste actif). Mesures JVM
+  (banc `BancDoubleTamponTest`, R5) : frappe pendant reconstruction tenue
+  p50 ×1,20 / p95 ×0,58 du nominal (budget ≤ 2× tenu) ; reconstruction réelle
+  301/51 ms JVM (l'appareil paie 11–12 s — facteur 3–5× du spike) ; rejeu :
+  2 passes, verdict livré par l'époque neuve. 730 tests tous modules / 0 échec
+  (600 java, dont 8 V-F1 + 1 banc ; 41 gates environnementales ignorées avec
+  raison) ; `clean build` strict (P1–P8) VERT ; d8 1,000/1,000/1,000 p95
+  35,96 ms ; usages rappel 1,000 p95 40,62 ms ; parité verte ; banc N1 tenu
+  (diagnose rapide p50 4,8 ms, tas 17 Mo).
+- **Phases 2–5** : à livrer dans la vague V-F finale (verrous par périmètre +
+  chaos tests, budgets octets + onTrimMemory, plage prioritaire, incrémentalité
+  conditionnée ADR 0017/0006).
 
 ## Tests de non-régression et critères de sortie
 

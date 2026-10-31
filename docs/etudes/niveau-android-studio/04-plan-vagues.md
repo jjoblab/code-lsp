@@ -286,6 +286,80 @@ complètent la couverture.
 
 ### V-F1 — Performance : double-tampon (remontée avant V-C)
 
+> **LIVRÉE le 31/10/2026 au soir** — intégralité du périmètre ADR 0029 phase 1 :
+>
+> - **Époques de l'ENVIRONNEMENT** (l'extension aux environnements du design
+>   copy-on-write des documents N8 — « 0 réponse périmée ») : chaque
+>   remplacement effectif de contexte (listes, niveau OU contrat Android)
+>   incrémente la GÉNÉRATION du module ; `EnvironnementCompilation.
+>   calculerFraisse(chemin, calcul)` capture ATOMIQUEMENT le couple (moteur,
+>   génération) sous le verrou d'orchestration, exécute le calcul, et ne
+>   livre que si l'époque n'a pas tourné — sinon REJEU sur l'époque courante
+>   (bornes honnêtes : 3 résultats périmés puis livraison du dernier — clause
+>   miroir des documents ; 8 coupures puis erreur franche sous churn soutenu).
+> - **Double-tampon** (« 0 figage », G-030/H2) : à un remplacement effectif
+>   AVEC moteur vivant, l'ancien moteur CONTINUE DE SERVIR pendant qu'un fil
+>   démon unique (`lspjava-double-tampon`) construit et RÉCHAUFFE le neuf
+>   (environnement de noms + sonde de plateforme — le réchauffement est
+>   injectable pour les bancs) ; SWAP ATOMIQUE sous le verrou ; l'ancien est
+>   ensuite RETIRÉ : jeton d'époque posé puis ANNULÉ (coupure fine des boucles
+>   lourdes en vol) et dispose (le moniteur du moteur attend la drainage
+>   naturelle des calculs non ponctués). Syncs rapides successives : les
+>   reconstructions se sérialisent sur le fil, chacune vérifie SA génération
+>   avant de swapper — une build dépassée est JETÉE, jamais swappée.
+> - **Annulation fine de base** (G-029, partiel) : points de contrôle dans la
+>   collecte de complétion (hiérarchies de membres, traversée de l'annuaire
+>   par préfixe, types visibles, filtres de sous-paquetage — l'exception
+>   `EpoqueRetiree` TRAVERSE le repli « liste vide honnête » de la fiche 035,
+>   l'avaler livrerait pire qu'une réponse périmée) et dans le balayage
+>   d'usages (un contrôle PAR FICHIER, `references` comme `usagesGroupes`).
+>   Le jeton fiche 046 est généralisé en signal d'époque SANS thread attaché
+>   — la coupure est purement coopérative.
+> - **Câblage serveur** : TOUS les chemins de RÉPONSE (hover, complétion,
+>   signatures, définition/typeDefinition/implementation, references,
+>   documentHighlight/Symbol, formatage ×3, sélection, pliage, inlay,
+>   prepareRename/rename, codeAction, codeLens + resolve, hiérarchies de
+>   types et d'appels, superDefinition, usagesGroupes) passent par le
+>   protocole frais `avecMoteurFrais` — la complétion COMPOSE les deux époques
+>   (document PUIS environnement). À chaque SWAP effectif, le serveur
+>   REDEMANDE la publication des documents OUVERTS du module (auditeur
+>   d'époque) : les diagnostics suivent l'époque SANS attendre la frappe
+>   suivante — le critère « les faux squiggles s'effacent dès la sync ».
+> - **Repli documenté** : `jo.codeide.lsp.java.doubletampon.disabled=true`
+>   rétablit le comportement d'avant V-F1 (dispose immédiat et synchrone à
+>   la sync) ; le protocole d'époque reste actif dans les DEUX régimes.
+> - **Amendements de fiches** (contrat « moteur reconstruit » devenu
+>   ASYNCHRONE par design) : fiches 034/047/066 attendent la DRAINAGE des
+>   reconstructions (`attendreReconstructions`) avant d'observer le moteur
+>   neuf — les autres contracts (notification EXACTEMENT une fois, isolation
+>   par module, idempotence) sont INTACTS. Stabilisation au passage du floçon
+>   préexistant du banc testing « réouverture chaude » (comparaison d'horloge
+>   murale stricte entre deux sessions — échec reproductible sur l'arbre
+>   d'origine ; borne de tolérance de charge ×2 + 2 s, les assertions
+>   sémantiques PRÊT/même verdict portent l'intention).
+>
+> **PV de mesure (JVM, 31/10 au soir, banc `BancDoubleTamponTest` — R5, aucune
+> valeur fabriquée ; transcript complet dans
+> `mesures/2026-10-31-vf1-double-tampon.txt`)** : frappe nominale (48
+> requêtes, mémo chaud) p50 5 µs / p95 36 µs ; frappe PENDANT reconstruction
+> tenue par loquet (48 requêtes, toutes servies par l'ancienne époque —
+> légitime, c'est l'époque vivante) p50 6 µs (**×1,20**) / p95 21 µs
+> (**×0,58**) — **budget ADR « p95 ≤ 2× le nominal » TENU** ; reconstruction
+> réelle à réchauffeur par défaut 301 ms puis 51 ms (jrt du runtime, fixtures
+> minimales — l'appareil paie 11–12 s, facteur 3–5× du spike, la mesure
+> appareil reste au gabarit 07 du propriétaire, jamais simulée) ; requête
+> coupée par le swap : **exactement 2 passes** (solde de l'ancienne, livraison
+> par la neuve — 0 erreur livrée). **Non-régression** : 730 tests tous
+> modules / 0 échec (600 java dont 8 V-F1 + 1 banc ; 41 gates environnementales
+> ignorées avec raison) ; `clean build` strict (BANC_COHERENCE_STRICT, P1–P8)
+> VERT ; banc d8 rappel/top-1/MRR **1,000/1,000/1,000**, p95 35,96 ms
+> (baseline tenue) ; banc usages rappel **1,000**, p50 15,48 ms / p95
+> 40,62 ms < 100 ms, 1 construction d'index ; parité verte ; banc N1 tenu
+> (diagnose rapide p50 4,8 ms / p95 27,7 ms, hover 0,1/1,2 ms, tas 17 Mo).
+> **Effort réel : ~1 séance agent** (estimation 8–14 j-h). **Reste V-F
+> (phases 2–5)** : verrous par périmètre + chaos tests, budgets octets +
+> onTrimMemory, plage prioritaire, incrémentalité conditionnée.
+
 - **Périmètre** : époque copy-on-write de l'environnement de noms + construction en
   fond pendant que l'ancien sert (ADR 0029 phase 1) ; annulation fine de base.
 - **Critères de sortie** : changement de classpath pendant rafale → 0 réponse périmée

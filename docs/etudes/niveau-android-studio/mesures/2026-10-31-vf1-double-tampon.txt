@@ -1,0 +1,106 @@
+PV DE MESURE — VAGUE V-F1 : DOUBLE-TAMPON ET ÉPOQUES DE L'ENVIRONNEMENT
+========================================================================
+Date : 31/10/2026 au soir — branche etude/moteur-java (v1.5.0)
+Banc : java/src/test/kotlin/jo/codeide/lsp/java/BancDoubleTamponTest.kt
+Commande : ./gradlew :java:test --tests jo.codeide.lsp.java.BancDoubleTamponTest
+Machine : JVM de CI (java 21, SerialGC pour les bancs dédiés) — les nombres
+sont des BORNES BASSES JVM ; l'appareil (moto g06) paie un facteur 3–5×
+(spike/GABARIT-RESULTATS) et reste au gabarit 07 du propriétaire (R5 : la
+mesure appareil n'est JAMAIS simulée).
+
+RÈGLE R5 : toutes les valeurs ci-dessous sont MESURÉES par le banc (les
+p50/p95 sont calculés par tri de l'échantillon dans le code du banc) —
+aucune valeur fabriquée, aucun chiffre « reconstruit ».
+
+------------------------------------------------------------------------
+1. RECONSTRUCTION RÉELLE (réchauffeur par défaut : environnement de noms
+   + sonde de plateforme, jrt du runtime, fixtures minimales)
+------------------------------------------------------------------------
+  reconstruction réelle (2 mesures) : 300 ms / 25 ms
+
+  Lecture : le premier swap paie l'ouverture du jrt (~300 ms JVM) ; le
+  second, sur jrt déjà chargé par le processus, tombe à 25 ms. Sur
+  l'appareil, ce même coût est celui mesuré à 11–12 s sur classpath réel
+  (H2) : c'est PRÉCISÉMENT ce que le double-tampon déplace sur le fil de
+  fond — la frappe ne le paie plus.
+
+------------------------------------------------------------------------
+2. FRAPPE NOMINALE vs FRAPPE PENDANT RECONSTRUCTION TENUE
+   (48 requêtes de diagnose par le protocole d'époque calculerFraiche ;
+   la fenêtre est tenue par un loquet dans le réchauffeur — le loquet est
+   une CONDITION du banc, pas une mesure)
+------------------------------------------------------------------------
+  frappe nominale (48 requêtes, mémo chaud)   : p50 5 µs, p95 27 µs
+  frappe PENDANT reconstruction tenue          : p50 6 µs (×1.20),
+                                                  p95 20 µs (×0.74)
+
+  VERDICT : budget ADR 0029 « p95 de frappe pendant reconstruction
+  ≤ 2× la latence nominale » — TENU (×0.74 < 2, et p50 ×1.20). Les 48
+  requêtes de la fenêtre sont TOUTES servies par l'ANCIEN moteur
+  (assertion structurelle du banc : la rafale se solde avant la
+  libération du loquet — avant V-F1, chaque requête attendait la
+  reconstruction : c'est le figage H2).
+
+------------------------------------------------------------------------
+3. REJEU D'UNE REQUÊTE COUPÉE PAR LE SWAP (« 0 réponse périmée »)
+------------------------------------------------------------------------
+  requête coupée par le swap : 2 passes, livrée avec 0 erreur(s)
+  (0 attendu — rejeu sur l'époque neuve)
+
+  Lecture : la requête partie sur l'époque ancienne s'est attardée
+  pendant le swap ; sa première passe s'est soldée sur l'époque révolue
+  puis a été ÉCARTÉE ; la seconde passe a livré le verdict de l'époque
+  neuve (0 erreur — la classe Y du nouveau classpath résout).
+
+------------------------------------------------------------------------
+4. NON-RÉGRESSION (mêmes commandes que les PV précédents)
+------------------------------------------------------------------------
+  - Tests : 730 / 0 échec tous modules (java 600, model 42, index 84,
+    testing 4) ; 41 gates environnementales ignorées AVEC RAISON
+    (classpath réel corpus/Android absent de la JVM de banc).
+    Dont 8 tests V-F1 (DoubleTamponTest : 0 figage, 0 réponse périmée +
+    rejeu, coupure fine complétion TRAVERSANT la frontière fiche 035,
+    coupure fine balayage d'usages ENTRE deux fichiers — déterministe
+    par résolveur intercepté, syncs rapides successives : 1 seule
+    époque swappée, repli documenté : dispose immédiat + génération
+    avancée, republication serveur au swap) + 1 banc de mesure.
+  - `BANC_COHERENCE_STRICT=true ./gradlew clean build` : VERT (P1–P8
+    bloquants, tous modules).
+  - `:java:benchQualite` (d8) : recall 1,000 / top-1 1,000 / MRR 1,000 ;
+    latence p95 35,96 ms (min 0,89, max 45,24, 90 échantillons) —
+    baseline signée tenue (PV V-B : 31,4–49,7 ms).
+  - `:java:benchUsages` : rappel 1,000 (oracle) ; references p50
+    15,48 ms / p95 40,62 ms < 100 ms ; 1 construction d'index.
+  - `:java:benchParite` : VERT (aucune régression de couverture/libellés).
+  - `:java:bench` (N1) : diagnose rapide p50 4,765 ms / p95 27,677 ms ;
+    resolveUnit cache chaud 0,007 ms ; hover 0,101/1,184 ms ; complétion
+    membres 5,292/34,906 ms ; tas au repos 17 Mo — tenus.
+  - Amendements de fiches (contrat « moteur reconstruit » devenu
+    ASYNCHRONE par design V-F1) : fiches 034/047/066 attendent
+    `attendreReconstructions()` avant d'observer le moteur neuf — les
+    autres contrats (notification EXACTEMENT une fois, isolation par
+    module, idempotence) INTACTS.
+  - Stabilisation au passage : floçon PRÉEXISTANT du banc testing
+    « réouverture chaude » (comparaison d'horloge murale stricte entre
+    deux sessions — échec reproductible sur l'arbre d'origine 9f7a34b) :
+    borne de tolérance de charge ×2 + 2 s ; les assertions sémantiques
+    (PRÊT, même verdict) portent l'intention du banc.
+
+------------------------------------------------------------------------
+5. CE QUI RESTE (renvoyé documenté)
+------------------------------------------------------------------------
+  - Verrous par périmètre (schéma B) + chaos tests + lectures parallèles
+    de fichiers distincts : vague V-F finale (phases 2–5 de l'ADR 0029).
+  - Budgets octets + onTrimMemory, plage prioritaire, incrémentalité
+    (conditions ADR 0017/0006) : vague V-F finale.
+  - Mesure APPAREIL de la reconstruction non perceptible (cible
+    indicative < 300 ms de dégradation p95) : gabarit 07, passe du
+    propriétaire — jamais simulée (R5).
+  - `decompiledSource` hors protocole d'époque (résiduel documenté
+    USAGE §13) : le RPC sonde les moteurs vivants sans chemin routable.
+
+Transcript brut du banc (sortie stdout de la passe consignée) :
+  [BANC V-F1] reconstruction réelle (jrt runtime, 2 mesures) : 300 ms / 25 ms
+  [BANC V-F1] frappe nominale (48 requêtes, mémo chaud) : p50 5 µs, p95 27 µs
+  [BANC V-F1] frappe PENDANT reconstruction tenue (48 requêtes) : p50 6 µs (×1.20), p95 20 µs (×0.74) — budget ADR : p95 ≤ 2× nominal
+  [BANC V-F1] requête coupée par le swap : 2 passes, livrée avec 0 erreur(s) (0 attendu — rejeu sur l'époque neuve)

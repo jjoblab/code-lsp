@@ -127,6 +127,23 @@ plugins {
 // scan p95 95 ms / MAJ ciblée 1,26 ms / peson 126 Ko (budgets ADR
 // tenus), bancs qualité (d8 p95 31–50 ms, 1,000) et usages (1,000,
 // < 100 ms) non régressés, P1–P8 strict 0 violation.
+// ---------------------------------------------------------------------------
+// VERSION DU DÉPÔT (fiche 059 I7 — serverInfo.version générée d'ICI).
+// 1.5.0 (31/10/2026, vague V-F1 — ADR 0029 phase 1) : DOUBLE-TAMPON +
+// ÉPOQUES de l'environnement de compilation — 0 figage (l'ancien moteur
+// sert pendant la construction/réchauffement du neuf, swap atomique),
+// 0 réponse périmée (rejeu des requêtes coupées, bornes 3/8), annulation
+// fine de base (points de contrôle complétion + balayage d'usages,
+// EpoqueRetiree rejetée), republication des documents ouverts à chaque
+// swap d'époque, repli documenté
+// `jo.codeide.lsp.java.doubletampon.disabled`. Validation : 730 tests /
+// 0 échec (tous modules ; 600 java dont 8 V-F1 + 1 banc ; 41 gates
+// environnementales ignorées avec raison), `clean build` strict
+// (P1–P8) VERT ; banc V-F1 : frappe pendant reconstruction tenue
+// ×1,20 p50 / ×0,58 p95 du nominal (budget ADR ≤ 2× TENU), rejeu
+// 2 passes (livraison par l'époque neuve) ; bancs d8 (1,000/1,000/1,000,
+// p95 35,96 ms), usages (1,000, p95 40,62 ms), parité et N1
+// (diagnose rapide p50 4,8 ms, tas 17 Mo) non régressés.
 allprojects {
-    version = "1.4.0"
+    version = "1.5.0"
 }

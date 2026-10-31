@@ -1032,6 +1032,38 @@ Le moteur connaît le projet Android **sans Gradle ni build** (ADR
   n'existe plus — l'import `.databinding` RÉSOUT avant build (fiche 051
   amendée « couvert par résolution »).
 
+### 7.19 Double-tampon et époques de l'environnement (vague V-F1)
+
+**Ce que voit le client pendant et après une sync Gradle** (remplacement
+effectif de contexte — racines, classpath, niveau ou contrat Android) :
+
+1. **Pendant la reconstruction** (l'appareil y paie 11–12 s, la JVM des
+   tests ~0,3 s) : **rien ne se fige**. L'ancien moteur CONTINUE de servir
+   toutes les requêtes — c'est l'époque VIVANTE jusqu'au swap ; les
+   diagnostics de cette fenêtre reflètent légitimement l'ANCIEN classpath
+   (le même comportement que la fenêtre de sync d'Android Studio, sans le
+   figage).
+2. **Au swap** (atomique, dès que le moteur neuf est construit et
+   réchauffé) : les documents OUVERTS du module sont **REPUBLIÉS** sur
+   l'époque neuve — les faux « cannot be resolved » s'effacent SANS
+   attendre la frappe suivante (le client peut donc recevoir plusieurs
+   `publishDiagnostics` par document autour d'une sync : comportement LSP
+   standard, la dernière publication fait foi).
+3. **Requêtes en vol au moment du swap** : elles sont **REJOUÉES** sur
+   l'époque courante (« 0 réponse périmée ») — la réponse livrée reflète
+   toujours l'époque vivante au moment de la livraison ; les boucles
+   longues (collecte de complétion, balayage d'usages) sont COUPÉES puis
+   rejouées plutôt que solvées pour rien (annulation fine coopérative).
+
+**Repli documenté** : la propriété système
+`jo.codeide.lsp.java.doubletampon.disabled=true` rétablit le comportement
+d'avant V-F1 — dispose immédiat et synchrone du moteur à chaque sync (la
+requête suivante paie la reconstruction froide, le figage revient) ; le
+protocole d'époque (rejeu des réponses périmées) reste actif dans les DEUX
+régimes. Bornes d'honnêteté du rejeu : 3 résultats périmés puis livraison
+du dernier (clause miroir des documents), 8 coupures puis erreur franche
+sous churn de syncs soutenu.
+
 ## 8. Capability maison `x-codeide.completionRanking`
 
 Le protocole riche de classement (ADR 0012/0015, design intégré N8) :
@@ -1219,6 +1251,26 @@ appcompat s'ajoutent au classpath — c'est ce que fait la CI pour les
 gates (§12) ; la conformité source/cible se règle à la construction du
 moteur.
 
+### 11.1 Double-tampon, époques et surface hôte (vague V-F1)
+
+`EnvironnementCompilation` (§4.4 — régime vivant) expose depuis V-F1 la
+surface de concurrence suivante à l'hôte :
+
+| Membre | Rôle |
+|---|---|
+| `calculerFraisse(chemin) { moteur -> … }` | le protocole d'époque : capture atomique (moteur, génération), calcule, ne LIVRE que si l'époque n'a pas tourné — sinon rejeu (bornes §7.19). Le serveur route déjà TOUS ses chemins de réponse par là ; l'hôte in-process qui calcique contre un moteur routé devrait en faire autant |
+| `attendreReconstructions(dureeMaxMs)` | borne le moment où les reconstructions de double-tampon en cours sont drainées (après une sync, le moteur neuf est vivant) — sonde d'attente pour l'orchestrateur et les bancs |
+| `ajouterAuditeurEpoque { cle -> … }` | notifié APRÈS chaque swap EFFECTIF (le moteur neuf sert déjà) — l'auditeur type redemande les calculs des documents ouverts du module (le serveur y republie ses diagnostics) |
+| `generationDe(module)` / `reconstructionsEnCours()` | sondes d'état (bancs, orchestrateur) |
+
+Comportement de `moteur(module)` sous double-tampon : pendant la fenêtre
+de reconstruction, il rend l'ANCIEN moteur (l'époque vivante — par
+conception) ; le neuf n'y devient observable qu'après le swap
+(`attendreReconstructions` borne l'attente). Les sémantiques fiche 034
+sont INTACTES (no-op redondant, notification EXACTEMENT une fois par
+remplacement effectif, isolation par module) — seul l'observable « moteur
+reconstruit » est devenu ASYNCHRONE.
+
 ## 12. Bancs et gates de CI
 
 | Commande | Rôle |
@@ -1232,6 +1284,7 @@ moteur.
 | `./gradlew :java:benchParite` | **banc de parité croisée** (étage T, ADR 0016) — le même corpus (18 positions + 4 frappes) rejoué contre le vendored (**boîte noire en sous-processus JVM isolé**, pilote compilé contre des stubs à alarme) et le moteur neuf (in-process) ; baseline signée `bancs/baselines/parite-completion.json` : couverture cahier **1,000 / 1,000**, 165 deltas bruts documentés — **ÉCHOUE** sur couverture en baisse, libellé perdu ou dérive de l'oracle ; oracle absent = banc ignoré avec message (exit 0), la CI le construit d'abord (job `banc-parite` **bloquant**) |
 | `bash scripts/kit-bascule.sh` | assemble le **kit de passe bascule sur appareil** (§8.5) : classes du banc + du moteur, ecj patché, dépendances, `banc-bascule.sh` — protocole et tables dans `bancs/GABARIT-BASCULE-APPAREIL.md` (R5 : mesures réelles du propriétaire, jamais simulées) |
 | `ANDROID_JAR=… ./gradlew :java:test` | ouvre les gates Android (fiches 033/004/036/043/044/050/053) — la CI télécharge android.jar API 34 (zip officiel) + AAR appcompat |
+| `./gradlew :java:test --tests jo.codeide.lsp.java.BancDoubleTamponTest` | **banc V-F1** (R5) : latence nominale vs PENDANT reconstruction tenue (p50/p95 µs, budget ADR « p95 ≤ 2× » imprimé), reconstruction réelle, coût du rejeu (2 passes) — la suite `DoubleTamponTest` (8 tests) verrouille les invariants : 0 figage, 0 réponse périmée, coupures fines, syncs rapides, repli, republication au swap |
 
 Re-baseline : par **PR dédiée** uniquement (ADR 0016 — jamais en passant).
 Re-pin de l'oracle (montée de version du vendored) : PR dédiée de re-pin +
@@ -1251,7 +1304,12 @@ re-signature de `parite-completion.json` (les stubs de façade suivent).
   ADR 0015), requête tolérante vide.
 - **Quick-fixes mono-fichier** (fiche 063) : le multi-fichiers passe
   par le renommage (N5) et le protocole (N8), jamais par ces édits.
-- **Version 1.0.0 = bascule §8.5 SIGNÉE (30/10/2026)** ; **version 1.1.0 = intégration CodeIDE (§4.4 : régime vivant, option B arbitrée ; superDefinition aligné contrat vendord ; fiche 066)** ; **version 1.3.0 = vague V-E (références multi-fichiers D1, surbrillances composées typées, RPC usagesGroupes ; le 1.2.0 est SAUTÉ : valeur fantôme du vendord proscrite par la fiche 059 I7)** ; **version 1.4.0 = vague V-B (projet Android : modèle v11 + dérivateur disque, référentiel de ressources, classes light R/BuildConfig/Binding/BR, navigation ressource, interop Kotlin — décisions D2/D3/D6 ; `declasserDatabinding` RETIRÉ, rupture d'API consignée)** : checklist 6/6 du
+- **`decompiledSource` hors protocole d'époque** (V-F1, résiduel documenté) :
+  le RPC sonde les moteurs VIVANTS sans chemin routable (le FQCN ne
+  dit pas de quel module il vient — ADR 0215) ; une source décompilée
+  pendant un swap peut donc refléter l'époque précédente — la requête
+  suivante re-sonde (comportement d'aperçu, jamais un diagnostic).
+- **Version 1.0.0 = bascule §8.5 SIGNÉE (30/10/2026)** ; **version 1.1.0 = intégration CodeIDE (§4.4 : régime vivant, option B arbitrée ; superDefinition aligné contrat vendord ; fiche 066)** ; **version 1.3.0 = vague V-E (références multi-fichiers D1, surbrillances composées typées, RPC usagesGroupes ; le 1.2.0 est SAUTÉ : valeur fantôme du vendord proscrite par la fiche 059 I7)** ; **version 1.4.0 = vague V-B (projet Android : modèle v11 + dérivateur disque, référentiel de ressources, classes light R/BuildConfig/Binding/BR, navigation ressource, interop Kotlin — décisions D2/D3/D6 ; `declasserDatabinding` RETIRÉ, rupture d'API consignée)** ; **version 1.5.0 = vague V-F1 (double-tampon + époques de l'environnement : 0 figage / 0 réponse périmée, rejeu des requêtes coupées, annulation fine complétion + usages, republication au swap d'époque, repli `jo.codeide.lsp.java.doubletampon.disabled` — ADR 0029 phase 1, §7.19/§11.1)** : checklist 6/6 du
   gabarit `bancs/GABARIT-BASCULE-APPAREIL.md` (passe appareil moto g06 —
   18/18, 0 saut, p50/p95 GLOBAL 42,93/73,01 ms ; deltas 165 arbitrés
   103/62/0 — `ANALYSE-DELTAS-BASCULE.md`) ; `serverInfo.version` rend
