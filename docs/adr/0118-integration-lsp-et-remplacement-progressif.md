@@ -80,3 +80,9 @@ copy-on-write, re-filtrage local de complétion) suit les designs Java
   deux côtés.
 - R2 — Le chaînon hôte tarde (miroir Java §3.2.2) : le drapeau rend
   l'attente non bloquante.
+
+---
+
+## Amendement 2026-10-31 — mission « niveau Android Studio » (ADR 0136, statut Proposé)
+
+L'option 1 (serveur LSP4J dans le module, drapeau pack, rodage, retour arrière) est livrée — mais **le serveur n'est PAS EN SERVICE** (le client consomme toujours l'ancien LSP Kotlin). L'**ADR 0136** recommande de **séquencer la bascule I0–I6 AVANT l'extension des capacités** : sans elle, toute capacité ajoutée est invisible (KH16) ; la publication du pack (Q-K4, `publish.yml` à étendre aux coordonnées Kotlin) en est le préalable mécanique, DÉBLOQUÉE depuis la levée de P-K2. Les 7 capacités absentes (dont semanticTokens) reçoivent une feuille de route fondée sur les paliers : semanticTokens devient FIABLE au palier 2, les hiérarchies suivent, `documentColor` s'appuie sur le référentiel de ressources partagé.

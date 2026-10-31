@@ -71,3 +71,9 @@ decision écrite (chaque extension prouvée au banc avant fusion).
 
 - R1 — Pression fonctionnelle (utilisateurs voulant plus de rouges) :
   mitigation = mode profond différé comme soupape dédiée (ADR 0112).
+
+---
+
+## Amendement 2026-10-31 — mission « niveau Android Studio » (ADR 0123, statut Proposé)
+
+L'option 2 (« croître l'inférence maison ») est **ROUVERTE au périmètre borné de l'ADR 0123** : représentation à arguments de type + nullabilité + types fonctionnels + paramètres de type + projections de variance, résolution d'extensions par récepteur typé, surcharges par arité + types (l'ambiguïté est TOUJOURS silence), récepteurs implicites, smart casts étendus — avec **critère d'arrêt écrit** (builder inference, inférence de retour récursive et variance en écriture restent sous-rapportés) et **test différentiel contre l'oracle K2 déjà présent en CI**. Ce n'est pas le « presque-K2 » rejeté ici : la frontière est versionnée (`SPECIFICATION-TYPES.md`) et la conformité à la spécification du langage est vérifiée, pas déclarée. La bornologie actuelle (génériques rabattus, `||` annule le smart cast) devient la V0 du périmètre, « améliorable ensuite par décision écrite » comme le prévoyait la décision d'origine. Motif de réouverture : la mesure V0 attribue des familles entières de faux positifs à la représentation à 2 cas (`it` 603, `T` 11, argumentCount 38, unsafeNullable 23 — audit §4.3).

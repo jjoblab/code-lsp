@@ -80,3 +80,9 @@ mode profond seulement sur besoin démontré (retours appareil).
 - R2 — Dérive du catalogue vers des familles non décidables :
   mitigation = chaque famille passe la preuve de décidabilité (revue
   + banc).
+
+---
+
+## Amendement 2026-10-31 — mission « niveau Android Studio » (ADR 0124 et ADR 0125, statut Proposé)
+
+Deux évolutions proposées. (1) **Le catalogue reste à 10 familles TANT QUE la baseline de faux positifs n'est pas sous garde** : la mesure V0 du 31/10/2026 (980 FP / 34 934 l. = 28,05 FP/1 000 l. sur l'auto-corpus, FN = 0 — le banc de fidélité de 86 lignes ne les voyait pas) devient le critère d'entrée de TOUTE extension : cible < 0,5 FP/1 000 l. avant d'ajouter un code (ADR 0125). (2) **Le mode profond est instruit** : l'option « pack dex chargé à la demande » est rejetée sur la mesure S1 (53,6 Mo / 64 507 méthodes) ; l'option « processus déporté (JVM Termux/PRoot) » est à instruire avec deux mesures (passe gabarit 07 enrichi + confirmation hôte Q-K7) — l'oracle du banc de fidélité, qui exécute déjà K2 en sous-processus, en est le germe (ADR 0124). Le verdict appartient au propriétaire.

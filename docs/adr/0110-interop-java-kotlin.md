@@ -70,3 +70,9 @@ l'interface d'interop derrière drapeau.
 
 - R1 — L'interface d'interop traîne (arbitrage) : le repli
   conservateur est autonome (aucune dépendance bloquante).
+
+---
+
+## Amendement 2026-10-31 — mission « niveau Android Studio » (ADR 0129, statut Proposé)
+
+L'option 2 (« interface publique d'interop négociée avec :java ») est réalisée par l'**ADR 0129** (réponse à Q-K5) : le moteur Kotlin devient l'ÉCRIVAIN du segment CIDX partagé prévu par l'ADR 0022 de la mission Java (« il écrit, nous lisons » — décision D3), `LecteurDeclarationsJava` apprend l'arité (listes de paramètres balancées) et les annotations de nullité androidx + `@Jvm*`, les types plateformes `T!` sont représentés au palier 2, et le rename/navigation inter-langage est livré par phases partagées avec la mission Java. La garde H3 (niveau 3 muet) reste la règle tant qu'une connaissance n'est pas prouvée.

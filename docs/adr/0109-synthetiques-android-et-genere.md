@@ -69,3 +69,9 @@ la coupure éprouvée par la fiche 047 reste la gate.
 
 - R1 — Évolution des conventions AGP : mitigation = tests sur
   convention documentée + veille de version (ADR 0121).
+
+---
+
+## Amendement 2026-10-31 — mission « niveau Android Studio » (ADR 0127, statut Proposé)
+
+L'extension H2 (lecture des racines `build/generated`, laissée « à décider ») est **LEVÉE par l'ADR 0127** : scan DÉDIÉ post-build des racines générées (KSP/KAPT), priorité « généré réel > synthétique » (miroir de l'ADR 0021 R1 de la mission Java), les conventions génératrices (`Hilt_`, `_Impl`…) cessant d'être muettes QUAND leurs sources existent. Le design D5 « preuve avant build par DOM res/ + manifeste » est CONSERVÉ intégralement (l'atout avant build ne meurt pas : il n'y a pas toujours un build). Le modèle de projet Android et le référentiel de ressources sont CONSOMMÉS depuis le socle partagé de la mission Java (ADR 0020, décision D2) — jamais dupliqués.

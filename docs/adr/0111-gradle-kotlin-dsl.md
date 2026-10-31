@@ -69,3 +69,9 @@ asymétrique avec les diagnostics.
 - R1 — Attente utilisateur de complétion DSL : mitigation = demande
   d'interface pour le routage classpath (document INTEGRATION §1) ;
   la complétion dans les blocs reste un horizon (modèle Gradle T2).
+
+---
+
+## Amendement 2026-10-31 — mission « niveau Android Studio » (ADR 0130, statut Proposé)
+
+L'option 1 (régime asymétrique, accesseurs générés HORS modèle, provisionnement = routage hôte) est **RÉALISÉE par l'ADR 0130**, étendue d'un volet que cette ADR ne couvrait pas : la **lecture DISQUE** de `libs.versions.toml` et de `build.gradle.kts`/`settings.gradle.kts` (parseurs tolérants, SANS synchronisation Gradle) pour la complétion, la navigation et des diagnostics bornés (clé inconnue du catalogue, version en doublon). C'est l'axe de dépassement n° 1 de la mission (intelligence avant la première sync) : la source de vérité est le disque, ce que la sync ajoute (variantes, accesseurs) reste hors périmètre moteur.

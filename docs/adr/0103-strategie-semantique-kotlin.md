@@ -105,3 +105,9 @@ aucune implémentation avant besoin démontré (retours appareil, matrice).
   ADR chiffre l'écart (3,5 s/53,6 Mo) ; rouverte sur preuves nouvelles.
 - R2 — Sous-estimation du modèle maison : mitigation = cahier + banc de
   fidélité (la couverture se MESURE, elle ne se déclare pas).
+
+---
+
+## Amendement 2026-10-31 — mission « niveau Android Studio » (ADR 0122, statut Proposé)
+
+L'option (iii) « hybride en extension différée » se réalise comme **architecture à paliers 1/2/3** (ADR 0122) : le palier 1 (option (i) actuelle) reste le socle et le chemin de frappe ; le palier 2 (ADR 0123) est le typage étendu borné ; le palier 3 (ADR 0124) est le profond K2 à la demande. **Nouveau fait mesuré** (banc V0, audit §4.3) : la frontière de preuve du palier 1 n'est pas la frontière du langage — 980 FP / 34 934 l. = 28,05 FP/1 000 l. sur l'auto-corpus (imports implicites `kotlin.*`, `it` sur extension générique, `this` nu, paramètres de type). La correction de cette baseline PRÉCÈDE toute extension (vague V-A du plan).

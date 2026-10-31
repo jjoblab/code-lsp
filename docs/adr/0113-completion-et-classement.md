@@ -73,3 +73,9 @@ baseline → vagues contextuelles ultérieures.
 
 - R1 — Sur-investissement classement avant parité : mitigation =
   séquence parité d'abord (fiches), classement ensuite.
+
+---
+
+## Amendement 2026-10-31 — mission « niveau Android Studio » (ADR 0126, statut Proposé)
+
+La chaîne de classement (ADR 0012, livrée vague 3) est CONSERVÉE. L'**ADR 0126** ajoute ce qui manque au niveau Android Studio : complétion smart par type attendu et chain par extensions applicables — **dépendances du palier 2** (ADR 0123 : sans type du récepteur, pas de smart honnête) —, les positions `when` exhaustif / `override` / récepteurs implicites de DSL (fiches KC-01 à KC-05), et la **frontière RPC de classement** `x-codeide.completionRanking` (miroir du `FrontiereRpc` Java, réponse à la question laissée ouverte par le journal 09 §7.1). Le banc de complétion actuel (16 positions saturées) est étendu à 50+ positions réelles étiquetées avec split train/éval (ADR 0135).
