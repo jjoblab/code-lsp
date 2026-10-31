@@ -93,6 +93,7 @@ public class MoteurJava(
     private val compliance: String,
     private val niveauDemande: String?,
     private val indexNoms: IndexNoms?,
+    private val projetAndroid: jo.codeide.lsp.java.projetandroid.ContratAndroidMoteur? = null,
 ) {
 
     /**
@@ -108,7 +109,7 @@ public class MoteurJava(
         jdkHome: Path? = null,
         compliance: String = "17",
         chaineCompletion: jo.codeide.lsp.java.completion.ChaineClassement? = null,
-    ) : this(racines, jars, jdkHome, compliance, null, null) {
+    ) : this(racines, jars, jdkHome, compliance, null, null, null) {
         this.chaineCompletion = chaineCompletion
     }
 
@@ -117,6 +118,22 @@ public class MoteurJava(
 
     /** Environnement de noms (paresseux — le premier usage paie jrt/jars). */
     private var environnement: EnvironnementNoms? = null
+
+    /**
+     * Classes light Android du module (V-B — ADR 0021), paresseuses :
+     * la fabrique ne vit que si le contrat est ACTIF (namespace + res/)
+     * et si le drapeau de repli n'est pas posé
+     * (`jo.codeide.lsp.java.projetandroid.classelegere.disabled=true`).
+     */
+    private val fabriqueLegere: jo.codeide.lsp.java.projetandroid.ClassesLegereAndroid? by lazy {
+        if (CLASSES_LEGERES_DESACTIVEES) return@lazy null
+        val contrat = projetAndroid ?: return@lazy null
+        if (!contrat.actif) return@lazy null
+        jo.codeide.lsp.java.projetandroid.ClassesLegereAndroid(
+            contrat,
+            jo.codeide.lsp.java.projetandroid.ReferentielRessources(contrat.dossiersRes),
+        )
+    }
 
     /** Pont ecj (paresseux, lié à l'environnement). */
     private var pont: PontEcj? = null
@@ -179,6 +196,16 @@ public class MoteurJava(
         /** État de la propriété système au chargement de la classe. */
         private val DESACTIVE_PAR_PROPRIETE: Boolean =
             System.getProperty("jo.codeide.lsp.java.fastdiagnose.disabled") == "true"
+
+        /**
+         * Kill-switch des classes light Android (V-B — ADR 0021, repli
+         * documenté) : `jo.codeide.lsp.java.projetandroid.classelegere.disabled`
+         * = vrai coupe R/BuildConfig/Binding synthétiques — retour au
+         * comportement d'avant V-B (erreurs « cannot be resolved » avant
+         * build, déclassement fiche 051) sans toucher au code.
+         */
+        private val CLASSES_LEGERES_DESACTIVEES: Boolean =
+            System.getProperty("jo.codeide.lsp.java.projetandroid.classelegere.disabled") == "true"
     }
 
     // ------------------------------------------------------------------ //
@@ -202,6 +229,56 @@ public class MoteurJava(
 
     /** Niveau posé explicitement pour le module (null = hérité du défaut). */
     public fun complianceModule(): String? = niveauDemande
+
+    /**
+     * Le contrat Android du module (V-B — ADR 0020) : celui posé à la
+     * construction (sync hôte OU dérivation disque) — null pour un moteur
+     * sans projet Android.
+     *
+     * @return le contrat, ou null.
+     */
+    public fun contratAndroid(): jo.codeide.lsp.java.projetandroid.ContratAndroidMoteur? = projetAndroid
+
+    /**
+     * Vrai ssi les classes light Android sont VIVANTES sur ce moteur (le
+     * contrat est actif et le drapeau de repli n'est pas posé) — R/BuildConfig
+     * (et Binding à partir de V-B3) résolvent SANS build.
+     */
+    public fun aClassesLegereAndroid(): Boolean = synchronized(this) { fabriqueLegere != null }
+
+    /**
+     * La fabrique des classes light du module (V-B — ADR 0021) : référentiel
+     * de ressources + octets synthétiques ; la sonde permet à l'hôte et aux
+     * tests d'observer la fabrique VIVANTE du moteur (navigation ressource,
+     * cibles XML). `null` si le contrat est inactif ou le repli posé.
+     */
+    public fun classesLegereAndroid(): jo.codeide.lsp.java.projetandroid.ClassesLegereAndroid? = synchronized(this) { fabriqueLegere }
+
+    /**
+     * La GÉNÉRATION du référentiel de ressources (V-B — sonde de fraîcheur) :
+     * croît à chaque MAJ ciblée d'un XML (didChange) — les tests et l'hôte
+     * y vérifient qu'un rafraîchissement a bien eu lieu.
+     */
+    public fun generationRessources(): Long = synchronized(this) { fabriqueLegere?.generation() ?: 0L }
+
+    /**
+     * MAJ CIBLÉE d'une ressource XML (V-B — ADR 0020 : « MAJ incrémentale sur
+     * didChange XML ») : le référentiel re-scanne LE fichier, les octets light
+     * sont invalidés, et le MÉMO de diagnose est vidé (un layout édité change
+     * les champs de R : les diagnostics d'un document Java ouvert ne doivent
+     * plus être servis depuis le cache — P8 étendu aux ressources).
+     *
+     * Coût : re-scan d'UN fichier (cible ADR : < 5 ms), jamais un rescan
+     * complet des `res/`.
+     *
+     * @param cheminXml le chemin du fichier XML de ressource modifié.
+     */
+    public fun rafraichirFichierXml(cheminXml: Path) {
+        synchronized(this) {
+            fabriqueLegere?.rafraichirFichierXml(cheminXml)
+            etatsRapides.clear()
+        }
+    }
 
     /**
      * Index des types du moteur (sonde fiche 039 : `find(fqcn)`,
@@ -1454,7 +1531,7 @@ public class MoteurJava(
     /** Environnement de noms paresseux (jrt + jars ouverts au premier usage). */
     private fun environnementNoms(): EnvironnementNoms {
         environnement?.let { return it }
-        val env = EnvironnementNoms(racines, jars, jdkHome)
+        val env = EnvironnementNoms(racines, jars, jdkHome, listOfNotNull(fabriqueLegere))
         environnement = env
         return env
     }

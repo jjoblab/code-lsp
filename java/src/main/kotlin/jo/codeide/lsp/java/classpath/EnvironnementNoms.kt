@@ -11,18 +11,22 @@ import java.nio.file.Path
  * `INameEnvironment`, adaptateur DIRECT de la bibliothèque (le routage
  * alimente le résolveur ecj).
  *
- * Ordre de repli VERROUILLÉ par le cahier (fiche 042) :
+ * Ordre de repli VERROUILLÉ par le cahier (fiche 042, étendu V-B/ADR 0021) :
  *
  * 1. **racines sources** — sondage par FQCN avec cache négatif de présence
  *    (fiche 006) ; un type imbriqué `X$Y` retombe sur le fichier de
  *    l'englobant `X.java` (le fichier source de A répond — convention
  *    `INameEnvironment`) ;
- * 2. **jars du classpath** — cache de localisation fqcn → jar, positifs ET
+ * 2. **types synthétiques light** (V-B — ADR 0021/0022) — R, BuildConfig,
+ *    `*Binding`, déclarations Kotlin : APRÈS les sources (la source
+ *    générée réelle PRIME — anti-doublon R3), AVANT les jars (un R de
+ *    build périmé ne masque jamais un référentiel frais) ;
+ * 3. **jars du classpath** — cache de localisation fqcn → jar, positifs ET
  *    négatifs mémorisés (fiche 024) ;
- * 3. **image jrt** — runtime courant ou JDK externe (fiche 031) ;
- * 4. **stubs des intrinsèques** — liste fermée de trois FQCN, dernier
- *    recours (fiche 042) : ils ne masquent JAMAIS une source, un jar ou un
- *    jrt qui porterait la classe.
+ * 4. **image jrt** — runtime courant ou JDK externe (fiche 031) ;
+ * 5. **stubs des intrinsèques** — liste fermée de trois FQCN, dernier
+ *    recours (fiche 042) : ils ne masquent JAMAIS une source, un
+ *    synthétique, un jar ou un jrt qui porterait la classe.
  *
  * Le calcul du FQCN côté moteur suit le **plus long préfixe de paquet**
  * (fiche 010) : l'ordre des racines n'est jamais signifiant — voir
@@ -41,12 +45,18 @@ import java.nio.file.Path
  * @param jdkHome home JDK explicite (null = runtime courant ; sans
  *   `lib/modules` ou fournisseur jrt ininstanciable = pas de jrt — le
  *   régime reste plein si un jar du classpath porte la plateforme).
+ * @param synthetiques fournisseurs de types light (V-B — ADR 0021/0022) ;
+ *   liste vide = comportement d'avant V-B (aucune classe light).
  */
 public class EnvironnementNoms(
     racines: List<Path>,
     jars: List<Path>,
     jdkHome: Path?,
+    synthetiques: List<TypesSynthetiques> = emptyList(),
 ) : INameEnvironment {
+
+    /** Fournisseurs de types synthétiques (ordre de la liste conservé). */
+    public val synthetiques: List<TypesSynthetiques> = synthetiques.toList()
 
     /** Cache négatif de présence source (TTL 30 s, invalidation Created). */
     public val cachePresence: CachePresenceSource = CachePresenceSource(racines)
@@ -59,7 +69,7 @@ public class EnvironnementNoms(
 
     /** Annuaire du classpath (étage N2 — complétion), paresseux et unique. */
     public val annuaire: AnnuaireClasspath by lazy {
-        AnnuaireClasspath(racines, jars, accesJrt)
+        AnnuaireClasspath(racines, jars, accesJrt, synthetiques)
     }
 
     /**
@@ -150,6 +160,7 @@ public class EnvironnementNoms(
      */
     public fun trouverFqcn(fqcn: String): Localisation? {
         cachePresence.fichierPour(fqcn)?.let { return Localisation.Source(it) }
+        if (octetsSynthetiques(fqcn) != null) return Localisation.Synthetique
         if (cacheLocalisation.jarPour(fqcn) != null) return Localisation.Jar
         if (accesJrt?.octets(fqcn) != null) return Localisation.Jrt
         if (StubsIntrinseques.estIntrinseque(fqcn)) return Localisation.Stub
@@ -177,6 +188,7 @@ public class EnvironnementNoms(
         val parent = parentPackageName?.joinToString(".") { String(it) } ?: ""
         val paquet = if (parent.isEmpty()) String(packageName) else "$parent.${String(packageName)}"
         if (cachePresence.estPaquet(paquet)) return true
+        if (synthetiques.any { it.estPaquet(paquet) }) return true
         if (cacheLocalisation.estPaquet(paquet)) return true
         if (accesJrt?.estPaquet(paquet) == true) return true
         return false
@@ -209,17 +221,31 @@ public class EnvironnementNoms(
                 cachePresence.fichierPour(englobant)?.let { return reponseSource(it) }
             }
         }
-        // 2. Jars (exact seulement — le chemin `$` retombe sans crash, fiche 024).
+        // 2. Types synthétiques light (V-B — après les sources : la source
+        // générée réelle PRIME, anti-doublon ADR 0021 R3).
+        octetsSynthetiques(fqcn)?.let { octets ->
+            return reponseBinaire(fqcn, octets)
+        }
+        // 3. Jars (exact seulement — le chemin `$` retombe sans crash, fiche 024).
         cacheLocalisation.octetsPour(fqcn)?.let { octets ->
             return reponseBinaire(fqcn, octets)
         }
-        // 3. Image jrt.
+        // 4. Image jrt.
         accesJrt?.octets(fqcn)?.let { octets ->
             return reponseBinaire(fqcn, octets)
         }
-        // 4. Stubs intrinsèques (liste fermée — dernier repli).
+        // 5. Stubs intrinsèques (liste fermée — dernier repli).
         StubsIntrinseques.octets(fqcn)?.let { octets ->
             return reponseBinaire(fqcn, octets)
+        }
+        return null
+    }
+
+    /** Les octets synthétiques d'un FQCN (premier fournisseur qui répond). */
+    private fun octetsSynthetiques(fqcn: String): ByteArray? {
+        for (fournisseur in synthetiques) {
+            val octets = fournisseur.octetsPour(fqcn) ?: continue
+            return octets
         }
         return null
     }
@@ -241,6 +267,9 @@ public class EnvironnementNoms(
     public sealed interface Localisation {
         /** La classe vit dans un fichier source du projet. */
         public data class Source(val fichier: Path) : Localisation
+
+        /** La classe est un type light fabriqué (R, Binding, Kotlin — V-B). */
+        public object Synthetique : Localisation
 
         /** La classe vit dans un jar du classpath. */
         public object Jar : Localisation

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Configuration land : MÊMES types pour text_titre/bouton_valider (stables)
+     + un id supplémentaire (vue_anonyme posée) + un <merge> sans vues. -->
+<merge xmlns:android="http://schemas.android.com/apk/res/android">
+    <TextView
+        android:id="@+id/text_titre"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" />
+    <Button
+        android:id="@+id/bouton_valider"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" />
+</merge>

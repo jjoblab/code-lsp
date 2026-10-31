@@ -46,6 +46,11 @@ public enum class Origine {
     /** Fichier source d'une racine du module. */
     SOURCE,
 
+    /** Classe light fabriquée (R, BuildConfig, Binding, Kotlin — V-B,
+     *   ADR 0021/0022) : proposable en complétion, résolue par
+     *   l'environnement de noms. */
+    SYNTHETIQUE,
+
     /** Entrée d'un jar du classpath. */
     JAR,
 
@@ -92,15 +97,22 @@ public enum class Origine {
  * @param jars jars du classpath (ordre préservé, doublons écartés).
  * @param accesJrt accès jrt (null en régime instantané — l'annuaire ne voit
  *   alors que sources et jars).
+ * @param synthetiques fournisseurs de types light (V-B) — enregistrés
+ *   APRÈS les sources (anti-doublon : la source générée réelle prime) et
+ *   AVANT les jars/jrt.
  */
 public class AnnuaireClasspath(
     private val racines: List<Path>,
     jars: List<Path>,
     private val accesJrt: AccesJrt?,
+    synthetiques: List<TypesSynthetiques> = emptyList(),
 ) {
 
     /** Jars balayés (dédupliqués, ordre préservé). */
     private val jars: List<Path> = jars.distinct()
+
+    /** Fournisseurs de types light (V-B — enregistrement après sources). */
+    private val synthetiques: List<TypesSynthetiques> = synthetiques.toList()
 
     /** Structure d'un paquet : types directs par nom simple. */
     private class Paquet {
@@ -284,6 +296,8 @@ public class AnnuaireClasspath(
     private fun estPublicBrut(fqcn: String, origine: Origine): Boolean = try {
         when (origine) {
             Origine.SOURCE -> estPublicSource(fqcn)
+            // Les classes light sont publiques PAR CONSTRUCTION (ADR 0021).
+            Origine.SYNTHETIQUE -> true
             else -> {
                 val octets = lireOctets(fqcn) ?: return true
                 (ClassFileReader.read(octets, "x.class").modifiers and ClassFileConstants.AccPublic) != 0
@@ -402,12 +416,13 @@ public class AnnuaireClasspath(
         structure.types.map { (nom, origine) -> EntreeType(nom, "$paquet.$nom", origine) }
             .sortedBy { it.nomSimple }
 
-    /** Phase 1 : sources + jars + segments jrt (une fois). */
+    /** Phase 1 : sources + synthétiques + jars + segments jrt (une fois). */
     private fun garantirPhasesUnEtDeux() {
         if (paquets.isEmpty() || !segmentsJrtFusionnes) {
             synchronized(this) {
                 if (paquets.isEmpty()) {
                     construireSources()
+                    construireSynthetiques()
                     construireJars()
                 }
                 if (!segmentsJrtFusionnes) {
@@ -487,6 +502,24 @@ public class AnnuaireClasspath(
                 }
             } catch (_: Exception) {
                 // racine illisible : écartée silencieusement (parité N1)
+            }
+        }
+    }
+
+    /** Enregistre les types light (APRÈS les sources — anti-doublon ADR 0021). */
+    private fun construireSynthetiques() {
+        for (fournisseur in synthetiques) {
+            for ((paquet, noms) in fournisseur.typesParPaquet()) {
+                val structure = paquets.computeIfAbsent(paquet) { Paquet() }
+                for (nom in noms) {
+                    structure.types.putIfAbsent(nom, Origine.SYNTHETIQUE)
+                }
+                // Les ancêtres du paquet existent aussi (règle isPackage).
+                var ancetre = paquet
+                while (ancetre.contains('.')) {
+                    ancetre = ancetre.substringBeforeLast('.')
+                    paquets.computeIfAbsent(ancetre) { Paquet() }
+                }
             }
         }
     }

@@ -34,7 +34,7 @@ declare -A PROJETS=(
   [basicsample]="android/architecture-components-samples e849ce3004ccd1132a121cf513bbcb7996d95c30 BasicSample"
 )
 
-demandes=("${@:-}")
+demandes=("$@")
 if [[ ${#demandes[@]} -eq 0 ]]; then
   demandes=("${!PROJETS[@]}")
 fi

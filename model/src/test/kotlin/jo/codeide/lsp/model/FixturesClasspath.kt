@@ -78,6 +78,7 @@ internal object FixturesClasspath {
         avertissements: List<String>? = null,
         sourceCompat: String? = null,
         targetCompat: String? = null,
+        android: jo.codeide.lsp.model.protocole.ClasspathModuleAndroid? = null,
     ): ClasspathModule =
         ClasspathModule(
             name = nom,
@@ -96,6 +97,7 @@ internal object FixturesClasspath {
             avertissements = avertissements,
             sourceCompatibility = sourceCompat,
             targetCompatibility = targetCompat,
+            android = android,
         )
 
     fun jar(

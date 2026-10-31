@@ -125,6 +125,37 @@ public data class ClasspathModule(
     public val avertissements: List<String>? = null,
     public val sourceCompatibility: String? = null,
     public val targetCompatibility: String? = null,
+    /** Contrat Android sync (v11, ADR 0020 / décision D2) — `null` tant que
+     *  le tooling ne livre pas les champs B10 (le moteur dérive du disque). */
+    public val android: ClasspathModuleAndroid? = null,
+)
+
+/**
+ * Contrat Android d'un module livré par la sync (v11 — ADR 0020, décision
+ * D2, « ce que l'hôte doit produire à la sync », liste B10 de la
+ * référence §B10). Miroir exact de [jo.codeide.lsp.model.ModuleAndroidLsp]
+ * (le modèle convertit sans perte) : identité, SDK, dossiers `res/`,
+ * manifest, buildFeatures, drapeaux R.
+ *
+ * Tous les champs sont nullable : un producteur partiellement informé livre
+ * ce qu'il sait, la conversion complète par les DÉFAUTS AGP 8.
+ */
+public data class ClasspathModuleAndroid(
+    public val namespace: String? = null,
+    public val applicationId: String? = null,
+    public val minSdk: Int? = null,
+    public val targetSdk: Int? = null,
+    public val compileSdk: Int? = null,
+    public val dossiersRes: List<String>? = null,
+    public val manifest: String? = null,
+    public val viewBinding: Boolean? = null,
+    public val dataBinding: Boolean? = null,
+    public val buildConfig: Boolean? = null,
+    public val resValues: Boolean? = null,
+    public val nonTransitiveRClass: Boolean? = null,
+    public val nonFinalResIds: Boolean? = null,
+    public val resValuesAdditionnels: Map<String, String>? = null,
+    public val buildConfigFields: Map<String, String>? = null,
 )
 
 /**

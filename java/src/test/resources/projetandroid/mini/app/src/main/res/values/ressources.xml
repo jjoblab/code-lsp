@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_nom">Mini &amp; Compagnie</string>
+    <string name="salut">Bonjour « \u00e9 » — apostrophe : L&apos;écran</string>
+    <string name="pluriel_zero">-</string>
+    <color name="fond">#FF334455</color>
+    <color name="texte">#111</color>
+    <dimen name="marge">16dp</dimen>
+    <dimen name="taille_titre">22sp</dimen>
+    <bool name="mode_nuit">true</bool>
+    <integer name="nb_colonnes">3</integer>
+    <string-array name="jours">
+        <item>Lundi</item>
+        <item>Mardi</item>
+    </string-array>
+    <integer-array name="poids">
+        <item>1</item>
+        <item>2</item>
+    </integer-array>
+    <plurals name="nb_messages">
+        <item quantity="one">%d message</item>
+        <item quantity="other">%d messages</item>
+    </plurals>
+    <style name="Theme.Mini" parent="Theme.Material3.DayNight">
+        <item name="colorPrimary">@color/fond</item>
+    </style>
+    <declare-styleable name="Exemple">
+        <attr name="libelle" format="string" />
+        <attr name="poidsMax" format="integer" />
+    </declare-styleable>
+    <item type="id" name="vue_anonyme" />
+    <!-- un commentaire qui doit être ignoré -->
+</resources>

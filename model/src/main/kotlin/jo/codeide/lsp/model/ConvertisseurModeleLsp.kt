@@ -3,6 +3,7 @@ package jo.codeide.lsp.model
 import jo.codeide.lsp.model.protocole.ClasspathEntry
 import jo.codeide.lsp.model.protocole.ClasspathKind
 import jo.codeide.lsp.model.protocole.ClasspathModule
+import jo.codeide.lsp.model.protocole.ClasspathModuleAndroid
 import jo.codeide.lsp.model.protocole.ClasspathResult
 
 /**
@@ -118,6 +119,11 @@ public object ConvertisseurModeleLsp {
                     !rejet
                 }
 
+        // v11 (V-B, ADR 0020) : conversion AVANT l'empreinte — l'identité
+        // canonique vit sur le type modèle (champs absents déjà complétés
+        // par les défauts AGP 8).
+        val contratAndroid = android?.versModuleAndroidLsp()
+
         val empreinteModule =
             Empreintes.sha256(
                 buildString {
@@ -130,6 +136,10 @@ public object ConvertisseurModeleLsp {
                     // moteur (diagnostics de niveau à jour).
                     compatibiliteSource().let { append("|source:").append(it) }
                     compatibiliteCible().let { append("|cible:").append(it) }
+                    // v11 (V-B, ADR 0020) : le contrat Android entre dans
+                    // l'identité — changer namespace/minSdk/buildFeatures
+                    // invalide le moteur (classes light et référentiel à jour).
+                    contratAndroid?.let { append("|android:").append(it.identiteCanonique()) }
                 },
             )
 
@@ -151,9 +161,63 @@ public object ConvertisseurModeleLsp {
             avertissements = avertissements,
             compatibiliteSource = compatibiliteSource(),
             compatibiliteCible = compatibiliteCible(),
+            android = contratAndroid,
             empreinte = empreinteModule,
         )
     }
+
+    /**
+     * Conversion du contrat Android sync (v11) vers le snapshot — sans
+     * perte, les champs absents prenant les DÉFAUTS AGP 8 (ADR 0020) : la
+     * sync prime TOUJOURS, y compris quand elle ne dit que « viewBinding =
+     * true » (un buildFeatures absent ne dérive PAS du disque une fois le
+     * contrat livré — sinon deux vérités se battraient, R3 de l'ADR).
+     */
+    private fun ClasspathModuleAndroid.versModuleAndroidLsp(): ModuleAndroidLsp =
+        ModuleAndroidLsp(
+            namespace = namespace,
+            applicationId = applicationId,
+            minSdk = minSdk,
+            targetSdk = targetSdk,
+            compileSdk = compileSdk,
+            dossiersRes = dossiersRes ?: emptyList(),
+            manifest = manifest,
+            buildFeatures =
+                BuildFeaturesLsp(
+                    viewBinding = viewBinding ?: false,
+                    dataBinding = dataBinding ?: false,
+                    buildConfig = buildConfig ?: false,
+                    resValues = resValues ?: true,
+                ),
+            nonTransitiveRClass = nonTransitiveRClass ?: true,
+            nonFinalResIds = nonFinalResIds ?: false,
+            resValues = resValuesAdditionnels ?: emptyMap(),
+            buildConfigFields = buildConfigFields ?: emptyMap(),
+        )
+
+    /**
+     * Identité canonique du contrat Android dans l'empreinte du module :
+     * champs triés par nom, valeurs séparées — indépendante de l'ordre de
+     * déclaration du producteur.
+     */
+    private fun ModuleAndroidLsp.identiteCanonique(): String =
+        listOf(
+            "ns=$namespace",
+            "appid=$applicationId",
+            "min=$minSdk",
+            "tgt=$targetSdk",
+            "cmp=$compileSdk",
+            "res=${dossiersRes.sorted().joinToString(",")}",
+            "manifest=${manifest ?: "-"}",
+            "vb=${buildFeatures.viewBinding}",
+            "db=${buildFeatures.dataBinding}",
+            "bc=${buildFeatures.buildConfig}",
+            "rv=${buildFeatures.resValues}",
+            "ntr=$nonTransitiveRClass",
+            "nfr=$nonFinalResIds",
+            "resv=${resValues.entries.sortedBy { it.key }.joinToString(",") { "${it.key}=${it.value}" }}",
+            "bcf=${buildConfigFields.entries.sortedBy { it.key }.joinToString(",") { "${it.key}=${it.value}" }}",
+        ).joinToString(";")
 
     /**
      * Niveau Java source CANONIQUE du module (S1-a) : notation simple

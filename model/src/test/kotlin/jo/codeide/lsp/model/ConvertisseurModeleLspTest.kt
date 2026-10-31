@@ -567,4 +567,103 @@ class ConvertisseurModeleLspTest {
         assertNotEquals("sans niveau ≠ niveau 8 (le défaut 17 est une VALEUR)", empreinteMuet, empreinte8)
         assertNotEquals("sans niveau ≠ niveau 21", empreinteMuet, empreinte21)
     }
+
+    // ------------------------------------------------------------------
+    // v11 — contrat Android (V-B1, ADR 0020 / décision D2).
+    // ------------------------------------------------------------------
+
+    @Test
+    fun `le contrat android sync est converti sans perte vers le modele`() {
+        val resultat =
+            FixturesClasspath.resultat(
+                modules =
+                    listOf(
+                        FixturesClasspath.module(
+                            nom = ":app",
+                            androidJar = "/sdk/android-34/android.jar",
+                            android =
+                                jo.codeide.lsp.model.protocole.ClasspathModuleAndroid(
+                                    namespace = "com.example.monip",
+                                    applicationId = "com.example.monip",
+                                    minSdk = 24,
+                                    targetSdk = 34,
+                                    compileSdk = 34,
+                                    dossiersRes = listOf("/projet/app/src/main/res"),
+                                    manifest = "/projet/app/src/main/AndroidManifest.xml",
+                                    viewBinding = true,
+                                    dataBinding = true,
+                                ),
+                        ),
+                    ),
+            )
+
+        val android = convertisseur.depuisClasspathResult(resultat, stats.lecteur).modules.single().android
+
+        assertNotNull("le contrat vit dans le snapshot", android)
+        assertEquals("com.example.monip", android!!.namespace)
+        assertEquals(24, android.minSdk)
+        assertEquals(34, android.targetSdk)
+        assertEquals(34, android.compileSdk)
+        assertEquals(listOf("/projet/app/src/main/res"), android.dossiersRes)
+        assertEquals("/projet/app/src/main/AndroidManifest.xml", android.manifest)
+        assertTrue("viewBinding transporté", android.buildFeatures.viewBinding)
+        assertTrue("dataBinding transporté", android.buildFeatures.dataBinding)
+        assertFalse("buildConfig : défaut AGP 8 (faux) quand absent du contrat", android.buildFeatures.buildConfig)
+        assertTrue("nonTransitiveRClass : défaut AGP 8 (vrai)", android.nonTransitiveRClass)
+        assertFalse("nonFinalResIds : défaut (faux)", android.nonFinalResIds)
+    }
+
+    @Test
+    fun `un module sans contrat android reste muet - la derivation disque reste possible`() {
+        val resultat =
+            FixturesClasspath.resultat(
+                modules = listOf(FixturesClasspath.module(nom = ":app", androidJar = "/sdk/android.jar")),
+            )
+
+        assertNull("null = le moteur dérivera du disque (ADR 0020 repli)", convertisseur.depuisClasspathResult(resultat, stats.lecteur).modules.single().android)
+    }
+
+    @Test
+    fun `changer le contrat android change l empreinte du module - les classes light se revalident`() {
+        val jar = FixturesClasspath.cheminMaven("androidx.core", "core", "1.13.1")
+        stats.ajouter(jar)
+        val contrat1 =
+            jo.codeide.lsp.model.protocole.ClasspathModuleAndroid(namespace = "com.example.a", viewBinding = false)
+        val contrat2 =
+            jo.codeide.lsp.model.protocole.ClasspathModuleAndroid(namespace = "com.example.a", viewBinding = true)
+
+        val empreinte1 =
+            convertisseur
+                .depuisClasspathResult(
+                    FixturesClasspath.resultat(modules = listOf(FixturesClasspath.module(nom = ":app", entrees = listOf(FixturesClasspath.jar(jar)), android = contrat1))),
+                    stats.lecteur,
+                ).modules.single().empreinte
+        val empreinte2 =
+            convertisseur
+                .depuisClasspathResult(
+                    FixturesClasspath.resultat(modules = listOf(FixturesClasspath.module(nom = ":app", entrees = listOf(FixturesClasspath.jar(jar)), android = contrat2))),
+                    stats.lecteur,
+                ).modules.single().empreinte
+
+        assertNotEquals("viewBinding basculé ⇒ moteur invalidé (fabrique binding à reconstruire)", empreinte1, empreinte2)
+    }
+
+    @Test
+    fun `le contrat android est persiste et relu integralement - retro-compatible`() {
+        val contrat =
+            ModuleAndroidLsp(
+                namespace = "com.example.monip",
+                minSdk = 24,
+                compileSdk = 34,
+                dossiersRes = listOf("/p/res"),
+                buildFeatures = BuildFeaturesLsp(viewBinding = true, buildConfig = true),
+                buildConfigFields = mapOf("NOM" to "String \"monip\""),
+            )
+
+        val json = kotlinx.serialization.json.Json.encodeToString(ModuleAndroidLsp.serializer(), contrat)
+        val relu = kotlinx.serialization.json.Json.decodeFromString(ModuleAndroidLsp.serializer(), json)
+
+        assertEquals(contrat, relu)
+        assertTrue("le JSON du contrat v2 reste lisible par un lecteur v1 (champs additionnels optionnels)", "namespace" in json)
+    }
 }

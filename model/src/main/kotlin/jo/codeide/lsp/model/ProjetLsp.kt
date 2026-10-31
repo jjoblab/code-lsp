@@ -58,9 +58,15 @@ public enum class TypeModuleLsp {
  *           `null` = indécidable (le moteur garde son défaut « 17 »).
  * @property compatibiliteCible niveau Java de BYTECODE du module
  *           (`targetCompatibility`), `null` = indécidable.
+ * @property android contrat Android du module (v11, vague V-B — ADR 0020,
+ *           liste B10 de la référence §B10) : identité, SDK, ressources,
+ *           buildFeatures… `null` pour un module JVM pur OU un module
+ *           Android dont la sync n'a pas encore livré le contrat — le
+ *           moteur y dérive alors le sien DU DISQUE (dérivateur ADR 0020,
+ *           la sync PRIME toujours par contrat).
  * @property empreinte empreinte du module — classpath, sources, générés,
- *           androidJar, variante ET niveaux Java ; changer UNE dépendance
- *           change l'empreinte du SEUL module concerné.
+ *           androidJar, variante, niveaux Java ET contrat Android ; changer
+ *           UNE dépendance change l'empreinte du SEUL module concerné.
  */
 @Serializable
 public data class ModuleLsp(
@@ -76,7 +82,72 @@ public data class ModuleLsp(
     public val avertissements: List<String>,
     public val compatibiliteSource: String? = null,
     public val compatibiliteCible: String? = null,
+    public val android: ModuleAndroidLsp? = null,
     public val empreinte: String,
+)
+
+/**
+ * Contrat Android d'un module (v11 — ADR 0020, vague V-B / décision D2).
+ *
+ * Les champs reproduisent la liste B10 de la référence (§B10, modèle Gradle
+ * sync) ; TOUS sont optionnels avec les valeurs par défaut **AGP 8** — un
+ * producteur qui ne connaît qu'une partie du contrat livre cette partie, le
+ * moteur complète par les défauts. Le même contrat est produit par la sync
+ * hôte (prioritaire) ou par le **dérivateur disque** du moteur (repli avant
+ * sync — ADR 0020 option 1) : les deux chemins écrivent ces champs, jamais
+ * deux vérités distinctes.
+ *
+ * @property namespace espace de noms des ressources (`namespace = "…"`),
+ *           défaut AGP 8 : OBLIGATOIRE côté Gradle — ici nullable car le
+ *           dérivateur peut ne rien lire ; le repli est le `package` du
+ *           manifest puis le groupId du dossier.
+ * @property applicationId identifiant d'application (`null` = namespace).
+ * @property minSdk niveau d'API minimal (`defaultConfig.minSdk`), défaut 1.
+ * @property targetSdk niveau d'API cible, défaut = compileSdk.
+ * @property compileSdk niveau d'API de compilation (`null` = inconnu).
+ * @property dossiersRes dossiers `res/` du sourceSet principal (le PREMIER
+ *           est le principal ; défaut AGP : `src/main/res`).
+ * @property manifest chemin du `AndroidManifest.xml` principal, `null` si
+ *           introuvable.
+ * @property buildFeatures drapeaux de génération AGP (défauts AGP 8).
+ * @property nonTransitiveRClass R non transitif (défaut AGP 8 : vrai).
+ * @property nonFinalResIds champs de R non finaux (défaut : faux).
+ * @property resValues valeurs `resValue` additionnelles (type:nom → valeur).
+ * @property buildConfigFields champs `buildConfigField` additionnels
+ *           (nom → « type valeur »).
+ */
+@Serializable
+public data class ModuleAndroidLsp(
+    public val namespace: String? = null,
+    public val applicationId: String? = null,
+    public val minSdk: Int? = null,
+    public val targetSdk: Int? = null,
+    public val compileSdk: Int? = null,
+    public val dossiersRes: List<String> = emptyList(),
+    public val manifest: String? = null,
+    public val buildFeatures: BuildFeaturesLsp = BuildFeaturesLsp(),
+    public val nonTransitiveRClass: Boolean = true,
+    public val nonFinalResIds: Boolean = false,
+    public val resValues: Map<String, String> = emptyMap(),
+    public val buildConfigFields: Map<String, String> = emptyMap(),
+)
+
+/**
+ * Drapeaux `buildFeatures` d'un module Android (AGP 8 — valeurs par défaut
+ * officielles : tout à faux sauf `resValues`).
+ *
+ * @property viewBinding génération des classes `ViewBinding` (défaut : faux).
+ * @property dataBinding génération des classes `DataBinding` + `BR`
+ *           (défaut : faux) — implique la présence des artefacts runtime.
+ * @property buildConfig génération de `BuildConfig` (défaut AGP 8 : faux).
+ * @property resValues génération des ressources `resValue` (défaut : vrai).
+ */
+@Serializable
+public data class BuildFeaturesLsp(
+    public val viewBinding: Boolean = false,
+    public val dataBinding: Boolean = false,
+    public val buildConfig: Boolean = false,
+    public val resValues: Boolean = true,
 )
 
 /**

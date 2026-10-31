@@ -29,6 +29,13 @@ import java.nio.file.Path
  * documenté, fiche 034) ; les racines posées doivent EXISTER sur disque
  * (garde `isDirectory`).
  *
+ * **Contrat Android (V-B — ADR 0020, décision D2)** : chaque contexte peut
+ * porter un [jo.codeide.lsp.java.projetandroid.ContratAndroidMoteur] (posé
+ * par la sync hôte — il PRIME) ; sinon le moteur dérive le sien DU DISQUE
+ * ([jo.codeide.lsp.java.projetandroid.ModeleAndroidDerive] — parseur Gradle
+ * tolérant) au premier usage, derrière le drapeau de repli
+ * `jo.codeide.lsp.java.projetandroid.derivation.disabled`.
+ *
  * @param jdkHome home JDK explicite (null = runtime courant ; sans
  *   `lib/modules` ni fournisseur jrt instanciable = pas de jrt — le régime
  *   reste PLEIN dès qu'un jar de contexte porte la plateforme, v1.1.4).
@@ -40,11 +47,12 @@ public class EnvironnementCompilation(
     private val complianceDefaut: String = "17",
 ) {
 
-    /** Contexte d'un module (listes + niveau demandé). */
+    /** Contexte d'un module (listes + niveau demandé + contrat Android). */
     private data class ContexteModule(
         val racines: List<Path>,
         val jars: List<Path>,
         val niveauDemande: String?,
+        val projetAndroid: jo.codeide.lsp.java.projetandroid.ContratAndroidMoteur?,
     )
 
     /** Contextes par module (clé normalisée ; "" = défaut). */
@@ -113,7 +121,7 @@ public class EnvironnementCompilation(
     public var routeurFichierModule: ((String) -> String?)? = null
 
     init {
-        contextes[""] = ContexteModule(emptyList(), emptyList(), null)
+        contextes[""] = ContexteModule(emptyList(), emptyList(), null, null)
     }
 
     /**
@@ -126,7 +134,7 @@ public class EnvironnementCompilation(
     public fun moteur(module: String? = null): MoteurJava = synchronized(verrou) {
         val cle = normaliser(module)
         moteurs[cle]?.let { return it }
-        val contexte = contextes[cle] ?: ContexteModule(emptyList(), emptyList(), null)
+        val contexte = contextes[cle] ?: ContexteModule(emptyList(), emptyList(), null, null)
         val moteur = creerMoteur(contexte)
         moteurs[cle] = moteur
         if (cle != "" && cle !in ordreModules) {
@@ -166,7 +174,7 @@ public class EnvironnementCompilation(
             val cle = normaliser(module)
             val ancien = contextes[cle]
             val niveau = ancien?.niveauDemande
-            appliquerRemplacement(cle, racines, jars, niveau, ancien)
+            appliquerRemplacement(cle, racines, jars, niveau, ancien?.projetAndroid, ancien)
         }
     }
 
@@ -184,7 +192,36 @@ public class EnvironnementCompilation(
         synchronized(verrou) {
             val cle = normaliser(module)
             val ancien = contextes[cle]
-            appliquerRemplacement(cle, racines, jars, niveau, ancien)
+            appliquerRemplacement(cle, racines, jars, niveau, ancien?.projetAndroid, ancien)
+        }
+    }
+
+    /**
+     * Remplace le contexte d'un module AVEC son contrat Android (V-B —
+     * ADR 0020, décision D2) : la VARIANTE SYNC — l'hôte vient de lire
+     * `ModuleLsp.android` du modèle et le pose ICI ; ce contrat PRIME sur
+     * toute dérivation disque future pour ce module (R3 de l'ADR).
+     *
+     * Un changement de contrat SEUL est un remplacement effectif (le moteur
+     * doit re-fabriquer ses classes light).
+     *
+     * @param module la clé du module ; null ou vide = contexte défaut.
+     * @param racines les racines sources (doivent exister).
+     * @param jars les jars du classpath du module.
+     * @param niveau le niveau Java demandé (null = conserver l'ancien).
+     * @param projetAndroid le contrat Android sync (null = dérivation disque).
+     */
+    public fun remplacerContexteModule(
+        module: String?,
+        racines: List<Path>,
+        jars: List<Path> = emptyList(),
+        niveau: String?,
+        projetAndroid: jo.codeide.lsp.java.projetandroid.ContratAndroidMoteur?,
+    ) {
+        synchronized(verrou) {
+            val cle = normaliser(module)
+            val ancien = contextes[cle]
+            appliquerRemplacement(cle, racines, jars, niveau ?: ancien?.niveauDemande, projetAndroid, ancien)
         }
     }
 
@@ -284,11 +321,12 @@ public class EnvironnementCompilation(
         racines: List<Path>,
         jars: List<Path>,
         niveau: String?,
+        projetAndroid: jo.codeide.lsp.java.projetandroid.ContratAndroidMoteur?,
         ancien: ContexteModule?,
     ) {
         // Garde : les racines doivent exister (fiche 047 — fixtures réelles).
         val racinesValidees = racines.filter { Files.isDirectory(it) }
-        val nouveau = ContexteModule(racinesValidees, jars, niveau)
+        val nouveau = ContexteModule(racinesValidees, jars, niveau, projetAndroid)
         if (ancien != null && ancien == nouveau) {
             return // no-op système : même moteur, zéro notification
         }
@@ -315,7 +353,32 @@ public class EnvironnementCompilation(
         compliance = contexte.niveauDemande ?: complianceDefaut,
         niveauDemande = contexte.niveauDemande,
         indexNoms = indexNoms,
+        projetAndroid = contexte.projetAndroid ?: deriverAndroid(contexte.racines),
     )
+
+    /**
+     * Dérivation disque du contrat Android (V-B — ADR 0020 option 1) :
+     * jouée une fois PAR MOTEUR construit sans contrat sync, derrière le
+     * drapeau de repli `jo.codeide.lsp.java.projetandroid.derivation.disabled`
+     * ; rend null pour un module non-Android (coût : quelques stats de
+     * fichiers). Le référentiel de ressources, lui, ne scanne qu'au premier
+     * usage des classes light (paresseux dans le moteur).
+     */
+    private fun deriverAndroid(racines: List<Path>): jo.codeide.lsp.java.projetandroid.ContratAndroidMoteur? {
+        if (DERIVATION_ANDROID_DESACTIVEE) return null
+        if (racines.isEmpty()) return null
+        return try {
+            jo.codeide.lsp.java.projetandroid.ModeleAndroidDerive.deriver(racines)
+        } catch (_: Exception) {
+            null // dérivation fautive : moteur sans contrat (jamais un crash)
+        }
+    }
+
+    private companion object {
+        /** Kill-switch de la dérivation disque (repli documenté ADR 0020). */
+        private val DERIVATION_ANDROID_DESACTIVEE: Boolean =
+            System.getProperty("jo.codeide.lsp.java.projetandroid.derivation.disabled") == "true"
+    }
 
     /** Normalise une clé de module (null/vide → défaut). */
     private fun normaliser(module: String?): String = module ?: ""
