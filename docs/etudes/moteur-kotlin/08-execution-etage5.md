@@ -404,3 +404,17 @@ tenait déjà (recalage n° 3 : « aucun recalage supplémentaire n'est
 requis jusqu'à la clôture du programme ») ; le présent relevé le
 confirme sans le rouvrir. Restent à l'abaque : étage 6 (16–26 j-h) et T
 transverse (8–12 j-h).
+
+**ATTESTATION CI (consignée après poussée)** : le push de l'étage
+(93e7cc9 → `4119dd5`, les cinq commits 5a/5b/5c/5d/clôture) a déclenché
+le run **`41157236378`** — consulté le 31/10 via l'API GitHub Actions :
+**CI VERTE 10/10, PREMIÈRE TENTATIVE** sur le commit de clôture
+`4119dd5` (le run porte le SHA de TÊTE du push : il éprouve les
+LIVRAISONS 5a-5d ET la clôture ensemble — les dix jobs verts : suite du
+module 477 tests, scan ART + dexage d8 sous seuils étage 0, bancs
+empreinte/latence, banc qualité baseline signée, parité croisée T,
+build JDK 21, gates Android, provenance — les quatre reprises confort
+inscrites au manifeste y passent le contrôle « anti-fichier-hors-registre »).
+Le flottant E-K6 (périmètre Java) n'a pas frappé cette fois.
+
+**L'ÉTAGE 5 EST CLOS SUR PREUVE MÉCANIQUE — CI ATTESTÉE.**
