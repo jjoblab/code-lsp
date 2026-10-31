@@ -73,7 +73,11 @@ complètent la couverture.
 > - **P6 (4 non-résolubles → 0)** : filtre d'accessibilité de l'annuaire
 >   (`estProposablePourAutoImport`) — plus aucun type non public d'un autre
 >   paquet proposé avec auto-import insoluble (G-004, `Striped64`,
->   `Streams`…).
+>   `Streams`…). **Arbitrage parité (ADR 0030)** : 30 libellés non publics
+>   du JDK que l'oracle vendored propose AUSSI ont été retirés du contrat de
+>   parité par une liste explicite dans le banc (`ARBITRAGES_G004` — java.lang,
+>   java.util.stream, javax.swing.plaf.metal internes), la re-baseline
+>   suivante (PR dédiée) les absorbera.
 > - **P5 (2 violations → 0)** : création de méthode CONTEXTUELLE en position
 >   de retour (G-014 : `return formater(…)` dans une méthode `String` crée
 >   un stub `String` — l'affectation reste `Object`, fiche 064 verrouillée,

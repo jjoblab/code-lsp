@@ -35,6 +35,13 @@
 //  3. libellé PERDU par le neuf sur une position signée en baseline ;
 //  4. DÉRIVE DE L'ORACLE : toute différence de listes oracle vs baseline
 //     (le commit épinglé a changé de comportement → re-pin + re-signature).
+//
+// ARBITRAGES (ADR 0030 : « toute divergence oracle↔neuf arbitrée : FP corrigé,
+// FN documenté, ou quirk consigné ») : les libellés d'[ARBITRAGES_G004] sont
+// retirés DÉLIBÉRÉMENT par la vague V-A (écart G-004/P6 — types NON PUBLICS
+// du JDK que l'oracle propose aussi, avec référence insoluble depuis un autre
+// paquet). Ils ne comptent NI comme pertes (2) NI comme libellés perdus (3) ;
+// la re-baseline suivante les absorbe dans les listes signées.
 package jo.codeide.lsp.java.banc
 
 import jo.codeide.lsp.java.MoteurJava
@@ -55,6 +62,47 @@ private const val CAP_SUCCESSION = 12
 /** Délai du sous-processus oracle (garde anti-blocage, en secondes). */
 private const val DELAI_ORACLE_S = 600L
 
+/**
+ * Les libellés retirés DÉLIBÉRÉMENT par la vague V-A (arbitrage ADR 0030,
+ * écart G-004/P6, consigné noir sur blanc) : des types NON PUBLICS du JDK
+ * que l'ANNEXE du classpath énumérait dans les paquets de surface et que le
+ * filtre d'accessibilité `estProposablePourAutoImport` ne propose plus — la
+ * référence étant INSOLUBLE depuis un autre paquet (mesuré P6 : 4 insertions
+ * sur 12 non résolubles avant correctif ; l'ORACLE vendored porte le même
+ * défaut et propose ces libellés, d'où l'écart de listes).
+ *
+ * Établie par diff exhaustif du corpus rejoué contre la baseline signée le
+ * 31/10/2026 (30 libellés, 3 positions : nom-locale-domine, type-Integer,
+ * type-String) — java.lang/java.util.stream/javax.swing.plaf.metal internes
+ * (`StringUTF16`, `StringLatin1`, `AbstractPipeline`, `Striped64`,
+ * `InternalFrameTitlePane*`…). La re-baseline suivante (PR dédiée) absorbe
+ * cette liste dans les listes signées et la retire d'ici.
+ */
+private val ARBITRAGES_G004: Set<String> = setOf(
+    // nom-locale-domine (java.util.stream + java.lang internes)
+    "AbstractConstantGroup", "AbstractFilter", "AbstractPipeline",
+    "AbstractShortCircuitTask", "AbstractSpinedBuffer", "AbstractStringBuilder",
+    "AbstractTask", "AbstractValidatingLambdaMetafactory",
+    // type-Integer (javax.swing.plaf.metal + java.lang internes)
+    "InternalFramePainter",
+    "InternalFrameTitlePaneCloseButtonPainter",
+    "InternalFrameTitlePaneCloseButtonWindowNotFocusedState",
+    "InternalFrameTitlePaneIconifyButtonPainter",
+    "InternalFrameTitlePaneIconifyButtonWindowNotFocusedState",
+    "InternalFrameTitlePaneMaximizeButtonPainter",
+    "InternalFrameTitlePaneMaximizeButtonWindowMaximizedState",
+    "InternalFrameTitlePaneMaximizeButtonWindowNotFocusedState",
+    "InternalFrameTitlePaneMenuButtonPainter",
+    "InternalFrameTitlePaneMenuButtonWindowNotFocusedState",
+    "InternalFrameTitlePaneWindowFocusedState",
+    "InternalFrameWindowFocusedState",
+    "PinnedThreadPrinter",
+    // type-String (java.lang/java.nio internes + Striped64)
+    "StringCharBuffer", "StringCoding", "StringConcatHelper",
+    "StringLatin1", "StringTemplateImpl", "StringTemplateImplFactory",
+    "StringUTF16", "Striped64",
+)
+
 /** Les mesures agrégées du banc croisé (comparées à la baseline signée). */
 private class MesuresParite(
     val couvertureCahierOracle: Double,
@@ -71,6 +119,7 @@ private data class LigneParite(
     val manquantsCahierOracle: List<String>,
     val manquantsCahierNeuf: List<String>,
     val pertes: List<String>,
+    val arbitrages: List<String>,
     val gains: List<String>,
 )
 
@@ -152,7 +201,8 @@ fun main(args: Array<String>) {
                 nbNeuf = neuf.size,
                 manquantsCahierOracle = position.attendus.filter { it !in oracle },
                 manquantsCahierNeuf = position.attendus.filter { it !in neuf },
-                pertes = oracle.distinct().filter { it !in neuf },
+                pertes = oracle.distinct().filter { it !in neuf && it !in ARBITRAGES_G004 },
+                arbitrages = oracle.distinct().filter { it in ARBITRAGES_G004 && it !in neuf },
                 gains = neuf.distinct().filter { it !in oracle },
             ),
         )
@@ -186,6 +236,9 @@ fun main(args: Array<String>) {
             ),
         )
         if (ligne.pertes.isNotEmpty()) println("      pertes : ${ligne.pertes.joinToString(", ")}")
+        if (ligne.arbitrages.isNotEmpty()) {
+            println("      arbitrés (G-004, V-A — retirés délibérément) : ${ligne.arbitrages.joinToString(", ")}")
+        }
         if (ligne.gains.isNotEmpty()) println("      gains  : ${ligne.gains.joinToString(", ")}")
     }
 
@@ -216,10 +269,12 @@ fun main(args: Array<String>) {
                 echecs.add("DÉRIVE ORACLE sur « $nom » : listes ≠ baseline (commit épinglé à re-vérifier, re-signature par PR)")
             }
         }
-        // Libellés PERDUS par le neuf sur une position signée (le plancher de parité).
+        // Libellés PERDUS par le neuf sur une position signée (le plancher de
+        // parité) — hors arbitrages V-A (G-004 : retirés délibérément, la
+        // re-baseline suivante les absorbe).
         for ((nom, signees) in baseline.neuf) {
             val actuelles = resultatsNeuf[nom] ?: emptyList()
-            val perdues = signees.filter { it !in actuelles }
+            val perdues = signees.filter { it !in actuelles && it !in ARBITRAGES_G004 }
             if (perdues.isNotEmpty()) {
                 echecs.add("libellé(s) perdu(s) par le neuf sur « $nom » : ${perdues.joinToString(", ")}")
             }
