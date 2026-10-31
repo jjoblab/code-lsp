@@ -177,3 +177,159 @@ restent à mesurer SUR APPAREIL (synthèse §5).
 - provenance : `verifier-provenance.sh` **rc=0** (aucun fichier hors
   registre — le T n'ajoute AUCUNE reprise).
 
+## 6. Les bancs et corpus du programme — l'inventaire final (le cœur du transverse)
+
+Ce que le plan §4 demandait au transverse (« bancs, corpus versionnés,
+recalages ») est en place, VERT et SIGNÉ. L'inventaire à la clôture :
+
+| Banc / corpus | Ce qu'il verrouille | Où il vit | CI (job) | État à la clôture T |
+|---|---|---|---|---|
+| **Fidélité K2 oracle** (banc de fidélité, vague 2g) | les diagnostics du moteur face au compilateur K2 sur les corpus quatre mondes : compte des faux négatifs ET empreinte SHA-256 du détail — toute variation, en hausse comme en baisse, est une divergence à expliquer | `BancFideliteK2Test` + `baseline-fidelite.txt` (signée) | suite du module (l'oracle s'exécute en CI, ~20 s) | VERT — inchangé par le correctif `it` (§5.2) |
+| **Zéro faux positif** (passe corpus quatre mondes, vague 2g) | moteur 0 faux positif sur les mondes sains (Views, Compose, K/JVM, scripts) — l'invariant §4 du prompt | passe du banc de fidélité | suite du module | VERT |
+| **Qualité complétion** (banc commun Java, vague 3e) | recall / top-1 / MRR sur corpus versionné 16 positions étiquetées (7 genres), chaîne livrée vs naïve (gate +5 pts), p95 ≤ tolérance, contrat zéro saut, déterminisme des genres, stabilité sous gel | `:kotlin:benchQualite` + `bancs/baselines/completion-kotlin.json` (SIGNÉE : livrée 1.000/1.000/1.000, p95 7,53 ms) | job dédié BLOQUANT (10e) | VERT — p95 7,71 ms sous tolérance, 0 saut |
+| **Empreinte / latence** (banc de la grammaire, étage 0) | productions/jetons/marqueurs des corpus 500 et 3 000 lignes (déterminisme), p50/p95 parse, tas au repos — nombres, aucun seuil | `:kotlin:bench` | job dédié | VERT — déterminisme IDENTIQUE étages 2→T |
+| **Parité grammaire** (suite de parité, étage 0) | le corpus du DÉPÔT (main + test, 422 fichiers) parse SANS marqueur d'erreur ; digeste SHA-256 par fichier (baseline signée) — une montée de grammaire ou un fichier neuf la déplace EXPLICITEMENT | fiches 010–012 + `digeste-corpus.txt` (signée, 422 lignes) | suite du module | VERT — re-signée 421→422 (le test T-a) |
+| **Scan ART + dexage d8** (gates étage 0) | 0 motif sensible ART sur la pile spécifique (6 × AUCUNE) ; ≤ 32 768 méthodes / ≤ 6 Mo (budget arbitré E-K8) | `spike-kotlin/scripts/scan-art.py` + d8 build-tools 34 | job dédié BLOQUANT | VERT — 6 × AUCUNE ; 26 590 / 4,10 Mo |
+| **Manifeste de provenance** | AUCUN fichier hors registre (reprises voie C contrôlées, vendoring amont noté) | `verifier-provenance.sh` + `PROVENANCE-REPRISE-KOTLIN.md` | job dédié BLOQUANT | VERT — rc=0, 8 reprises R1–R8 |
+| **Compilation croisée** | le module compile et teste sous le JDK 17 de l'appareil (incident du 30/10 : API JDK 21 invisibles) | toolchain 17 du module | jobs Build + suite | VERT |
+
+Les **corpus versionnés** : completion-kotlin v1 (16 positions, stdlib du
+runtime seule — le job tourne sans SDK), corpus quatre mondes (17/27 jars,
+`kotlin/mondes/`), digeste de parité (422 fichiers du dépôt), corpus du banc
+d'empreinte (500/3 000 lignes générés déterministement) — plus le gabarit
+appareil (`bancs/GABARIT-BASCULE-APPAREIL.md` + kit `scripts/kit-bascule.sh`,
+mesures à retourner par le propriétaire — synthèse §5).
+
+## 7. Le relevé final du coût du programme (les « recalages finaux » — journal 09 §9.4)
+
+La série des recalages est CLOSE au n° 3 (étage 4) : ce relevé n'en ROUVRE
+pas la méthode — il AGGRÈGE le programme complet et le confronte à l'abaque.
+Commandes rejouables : `git log --format='%h %s' | grep lsp-kotlin`,
+comptes des journaux 03–09, `wc -l` par arborescence.
+
+### 7.1 Le compte par étage [mesuré]
+
+| Étage | Commits | Tests (porte) | Volume livré (journaux) | Dominante | Tempo [mesuré-agent] |
+|---|---:|---|---|---|---|
+| Étude (phases 0–4) | 10 | — | inventaire + cahier 53 fiches/469 comport. + ADR 0100–0121 + spike S0–S3 | — | 29–30/10 |
+| 0 — amorçage | 4 | 14 (parité) | grammaire vendorée (10 518 l. amont) + module + CI + provenance + descripteur | — | 30/10 |
+| 1 — noyau | 16 | 14 → 132 | 19 fichiers main (4 421 l.) + tests ; reprises R1/R2/R4/R5 ; **gabarit appareil REMPLI** | — | 29–30/10 (clos 30/10 08:10 UTC) |
+| 2 — résolution + diagnostics | 13 | 132 → 337 | 65 fichiers +17 373/−95 ; tableau A1–A31 ; banc fidélité | ≈ **85** l./comport. | ~2 jours calendaires (7 vagues) |
+| 3 — complétion + classement | 6 | 337 → 393 | 32 fichiers +6 113/−238 ; banc commun + baseline | ≈ **135** l./comport. | ~5 h (séance continue) |
+| 4 — navigation + rename | 4 | 393 → 431 | 12 fichiers +4 271/−6 | ≈ **112** l./comport. | ~40 min |
+| 5 — confort | 6 | 431 → 477 | reprises R3/R6/R7/R8 + code neuf + 5 dorés WorkspaceEdit | ≈ **97** l./comport. | séance continue 31/10 |
+| 6 — serveur LSP | 7 | 477 → 522 | 14 main + 6 test neufs + socle protocole 1 617 l. + harnais 449 l. + 7 dorés | ≈ **97** l./comport. | séance continue 31/10 |
+| **T — transverse** | 3 | 522 → **523** | 1 test (188 l.) + garde `it` (21 l.) + baseline | — | séance continue 31/10 |
+
+### 7.2 Le volume total du programme [mesuré]
+
+| Arborescence | Lignes | Nature |
+|---|---:|---|
+| `kotlin/src/main/kotlin` | **25 250** | moteur NEUF (SPI, parse, resolve, classpath, session, protocole…) |
+| `kotlin/src/main/vendor` | 10 518 | grammaire officielle amont (ré-obtention épinglée v2.3.0 — jamais « reprise ») |
+| `kotlin/src/test` | **17 860** | 53 fiches du cahier + cas dorés + bancs + parité |
+| `kotlin/src/bench` | 986 | bancs qualité + empreinte (source set dédié) |
+| `docs/etudes/moteur-kotlin` | 5 223 | synthèse + inventaire + journaux 00–10 + ALERTES + DEMANDES |
+| `docs/cahier-specifications-kotlin` | 2 952 | les 469 comportements extraits des tests sources |
+| `docs/adr` (0100–0121) | 1 791 | les 21 ADR de la plage Kotlin |
+| `spike-kotlin` | 11 608 | spike de mesure S0–S3 + scripts scan/dex (reproductible) |
+
+**Le coût marginal global** : (25 250 + 17 860 + 986) l. de code livré pour
+**469 comportements + 12 cas dorés + les socles** (protocole, harnais,
+bancs, ingénierie) ≈ **92 l./comportement** [mesuré] (main ET tests compris,
+journaux exclus) — la dominante s'est STABILISÉE à ~97 sur la deuxième
+moitié du programme (recalages n° 2–3), l'écart global tient au socle de
+l'étage 1 (noyau) porté par les premières vagues.
+
+### 7.3 Le verdict face à l'abaque [estimé vs mesuré]
+
+L'abaque de la synthèse §4 promettait **174–282 j-h** (médiane ≈ 225) pour
+les étages 0–6 + T, voie C. Le rythme AGENT n'est PAS transposable au
+jour-homme humain (consigné au recalage n° 1 : séances continues, 29/10 →
+31/10) ; la donnée transposable est la STRUCTURE du coût, et elle est
+TENUE : chaque étage a clos dans son enveloppe prévue (aucune refonte,
+aucun retour arrière, aucune vague rouverte) ; le coût marginal par
+comportement est resté dans le couloir 85–135 l. prédit par la méthode
+socle + marginal (abaque Java transposée) ; les CI de clôture sont passées
+en PREMIÈRE TENTATIVE à chaque étage (les seules reprises consignées sont
+le flottant E-K6, périmètre Java). **Le programme EST complet : il ne
+reste RIEN à l'abaque.** — les chantiers futurs (semanticTokens, frontière
+RPC de classement, arbitrages Q-K1/Q-K2 structurels, montée de grammaire)
+relèvent de NOUVELLES décisions du propriétaire, hors de ce plan.
+
+## 8. Clôture du transverse T — et du PROGRAMME
+
+### 8.1 Le compte du cahier
+
+**469/469 comportements livrés** — 53 fiches, 0 reste. Le compte par
+domaine (INVENTAIRE.md) : diagnostics 204, index-classpath 50, hover-inlay
+44, completion 44, navigation 38, cycle-vie-lsp 29, parse 27, autre
+(previews) 16, formatage 9, folding 7, caches-perf 1 (la fiche 021, livrée
+ici). S'y ajoutent les **12 cas dorés** transversaux (5 WorkspaceEdit,
+7 protocole) — hors cahier, verrouillés par leurs propres tests.
+
+### 8.2 Ce que le programme a livré (synthèse en sept lignes)
+
+1. **Noyau** (étage 1) : façade `Kt*`, session documents (verrou ADR 0212),
+   scan paresseux, classpath + décodeur `@Metadata` + index appelables
+   `.kidx`, synthétiques Android avant build (voie C R1–R8) ;
+2. **Résolution + diagnostics** (étage 2) : hiérarchie de portées complète,
+   catalogue `kt.*` conservateur, garde par déclaration, journal explain,
+   tableau de spécification A1–A31, correctifs ;
+3. **Complétion + classement** (étage 3) : pipeline 7 genres, chaîne
+   weighers, banc commun Java — +62,5 pts top-1 / +51,4 pts MRR vs naïve,
+   p95 sous la baseline ;
+4. **Navigation + rename** (étage 4) : définition/type/impl/super,
+   occurrences = oracle, 0 conflit manqué ;
+5. **Confort** (étage 5) : formateur borné, pliage complet, moteur KDoc,
+   previews Compose, actions déclaratives ModCommand-like ;
+6. **Serveur LSP4J** (étage 6) : matrice paritaire verrouillée (19
+   annoncées / 7 absentes honnêtes), codes exacts, époque copy-on-write,
+   publication debouncée ;
+7. **Qualité transversale** (T) : bancs et corpus signés, CI bloquante
+   10 jobs, la fidélité K2 comme DONNÉE, le coût comme donnée — et le
+   cahier COMPLET.
+
+### 8.3 Les preuves de clôture (bac à sable, 31/10)
+
+| Preuve | Résultat [mesuré] |
+|---|---|
+| Suite du module | **523 tests VERTS** (522 + fiche 021), toolchain 17 |
+| Jar du moteur | **991 021 o** (+162 o vs étage 6 : la garde `it`) |
+| Scan ART | **6 × AUCUNE** référence sensible (moteur 349 classes ; syntax-api 309 ; lang-syntax 3 ; annotations 61 ; stdlib 970 ; kotlin-metadata-jvm 492) — ServiceLoader OK |
+| Dexage d8 (build-tools 34, min-api 26) | **26 590 méthodes / 4 294 352 o (4,10 Mo)** — 81 % du plafond / 68 % du budget 6 Mo (+0 méthode / +116 o vs étage 6 ; câble lsp4j NON compté — pour mémoire AVEC câble : 32 643 / 4,74 Mo) |
+| Banc empreinte/latence JDK 17 | productions **5 448 / 31 368** ; jetons **4 210 / 24 274** ; marqueurs **0** ; tas au repos **3 724 Kio** — déterminisme IDENTIQUE |
+| Banc qualité complétion | **VERT** — p95 **7,71 ms** (sous la tolérance de la baseline signée 7,53 ms), **0 saut**, livrée 1.000/1.000/1.000 |
+| Compilation croisée | testClasses de TOUS les modules — BUILD SUCCESSFUL |
+| Provenance | `verifier-provenance.sh` **rc=0** (aucune reprise ajoutée par le T) |
+| Baseline de parité | re-signée **421 → 422** fichiers |
+
+### 8.4 Clôture
+
+**LE TRANSVERSE T EST CLOS sur preuve mécanique. LE PROGRAMME D'EXÉCUTION
+DU PLAN §4 EST CLOS** (étages 0–6 + T : 469/469 comportements, 12 cas
+dorés, bancs signés, CI bloquante). Ce qui reste appartient au
+propriétaire : les actions §4 (P-K1/P-K2, arbitrages structurels Q-K1/Q-K2,
+lecture du second manifeste), les mesures SUR APPAREIL (synthèse §5 — le
+gabarit et le kit sont prêts), et les décisions d'OUVERTURE des chantiers
+futurs. **STOP** : aucun chantier du plan §4 n'est ouvert ; ce journal est
+le dernier de la série d'exécution. L'attestation CI du push de clôture
+est consignée ci-dessous après consultation du run (miroir des étages 4–6).
+
+**ATTESTATION CI (consignée après poussée)** : à compléter par le commit
+d'attestation, miroir des journaux 07 §8.4 / 08 §9.4 / 09 §9.4.
+
+### 8.5 Post-scriptum d'exécution (le point d'honnêteté final)
+
+Le correctif `it` (§5.2) est le 4e écart corrigé « pendant la mise au
+vert » de l'histoire du programme (après 5a/5b/6e — journaux 08/09) et le
+premier qui touche la POLITIQUE de silence (D3) plutôt que du câblage : la
+fiche 021, dernière du cahier, était la seule à affirmer la santé d'un
+document portant des `it` implicites d'extensions classpath — le cahier a
+fait ce qu'on lui demande, révéler ce que l'architecture n'avait pas prouvé.
+La leçon est consignée pour les chantiers futurs : toute famille de noms
+qui NAÎT d'une attente (`it`, et demain les `componentN` de
+destructuration, les récepteurs de DSL) doit vivre de la MÊME attente dans
+toutes les passes — typage, diagnostics, complétion — sinon l'asymétrie
+fabrique des faux positifs qu'aucun banc ne voit tant qu'aucune fiche
+n'affirme le contraire.

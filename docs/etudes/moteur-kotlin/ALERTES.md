@@ -250,6 +250,18 @@
     moitié du coût) ou l'arbitrage du budget. L'ÉTAGE 6 EST CLOS sous
     les seuils (la CI mesure la même pile que ci-dessus — aucun changement
     de job requis), surveillance maintenue pour le transverse T.
+  - *Actualisation transverse T (31/10, clôture du programme — fiche 021
+    et garde `it` implicite)* : la garde `it` de
+    `DiagnosticsSemantiques.verifierNomNu` (correctif du faux positif
+    révélé par la fiche 021, journal 10 §5.2) porte le dex à
+    **26 590 méthodes / 4 294 352 o (4,10 Mo)** [mesuré, bac à sable, d8
+    build-tools 34, min-api 26, mêmes commandes que la CI] — **+0
+    méthode / +116 octets** vs la clôture étage 6 (la garde est du pur
+    logique, aucune classe ni référence nouvelle) : méthodes **81 %** du
+    plafond 32 768, taille **68 %** du budget 6 Mo. LE PROGRAMME EST CLOS
+    sous ces seuils ; l'alerte reste OUVERTE en mode surveillance pour
+    toute évolution future du module (les leviers Q-K2/Q-K1 restent
+    consignés).
 
 ## 5. Points restés « à vérifier » (non clos par l'étude)
 
