@@ -170,21 +170,41 @@ public class PublicateurDiagnostics(
         }
         val chemin = ConvertisseurLsp.cheminDeUri(uri) ?: uri
         val moteur = fournisseur(chemin) ?: return
-        // V-F4 — la PLAGE PRIORITAIRE : visible d'abord, complète ensuite.
-        if (!PLAGE_PRIORITAIRE_DESACTIVEE) {
-            val plage = plagesVisibles.plageDe(uri)
-            if (plage != null && moteur.serviraitPasseComplete(chemin, instantane.texte)) {
-                val prioritaire = moteur.diagnosePrioritaire(
-                    chemin,
-                    instantane.texte,
-                    (plage.debut + plage.fin) / 2,
-                )
-                if (prioritaire != null) {
-                    publier(uri, instantane, prioritaire)
+        // V-A3 : chien de garde de la diagnose — la fenêtre de figage
+        // appareil (01/11/2026) s'est vue exactement ici (plus AUCUNE
+        // publication après une complétion lente sous verrou de
+        // compilation) ; la ligne window/logMessage rend le point de
+        // lenteur VISIBLE dans le journal applicatif.
+        val debut = System.nanoTime()
+        try {
+            // V-F4 — la PLAGE PRIORITAIRE : visible d'abord, complète ensuite.
+            if (!PLAGE_PRIORITAIRE_DESACTIVEE) {
+                val plage = plagesVisibles.plageDe(uri)
+                if (plage != null && moteur.serviraitPasseComplete(chemin, instantane.texte)) {
+                    val prioritaire = moteur.diagnosePrioritaire(
+                        chemin,
+                        instantane.texte,
+                        (plage.debut + plage.fin) / 2,
+                    )
+                    if (prioritaire != null) {
+                        publier(uri, instantane, prioritaire)
+                    }
+                }
+            }
+            publier(uri, instantane, moteur.diagnose(chemin, instantane.texte))
+        } finally {
+            val ms = (System.nanoTime() - debut) / 1_000_000L
+            if (ms >= SEUIL_LENTEUR_MS && SEUIL_LENTEUR_MS > 0) {
+                runCatching {
+                    client.logMessage(
+                        org.eclipse.lsp4j.MessageParams(
+                            org.eclipse.lsp4j.MessageType.Warning,
+                            "lspjava lenteur : diagnose a pris $ms ms (seuil $SEUIL_LENTEUR_MS ms)",
+                        ),
+                    )
                 }
             }
         }
-        publier(uri, instantane, moteur.diagnose(chemin, instantane.texte))
     }
 
     /** Publie une liste de diagnostics pour l'instantané donné (version fait foi). */
@@ -215,6 +235,15 @@ public class PublicateurDiagnostics(
     private companion object {
         /** Le debounce du cahier (fiche 059 : « debounce de 50 ms »). */
         private const val DEBOUNCE_MS: Long = 50
+
+        /**
+         * Seuil du chien de garde de la diagnose (V-A3 — miroir de la
+         * propriété du serveur) : `jo.codeide.lsp.java.lenteur.seuilms`
+         * (0 = désactivé), défaut 2 s.
+         */
+        private val SEUIL_LENTEUR_MS: Long =
+            System.getProperty("jo.codeide.lsp.java.lenteur.seuilms")?.toLongOrNull()
+                ?.coerceIn(0L, 60_000L) ?: 2_000L
 
         /**
          * Kill-switch de la plage prioritaire (V-F4 — repli documenté) :

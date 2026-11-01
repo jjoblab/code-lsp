@@ -380,6 +380,47 @@ public class MoteurJava(
      */
     public fun isLikelyUsable(): Boolean = regimePlein()
 
+    /**
+     * PRÉ-CHAUFFE DU CLASSPATH (V-A3 — retours appareil du 01/11/2026) :
+     * paie les coûts FROIDS du chemin de complétion AVANT la première
+     * frappe — la plateforme (sonde jrt/jars), l'ANNUAIRE (phases 1-2 :
+     * sources + synthétiques + TABLES CENTRALES des jars — sur l'appareil
+     * le android.jar seul porte ~40 000 entrées — et phase 3 : l'index par
+     * nom) et UNE résolution ecj de sonde (le LookupEnvironment chaud).
+     *
+     * Pourquoi : sur l'appareil, ces coûts étaient payés PAR LA PREMIÈRE
+     * COMPLÉTION (l'annuaire restait paresseux « premier usage complétion »)
+     * sous [verrouCompilation] — la diagnose et les requêtes voisines
+     * s'empilaient derrière, la borne client de 5 s explosait : la fenêtre
+     * de figage des logs codeide-logs-2026-11-01. Joué par le
+     * réchauffeur du double-tampon (fil de reconstruction — l'ancien
+     * moteur sert pendant la chauffe) et à la première pose d'un moteur.
+     *
+     * Tolérante : toute défaillance est avalée (la chauffe est une
+     * OPTIMISATION, jamais une condition — les chemins paresseux restent
+     * la source de vérité).
+     */
+    public fun prechaufferClasspath() {
+        runCatching {
+            verrouCompilation.withLock {
+                // 1. La plateforme (ouvre l'environnement de noms).
+                isLikelyUsableInterne()
+                // 2. L'annuaire : phases 1-2 (scan des tables centrales)
+                //    puis phase 3 (index par nom) — les DEUX surfaces que
+                //    la complétion touche à froid.
+                val annuaire = environnementNoms().annuaire
+                annuaire.typesDirects("java.lang")
+                annuaire.typesParPrefixe("j", 1)
+                // 3. Une sonde ecj chaude (LookupEnvironment vivant) — le
+                //    même format que la sonde de binding de la complétion.
+                pontEcj().resoudre(
+                    unite("/__prechauffe__.java", "class __Prechauffe__ { void m() { java.lang.String x = null; } }"),
+                    genererCode = false,
+                )
+            }
+        }
+    }
+
     /** Niveau Java EFFECTIF du moteur (hérité ou posé par module). */
     public fun complianceDemandee(): String = compliance
 

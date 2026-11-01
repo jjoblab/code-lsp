@@ -207,12 +207,20 @@ public class EnvironnementCompilation(
     /**
      * Réchauffeur du moteur neuf (V-F1 — injectable pour les bancs) :
      * joué sur le fil de reconstruction AVANT le swap, il paie le coût
-     * froid de l'environnement de noms PENDANT QUE L'ANCIEN SERT. Défaut :
-     * ouvrir l'environnement + sonder la plateforme (jrt/jars — le reste
-     * de l'annuaire reste paresseux, premier usage complétion).
+     * froid de l'environnement de noms PENDANT QUE L'ANCIEN SERT.
+     *
+     * V-A3 (retours appareil du 01/11/2026) : le défaut pré-chauffe
+     * désormais TOUT le chemin de complétion ([MoteurJava.prechaufferClasspath]
+     * — plateforme + ANNUAIRE phases 1-3 + sonde ecj chaude) : avant, « le
+     * reste de l'annuaire rest[ait] paresseux, premier usage complétion » —
+     * sur l'appareil ce premier usage explosait la borne client de 5 s et
+     * tenait le verrou de compilation du moteur derrière le scan des
+     * tables centrales du android.jar (~40 000 entrées) : la fenêtre de
+     * figage des logs codeide-logs-2026-11-01 (complétions et diagnostics
+     * en timeout en cascade après la 2e invocation à la même ancre).
      */
     internal var rechauffeur: (MoteurJava) -> Unit = { moteur ->
-        runCatching { moteur.isLikelyUsable() }
+        runCatching { moteur.prechaufferClasspath() }
     }
 
     /**
@@ -249,16 +257,64 @@ public class EnvironnementCompilation(
      * @param module la clé du module (`:app`) ; null ou vide = contexte défaut.
      * @return le moteur du module.
      */
-    public fun moteur(module: String? = null): MoteurJava = verrou.withLock {
+    public fun moteur(module: String? = null): MoteurJava {
         val cle = normaliser(module)
-        moteurs[cle]?.let { return it }
-        val contexte = contextes[cle] ?: ContexteModule(emptyList(), emptyList(), null, null)
-        val moteur = creerMoteur(contexte)
-        moteurs[cle] = moteur
-        if (cle != "" && cle !in ordreModules) {
-            ordreModules.add(cle)
+        verrou.withLock { moteurs[cle]?.let { return it } }
+        // V-A3 (retours appareil 01/11/2026) : la construction se joue
+        // HORS DU VERROU — sur l'appareil, un premier moteur (classpath
+        // réel : android.jar + jars du modèle) mettait SECONDES à naître
+        // et TENAIT le verrou GLOBAL : les requêtes des AUTRES modules
+        // (et la diagnose) s'empilaient derrière — la fenêtre de figage
+        // des logs. Double contrôle : on relit sous verrou et on ne pose
+        // que si absent (une course perdante se dispose honnêtement).
+        val contexte = verrou.withLock { contextes[cle] } ?: ContexteModule(emptyList(), emptyList(), null, null)
+        val nouveau = creerMoteur(contexte)
+        val pose = verrou.withLock {
+            val existant = moteurs[cle]
+            if (existant == null) {
+                moteurs[cle] = nouveau
+                if (cle != "" && cle !in ordreModules) {
+                    ordreModules.add(cle)
+                }
+                nouveau
+            } else {
+                existant
+            }
         }
-        return moteur
+        if (pose !== nouveau) {
+            runCatching { nouveau.dispose() } // course perdante : honnêteté
+        } else {
+            prechaufferAsynchronement(nouveau) // V-A3 : la chauffe part aussitôt
+        }
+        return pose
+    }
+
+    /**
+     * Soumet la pré-chauffe asynchrone d'un moteur fraîchement posé
+     * (V-A3) : le PREMIER moteur d'un module ne passe pas par le fil de
+     * reconstruction du double-tampon (pas de sortant) — sans ceci, la
+     * première complétion paierait seule les coûts froids (annuaire +
+     * LookupEnvironment) sur le fil de requête.
+     *
+     * Repli documenté (V-F1) : quand le double-tampon est désactivé, la
+     * pré-chauffe ne part PAS — le repli garantit « aucun travail de
+     * fond » (dispose immédiat, aucune reconstruction en vol : le
+     * contrat éprouvé par DoubleTamponTest.repliDocumente…).
+     */
+    private fun prechaufferAsynchronement(moteur: MoteurJava) {
+        if (doubleTamponForceDesactive ?: DOUBLE_TAMPON_DESACTIVE) return
+        reconstructionsEnCours.incrementAndGet()
+        try {
+            filReconstruction.execute {
+                try {
+                    runCatching { rechauffeur(moteur) }
+                } finally {
+                    reconstructionsEnCours.decrementAndGet()
+                }
+            }
+        } catch (_: Exception) {
+            reconstructionsEnCours.decrementAndGet() // file morte : honnête
+        }
     }
 
     /**
@@ -340,16 +396,29 @@ public class EnvironnementCompilation(
             null
         }
         val cle = normaliser(module)
-        return verrou.withLock {
-            val moteur = moteurs[cle] ?: run {
-                val contexte = contextes[cle] ?: ContexteModule(emptyList(), emptyList(), null, null)
-                val nouveau = creerMoteur(contexte)
+        // V-A3 : même correction que [moteur] — la construction paresseuse
+        // se joue HORS du verrou global (la fenêtre de figage appareil).
+        verrou.withLock {
+            moteurs[cle]?.let { return Prise(cle, it, generations[cle] ?: 0L) }
+        }
+        val contexte = verrou.withLock { contextes[cle] } ?: ContexteModule(emptyList(), emptyList(), null, null)
+        val nouveau = creerMoteur(contexte)
+        val moteur = verrou.withLock {
+            val existant = moteurs[cle]
+            if (existant == null) {
                 moteurs[cle] = nouveau
                 if (cle != "" && cle !in ordreModules) ordreModules.add(cle)
                 nouveau
+            } else {
+                existant
             }
-            Prise(cle, moteur, generations[cle] ?: 0L)
         }
+        if (moteur !== nouveau) {
+            runCatching { nouveau.dispose() } // course perdante : honnêteté
+        } else {
+            prechaufferAsynchronement(nouveau) // V-A3 : la chauffe part aussitôt
+        }
+        return Prise(cle, moteur, generations[cle] ?: 0L)
     }
 
     /**

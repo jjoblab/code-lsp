@@ -491,6 +491,15 @@ public class ServeurLangageJava(
         private val PROGRESSION_DESACTIVEE: Boolean =
             System.getProperty("jo.codeide.lsp.java.progression.disabled") == "true"
 
+        /**
+         * Seuil du chien de garde des requêtes lentes (V-A3) : 2 s par
+         * défaut, propriété `jo.codeide.lsp.java.lenteur.seuilms`
+         * (`0` le désactive, borne haute 60 s).
+         */
+        private val SEUIL_LENTEUR_MS: Long =
+            System.getProperty("jo.codeide.lsp.java.lenteur.seuilms")?.toLongOrNull()
+                ?.coerceIn(0L, 60_000L) ?: 2_000L
+
         /** Le nombre maximal de `report` par préchauffage (throttle du fil). */
         private const val NB_REPORTS_MAX: Int = 50
 
@@ -573,6 +582,39 @@ public class ServeurLangageJava(
 
     /** Le client branché (ou un client muet si le lanceur n'a pas connecté). */
     private fun clientOuRefus(): LanguageClient = client ?: ClientMuet
+
+    /**
+     * Le CHIEN DE GARDE des requêtes lentes (V-A3 — retours appareil du
+     * 01/11/2026) : chronomètre un calcul serveur et, au-delà du seuil
+     * (2 s par défaut, propriété `jo.codeide.lsp.java.lenteur.seuilms`,
+     * 0 = désactivé), publie UNE ligne `window/logMessage` (Warning) vers
+     * le client — cel-lsp la relaie dans le journal applicatif
+     * (« server/logMessage: … ») : le point de lenteur devient VISIBLE
+     * sur l'appareil, la prochaine passe ne nécessite plus de deviner.
+     *
+     * Jamais bloquant, jamais levé : l'observation ne change PAS le
+     * comportement du calcul observé.
+     */
+    private fun <T> guetterLenteur(operation: String, calcul: () -> T): T {
+        val seuil = SEUIL_LENTEUR_MS
+        if (seuil <= 0) return calcul()
+        val debut = System.nanoTime()
+        try {
+            return calcul()
+        } finally {
+            val ms = (System.nanoTime() - debut) / 1_000_000L
+            if (ms >= seuil) {
+                runCatching {
+                    clientOuRefus().logMessage(
+                        org.eclipse.lsp4j.MessageParams(
+                            org.eclipse.lsp4j.MessageType.Warning,
+                            "lspjava lenteur : $operation a pris $ms ms (seuil $seuil ms)",
+                        ),
+                    )
+                }
+            }
+        }
+    }
 
     /**
      * Le moteur DE LA REQUÊTE : le ROUTAGE fichier → module de
@@ -793,9 +835,11 @@ public class ServeurLangageJava(
         val document = documentDe(uri)
         // Convention I9 : hover → null quand il n'y a rien (le client a
         // un repli) — jamais une structure vide.
-        val survol = document?.let { (chemin, texte) ->
-            avecMoteurFrais(chemin) { moteur ->
-                moteur?.survolRiche(chemin, texte, offsetDe(texte, params.position))
+        val survol = guetterLenteur("hover") {
+            document?.let { (chemin, texte) ->
+                avecMoteurFrais(chemin) { moteur ->
+                    moteur?.survolRiche(chemin, texte, offsetDe(texte, params.position))
+                }
             }
         }
         return CompletableFuture.completedFuture(survol?.let(::survolLsp))
@@ -816,10 +860,12 @@ public class ServeurLangageJava(
         garde<Either<List<CompletionItem>, CompletionList>>()?.let { return it }
         val uri = params.textDocument.uri
         val document = documentDe(uri)
-        val reponse = document?.let { (chemin, texte) ->
-            etats.calculerFraiche(uri) { instantane ->
-                avecMoteurFrais(chemin) { moteur ->
-                    moteur?.completer(chemin, instantane.texte, offsetDe(instantane.texte, params.position))
+        val reponse = guetterLenteur("completion") {
+            document?.let { (chemin, texte) ->
+                etats.calculerFraiche(uri) { instantane ->
+                    avecMoteurFrais(chemin) { moteur ->
+                        moteur?.completer(chemin, instantane.texte, offsetDe(instantane.texte, params.position))
+                    }
                 }
             }
         }
@@ -941,9 +987,11 @@ public class ServeurLangageJava(
         garde<SignatureHelp>()?.let { return it }
         val uri = params.textDocument.uri
         val document = documentDe(uri)
-        val aide = document?.let { (chemin, texte) ->
-            avecMoteurFrais(chemin) { moteur ->
-                moteur?.signatureHelp(chemin, texte, offsetDe(texte, params.position))
+        val aide = guetterLenteur("signatureHelp") {
+            document?.let { (chemin, texte) ->
+                avecMoteurFrais(chemin) { moteur ->
+                    moteur?.signatureHelp(chemin, texte, offsetDe(texte, params.position))
+                }
             }
         }
         val reponse = SignatureHelp()
@@ -1064,8 +1112,10 @@ public class ServeurLangageJava(
         val uri = params.textDocument.uri
         val document = documentDe(uri) ?: return CompletableFuture.completedFuture(emptyList())
         val (chemin, texte) = document
-        val surbrillances = avecMoteurFrais(chemin) { moteur ->
-            moteur?.surbrillances(chemin, texte, offsetDe(texte, params.position))
+        val surbrillances = guetterLenteur("documentHighlight") {
+            avecMoteurFrais(chemin) { moteur ->
+                moteur?.surbrillances(chemin, texte, offsetDe(texte, params.position))
+            }
         } ?: return CompletableFuture.completedFuture(emptyList())
         val repere = ConvertisseurLsp.repere(texte)
         return CompletableFuture.completedFuture(surbrillances.map { ConvertisseurLsp.surlignage(it, repere) })
@@ -1181,8 +1231,9 @@ public class ServeurLangageJava(
         val uri = params.textDocument.uri
         val document = documentDe(uri) ?: return CompletableFuture.completedFuture(emptyList())
         val (chemin, texte) = document
-        val indices = avecMoteurFrais(chemin) { moteur -> moteur?.inlayHints(chemin, texte) }
-            ?: return CompletableFuture.completedFuture(emptyList())
+        val indices = guetterLenteur("inlayHint") {
+            avecMoteurFrais(chemin) { moteur -> moteur?.inlayHints(chemin, texte) }
+        } ?: return CompletableFuture.completedFuture(emptyList())
         val repere = ConvertisseurLsp.repere(texte)
         return CompletableFuture.completedFuture(
             indices.map { indice ->

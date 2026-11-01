@@ -326,6 +326,32 @@ plugins {
 // p50 4,9 ms, hover p50 0,11 ms, tas au repos 35 Mo) ; latence liste
 // p95 mesurée 410 µs (< 30 ms). §7.27, ADR 0032, PV
 // mesures/2026-11-01-complement-catalogue.txt à jour.
+// 1.12.1 : ROBUSTESSE DES RETOURS APPAREIL (V-A3 — logs CodeIDE
+// 0.205.0 du 01/11/2026, codeide-logs-2026-11-01-144401.zip : serveur
+// figé en pleine frappe — 38 complétions, 47 surbrillances et 29 inlay
+// en timeout, plus AUCUN publishDiagnostics après une 2e invocation à
+// la même ancre). Cause racine : les coûts FROIDS du chemin de
+// complétion (annuaire du classpath — android.jar ~40 000 entrées — et
+// LookupEnvironment ecj) payés PAR LA PREMIÈRE REQUÊTE qui les touche,
+// SOUS le verrou de compilation : la diagnose s'empile derrière, la
+// borne client de 5 s explose. Trois garde-fous : (1) PRÉ-CHAUFFE du
+// classpath (MoteurJava.prechaufferClasspath — plateforme + annuaire
+// phases 1-3 + sonde ecj) jouée par le réchauffeur du double-tampon ET
+// à la première pose asynchrone de chaque moteur, construction
+// paresseuse HORS du verrou global (les autres modules ne se bloquent
+// plus) ; (2) BUDGET D'HORLOGE de complétion (3 s, sous la borne
+// client ; expiration = PARTIEL honnête déjà collecté ; propriété
+// jo.codeide.lsp.java.completion.budgetms) ; (3) CHIEN DE GARDE des
+// requêtes lentes (window/logMessage Warning relayé par cel-lsp dans
+// le journal applicatif — le point de lenteur devient VISIBLE sur
+// l'appareil ; propriété jo.codeide.lsp.java.lenteur.seuilms, défaut
+// 2 s). Consigné au passage : les faux positifs « I/O cannot be
+// resolved » des mêmes logs viennent du FICHIER utilisateur (copie de
+// la signature générique héritée avec ses variables de type — javac
+// dirait pareil ; banc ReproGeneriquesHeritesTest). Validation : 783
+// tests java / 0 échec dont 4 repros appareil (rafale + invocations ×3
+// à la même ancre + diagnose concurrente + jar dupliqué + android.jar
+// réel 43 Mo — invocations 1-3 à 92/118/67 ms), §7.28 USAGE à jour.
 allprojects {
-    version = "1.12.0"
+    version = "1.12.1"
 }

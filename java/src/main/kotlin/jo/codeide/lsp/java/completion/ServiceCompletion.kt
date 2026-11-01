@@ -113,6 +113,15 @@ public class ServiceCompletion(
     /**
      * Complète au caret.
      *
+     * V-A3 (retours appareil du 01/11/2026) : la complétion vit sous un
+     * BUDGET D'HORLOGE (3 s par défaut, propriété
+     * `jo.codeide.lsp.java.completion.budgetms`) — à l'expiration, les
+     * boucles d'élargissement (imports statiques, projet) COUPENT et
+     * livrent le PARTIEL honnête déjà collecté : sur l'appareil, un
+     * classpath froid (android.jar ~40 000 entrées) faisait dépasser la
+     * borne client de 5 s et figeait la file derrière le verrou de
+     * compilation — un partiel vaut TOUJOURS mieux qu'un timeout.
+     *
      * @param chemin chemin logique du document.
      * @param source le texte Java complet (null/vide : liste vide).
      * @param offset la position du caret.
@@ -120,6 +129,7 @@ public class ServiceCompletion(
      */
     public fun completer(chemin: String, source: String?, offset: Int): ReponseCompletion {
         if (source.isNullOrEmpty()) return ReponseCompletion(emptyList(), 0, GenreContexte.INCONNU)
+        poserBudget()
         return try {
             val contexte = analyserContexte(chemin, source, offset)
             // V-C3 (fiche C-08 D4) : compteur d'invocation par (document,
@@ -161,6 +171,8 @@ public class ServiceCompletion(
             // Aucune autre levée ne franchit la frontière du service (fiche
             // 035) : un échec interne rend une liste vide honnête.
             ReponseCompletion(emptyList(), 0, GenreContexte.INCONNU)
+        } finally {
+            leverBudget()
         }
     }
 
@@ -211,6 +223,29 @@ public class ServiceCompletion(
      */
     private fun pointDeControle() {
         if (estCoupe()) throw EpoqueRetiree()
+    }
+
+    /**
+     * L'échéance du budget de complétion du FIL COURANT (V-A3) : les
+     * complétions de fichiers DISTINCTS peuvent courir en parallèle sur
+     * le petit pool (V-F2) — ThreadLocal, jamais un champ partagé.
+     */
+    private val echeanceBudget = ThreadLocal<Long?>()
+
+    /** Pose le budget d'horloge de CETTE complétion (appelée à l'entrée). */
+    private fun poserBudget() {
+        echeanceBudget.set(System.nanoTime() + BUDGET_COMPLETION_MS * 1_000_000L)
+    }
+
+    /** Lève le budget du fil (appelée en finally — jamais de fuite). */
+    private fun leverBudget() {
+        echeanceBudget.remove()
+    }
+
+    /** Vrai ssi le budget de complétion du fil courant est ÉPUISÉ (V-A3). */
+    private fun budgetDepasse(): Boolean {
+        val echeance = echeanceBudget.get() ?: return false
+        return System.nanoTime() > echeance
     }
 
     /** Analyse du contexte : sonde à chaud d'abord, classification marquée ensuite. */
@@ -660,12 +695,15 @@ public class ServiceCompletion(
         // V-C3 (fiche C-08 D2) : SECOND appel — membres STATIQUES importables
         // des types de l'unité (imports explicites, paquet courant, panneau
         // java.lang), avec édition d'import statique (insertion compilable).
-        if (invocation >= 2) {
+        // V-A3 : sous budget — à l'expiration, le PARTIEL déjà collecté est
+        // livré (les sondes de binding sont le chemin froid de l'appareil).
+        if (invocation >= 2 && !budgetDepasse()) {
             items.addAll(importsStatiques(contexte))
         }
         // V-C3 (fiche C-08 D3) : TROISIÈME appel — types du PROJET entier via
         // l'index partagé, import automatique (sans index : honnête, rien).
-        if (invocation >= 3) {
+        // V-A3 : sous budget, même clause de partiel honnête.
+        if (invocation >= 3 && !budgetDepasse()) {
             items.addAll(typesDuProjet(contexte))
         }
         return items
@@ -996,6 +1034,7 @@ public class ServiceCompletion(
         }
         for (fqcn in porteurs.distinct().take(2 * MAX_TYPES_STATIQUES)) {
             pointDeControle()
+            if (budgetDepasse()) break // V-A3 : partiel honnête, jamais un figage
             for (brut in statiquesBruts(fqcn)) {
                 items.add(
                     brut.item.copy(
@@ -1293,6 +1332,18 @@ public class ServiceCompletion(
     private companion object {
         /** Borne de la traversée du classpath par préfixe (le plafond d'affichage est en aval). */
         private const val LIMITE_COLLECTE: Int = 800
+
+        /**
+         * Budget d'horloge d'une complétion en MILLISECONDES (V-A3 — retours
+         * appareil du 01/11/2026) : 3 s par défaut, SOUS la borne client de
+         * 5 s — à l'expiration les boucles d'élargissement coupent et le
+         * PARTIEL collecté est livré. Propriété
+         * `jo.codeide.lsp.java.completion.budgetms` (bornée 200..60 000) ;
+         * `0` ne sert rien : la borne basse est 200 ms.
+         */
+        private val BUDGET_COMPLETION_MS: Long =
+            System.getProperty("jo.codeide.lsp.java.completion.budgetms")?.toLongOrNull()
+                ?.coerceIn(200L, 60_000L) ?: 3_000L
 
         /** Ancres d'invocation retenues (fiche C-08 D4 — mémoire bornée). */
         private const val MAX_ANCRES_INVOCATION: Int = 64

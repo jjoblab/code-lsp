@@ -1640,6 +1640,53 @@ oracles de motifs ; tampon XML en fait de foi ; client espion — aucun
 diagnostic Java publié ; href), cf.
 `docs/etudes/niveau-android-studio/mesures/2026-11-01-complement-catalogue.txt`.
 
+### 7.28 V-A3 — robustesse des retours appareil : pré-chauffe du classpath, budget de complétion, chien de garde (v1.12.1)
+
+Les retours appareil du 01/11/2026 (CodeIDE 0.205.0, logs
+`codeide-logs-2026-11-01-144401.zip`) montraient un serveur FIGÉ en
+pleine frappe : complétions et diagnostics en timeout en cascade
+pendant des minutes, après une seconde invocation de complétion à la
+même ancre. Cause racine : les coûts FROIDS du chemin de complétion
+(annuaire du classpath — le `android.jar` seul porte ~40 000 entrées —
+et LookupEnvironment ecj) étaient payés PAR LA PREMIÈRE REQUÊTE qui
+les touche, sous le verrou de compilation : la diagnose et les
+requêtes voisines s'empilaient derrière, la borne client de 5 s
+explosait. Trois garde-fous posés :
+
+1. **Pré-chauffe du classpath** (`MoteurJava.prechaufferClasspath()`) :
+   plateforme + annuaire (phases 1-3) + une sonde ecj chaude. Jouée
+   par le réchauffeur du double-tampon (fil de reconstruction, l'ancien
+   moteur sert pendant la chauffe) ET à la première pose de chaque
+   moteur (asynchrone) — plus JAMAIS sur le fil de requête. La
+   construction paresseuse d'un moteur se joue désormais HORS du
+   verrou global de l'environnement (les requêtes des autres modules
+   ne se bloquent plus derrière). En repli documenté
+   (`doubletampon.disabled=true`), la pré-chauffe ne part PAS (le
+   repli garantit « aucun travail de fond »).
+2. **Budget d'horloge de complétion** : 3 s par défaut, SOUS la borne
+   client de 5 s. À l'expiration, les boucles d'élargissement
+   (imports statiques de la 2e invocation, types du projet de la 3e)
+   COUPENT et livrent le PARTIEL honnête déjà collecté. Propriété
+   `jo.codeide.lsp.java.completion.budgetms` (bornée 200..60 000 ;
+   `0` ramène à 200 ms — le budget ne se désactive pas).
+3. **Chien de garde des requêtes lentes** : toute requête serveur
+   (complétion, surbrillance, inlay, survol, signature, diagnose) qui
+   dépasse 2 s publie une ligne `window/logMessage` (Warning) — cel-lsp
+   la relaie dans le journal applicatif de CodeIDE
+   (« server/logMessage: lspjava lenteur : … ») : le point de lenteur
+   devient VISIBLE sur l'appareil, sans deviner. Propriété
+   `jo.codeide.lsp.java.lenteur.seuilms` (0 = désactivé).
+
+Latence sonde mesurée (banc JVM, android.jar réel 43 Mo) :
+invocations 1-3 à 92/118/67 ms — la marge sous la borne vient du
+budget (3 s) et de la pré-chauffe. Validation : 4 tests de
+reproduction appareil (rafale didChange + complétions ×3 à la même
+ancre + diagnose concurrente + jar dupliqué ; génériques hérités
+propres — les faux positifs « I/O cannot be resolved » des logs
+viennent du FICHIER utilisateur qui copie la signature générique avec
+ses variables de type, javac dirait pareil), cf.
+`java/src/test/kotlin/jo/codeide/lsp/java/Repro*20261101*`.
+
 ## 8. Capability maison `x-codeide.completionRanking`
 
 Le protocole riche de classement (ADR 0012/0015, design intégré N8) :
