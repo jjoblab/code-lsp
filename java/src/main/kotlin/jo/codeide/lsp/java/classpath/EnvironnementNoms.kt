@@ -160,8 +160,9 @@ public class EnvironnementNoms(
      */
     public fun trouverFqcn(fqcn: String): Localisation? {
         cachePresence.fichierPour(fqcn)?.let { return Localisation.Source(it) }
-        if (octetsSynthetiques(fqcn) != null) return Localisation.Synthetique
+        if (octetsSynthetiquesPrimants(fqcn) != null) return Localisation.Synthetique
         if (cacheLocalisation.jarPour(fqcn) != null) return Localisation.Jar
+        if (octetsSynthetiques(fqcn) != null) return Localisation.Synthetique
         if (accesJrt?.octets(fqcn) != null) return Localisation.Jrt
         if (StubsIntrinseques.estIntrinseque(fqcn)) return Localisation.Stub
         return null
@@ -221,13 +222,19 @@ public class EnvironnementNoms(
                 cachePresence.fichierPour(englobant)?.let { return reponseSource(it) }
             }
         }
-        // 2. Types synthétiques light (V-B — après les sources : la source
-        // générée réelle PRIME, anti-doublon ADR 0021 R3).
-        octetsSynthetiques(fqcn)?.let { octets ->
+        // 2. Types synthétiques light PRIMANT les jars (V-B — après les sources :
+        // la source générée réelle PRIME, anti-doublon ADR 0021 R3 ; R,
+        // BuildConfig, *Binding).
+        octetsSynthetiquesPrimants(fqcn)?.let { octets ->
             return reponseBinaire(fqcn, octets)
         }
         // 3. Jars (exact seulement — le chemin `$` retombe sans crash, fiche 024).
         cacheLocalisation.octetsPour(fqcn)?.let { octets ->
+            return reponseBinaire(fqcn, octets)
+        }
+        // 3bis. Types synthétiques CÉDANT aux jars (V-A2 — déclarations Kotlin
+        // lexicales : repli quand le montage n'a pas de sortie Kotlin compilée).
+        octetsSynthetiques(fqcn)?.let { octets ->
             return reponseBinaire(fqcn, octets)
         }
         // 4. Image jrt.
@@ -244,6 +251,20 @@ public class EnvironnementNoms(
     /** Les octets synthétiques d'un FQCN (premier fournisseur qui répond). */
     private fun octetsSynthetiques(fqcn: String): ByteArray? {
         for (fournisseur in synthetiques) {
+            val octets = fournisseur.octetsPour(fqcn) ?: continue
+            return octets
+        }
+        return null
+    }
+
+    /**
+     * Les octets synthétiques PRIMANT les jars (V-A2 — fournisseurs à
+     * `primeSurJars` : R/BuildConfig/Binding ; les déclarations Kotlin
+     * lexicales passent APRÈS les jars).
+     */
+    private fun octetsSynthetiquesPrimants(fqcn: String): ByteArray? {
+        for (fournisseur in synthetiques) {
+            if (!fournisseur.primeSurJars) continue
             val octets = fournisseur.octetsPour(fqcn) ?: continue
             return octets
         }

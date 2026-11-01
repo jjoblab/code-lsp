@@ -39,6 +39,14 @@ public class DeclarationsKotlin(
     private val racines: List<Path>,
 ) : TypesSynthetiques {
 
+    /**
+     * CÈDE aux jars (V-A2, G-005) : l'API lexicale est un REPLI pour les
+     * projets Kotlin SANS sortie compilée au classpath — quand le montage
+     * fournit les classes `built_in_kotlinc` (le cas javac), la vraie
+     * classe (membres compris) doit primer la light sans corps.
+     */
+    override val primeSurJars: Boolean get() = false
+
     /** Une déclaration exposée (type, fonction ou propriété). */
     private class Declaration(
         val paquet: String,

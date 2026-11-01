@@ -49,6 +49,30 @@
   le banc P1–P8 a donc bien été **exécuté en local** (23 tests / 0 échec / 1 gate
   corpus ignorée) — les mesures sont consignées dans l'audit §1.12. La gate corpus
   réel (P3/P4/P7) reste à jouer en CI après préparation des classpaths.
+  **Suite V-A2 (01/11)** : le 429 a tenu TOUTE la journée sur l'IP du bac à sable
+  (même `curl` racine = 429). Contournement LOCAL (jamais committé) : miroir
+  Aliyun injecté en tête des dépôts par `~/.gradle/init.d` (les dépôts d'origine
+  restent en repli ; `FAIL_ON_PROJECT_REPOS` respecté via injection settings).
+  Les builds corpus ont été rejoués sur cache jusqu'à résolution complète — le
+  préparateur REFUSE un manifeste incomplet (replis ARTIFACT-* = échec franc).
+  À provisioning nightly CI : le runner GitHub n'est pas concerné (IP différente),
+  mais la lecture AL4 demeure pour tout poste derrière la même IP.
+
+- **AL11 — Bac à sable recyclé EN COURS de vague V-A2 (01/11)** : perte du WIP
+  non commité, du corpus, du SDK et des caches Gradle (l'historique git était
+  sain sur le distant — récupéré par reset). Tout a été reconstruit ; le
+  transcript `mesures/2026-11-01-va2-corpus-reel.txt` documente l'épisode.
+  Leçon : les livrables intermédiaires d'une vague longue (scripts, tests)
+  mériteraient un commit WIP sur branche dédiée — à arbitrer avec la règle
+  « push gate = livrable » du dépôt.
+
+- **AL12 — Quirk ecj : supertype non résolu rapporté « final »** : sur
+  `class X extends Inconnu` où `Inconnu` n'existe pas dans l'environnement,
+  ecj peut émettre « The type X cannot subclass the **final** class Inconnu »
+  (vérifié corpus anysoftkeyboard : la base Kotlin réelle est `open`, le
+  message oriente à tort vers un problème de finalité). Piège de diagnostic
+  documenté dans le rapport 08 §3 — résolu par le montage (classes Kotlin
+  compilées), le quirk ecj reste à connaître pour tout futur cas non monté.
 - **AL5 — `Thunderbird-android` éliminé du corpus** : le projet (ex-K-9 Mail) est
   passé à 82,8 % Kotlin au HEAD épinglé — l'hypothèse du prompt (K-9 = bon corpus
   Java) est périmée ; remplacé par gh4a/AnySoftKeyboard. Les candidats GPL éliminés

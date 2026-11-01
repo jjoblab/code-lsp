@@ -1,0 +1,173 @@
+PV DE MESURE — V-A2 : CORPUS RÉEL (manifestes de classpath, gates
+P3/P4/P7 corpus, divergences ecj↔javac) — 01/11/2026
+====================================================================
+
+R5 : AUCUNE valeur fabriquée. Toutes les mesures ci-dessous proviennent
+des bancs exécutés ce jour (JVM du bac à sable — JDK 21.0.13 Temurin,
+tests :java:test --rerun-tasks, tas 2048m conditionné à CORPUS_ANDROID).
+Le corpus est le corpus des 5 projets épinglés (LISEZMOI §1), cloné ce
+jour aux commits épinglés, compilé par les Gradle ÉPINGLÉS de chaque
+projet (compile<Variante>JavaWithJavac exécuté : R, BuildConfig,
+binding, safeargs et classes Kotlin built_in_kotlinc présents sur
+disque), classpath exporté par scripts/manifeste-corpus.init.gradle
+(vue d'artefats android-classes-jar = la vue EXACTE de javac, jetifier
+compris) et assemblé par scripts/preparer-manifestes-corpus.sh.
+
+--- Manifestes produits (jamais committés, R5) ------------------------
+
+  projet            racines  générées  jars   variante              plateforme
+  opentracks              1         2    64  irreproducibleDebug   android-36
+  markor                  2         1   109  flavorDefaultDebug    android-35
+  gh4a                    1         1    85  debug (jetifier=true) android-36
+  anysoftkeyboard        25         4   117  debug (multi-modules) android-37.0
+  basicsample             1         4    57  debug                 android-33
+
+Détail du montage (le LISEZMOI §2 documente le format) : racines
+sources des modules app + dépendances locales ; racines GÉNÉRÉES au
+PARENT DU PAQUET (buildConfig/viewBinding/safeargs/ap_generated_
+sources) ; classpath = android.jar + vue android-classes-jar des
+artefacts externes (AAR extraits, JETIFIÉS si enableJetifier) + R.jar
+d'AGP par module + classes Kotlin built_in_kotlinc zippées par module.
+
+--- P1 — équivalence rapide/complet sur corpus réel (G-002) -----------
+
+  42 mesures (10 fichiers du noyau dur par projet, édition confinée
+  dans le premier corps de membre), 0 VIOLATION. L'empreinte du
+  chemin RAPIDE (mémo + report des corps masqués) est IDENTIQUE au
+  diagnose complet re-joué par un témoin persistant, sur les 5
+  projets. La divergence H6 pressentie par l'audit N'EST PAS
+  confirmée sur code réel : G-002 (volet équivalence) est PROUVÉ
+  au niveau de la gate corpus.
+
+--- P3 — faux positifs sur code qui compile (G-005) -------------------
+
+  noyau dur (code écrit à la main — compile avec javac) :
+    opentracks       120 fichiers  16 646 lignes   0 FP
+    markor           120 fichiers  36 547 lignes   2 FP  (0,055 /1 000)
+    gh4a             120 fichiers  23 010 lignes   4 FP  (0,174 /1 000)
+    anysoftkeyboard  120 fichiers  27 358 lignes   0 FP
+    basicsample       23 fichiers   1 490 lignes   0 FP
+  sources GÉNÉRÉES (R, BuildConfig, binding, Room, safeargs) :
+    66 fichiers  6 649 lignes  0 FP (les 5 projets)
+
+  TOTAL : 6 FP sur 111 700 lignes = 0,054 FP/1 000 lignes —
+  SOUS le seuil V-A de 0,5/1 000. Le « 0 FP sur le noyau dur »
+  n'est PAS tenu pour 2 projets (markor, gh4a) : les 6 FP restants
+  sont des divergences ecj↔javac GÉNUINES (rapport ci-dessous).
+
+  Les 6 FP, par cause racine :
+   1. markor/MarkorDialogFactory ×2 — « The operator += is undefined
+      for the argument type(s) CharSequence, String » (ecj 536871072).
+      javac ACCEPTE `charSequence += string` (JLS 15.26.2 : l'affectation
+      composée insère un cast implicite vers String puis re-vers le type
+      déclaré) ; ecj 3.40 la REFUSE. Divergence RÉELLE moteur/javac,
+      non un défaut de montage — à arbitrer (quirk documenté ou
+      post-traitement du diagnostic).
+   2. gh4a/EventViewHolder ×4 — « The Java feature 'Pattern Matching in
+      Switch' is only available with source level 21 and above » (ecj
+      4195411). Le moteur diagnose en compliance 17 (défaut), le projet
+      compile en 21. Divergence de CONFIGURATION : le manifeste ne
+      porte pas la compliance du projet — extension du format
+      (sourceCompatibility) à arbitrer en G-002.
+
+  Chemin de la mesure (transparence) : la PREMIÈRE passe sur manifestes
+  incomplets comptait 4 916 FP — dont ~4 910 de MONTAGE, pas du moteur
+  (R.jar d'AGP absent : ~3 800 « R cannot be resolved » ; racines
+  générées au répertoire du fichier au lieu du parent du paquet :
+  51 « BuildConfig » + ~350 « *Binding » ; jetifier non appliqué :
+  3 « LoaderManager » ; classes Kotlin compilées absentes : 18). Le
+  préparateur de manifestes a été corrigé PAS À PAS sur ces causes
+  (chacune documentée dans le script) jusqu'au montage exhaustif
+  ci-dessus. Les valeurs retenues (6 FP) sont celles du montage final.
+
+--- P4 — rappel de vrais positifs par mutation (G-005) ----------------
+
+  109 mutants (12 fichiers du noyau dur par projet × 2 mutations
+  génériques déterministes : suppression du premier import ancrée sur
+  la première utilisation réelle, appel inexistant en tête du premier
+  corps de membre), moteur PERSISTANT par projet (régime chaud) :
+
+    anysoftkeyboard  17/18  (0,944)   markor        23/23  (1,000)
+    basicsample      20/20  (1,000)   opentracks    24/24  (1,000)
+    gh4a             24/24  (1,000)
+
+  RAPPEL GLOBAL : 108/109 = 0,991 — AU-DESSUS du seuil ADR 0030 (c)
+  de 0,95. L'unique faux négatif (anysoftkeyboard/AddOnsFactory,
+  mutant import-supprimé) est une limite d'ANCRE DE MESURE : l'erreur
+  ecj existe (« The method unmodifiableList(ArrayList<E>) is undefined
+  for the type AddOnsFactory<E> ») mais se pose sur le SÉLECTEUR, 13
+  caractères après le récepteur (`Collections.`) où l'ancre est posée
+  — la tolérance de recouvrement (+12) est dépassée d'UN caractère.
+  Le moteur DÉTECTE le mutant ; c'est l'harnais de mesure qui ne le
+  crédite pas (correction d'harnais à arbitrer, pas un défaut moteur).
+
+  Codes ecj observés sur les mutants attrapés : UndefinedType 16777218
+  (51), UndefinedMethod 67108964 (51), UnresolvedVariable 33554515 (5),
+  UndefinedName 570425394 (1), ArgumentMismatch 134217871 (2),
+  16777327 (1), 603979883 (1).
+
+--- P7 — rename sûr sur corpus réel (G-005) ---------------------------
+
+  28 cibles privées (8 premiers fichiers du noyau dur par projet,
+  contrôle préalable VIERGE partout — 0 fichier sauté), collecte
+  multi-fichiers + réécriture + re-diagnose par témoin :
+
+    anysoftkeyboard   2 sûrs   0 cassé    gh4a          7 sûrs   0 cassé
+    basicsample       5 sûrs   0 cassé    markor        7 sûrs   0 cassé
+    opentracks        7 sûrs   0 cassé
+
+  0 VIOLATION : aucun sur-renommage hors fichier déclarant (cibles
+  privées), aucun résultat non compilable. AVANT les correctifs de
+  cette vague, la même gate comptait 15 violations dont 1 renommage
+  cassé (`this.mDiskIO` perdu du renommage — cf. correctifs (B)).
+
+--- Correctifs LIVRÉS, découverts par la mesure (R5 : la mesure pilote)
+
+  (A) ORDRE DE REPLI — les déclarations Kotlin LEXICALES cèdent aux
+      jars (TypesSynthetiques.primeSurJars, DeclarationsKotlin=false ;
+      EnvironnementNoms : primants → jars → cédants → jrt → stubs).
+      Avant : la classe light sans membres primait les classes Kotlin
+      COMPILÉES du montage → 18 FP « méthode non définie » mesurés
+      sur anysoftkeyboard. Régression : DeclarationsKotlinTest
+      « la classe light kotlin cede aux jars du classpath ».
+  (B) RENOMMAGE — off-by-one plageJeton sur FieldReference (la limite
+      est EXCLUE, ecj pose sourceEnd INCLUS : la fenêtre amputait le
+      dernier caractère du jeton, `this.champ` était perdu → renommage
+      cassé). Régression : OccurrenceThisChampTest (2 tests).
+
+  Corrections de MONTAGE (script, jamais de vert silencieux — les
+  replis ARTIFACT-ERREUR/ABSENT refusent le manifeste) : R.jar,
+  racines générées au parent du paquet, vue android-classes-jar
+  (jetifier), classes Kotlin zippées, formes de nommage AGP des
+  générés (variante en un segment, flavor/buildType séparés, suffixe
+  camelCase safeargs), collage de lots par $() avalant les fins de
+  ligne, recherche de plateforme à décimale (android-37.0).
+
+--- Mode strict (état de sortie de vague) ------------------------------
+
+  BANC_COHERENCE_STRICT=true SANS corpus : VERT (les gates P1/P2/P5/
+  P6/P8 synthétiques tiennent). AVEC corpus : P3/P4 corpus échouent —
+  la baseline d'écart (6 FP + 1 FN d'ancre) n'est pas soldée : c'est
+  la matière des cartes G-002/G-005 (voir rapport de divergences et
+  matrice). Les gates corpus restent donc NON bloquantes en CI tant
+  que CORPUS_ANDROID n'y est pas provisionné (elles s'ignorent avec
+  raison affichée — jamais un vert silencieux).
+
+--- Environnement (transparence, ALERTES AL4/AL10) ---------------------
+
+  Bac à sable recyclé EN COURS de vague (perte du WIP non commité, du
+  corpus, du SDK et des caches — tout reconstruit ; l'historique git
+  était sain sur le distant). Maven Central a répondu 429 au client
+  Gradle toute la journée (AL4) : un MIROIR LOCAL Aliyun (jamais
+  committé, ~/.gradle/init.d) a servi les mêmes artefacts, les dépôts
+  d'origine restant en repli ; les builds du corpus ont été rejoués
+  sur cache jusqu'à résolution complète (le préparateur REFUSE un
+  manifeste incomplet). Licences SDK acceptées via cmdline-tools
+  officiel (sdkmanager --licenses) ; plateforme android-37.0 (à
+  décimale) installée par sdkmanager ; build-tools 30.0.3/35.0.0/
+  36.1.0 installés (zips officiels dl.google.com) ; marqueur NDK
+  minimal 29.0.14206865 (compilation Java seule, documenté).
+
+  Commande de rejouabilité :
+    CORPUS_ANDROID=bancs/corpus-android ./gradlew :java:test \
+      --tests 'jo.codeide.lsp.java.coherence.*' --rerun-tasks

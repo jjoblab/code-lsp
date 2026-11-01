@@ -1,7 +1,9 @@
 package jo.codeide.lsp.java.coherence
 
 import jo.codeide.lsp.java.MoteurJava
+import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.Test
+import java.nio.file.Files
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
@@ -148,5 +150,76 @@ class P1EquivalenceCheminsTest {
             differences.forEach { rapport.violer(it, "garde de repli hors-corps non tenue (fiche 014, G-002)") }
         }
         rapport.clore("édition hors corps (signature)")
+    }
+
+    /**
+     * Corpus réel (V-A2, ADR 0030 — la mesure fondatrice de G-002 :
+     * « équivalence rapide/complet non prouvée sur corpus réel ») : pour
+     * chaque fichier du noyau dur (borné), un diagnose COMPLET de référence
+     * puis UNE édition confinée dans le premier corps de membre (insertion
+     * d'une déclaration locale) — le moteur sous test suit son chemin RAPIDE
+     * (mémo + report des corps masqués), un témoin re-diagnostique la source
+     * éditée en complet : les empreintes doivent être IDENTIQUES. Le témoin
+     * est un moteur persistant par projet (le contenu édité n'a jamais été
+     * vu : son mémo ne peut pas servir d'état périmé).
+     */
+    @Test
+    fun `equivalence rapide complet sur corpus reel (gate CORPUS_ANDROID)`() {
+        val projets = SocleCoherence.projetsCorpus()
+        assumeTrue(
+            projets.isNotEmpty(),
+            "CORPUS_ANDROID/manifestes absents — corpus réel non téléchargé ou non préparé " +
+                "(scripts/telecharger-corpus-android.sh puis scripts/preparer-manifestes-corpus.sh) ; " +
+                "gate ignorée, jamais un vert silencieux",
+        )
+
+        val rapport = SocleCoherence.Rapport("P1", "équivalence rapide/complet sur corpus réel (édition confinée)")
+        for (projet in projets) {
+            val moteur = MoteurJava(racines = projet.toutesRacines, jars = projet.jars)
+            val temoin = MoteurJava(racines = projet.toutesRacines, jars = projet.jars)
+            var compares = 0
+            var nonMuables = 0
+            try {
+                for (fichier in projet.fichiersNoyau.take(10)) {
+                    val source = Files.readString(fichier)
+                    val insertion = SocleCoherence.insertionPremierCorps(source)
+                    if (insertion < 0) {
+                        nonMuables++
+                        continue
+                    }
+                    val chemin = fichier.toString()
+                    val edite = source.substring(0, insertion) + "int corpusP1Marqueur = 1;" + source.substring(insertion)
+
+                    // Tour 0 — complet de référence : moteur et témoin voient
+                    // la même chose sur la source vierge (précédent fiche 014).
+                    val d0SousTest = runCatching { moteur.diagnose(chemin, source) }.getOrDefault(emptyList())
+                    val d0Temoin = runCatching { temoin.diagnose(chemin, source) }.getOrDefault(emptyList())
+                    SocleCoherence.differences(d0SousTest, d0Temoin).forEach {
+                        rapport.violer(it, "deux diagnostics complets divergent sur la même source (déterminisme, G-002)")
+                    }
+
+                    // Tour 1 — le chemin RAPIDE (mémo + report) contre le complet.
+                    val sousTest = runCatching { moteur.diagnose(chemin, edite) }.getOrDefault(emptyList())
+                    val complet = runCatching { temoin.diagnose(chemin, edite) }.getOrDefault(emptyList())
+                    val differences = SocleCoherence.differences(sousTest, complet)
+                    if (differences.isEmpty()) {
+                        rapport.mesure()
+                    } else {
+                        differences.forEach {
+                            rapport.violer(
+                                "${projet.cle}/${fichier.fileName} : $it",
+                                "divergence rapide/complet sur code réel (H6 — report non re-validé ; G-002)",
+                            )
+                        }
+                    }
+                    compares++
+                }
+            } finally {
+                moteur.dispose()
+                temoin.dispose()
+            }
+            println("[P1] ${projet.cle} : $compares fichiers comparés, $nonMuables non muables (aucun corps de membre), ${rapport.nbViolations} violation(s) cumulée(s)")
+        }
+        rapport.clore("corpus réel (${projets.size} projets)")
     }
 }

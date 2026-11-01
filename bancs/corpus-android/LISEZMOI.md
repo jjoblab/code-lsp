@@ -28,26 +28,36 @@ de montage, pas du moteur). La préparation produit UN manifeste par projet :
 
 ```
 bancs/corpus-android/prepares/<projet>.manifeste
-racine:<chemin absolu d'une racine de sources>
-racine:<...>                      # une ligne par racine (main, debug, générés…)
-classpath:<chemin absolu d'un jar> # une ligne par entrée (android.jar, AAR, jars)
+racine:<chemin absolu d'une racine de sources écrites à la main>
+racine-generee:<chemin absolu du PARENT DU PAQUET des sources générées>
+classpath:<chemin absolu d'un jar (plateforme, artefact, R.jar, classes Kotlin)>
 ```
 
-**Procédure (CI ou poste avec SDK Android)** — la même que les gates `ANDROID_JAR`
-du dépôt (README §Construction) :
+**Procédure** — tout est outillé (V-A2, 01/11/2026) :
 
 1. `scripts/telecharger-corpus-android.sh` (sources épinglées).
-2. Pour chaque projet : exporter le classpath de compilation de la variante debug
-   via Gradle (`./gradlew :app:dependencies` ou tâche d'export maison) — en
-   extraire les jars et les racines de sources (y compris `build/generated/…`
-   après un build).
-3. Écrire le manifeste (chemins ABSOLUS).
-4. `CORPUS_ANDROID=bancs/corpus-android ./gradlew :java:test --tests 'jo.codeide.lsp.java.coherence.*'`.
+2. `ANDROID_HOME=<sdk> JAVA21_HOME=<jdk> [JAVA17_HOME=<jdk>] bash
+   scripts/preparer-manifestes-corpus.sh [projet…]` — pour chaque projet :
+   compile la variante mesurée avec le Gradle ÉPINGLÉ du projet
+   (`compile<Variante>JavaWithJavac` : génère R, BuildConfig, binding, safeargs,
+   Room ET les classes Kotlin `built_in_kotlinc`), exporte le classpath RÉELLEMENT
+   résolu par l'init script (`manifeste-corpus.init.gradle` : vue d'artefats
+   `android-classes-jar` — la vue EXACTE de javac, **jetifier** compris, AAR
+   extraits), ajoute les **R.jar** d'AGP par module, zippé les classes **Kotlin**
+   compilées par module, et écrit le manifeste (racines générées au PARENT DU
+   PAQUET). Un projet dont la résolution est incomplète (replis
+   `ARTIFACT-ERREUR`/`ARTIFACT-ABSENT`) ne produit PAS de manifeste : rejouer le
+   script reprend sur le cache Gradle (429 Maven Central : cf. ALERTES AL4).
+3. `CORPUS_ANDROID=bancs/corpus-android ./gradlew :java:test --tests 'jo.codeide.lsp.java.coherence.*'`
+   — le tas du JVM de test passe alors de 640 Mio à 2 048 Mio (conditionné à
+   `CORPUS_ANDROID`, `java/build.gradle.kts`).
 
 > **Note d'honnêteté (R5)** : le manifeste dépend du SDK/Gradle locaux ; il n'est
 > pas committé. Tant qu'il n'existe pas, la gate corpus s'ignore **avec la raison
 > affichée** (`assumeTrue`) — jamais un vert silencieux. La métrique FP/1 000 lignes
-> produite ensuite est la **baseline d'écart** de l'écart G-034 (ADR 0030).
+> produite ensuite est la **baseline d'écart** de l'écart G-034 (ADR 0030). Les
+> leçons de montage (R.jar, jetifier, classes Kotlin, parents de paquet) sont
+> consignées dans `docs/etudes/niveau-android-studio/08-rapport-divergences-ecj-javac.md` §3.
 
 ## 3. Ce que le corpus mesure
 

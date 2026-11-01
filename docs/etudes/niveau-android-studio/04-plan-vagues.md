@@ -101,11 +101,46 @@ complètent la couverture.
 > inter-passes, RECALAGE-2 ±×1,5 — le « 1,5 ms » du README N1 est un chiffre
 > d'une autre ère corpus/machine, l'arbre d'origine mesure déjà 4,95) ; tas
 > 17 → 17 Mo ; banc qualité signé **d8 1,000/1,000/1,000, p95 33,25 ms,
-> 0 saut** (baseline tenue). **Reste V-A2** :
-> préparation du corpus réel (manifestes de classpath des 5 projets — exige
-> SDK Android + builds Gradle, côté CI nightly), gates P3/P4/P7 corpus et
-> rapport de divergences ecj↔javac (ADR 0030) ; recalage de vélocité fin de
-> vague.
+> 0 saut** (baseline tenue).
+>
+> **V-A2 LIVRÉE le 01/11/2026 (corpus réel — PV
+> `mesures/2026-11-01-va2-corpus-reel.txt`, rapport
+> `08-rapport-divergences-ecj-javac.md`, ADR 0030 mis à jour, ADR 0022
+> amendé)** :
+> - **Préparation outillée et rejouable** : `scripts/preparer-manifestes-
+>   corpus.sh` + `scripts/manifeste-corpus.init.gradle` (vue d'artefats
+>   `android-classes-jar` = la vue EXACTE de javac — jetifier compris ;
+>   R.jar d'AGP par module ; classes Kotlin `built_in_kotlinc` zippées ;
+>   racines générées au PARENT DU PAQUET ; replis ARTIFACT-* = refus franc,
+>   jamais de vert silencieux). 5 manifestes produits : 30 racines, 12
+>   générées, 432 jars (opentracks 1+2+64, markor 2+1+109, gh4a 1+1+85,
+>   anysoftkeyboard 25+4+117, basicsample 1+4+57).
+> - **P1 équivalence rapide/complet sur corpus réel : 0 violation / 42
+>   mesures** (G-002, volet équivalence — PROUVÉ).
+> - **P3 : 6 FP sur 111 700 lignes = 0,054/1 000** (seuil < 0,5 TENU ;
+>   opentracks/anysoftkeyboard/basicsample à **0 FP**, markor 0,055,
+>   gh4a 0,174) — les 6 restants sont 2 divergences GENUINES ecj↔javac :
+>   D-01 `CharSequence += String` (ecj refuse, javac accepte — JLS 15.26.2)
+>   et D-02 pattern-matching-switch (compliance projet 21 vs défaut 17 —
+>   le manifeste ne porte pas la compliance). Sources générées : 0 FP.
+> - **P4 : rappel 108/109 = 0,991** (seuil 0,95 TENU ; l'unique FN est une
+>   limite d'ANCRE de l'harnais — l'erreur existe sur le sélecteur, 13
+>   caractères après le récepteur).
+> - **P7 : 28 renommages sûrs / 0 cassé / 0 sur-renommage** (après les
+>   correctifs ci-dessous).
+> - **Correctifs moteur pilotés par la mesure** : ① ordre de repli — la
+>   light Kotlin CÈDE aux jars (18 FP mesurés avant ; ADR 0022 amendé,
+>   `primeSurJars`) ; ② off-by-one `plageJeton` sur FieldReference —
+>   `this.champ` perdu du renommage (1 rename cassé avant). Régressions :
+>   `DeclarationsKotlinTest`, `OccurrenceThisChampTest`.
+> - **Mode strict** : vert sans corpus ; AVEC corpus, P3/P4 échouent sur
+>   la baseline d'écart (6 FP + 1 FN d'ancre) — matière G-002/G-005, les
+>   gates corpus restent non bloquantes tant que la CI ne provisionne pas
+>   CORPUS_ANDROID (ignore propre avec raison).
+> - **Recalage de vélocité fin de vague** : V-A (2 sous-vagues) = 2 séances
+>   agent au lieu des 18–30 j-h estimés — la fourchette initiale du plan
+>   était calibrée sur un périmètre incluant l'incrémentalité structurelle,
+>   reportée ; les vagues suivantes gardent leurs estimations.
 
 - **Périmètre** : exécution du banc P1–P8 sur corpus → correction des faux positifs
   et incohérences : pipeline unifié + re-validation du report rapide (ADR 0025),

@@ -114,4 +114,111 @@ class DeclarationsKotlinTest {
         val declarations = moteur.declarationsKotlin()!!
         assertNotNull(declarations)
     }
+
+    /**
+     * Régression V-A2 (G-005, mesurée corpus anysoftkeyboard) : la classe
+     * light Kotlin CÈDE aux jars du classpath. Un projet mixte fournit les
+     * classes Kotlin COMPILÉES (javac compile contre built_in_kotlinc) —
+     * strictement plus riches que le scan lexical (qui ignore les membres
+     * companion) ; avant le correctif, la light sans membres primait le jar
+     * et fabriquait des faux positifs « méthode non définie » (18 FP sur
+     * 27 k lignes mesurées).
+     *
+     * Le montage : un `.kt` déclarant une classe AVEC companion (la light
+     * ne résout pas `Compteur.MSG_GO`) et un jar compilé portant la VRAIE
+     * classe (champ statique MSG_GO) — le Java doit résoudre par le JAR.
+     */
+    @Test
+    fun `la classe light kotlin cede aux jars du classpath`() {
+        val racine = Files.createTempDirectory("kotlin-vs-jar")
+        Files.createDirectories(racine.resolve("app"))
+        // Le source Kotlin : le scanner lexical en tire une light SANS le
+        // champ companion (règle conservatrice — signature certaine seule).
+        Files.writeString(
+            racine.resolve("app/Compteur.kt"),
+            """
+            package app
+
+            class Compteur {
+                companion object {
+                    @JvmField val MSG_GO = 1
+                }
+            }
+            """.trimIndent(),
+        )
+        // Le jar : la classe compilée (équivalent javac du .kt ci-dessus —
+        // compilée par le compilateur système du test, puis jarée).
+        val jar = racine.resolve("compteur-compile.jar")
+        compilerJar(
+            jar,
+            "app.Compteur",
+            """
+            package app;
+
+            public class Compteur {
+                public static final int MSG_GO = 1;
+            }
+            """.trimIndent(),
+        )
+
+        val consommateur = """
+            package app;
+
+            public class Consommateur {
+                int go() {
+                    return Compteur.MSG_GO;
+                }
+            }
+        """.trimIndent()
+
+        // AVEC le jar : la vraie classe (membres companion compris) doit
+        // primer la light — zéro erreur.
+        val avecJar = MoteurJava(racines = listOf(racine), jars = listOf(jar))
+        try {
+            val erreurs = avecJar.diagnose("/app/Consommateur.java", consommateur)
+                .filter { it.severite == Severite.ERREUR }
+            assertTrue(erreurs.isEmpty(), "le jar doit primer la light Kotlin — erreurs : ${erreurs.map { it.message }}")
+        } finally {
+            avecJar.dispose()
+        }
+
+        // SANS le jar : la light reste le repli (la classe RÉSOUT, le champ
+        // companion non — dégradation de rappel documentée, jamais de crash).
+        val sansJar = MoteurJava(racines = listOf(racine), jars = emptyList())
+        try {
+            val erreurs = sansJar.diagnose("/app/Consommateur.java", consommateur)
+                .filter { it.severite == Severite.ERREUR }
+            assertTrue(
+                erreurs.any { it.message.contains("MSG_GO") },
+                "sans jar, la light ne porte pas le companion — MSG_GO non résolu attendu (repli honnête), eu : ${erreurs.map { it.message }}",
+            )
+            assertTrue(
+                erreurs.none { it.message.contains("Compteur cannot") },
+                "la CLASSE Compteur reste résolue par la light (repli), eu : ${erreurs.map { it.message }}",
+            )
+        } finally {
+            sansJar.dispose()
+        }
+    }
+
+    /** Compile un source Java et le jarifie (compilateur système du test). */
+    private fun compilerJar(cible: Path, fqcn: String, sourceJava: String) {
+        val compilateur = javax.tools.ToolProvider.getSystemJavaCompiler()
+        org.junit.jupiter.api.Assumptions.assumeTrue(compilateur != null, "pas de javac système — test ignoré")
+        val dossierClasses = Files.createTempDirectory("classes-compteur")
+        val fichierSource = dossierClasses.resolve(fqcn.replace('.', '/') + ".java")
+        Files.createDirectories(fichierSource.parent)
+        Files.writeString(fichierSource, sourceJava)
+        val sortie = java.io.ByteArrayOutputStream()
+        val code = compilateur.run(
+            null, sortie, sortie,
+            "-d", dossierClasses.toString(), fichierSource.toString(),
+        )
+        assertTrue(code == 0, "compilation du jar de fixture échouée : $sortie")
+        java.util.jar.JarOutputStream(Files.newOutputStream(cible)).use { jos ->
+            val classe = dossierClasses.resolve(fqcn.replace('.', '/') + ".class")
+            jos.putNextEntry(java.util.jar.JarEntry(fqcn.replace('.', '/') + ".class"))
+            Files.copy(classe, jos)
+        }
+    }
 }

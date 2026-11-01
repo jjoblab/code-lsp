@@ -1,6 +1,9 @@
 package jo.codeide.lsp.java.coherence
 
+import jo.codeide.lsp.java.MoteurJava
+import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.Test
+import java.nio.file.Files
 import kotlin.test.assertTrue
 
 /**
@@ -12,8 +15,15 @@ import kotlin.test.assertTrue
  *
  * **Mode** : asserté dur sur « ≥ 1 ERREUR recouvrant l'ancre de mutation »
  * (comportements couverts par le cahier — fiches 007/013) ; les **codes ecj
- * effectivement émis** sont rapportés (baseline de rappel — la mesure fine du
- * rappel par famille se fait sur corpus réel en vague V-A).
+ * effectivement émis** sont rapportés (baseline de rappel).
+ *
+ * **Corpus réel (V-A2, ADR 0030)** : la même propriété est jouée sur le noyau
+ * dur du corpus avec DEUX mutations génériques déterministes — suppression du
+ * premier import (ancre = première UTILISATION réelle du nom simple, hors
+ * commentaires) et insertion d'un appel inexistant en tête du premier corps
+ * de membre. Moteur PERSISTANT par projet (régime chaud — le chemin réel de
+ * production ; le mémo par contenu ne peut pas servir un mutant jamais vu).
+ * Seuil ADR 0030 (c) : rappel ≥ 0,95 (escaladé en mode strict).
  */
 class P4VraisPositifsMutationTest {
 
@@ -117,5 +127,103 @@ class P4VraisPositifsMutationTest {
         }
         rapport.clore("${mutants().size} mutants")
         assertTrue(mutants().isNotEmpty(), "la liste de mutants ne doit pas être vide")
+    }
+
+    /**
+     * Le mutant corpus « import supprimé » : (source mutée, ancre) ou null si
+     * le fichier ne permet pas la mutation (aucun import, ou nom simple sans
+     * usage réel hors imports/commentaires).
+     */
+    private fun mutantImport(source: String): Pair<String, Int>? {
+        val regex = Regex("(?m)^import\\s+(?:static\\s+)?[\\w.]+\\.(\\w+)\\s*;\\s*$")
+        val correspondance = regex.find(source) ?: return null
+        val nomSimple = correspondance.groupValues[1]
+        val plage = correspondance.range
+        // Ancre de recherche : après la DERNIÈRE ligne d'import du fichier
+        // muté (les imports restants peuvent encore contenir le nom simple,
+        // p.ex. `import foo.List.Bar;`) — l'offset est recalculé APRÈS
+        // suppression de la ligne (décalage vers la gauche).
+        val finImportsOriginale = Regex("(?m)^import\\s.*$").findAll(source).maxOfOrNull { it.range.last }
+            ?: return null
+        val longueurSupprimee = plage.last + 1 - plage.first
+        val sourceMute = source.removeRange(plage.first, plage.last + 1)
+        val decalage = (finImportsOriginale - longueurSupprimee).coerceAtLeast(0)
+        val ancre = SocleCoherence.premiereOccurrenceHorsCommentaires(sourceMute, nomSimple, decalage)
+        if (ancre < 0) return null
+        return sourceMute to ancre
+    }
+
+    /**
+     * Le mutant corpus « appel inexistant » : insertion d'un appel à une
+     * méthode jamais déclarée en tête du premier corps de membre ;
+     * (source mutée, ancre) ou null si aucun corps trouvable.
+     */
+    private fun mutantAppelInexistant(source: String): Pair<String, Int>? {
+        val insertion = SocleCoherence.insertionPremierCorps(source)
+        if (insertion < 0) return null
+        val appel = "zzCorpusP4Muet();"
+        val sourceMute = source.substring(0, insertion) + appel + source.substring(insertion)
+        return sourceMute to insertion
+    }
+
+    @Test
+    fun `rappel de vrais positifs par mutation sur corpus reel (gate CORPUS_ANDROID)`() {
+        val projets = SocleCoherence.projetsCorpus()
+        assumeTrue(
+            projets.isNotEmpty(),
+            "CORPUS_ANDROID/manifestes absents — corpus réel non préparé " +
+                "(scripts/telecharger-corpus-android.sh puis scripts/preparer-manifestes-corpus.sh) ; " +
+                "gate ignorée, jamais un vert silencieux",
+        )
+
+        val rapport = SocleCoherence.Rapport("P4", "rappel de vrais positifs par mutation sur corpus réel")
+        var totalMutants = 0
+        var totalAttrapes = 0
+        for (projet in projets) {
+            val moteur = MoteurJava(racines = projet.toutesRacines, jars = projet.jars)
+            var attrapes = 0
+            var joues = 0
+            val codesVus = mutableMapOf<String, Int>()
+            try {
+                for (fichier in projet.fichiersNoyau.take(12)) {
+                    val source = Files.readString(fichier)
+                    for (mutant in listOfNotNull(mutantImport(source), mutantAppelInexistant(source))) {
+                        val (sourceMute, ancre) = mutant
+                        joues++
+                        val erreurs = runCatching { moteur.diagnose(fichier.toString(), sourceMute) }
+                            .getOrDefault(emptyList())
+                            .filter { it.severite == jo.codeide.lsp.java.diagnostics.Severite.ERREUR }
+                        val surAncre = erreurs.filter { d ->
+                            d.plage.debutOffset <= ancre && ancre < d.plage.finOffset + 12
+                        }
+                        if (surAncre.isNotEmpty()) {
+                            attrapes++
+                            surAncre.forEach { codesVus.merge(it.code ?: "sans-code", 1, Int::plus) }
+                        } else {
+                            rapport.violer(
+                                "${projet.cle}/${fichier.fileName} : aucune erreur ne recouvre l'ancre $ancre " +
+                                    "(erreurs totales : ${erreurs.joinToString { it.message }})",
+                                "faux négatif sur code réel (G-005 — rappel de mutation insuffisant)",
+                            )
+                        }
+                    }
+                }
+            } finally {
+                moteur.dispose()
+            }
+            val rappel = if (joues == 0) 1.0 else attrapes.toDouble() / joues
+            println("[P4] ${projet.cle} : $attrapes/$joues mutants attrapés (rappel $rappel), codes : $codesVus")
+            totalMutants += joues
+            totalAttrapes += attrapes
+        }
+        val rappelGlobal = if (totalMutants == 0) 1.0 else totalAttrapes.toDouble() / totalMutants
+        println("[P4] corpus réel : $totalAttrapes/$totalMutants mutants attrapés (rappel global $rappelGlobal)")
+        if (totalMutants > 0 && rappelGlobal < 0.95) {
+            rapport.violer(
+                "rappel global $rappelGlobal < 0,95 sur $totalMutants mutants",
+                "rappel sous le seuil ADR 0030 (c) — faux négatifs à arbitrer (G-005)",
+            )
+        }
+        rapport.clore("corpus réel (${projets.size} projets, $totalMutants mutants)")
     }
 }

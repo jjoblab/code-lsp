@@ -210,59 +210,61 @@ class P3ZeroFauxPositifTest {
 
     @Test
     fun `faux positifs sur corpus reel android (gate CORPUS_ANDROID)`() {
-        val corpus = SocleCoherence.corpusAndroid
+        val projets = SocleCoherence.projetsCorpus()
         assumeTrue(
-            corpus != null && Files.isDirectory(corpus),
-            "CORPUS_ANDROID absent — corpus réel non téléchargé (scripts/telecharger-corpus-android.sh) ; gate ignorée, jamais un vert silencieux",
-        )
-        val prepares = corpus!!.resolve("prepares")
-        val manifestes: List<Path> = if (Files.isDirectory(prepares)) {
-            Files.list(prepares).use { flux ->
-                flux.filter { it.fileName.toString().endsWith(".manifeste") }.sorted().toList()
-            }
-        } else {
-            emptyList()
-        }
-        assumeTrue(
-            manifestes.isNotEmpty(),
-            "aucun manifeste prepares/*.manifeste — le classpath réel du corpus n'est pas assemblé (voir bancs/corpus-android/LISEZMOI.md) ; mesure FP différée",
+            projets.isNotEmpty(),
+            "CORPUS_ANDROID/manifestes absents — corpus réel non téléchargé ou non préparé " +
+                "(scripts/telecharger-corpus-android.sh puis scripts/preparer-manifestes-corpus.sh) ; " +
+                "gate ignorée, jamais un vert silencieux",
         )
 
         val rapport = SocleCoherence.Rapport("P3", "faux positifs sur corpus réel (FP/1 000 lignes, par famille)")
-        for (manifeste in manifestes) {
-            val racines = mutableListOf<Path>()
-            val jars = mutableListOf<Path>()
-            Files.readAllLines(manifeste).forEach { ligne ->
-                when {
-                    ligne.startsWith("racine:") -> Path.of(ligne.removePrefix("racine:").trim()).let { if (Files.isDirectory(it)) racines.add(it) }
-                    ligne.startsWith("classpath:") -> Path.of(ligne.removePrefix("classpath:").trim()).let { if (Files.isRegularFile(it)) jars.add(it) }
+        for (projet in projets) {
+            // Bornage du coût (ADR 0030 R3) : le noyau dur d'abord (code écrit
+            // à la main — le « 0 FP » de la sortie de vague V-A), puis les
+            // sources générées dans la limite du budget.
+            val fichiersNoyau = projet.fichiersNoyau.take(120)
+            val fichiersGenerees = projet.fichiersGenerees.take(30)
+            val moteur = MoteurJava(racines = projet.toutesRacines, jars = projet.jars)
+            try {
+                for ((etiquette, fichiers) in listOf("noyau-dur" to fichiersNoyau, "genere" to fichiersGenerees)) {
+                    var lignes = 0
+                    val parCode = mutableMapOf<String, Int>()
+                    for (fichier in fichiers) {
+                        val source = Files.readString(fichier)
+                        lignes += source.lines().size
+                        val diagnostics = runCatching { moteur.diagnose(fichier.toString(), source) }.getOrDefault(emptyList())
+                        SocleCoherence.erreurs(diagnostics).forEach { erreur ->
+                            val cle = erreur.code ?: "sans-code"
+                            parCode.merge(cle, 1, Int::plus)
+                            rapport.violer(
+                                "${projet.cle}/${fichier.fileName} ($etiquette) : ${erreur.message}",
+                                "FP réel (famille $cle) — divergence moteur/javac à arbitrer (G-002/G-005, rapport ecj↔javac)",
+                            )
+                        }
+                    }
+                    val fpPourMille = if (lignes == 0) 0.0 else parCode.values.sum() * 1000.0 / lignes
+                    println("[P3] ${projet.cle}/$etiquette : ${fichiers.size} fichiers, $lignes lignes, FP/1 000 = $fpPourMille, par famille : $parCode")
+
+                    // Critères de sortie V-A (ADR 0030 (c), plan §V-A) :
+                    // FP < 0,5/1 000 lignes en régime nominal, 0 sur le noyau dur.
+                    if (etiquette == "noyau-dur" && parCode.values.sum() > 0) {
+                        rapport.violer(
+                            "${projet.cle}/noyau-dur : ${parCode.values.sum()} FP sur le noyau dur — le critère V-A exige 0",
+                            "FP noyau dur (G-002/G-005) — corriger ou arbitrer en quirk documenté",
+                        )
+                    }
+                    if (etiquette == "genere" && fpPourMille >= 0.5) {
+                        rapport.violer(
+                            "${projet.cle}/genere : FP/1 000 = $fpPourMille ≥ 0,5 — le critère V-A exige < 0,5",
+                            "FP code généré (G-002/G-005) — corriger ou arbitrer en quirk documenté",
+                        )
+                    }
                 }
+            } finally {
+                moteur.dispose()
             }
-            if (racines.isEmpty()) continue
-            val fichiers = racines.flatMap { racine ->
-                Files.walk(racine).use { flux ->
-                    flux.filter { it.fileName.toString().endsWith(".java") && Files.isRegularFile(it) }.toList()
-                }
-            }.take(150)
-            val moteur = MoteurJava(racines = racines, jars = jars)
-            var lignes = 0
-            val parCode = mutableMapOf<String, Int>()
-            for (fichier in fichiers) {
-                val source = Files.readString(fichier)
-                lignes += source.lines().size
-                val diagnostics = runCatching { moteur.diagnose(fichier.toString(), source) }.getOrDefault(emptyList())
-                SocleCoherence.erreurs(diagnostics).forEach { erreur ->
-                    val cle = erreur.code ?: "sans-code"
-                    parCode.merge(cle, 1, Int::plus)
-                    rapport.violer(
-                        "${fichier.fileName} : ${erreur.message}",
-                        "FP réel (famille $cle) — divergence moteur/projet à arbitrer (G-001/G-005)",
-                    )
-                }
-            }
-            val fpPourMille = if (lignes == 0) 0.0 else parCode.values.sum() * 1000.0 / lignes
-            println("[P3] ${manifeste.fileName} : ${fichiers.size} fichiers, $lignes lignes, FP/1 000 = $fpPourMille, par famille : $parCode")
         }
-        rapport.clore("corpus réel (${manifestes.size} manifestes)")
+        rapport.clore("corpus réel (${projets.size} manifestes)")
     }
 }

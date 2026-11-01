@@ -65,8 +65,21 @@ tasks.named<Jar>("sourcesJar") {
 
 tasks.test {
     useJUnitPlatform()
-    // Tas borné comme les autres modules (convention CI 4 Go).
-    maxHeapSize = "640m"
+    // Tas borné comme les autres modules (convention CI 4 Go) — SAUF gates
+    // corpus réel (V-A2, ADR 0030) : les manifestes du corpus montent jusqu'à
+    // 5 projets × (racines multi-modules + ~90 jars résolus) dans des moteurs
+    // PERSISTANTS par projet (régime chaud) — 640 Mo y serait tué par
+    // l'OOM-killer. Le corpus est détecté par la même variable que les gates
+    // (CORPUS_ANDROID / corpus.android — cf. SocleCoherence) : sans corpus,
+    // le tas reste borné à la convention CI.
+    maxHeapSize = if (
+        System.getenv("CORPUS_ANDROID") != null ||
+        System.getProperty("corpus.android") != null
+    ) {
+        "2048m"
+    } else {
+        "640m"
+    }
 }
 
 // ---------------------------------------------------------------------------

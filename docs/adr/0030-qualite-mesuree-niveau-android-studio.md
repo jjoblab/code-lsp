@@ -2,7 +2,14 @@
 
 - **Statut** : Accepté (GO propriétaire du 31/10/2026, décision D5 arbitrée par
   la passe 1 du gabarit 07 — cibles maintenues ; gates PR actives depuis V-A :
-  `BANC_COHERENCE_STRICT` dans la CI ; nightly corpus réel en préparation V-A2)
+  `BANC_COHERENCE_STRICT` dans la CI ; **V-A2 exécuté le 01/11/2026** —
+  manifestes de classpath du corpus réel + gates P3/P4/P7 corpus jouées et
+  rapport de divergences ecj↔javac livré : PV `mesures/2026-11-01-va2-corpus-reel.txt`,
+  rapport `08-rapport-divergences-ecj-javac.md` ; FP 0,054/1 000 lignes
+  (< 0,5 TENU), rappel mutants 0,991 (≥ 0,95 TENU), P1 équivalence 0/42,
+  P7 rename 28/28 ; le « 0 FP noyau dur » reste à 2 divergences genuines à
+  arbitrer (D-01 `+=` CharSequence, D-02 compliance 21) ; nightly CI corpus
+  à provisionner — les gates s'ignorent avec raison sans manifestes)
 - **Date** : 2026-10-31
 - **Écart résolu** : G-034, G-005 (`01-audit-moteur.md` §1.11, §1.12 — la vérité terrain manquante)
 

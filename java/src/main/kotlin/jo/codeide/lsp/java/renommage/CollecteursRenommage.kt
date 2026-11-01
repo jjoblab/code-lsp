@@ -238,7 +238,13 @@ internal class CollecteurCibleRenommage(
         val b = try { node.binding } catch (_: Exception) { null } as? FieldBinding ?: return true
         val proprietaire = fqnTopDuType(b.declaringClass) ?: return true
         val nom = try { String(node.token) } catch (_: Exception) { null } ?: return true
-        val plage = plageJeton(texte, node.sourceStart, node.sourceEnd, nom) ?: return true
+        // +1 sur sourceEnd : plageJeton traite limite comme EXCLUE, or ecj
+        // pose sourceEnd sur le DERNIER caractère (inclus) — sans lui, la
+        // fenêtre ampute le jeton final (« this.x » → « this. » sans le x)
+        // et l'occurrence est perdue silencieusement (V-A2, mesuré corpus
+        // basicsample : le this.mDiskIO du constructeur manquait → rename
+        // cassé, G-005).
+        val plage = plageJeton(texte, node.sourceStart, node.sourceEnd + 1, nom) ?: return true
         considerer(
             plage.debutOffset, plage.finOffset - 1, NatureSymbole.CHAMP,
             CleUsages.Champ(proprietaire, String(b.name)),
@@ -538,7 +544,12 @@ internal class CollecteurOccurrencesRenommage(
         if (correspond(b)) {
             val nom = try { String(node.token) } catch (_: Exception) { null }
             if (nom != null) {
-                val plage = plageJeton(source, node.sourceStart, node.sourceEnd, nom)
+                // +1 sur sourceEnd : plageJeton traite limite comme EXCLUE, or
+                // ecj pose sourceEnd sur le DERNIER caractère (inclus) — le
+                // jeton d'un FieldReference (`this.x`) est en FIN de plage : la
+                // fenêtre amputée du dernier caractère ne le trouve pas et
+                // l'occurrence est perdue (V-A2, G-005 — this.mDiskIO).
+                val plage = plageJeton(source, node.sourceStart, node.sourceEnd + 1, nom)
                 if (plage != null) retenir(plage.debutOffset, plage.finOffset - 1, false)
             }
         }

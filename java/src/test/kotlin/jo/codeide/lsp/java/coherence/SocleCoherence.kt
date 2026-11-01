@@ -196,4 +196,184 @@ internal object SocleCoherence {
         }
         return racine
     }
+
+    // =====================================================================
+    // V-A2 — Corpus réel : montage des manifestes de préparation (ADR 0030,
+    // bancs/corpus-android/LISEZMOI.md §2). Format du manifeste (une entrée
+    // par ligne, chemins ABSOLUS, `#` = commentaire ignoré) :
+    //   racine:<répertoire de sources écrites à la main>       (noyau dur)
+    //   racine-generee:<répertoire de sources générées>        (R, binding…)
+    //   classpath:<jar de la plateforme ou artefact résolu>
+    // =====================================================================
+
+    /** Un projet du corpus réel monté depuis son manifeste. */
+    internal data class ProjetCorpus(
+        val cle: String,
+        val racines: List<Path>,
+        val racinesGenerees: List<Path>,
+        val jars: List<Path>,
+    ) {
+        /** Les fichiers du NOYAU DUR (sources écrites à la main), tri déterministe. */
+        val fichiersNoyau: List<Path> by lazy { racines.flatMap { SocleCoherence.listerJava(it) } }
+
+        /** Les fichiers GÉNÉRÉS par le build (R, BuildConfig, binding…), tri déterministe. */
+        val fichiersGenerees: List<Path> by lazy { racinesGenerees.flatMap { SocleCoherence.listerJava(it) } }
+
+        /** Toutes les racines sources (noyau dur + générées). */
+        val toutesRacines: List<Path> get() = racines + racinesGenerees
+    }
+
+    /**
+     * Les projets du corpus réel montés (manifestes du répertoire `prepares`,
+     * produits par `scripts/preparer-manifestes-corpus.sh`). Vide (et la gate
+     * s'ignore avec raison) si le corpus ou les manifestes sont absents.
+     */
+    internal fun projetsCorpus(): List<ProjetCorpus> {
+        val corpus = corpusAndroid ?: return emptyList()
+        val prepares = corpus.resolve("prepares")
+        if (!Files.isDirectory(prepares)) return emptyList()
+        return Files.list(prepares).use { flux ->
+            flux.filter { it.fileName.toString().endsWith(".manifeste") }
+                .sorted()
+                .map(::monterManifeste)
+                .filter { it.racines.isNotEmpty() }
+                .toList()
+        }
+    }
+
+    /** Monte UN manifeste (lignes racine:/racine-generee:/classpath:, le reste ignoré). */
+    private fun monterManifeste(manifeste: Path): ProjetCorpus {
+        val racines = mutableListOf<Path>()
+        val generees = mutableListOf<Path>()
+        val jars = mutableListOf<Path>()
+        Files.readAllLines(manifeste).forEach { ligne ->
+            when {
+                ligne.startsWith("racine-generee:") -> Path.of(ligne.removePrefix("racine-generee:").trim())
+                    .let { if (Files.isDirectory(it)) generees.add(it) }
+
+                ligne.startsWith("racine:") -> Path.of(ligne.removePrefix("racine:").trim())
+                    .let { if (Files.isDirectory(it)) racines.add(it) }
+
+                ligne.startsWith("classpath:") -> Path.of(ligne.removePrefix("classpath:").trim())
+                    .let { if (Files.isRegularFile(it)) jars.add(it) }
+            }
+        }
+        return ProjetCorpus(
+            cle = manifeste.fileName.toString().removeSuffix(".manifeste"),
+            racines = racines,
+            racinesGenerees = generees,
+            jars = jars,
+        )
+    }
+
+    /** Les fichiers Java d'une racine (tri lexical déterministe). */
+    private fun listerJava(racine: Path): List<Path> =
+        if (Files.isDirectory(racine)) {
+            Files.walk(racine).use { flux ->
+                flux.filter { it.fileName.toString().endsWith(".java") && Files.isRegularFile(it) }
+                    .sorted()
+                    .toList()
+            }
+        } else {
+            emptyList()
+        }
+
+    /**
+     * L'offset d'insertion dans le PREMIER CORPS DE MEMBRE de la source :
+     * juste après l'accolade ouvrante qui fait passer la profondeur 1 → 2 ET
+     * qui est précédée (en ignorant les blancs) d'une parenthèse fermante
+     * (corps de méthode/constructeur — écarte les initialiseurs de tableaux
+     * `= {` et les blocs statiques `static {`). Chaînes, caractères et
+     * commentaires sont ignorés ; -1 si introuvable.
+     */
+    internal fun insertionPremierCorps(source: String): Int {
+        var profondeur = 0
+        var precedentNonBlanc = ' '
+        var i = 0
+        val n = source.length
+        while (i < n) {
+            val c = source[i]
+            when {
+                c == '/' && i + 1 < n && source[i + 1] == '/' -> {
+                    while (i < n && source[i] != '\n') i++
+                }
+                c == '/' && i + 1 < n && source[i + 1] == '*' -> {
+                    i += 2
+                    while (i + 1 < n && !(source[i] == '*' && source[i + 1] == '/')) i++
+                    i++
+                }
+                c == '"' -> {
+                    i++
+                    while (i < n && source[i] != '"' && source[i] != '\n') {
+                        if (source[i] == '\\') i++
+                        i++
+                    }
+                }
+                c == '\'' -> {
+                    i++
+                    while (i < n && source[i] != '\'' && source[i] != '\n') {
+                        if (source[i] == '\\') i++
+                        i++
+                    }
+                }
+                c == '{' -> {
+                    profondeur++
+                    if (profondeur == 2 && precedentNonBlanc == ')') return i + 1
+                    precedentNonBlanc = '{'
+                    i++
+                }
+                c == '}' -> {
+                    profondeur--
+                    precedentNonBlanc = '}'
+                    i++
+                }
+                c.isWhitespace() -> i++ // les blancs ne changent pas le « précédent »
+                else -> {
+                    precedentNonBlanc = c
+                    i++
+                }
+            }
+        }
+        return -1
+    }
+
+    /**
+     * La première occurrence de MOT (bords de mots) à partir de [depuis], en
+     * ignorant chaînes, caractères et commentaires ; -1 si introuvable. Sert
+     * à ancrer le mutant « import supprimé » sur la PREMIÈRE UTILISATION
+     * réelle du nom simple (pas une mention javadoc `{@link}`).
+     */
+    internal fun premiereOccurrenceHorsCommentaires(source: String, mot: String, depuis: Int): Int {
+        var i = depuis.coerceIn(0, source.length)
+        val n = source.length
+        while (i < n) {
+            val c = source[i]
+            when {
+                c == '/' && i + 1 < n && source[i + 1] == '/' -> {
+                    while (i < n && source[i] != '\n') i++
+                }
+                c == '/' && i + 1 < n && source[i + 1] == '*' -> {
+                    i += 2
+                    while (i + 1 < n && !(source[i] == '*' && source[i + 1] == '/')) i++
+                    i++
+                }
+                c == '"' || c == '\'' -> {
+                    val fin = c
+                    i++
+                    while (i < n && source[i] != fin && source[i] != '\n') {
+                        if (source[i] == '\\') i++
+                        i++
+                    }
+                }
+                source.startsWith(mot, i) -> {
+                    val avant = i == 0 || !source[i - 1].isJavaIdentifierPart()
+                    val apres = i + mot.length >= n || !source[i + mot.length].isJavaIdentifierPart()
+                    if (avant && apres) return i
+                    i++
+                }
+                else -> i++
+            }
+        }
+        return -1
+    }
 }

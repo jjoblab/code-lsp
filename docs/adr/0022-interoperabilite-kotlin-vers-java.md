@@ -1,6 +1,7 @@
 # ADR 0022 — Interopérabilité Kotlin → Java
 
-- **Statut** : Accepté (exécuté — vague V-B3, 31/10/2026)
+- **Statut** : Accepté (exécuté — vague V-B3, 31/10/2026 ; **amendé V-A2 le
+  01/11/2026** : la light Kotlin CÈDE aux jars — cf. « Amendement V-A2 »)
 - **Date** : 2026-10-31
 - **Écart résolu** : G-009 (`01-audit-moteur.md` §1.2)
 
@@ -102,3 +103,24 @@ pas de faux corps.
   documenté ; il écrit, nous lisons.
 - **R3 — Coût de scan sur gros projets Kotlin** : budgétaire (CIDX + empreinte
   par fichier).
+
+## Amendement V-A2 (01/11/2026) — la light Kotlin cède aux jars
+
+Mesuré sur le corpus réel (anysoftkeyboard, 27 358 lignes noyau dur) : dans un
+projet mixte, javac compile le Java contre les classes Kotlin **compilées**
+(`built_in_kotlinc` — l'ordre verrouillé V-B faisait PRIMER la light lexicale
+sur les jars, y compris quand le montage fournit les vraies classes). La light
+— API partielle, sans les membres `companion` — éclipsait alors la vraie
+classe et fabriquait des faux positifs « méthode non définie » (18 FP mesurés
+avant correctif, famille UndefinedMethod/UnresolvedVariable).
+
+**Décision** : l'ordre de repli devient **sources → synthétiques PRIMANTS
+(R, BuildConfig, Binding — ADR 0021, anti-doublon R3 inchangé) → JARS →
+synthétiques CÉDANTS (déclarations Kotlin lexicales) → jrt → stubs**. Le
+fournisseur `TypesSynthetiques` porte un `primeSurJars` (défaut `true`) ;
+`DeclarationsKotlin` le pose à `false`. La light reste le REPLI pour un
+projet Kotlin sans sortie compilée au classpath (le cas avant build de
+V-B3 — comportement inchangé pour lui). Régression :
+`DeclarationsKotlinTest` « la classe light kotlin cede aux jars du classpath ».
+Détail chiffré : `mesures/2026-11-01-va2-corpus-reel.txt`, rapport
+`08-rapport-divergences-ecj-javac.md` §5.

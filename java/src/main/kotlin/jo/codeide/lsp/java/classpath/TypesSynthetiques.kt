@@ -22,6 +22,23 @@ import java.nio.file.Path
  */
 public interface TypesSynthetiques {
     /**
+     * Ce fournisseur PRIME-T-IL les jars du classpath ?
+     *
+     * `true` (défaut — ADR 0021) : les classes light Android (R, BuildConfig,
+     * *Binding) priment les jars pour qu'un R de build PÉRIMÉ ne masque
+     * jamais un référentiel frais.
+     *
+     * `false` (ADR 0022, corrigé V-A2) : les déclarations KOTLIN lexicales
+     * (API partielle lue des `.kt`, sans corps ni companion) CÈDENT aux jars
+     * — le montage d'un projet mixte fournit les classes Kotlin COMPILÉES
+     * (javac compile contre `built_in_kotlinc`), strictement plus riches que
+     * le scan lexical ; sans cette inhibition, la light sans membres éclipse
+     * la vraie classe et fabrique des faux positifs « méthode non définie »
+     * (mesuré corpus anysoftkeyboard : 18 FP/27 k lignes, V-A2/G-005).
+     */
+    public val primeSurJars: Boolean get() = true
+
+    /**
      * Les octets du fichier de classe d'un type synthétique.
      *
      * @param fqcn nom entièrement qualifié (points ; imbriquées par `$`).
