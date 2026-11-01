@@ -129,10 +129,18 @@ public class PublicateurDiagnostics(
      * attente éventuel et plananche à +50 ms (debounce). Le document doit
      * être OUVERT — la demande sur un buffer absent ne planifie rien.
      *
+     * Complément de catalogue (ADR 0032) : un document **XML** ne publie
+     * JAMAIS de diagnostics Java — l'intention documentée de V-B
+     * (didChange XML : « aucun diagnostic Java publié ») devient une
+     * garde POSÉE ici (le magasin ne filtre pas l'extension — sans cette
+     * garde, un XML ouvert serait compilé comme Java et publierait du
+     * bruit de parse).
+     *
      * @param uri l'URI du document.
      */
     public fun demander(uri: String) {
         if (!ouvert) return
+        if (uri.endsWith(".xml")) return // jamais de diagnostics Java pour un XML (ADR 0032)
         if (etats.instantane(uri) == null) return
         enAttente.remove(uri)?.cancel(false)
         enAttente[uri] = ordonnanceur.schedule({ tirer(uri) }, DEBOUNCE_MS, TimeUnit.MILLISECONDS)

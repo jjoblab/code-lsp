@@ -1639,6 +1639,17 @@ public class MoteurJava(
                 val verdict = service.supprimerParametre(offset, sites)
                 return if (verdict.refus != null) null else verdict.editions
             }
+            "refactor.deplacerParametre" -> {
+                if (offset == null) return null
+                val direction = arguments.getOrNull(1)?.toIntOrNull() ?: return null
+                val verdict = deplacementParametreSure(chemin, source, offset, direction) ?: return null
+                return if (verdict.motifRefus != null) null else verdict.editions
+            }
+            jo.codeide.lsp.java.actionscode.CorrecteurAjoutParametres.CLE_AJOUTER_PARAMETRES -> {
+                if (offset == null) return null
+                val verdict = ajoutParametresSure(chemin, source, offset) ?: return null
+                return if (verdict.motifRefus != null) null else verdict.editions
+            }
             "refactor.supprimerHierarchique" -> {
                 if (offset == null) return null
                 val verdict = suppressionHierarchiqueSure(chemin, source, offset) ?: return null
@@ -1702,6 +1713,83 @@ public class MoteurJava(
             editions = if (verdict.refus == null) verdict.editions else null,
         )
     }
+
+    /**
+     * Le DÉPLACEMENT d'un paramètre (complément de catalogue — ADR 0032,
+     * reste consigné du PV V-D3 : « réordonnancement de paramètres ») :
+     * le paramètre au caret s'échange avec son VOISIN dans la signature
+     * ET chaque appelant échange ses arguments aux mêmes rangs (la liaison
+     * expression↔paramètre est préservée). L'ORACLE du banc : les refus
+     * honnêtes (« borne », « hierarchie », « varargs », « surcharge »,
+     * « referenceMethode », « appelIncomplet ») portent leur motif.
+     *
+     * @param chemin le chemin logique du document.
+     * @param source le texte Java complet (tampon ouvert).
+     * @param offset le caret (sur le nom du paramètre).
+     * @param pas le sens du déplacement (-1 = gauche, +1 = droite).
+     * @return le verdict, ou null (caret sans paramètre / régime instantané).
+     */
+    public fun deplacementParametreSure(chemin: String, source: String, offset: Int, pas: Int): ChangementSignatureSure? {
+        if (!regimePlein()) return null
+        val arbre = resolveUnit(chemin, source, genererCode = false)?.arbre ?: return null
+        val cheminDisque = cheminDisqueDe(chemin)
+        val service = jo.codeide.lsp.java.actionscode.ServiceChangeSignature(arbre, source, cheminDisque)
+        val cible = service.parametreAuCaret(offset) ?: return null
+        val sites = collecterSitesAppel(cible.cle, chemin, source, arbre, cheminDisque)
+        val verdict = service.deplacerParametre(offset, pas, sites)
+        return ChangementSignatureSure(
+            nomParametre = verdict.nom,
+            motifRefus = verdict.refus,
+            appelants = sites.count { !it.estReferenceMethode },
+            editions = if (verdict.refus == null) verdict.editions else null,
+        )
+    }
+
+    /**
+     * L'AJOUT de paramètres au site d'appel FAUTIF (complément de
+     * catalogue — ADR 0032, reste consigné du PV V-D3 : « ajout de
+     * paramètres ») : la signature de la méthode visée s'étend des types
+     * RÉSOLUS des arguments excédentaires, chaque autre appelant de
+     * l'ancienne signature recevant la valeur PAR DÉFAUT du type. L'ORACLE
+     * du banc : les refus honnêtes (« siteIntrouvable », « mismatch »,
+     * « typeIllisible », « binaire », « surcharge », « sansConstructeur »,
+     * « varargs », « hierarchie », « referenceMethode ») portent leur
+     * motif.
+     *
+     * @param chemin le chemin logique du document.
+     * @param source le texte Java complet (tampon ouvert).
+     * @param offset le début du site fautif (sélecteur de l'envoi ou
+     *   allocation entière).
+     * @return le verdict, ou null (site disparu / régime instantané).
+     */
+    public fun ajoutParametresSure(chemin: String, source: String, offset: Int): AjoutParametresSure? {
+        if (!regimePlein()) return null
+        val arbre = resolveUnit(chemin, source, genererCode = false)?.arbre ?: return null
+        val service = serviceAjoutParametres(arbre, source, chemin)
+        val verdict = service.ajouter(offset)
+        return AjoutParametresSure(
+            selecteur = verdict.selecteur,
+            motifRefus = verdict.refus,
+            ajoutes = verdict.ajoutes,
+            appelants = verdict.appelants,
+            editions = if (verdict.refus == null) verdict.editions else null,
+        )
+    }
+
+    /** Le service d'ajout de paramètres (dépendances du moteur). */
+    private fun serviceAjoutParametres(
+        arbre: org.eclipse.jdt.internal.compiler.ast.CompilationUnitDeclaration,
+        source: String,
+        chemin: String,
+    ): jo.codeide.lsp.java.actionscode.ServiceAjoutParametres =
+        jo.codeide.lsp.java.actionscode.ServiceAjoutParametres(
+            arbre = arbre,
+            source = source,
+            cheminCourant = cheminDisqueDe(chemin),
+            resoudre = { c, t -> resolveUnit(c, t, genererCode = false)?.arbre },
+            localiser = { fqcn -> localiserSource(fqcn) },
+            sitesPour = { cle -> collecterSitesAppel(cle, chemin, source, arbre, cheminDisqueDe(chemin)) },
+        )
 
     /**
      * La SUPPRESSION HIÉRARCHIQUE au caret (vague V-D3 — ADR 0027 (e)) :
@@ -1897,6 +1985,71 @@ public class MoteurJava(
     ): List<ConflitRenommage> {
         if (!regimePlein()) return emptyList()
         return renommageRessources()?.conflits(chemin, source, offset, nouveauNom) ?: emptyList()
+    }
+
+    /**
+     * La RESSOURCE au caret D'UN DOCUMENT XML (complément de catalogue —
+     * ADR 0032, « rename depuis un XML ») : la DÉCLARATION `name="…"` des
+     * values ou le SEGMENT `&lt;nom&gt;` d'une RÉFÉRENCE `@&lt;type&gt;/…`,
+     * `@+&lt;type&gt;/…`, `?&lt;type&gt;/…`, `R.&lt;type&gt;.&lt;nom&gt;`
+     * (data binding) — les mêmes refus honnêtes que depuis le code Java.
+     *
+     * @param chemin le chemin DISQUE du document XML du module.
+     * @param texte le texte XML complet (tampon ouvert).
+     * @param offset le caret.
+     * @return la cible, ou null (caret hors ressource / contrat inactif /
+     *   fichier hors dossiers res).
+     */
+    public fun cibleRessourceXmlA(
+        chemin: String,
+        texte: String,
+        offset: Int,
+    ): jo.codeide.lsp.java.renommage.RenommageRessources.CibleRessource? {
+        if (!regimePlein()) return null
+        return renommageRessources()?.cibleXml(java.nio.file.Path.of(chemin), texte, offset)
+    }
+
+    /**
+     * Les éditions du renommage de ressource DEPUIS UN DOCUMENT XML (ADR
+     * 0032) : la MÊME propagation que depuis le code Java (code Java par
+     * bindings + XML du module), le document XML courant servi depuis son
+     * tampon OUVERT.
+     *
+     * @param chemin le chemin DISQUE du document XML du module.
+     * @param texte le texte XML complet (tampon ouvert).
+     * @param offset le caret (sur le nom de la ressource).
+     * @param nouveauNom le nouveau nom.
+     * @return les éditions par fichier DISQUE (vide = refus honnête /
+     *   contrat inactif).
+     */
+    public fun renommageRessourceXml(
+        chemin: String,
+        texte: String,
+        offset: Int,
+        nouveauNom: String,
+    ): Map<String, List<jo.codeide.lsp.java.outils.EditionTexte>> {
+        if (!regimePlein()) return emptyMap()
+        return renommageRessources()?.editionsXml(java.nio.file.Path.of(chemin), texte, offset, nouveauNom) ?: emptyMap()
+    }
+
+    /**
+     * Les COLLISIONS typées du renommage DEPUIS UN DOCUMENT XML (le
+     * référentiel reste la source de vérité).
+     *
+     * @param chemin le chemin DISQUE du document XML du module.
+     * @param texte le texte XML complet (tampon ouvert).
+     * @param offset le caret.
+     * @param nouveauNom le nouveau nom proposé.
+     * @return les collisions (vide = renommage sûr).
+     */
+    public fun conflitsRessourceXml(
+        chemin: String,
+        texte: String,
+        offset: Int,
+        nouveauNom: String,
+    ): List<ConflitRenommage> {
+        if (!regimePlein()) return emptyList()
+        return renommageRessources()?.conflitsXml(java.nio.file.Path.of(chemin), texte, offset, nouveauNom) ?: emptyList()
     }
 
     /**
@@ -2741,6 +2894,25 @@ public data class SuppressionSure(
 public data class ChangementSignatureSure(
     public val nomParametre: String,
     public val motifRefus: String?,
+    public val appelants: Int,
+    public val editions: Map<String, List<jo.codeide.lsp.java.outils.EditionTexte>>?,
+)
+
+/**
+ * Le verdict d'ajout de paramètres (complément de catalogue — ADR 0032) :
+ * la signature étendue au site fautif + les appelants retouchés.
+ *
+ * @property selecteur le sélecteur lisible (méthode) ou le nom du type
+ *   (constructeur).
+ * @property motifRefus le motif de refus honnête (null = éditions servies).
+ * @property ajoutes le nombre de paramètres AJOUTÉS.
+ * @property appelants le nombre d'appelants retouchés (hors site fautif).
+ * @property editions les éditions par fichier (null = refus).
+ */
+public data class AjoutParametresSure(
+    public val selecteur: String,
+    public val motifRefus: String?,
+    public val ajoutes: Int,
     public val appelants: Int,
     public val editions: Map<String, List<jo.codeide.lsp.java.outils.EditionTexte>>?,
 )

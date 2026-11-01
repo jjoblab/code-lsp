@@ -304,6 +304,28 @@ plugins {
 // membres p50 6,8 ms, tas au repos 35 Mo) ; semanticTokens p95 mesuré
 // 1 ms (cible ADR 0031 < 25 ms). §7.16/§7.25/§7.26/§9.5, ADR
 // 0029/0031/0011 à jour.
+// 1.12.0 : COMPLÉMENT DE CATALOGUE — les restes des familles unitaires
+// (ADR 0032) : AJOUT de paramètres au site d'appel fautif (quickfix
+// ID-FIRST ParameterMismatch 67108979 / UndefinedConstructor 134217858,
+// IDs et arguments MESURÉS — types résolus des arguments excédentaires,
+// valeur PAR DÉFAUT 0/false/null chez les autres appelants, import
+// raccourci dans le fichier déclarant, le site fautif ne se retouche
+// pas) ; RÉORDONNANCEMENT de paramètres (échange des fragments de
+// signature + des arguments aux mêmes rangs chez chaque appelant —
+// liaison expression↔paramètre préservée, le paramètre peut être
+// utilisé) ; RENAME DEPUIS UN DOCUMENT XML (G-028, solde :
+// prepareRename/rename sur déclaration name= des values et références
+// @type/, @+type/, ?type/, data binding R.* — propagation code + XML,
+// tampon ouvert en fait de foi, garde publicateur : aucun diagnostic
+// Java pour un XML ouvert) ; codeDescription.href (G-023 ENTIÈREMENT
+// résolu : provenance lint → page officielle VÉRIFIÉE sans ancre par
+// ID, ecj/inspection sans href documenté). Validation : 900 tests /
+// 0 échec (770 java dont 17 du complément ; 73 gates environnementales
+// ignorées avec raison), `build` strict (P1–P8) VERT ; banc N1 tenu
+// (démarrage à froid 893 ms, diagnose complet p50 13,1 ms, rapide
+// p50 4,9 ms, hover p50 0,11 ms, tas au repos 35 Mo) ; latence liste
+// p95 mesurée 410 µs (< 30 ms). §7.27, ADR 0032, PV
+// mesures/2026-11-01-complement-catalogue.txt à jour.
 allprojects {
-    version = "1.11.0"
+    version = "1.12.0"
 }

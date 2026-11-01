@@ -208,6 +208,85 @@ public class ServiceRenommage(
     }
 
     /**
+     * `textDocument/prepareRename` D'UN DOCUMENT XML (complément de
+     * catalogue — ADR 0032, « rename depuis un XML ») : la ressource au
+     * caret (déclaration `name="…"` des values ou référence
+     * `@&lt;type&gt;/&lt;nom&gt;`, `@+&lt;type&gt;/&lt;nom&gt;`,
+     * `?&lt;type&gt;/&lt;nom&gt;`, `R.&lt;type&gt;.&lt;nom&gt;` du data binding) se
+     * prépare comme depuis le code Java — placeholder EXACT, plage EXACTE
+     * du segment `&lt;nom&gt;` ; un refus honnête (fichier, styleable)
+     * ferme la boîte de dialogue.
+     *
+     * @param chemin le chemin DISQUE du document XML du module.
+     * @param texte le texte XML complet (tampon ouvert).
+     * @param offset la position du caret.
+     * @return la préparation { plage, placeholder }, ou null.
+     */
+    public fun preparerRenommageXml(chemin: String, texte: String, offset: Int): PreparationRenommage? {
+        val moteur = moteur(chemin) ?: return null
+        moteur.cibleRessourceXmlA(chemin, texte, offset)?.let { ressource ->
+            if (ressource.refus != null) return null
+            return PreparationRenommage(ressource.jeton, ressource.nom)
+        }
+        return null
+    }
+
+    /**
+     * `textDocument/rename` D'UN DOCUMENT XML (ADR 0032) : la MÊME
+     * propagation multi-fichiers que depuis le code Java (code Java par
+     * bindings + XML du module), le document XML courant servi depuis son
+     * TAMPON OUVERT — sous la forme NÉGOCIÉE (changes ou documentChanges
+     * versionnée, jamais les deux).
+     *
+     * @param uri l'URI du document XML ouvert côté client.
+     * @param chemin le chemin DISQUE du document XML du module.
+     * @param texte le texte XML complet (tampon ouvert).
+     * @param offset la position du caret.
+     * @param nouveauNom le nouveau nom.
+     * @return l'édition d'espace de travail (forme négociée).
+     * @throws RenommageSansCible si aucune ressource renommable ne vit au
+     *   caret (erreur typée — jamais une édition vide silencieuse).
+     */
+    public fun renommageXml(
+        uri: String,
+        chemin: String,
+        texte: String,
+        offset: Int,
+        nouveauNom: String,
+    ): EditionEspaceDeTravail {
+        val moteur = moteur(chemin) ?: throw RenommageSansCible(positionSource(texte, offset))
+        val cible = moteur.cibleRessourceXmlA(chemin, texte, offset)
+        if (cible == null || cible.refus != null) {
+            throw RenommageSansCible(positionSource(texte, offset))
+        }
+        val parFichier = moteur.renommageRessourceXml(chemin, texte, offset, nouveauNom)
+        if (parFichier.isEmpty()) {
+            throw RenommageSansCible(positionSource(texte, offset))
+        }
+        return formesNegociees(uri, chemin, parFichier.mapValues { (_, editions) -> editions })
+    }
+
+    /**
+     * Les COLLISIONS typées du renommage DEPUIS UN DOCUMENT XML (le
+     * référentiel reste la source de vérité).
+     *
+     * @param chemin le chemin DISQUE du document XML du module.
+     * @param texte le texte XML complet (tampon ouvert).
+     * @param offset la position du caret.
+     * @param nouveauNom le nouveau nom proposé.
+     * @return les collisions typées (vide = renommage sûr).
+     */
+    public fun conflitsXml(
+        chemin: String,
+        texte: String,
+        offset: Int,
+        nouveauNom: String,
+    ): List<ConflitRenommage> {
+        val moteur = moteur(chemin) ?: return emptyList()
+        return moteur.conflitsRessourceXml(chemin, texte, offset, nouveauNom)
+    }
+
+    /**
      * Les COLLISIONS typées du renommage proposé (phase CONFLITS,
      * ADR 0014) : servies au client pour le dialogue de décision — le
      * moteur signale, le client décide.

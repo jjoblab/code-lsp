@@ -189,6 +189,153 @@ internal class ServiceChangeSignature(
     }
 
     // ------------------------------------------------------------------ //
+    // Réordonnancement (complément de catalogue — ADR 0032)
+    // ------------------------------------------------------------------ //
+
+    /**
+     * La servabilité du DÉPLACEMENT d'un paramètre (gardes LOCALES — le
+     * caret porte un paramètre dont le VOISIN de la direction existe ;
+     * le paramètre PEUT être utilisé : il se déplace AVEC ses lectures,
+     * contrairement à la suppression).
+     *
+     * @param offset le caret.
+     * @return la cible et les directions possibles, ou null.
+     */
+    internal fun deplacementServable(offset: Int): DeplacementPossible? {
+        val cible = parametreAuCaret(offset) ?: return null
+        if (outrepasseOuEstOutrepassee(cible.methode)) return null
+        val arguments = runCatching { cible.methode.arguments ?: emptyArray() }.getOrDefault(emptyArray())
+        val varargs = runCatching { cible.methode.binding?.isVarargs() == true }.getOrDefault(false)
+        val dernier = arguments.size - 1
+        fun vers(pas: Int): Boolean {
+            val voisin = cible.rang + pas
+            if (voisin < 0 || voisin > dernier) return false
+            // VARARGS : le paramètre varargs est TOUJOURS le dernier — un
+            // échange qui le TOUCHE change la sémantique des appels étalés.
+            if (varargs && (cible.rang == dernier || voisin == dernier)) return false
+            return true
+        }
+        return DeplacementPossible(cible, vers(-1), vers(+1))
+    }
+
+    /** La cible d'un déplacement et ses directions ouvertes. */
+    internal class DeplacementPossible(
+        val cible: ParametreCible,
+        val gauche: Boolean,
+        val droite: Boolean,
+    )
+
+    /**
+     * Les éditions du DÉPLACEMENT d'un paramètre (±1 rang) : les DEUX
+     * fragments de la signature s'ÉCHANGENT, et chaque APPELANT échange
+     * ses arguments aux MÊMES rangs — la liaison expression↔paramètre est
+     * PRÉSERVÉE (l'argument qui allait au paramètre déplacé le suit :
+     * `m(a, b)` devient `m(b, a)` quand `(int a, String b)` devient
+     * `(String b, int a)` — miroir du Change Signature de la référence).
+     *
+     * Gardes du resolve (R1) : hiérarchie, varargs frontal, référence de
+     * méthode `X::m`, appelant à la liste d'arguments incomplète, et
+     * SURCHARGE — une autre méthode du même sélecteur dans le type
+     * déclarant (l'échange d'arguments aux sites d'appel pourrait
+     * déplacer la résolution vers l'autre surcharge : refus honnête).
+     *
+     * @param offset le caret (sur le nom du paramètre).
+     * @param pas le sens du déplacement (-1 = gauche, +1 = droite).
+     * @param appelants la collecte multi-fichiers des sites d'appel.
+     * @return le verdict (refus motivé ou éditions par fichier).
+     */
+    internal fun deplacerParametre(
+        offset: Int,
+        pas: Int,
+        appelants: List<SiteAppel>,
+    ): ChangementSignature {
+        val cible = parametreAuCaret(offset)
+            ?: return ChangementSignature("", "parametre", emptyMap())
+        val voisin = cible.rang + pas
+        val arguments = runCatching { cible.methode.arguments ?: emptyArray() }.getOrDefault(emptyArray())
+        if (voisin < 0 || voisin >= arguments.size) {
+            return ChangementSignature(cible.nom, "borne", emptyMap())
+        }
+        if (outrepasseOuEstOutrepassee(cible.methode)) {
+            return ChangementSignature(cible.nom, "hierarchie", emptyMap())
+        }
+        val varargs = runCatching { cible.methode.binding?.isVarargs() == true }.getOrDefault(false)
+        val dernier = arguments.size - 1
+        if (varargs && (cible.rang == dernier || voisin == dernier)) {
+            return ChangementSignature(cible.nom, "varargs", emptyMap())
+        }
+        // SURCHARGE : un autre sélecteur homonyme dans le type déclarant —
+        // l'échange d'arguments aux sites d'appel pourrait déplacer la
+        // résolution (sémantique silencieuse) : refus honnête.
+        runCatching {
+            val b = cible.methode.binding ?: return ChangementSignature(cible.nom, "hierarchie", emptyMap())
+            val homonymes = b.declaringClass.methods().count { String(it.selector) == String(b.selector) }
+            if (homonymes > 1) return ChangementSignature(cible.nom, "surcharge", emptyMap())
+        }
+        if (appelants.any { it.estReferenceMethode }) {
+            return ChangementSignature(cible.nom, "referenceMethode", emptyMap())
+        }
+        val maximal = maxOf(cible.rang, voisin)
+        if (appelants.any { !it.estReferenceMethode && it.arguments.size <= maximal }) {
+            return ChangementSignature(cible.nom, "appelIncomplet", emptyMap())
+        }
+        if (appelants.any { !it.estReferenceMethode && it.arguments.size > arguments.size }) {
+            return ChangementSignature(cible.nom, "appelIncomplet", emptyMap())
+        }
+
+        val editions = LinkedHashMap<String, MutableList<EditionTexte>>()
+
+        // La DÉCLARATION : les deux fragments s'échangent (les blancs et
+        // la virgule INTERMÉDIAIRES restent — `(int a, String b)` devient
+        // `(String b, int a)`).
+        val fragmentRang = arguments[cible.rang].declarationSourceStart..arguments[cible.rang].declarationSourceEnd
+        val fragmentVoisin = arguments[voisin].declarationSourceStart..arguments[voisin].declarationSourceEnd
+        editionEchange(cheminCourant, source, fragmentRang, fragmentVoisin)?.let {
+            editions.getOrPut(cheminCourant) { mutableListOf() }.addAll(it)
+        }
+
+        // Les APPELANTS : les deux arguments aux mêmes rangs s'échangent.
+        for (site in appelants) {
+            if (site.estReferenceMethode) continue
+            val a = site.arguments.getOrNull(cible.rang) ?: continue
+            val b = site.arguments.getOrNull(voisin) ?: continue
+            val plageA = a.sourceStart..a.sourceEnd
+            val plageB = b.sourceStart..b.sourceEnd
+            editionEchange(site.chemin, site.texte, plageA, plageB)?.let {
+                editions.getOrPut(site.chemin) { mutableListOf() }.addAll(it)
+            }
+        }
+        for (liste in editions.values) {
+            liste.sortBy { it.offset }
+        }
+        return ChangementSignature(cible.nom, null, editions)
+    }
+
+    /**
+     * Les DEUX éditions d'un ÉCHANGE de plages disjointes : chaque plage
+     * reçoit le TEXTE de l'autre (les plages se chevauchent → refus
+     * honnête, null).
+     */
+    private fun editionEchange(
+        chemin: String,
+        texte: String,
+        plageA: IntRange,
+        plageB: IntRange,
+    ): List<EditionTexte>? {
+        if (plageA.first < 0 || plageB.first < 0) return null
+        if (plageA.last >= texte.length || plageB.last >= texte.length) return null
+        if (plageA.last >= plageB.first && plageB.last >= plageA.first) return null // chevauchement
+        val texteA = texte.substring(plageA.first, plageA.last + 1)
+        val texteB = texte.substring(plageB.first, plageB.last + 1)
+        val (premiere, seconde) = if (plageA.first < plageB.first) plageA to plageB else plageB to plageA
+        val (textePremiere, texteSeconde) = if (plageA.first < plageB.first) texteA to texteB else texteB to texteA
+        return listOf(
+            EditionTexte(seconde.first, seconde.last + 1 - seconde.first, textePremiere),
+            EditionTexte(premiere.first, premiere.last + 1 - premiere.first, texteSeconde),
+        )
+    }
+
+    // ------------------------------------------------------------------ //
     // Gardes
     // ------------------------------------------------------------------ //
 
@@ -207,7 +354,7 @@ internal class ServiceChangeSignature(
      * implémentations binaires comptent par le binding, les sources par la
      * déclaration). La méthode par défaut synthétique ne compte jamais.
      */
-    private fun outrepasseOuEstOutrepassee(methode: AbstractMethodDeclaration): Boolean {
+    internal fun outrepasseOuEstOutrepassee(methode: AbstractMethodDeclaration): Boolean {
         val b = runCatching { methode.binding }.getOrNull() ?: return true
         val declarant = runCatching { b.declaringClass }.getOrNull() ?: return true
         val arite = runCatching { b.parameters?.size ?: 0 }.getOrDefault(0)

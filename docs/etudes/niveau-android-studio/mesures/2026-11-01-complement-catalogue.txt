@@ -1,0 +1,172 @@
+PV DE MESURE — COMPLÉMENT DE CATALOGUE, les restes des familles
+unitaires (ajout/réordonnancement de paramètres, rename depuis un
+XML, codeDescription.href) — 01/11/2026
+====================================================================
+
+R5 : AUCUNE valeur fabriquée. Toutes les mesures ci-dessous proviennent
+des bancs et tests exécutés ce jour (JVM du bac à sable — CPU partagé
+plus bruyant que la CI ; les gates de latence y sont re-vérifiées par
+la CI, la valeur de référence reste la passe CI). Contexte bac : Maven
+Central rate-limitait l'IP du bac (HTTP 429 Cloudflare) — la
+résolution des dépendances est passée par le MIROIR PUBLIC Aliyun via
+un script d'init STRICTEMENT LOCAL (--init-script, jamais commité) ;
+la configuration du dépôt (mavenCentral) reste la source de vérité.
+
+--- Contenu livré (ADR 0032 ; restes consignés du PV V-D3, solde
+    G-023 de V-G) -----------------------------------------------
+
+(a) AJOUT DE PARAMÈTRES (quickfix ID-FIRST, kind « quickfix »,
+  DIFFÉRÉ — clé quickfix.ajouterParametres + offset du site fautif) :
+  l'appel qui passe PLUS d'arguments que la signature n'en prend
+  ÉTEND la signature — miroir du quickfix « Change Signature » de la
+  référence. MESURÉ au banc (sonde du 01/11, puis instrumentation du
+  correcteur — la première lecture des arguments était trompeuse) :
+   - un appel MÉTHODE fautif émet ParameterMismatch (67108979) avec
+     QUATRE arguments [déclarant, sélecteur, typesExistantsJOINTS,
+     typesArgumentsJOINTS] — les deux listes de types sont des chaînes
+     JOINTES par « , » (miroir des jetons du message), la liste
+     existante est VIDE sans paramètre ;
+   - un new X(…) fautif émet UndefinedConstructor (134217858) (« The
+     constructor X(int, String) is undefined » — il n'existe PAS de
+     variante « not applicable » pour les constructeurs) avec
+     [déclarant, typesArgumentsJOINTS] ;
+   - le site fautif MÉTHODE porte un MethodBinding LISIBLE
+     (problemId() = 0, declaringClass bon — ecj garde le candidat le
+     plus proche) : il est donc COLLECTÉ par le graphe d'appelants à
+     l'ANCIENNE arité — règle « un site dont le nombre d'arguments
+     DÉPASSE l'ancienne arité ne se retouche PAS » (l'appel fautif
+     porte déjà les futurs paramètres) ; le site fautif CONSTRUCTEUR
+     porte un ProblemMethodBinding (NotFound) — le type visé se lit
+     sur le nom du type de l'allocation.
+  Les paramètres ajoutés sont TYPÉS par les types RÉSOLUS des
+  arguments excédentaires (bindings du site — jamais reniflés),
+  raccourcis vers les noms simples avec édition d'IMPORT dans le
+  fichier DÉCLARANT (miroir fiche 064), nommés par l'heuristique par
+  type + suffixe anti-collision (params + locales du corps + champs
+  de l'unité déclarante — un nom qui masquerait un champ lu changerait
+  la sémantique). Chaque AUTRE appelant de l'ancienne signature
+  reçoit la VALEUR PAR DÉFAUT du type (0/false/null — miroir du
+  préremplissage du dialogue Change Signature de la référence).
+  REFUS HONNÊTES motivés (oracle MoteurJava.ajoutParametresSure) :
+  siteIntrouvable / mismatch (pur mismatch de types : pas un ajout) /
+  typeIllisible (littéral null) / binaire (déclarant hors sources) /
+  surcharge (plusieurs méthodes du même sélecteur — étendre le
+  candidat le plus proche serait le choix d'ecj, pas celui de
+  l'utilisateur) / sansConstructeur (le par défaut est synthétique) /
+  varargs / hierarchie / referenceMethode.
+
+(b) RÉORDONNANCEMENT DE PARAMÈTRES (kind refactor.rewrite.signature,
+  DIFFÉRÉ — clé refactor.deplacerParametre + caret + sens ±1) : le
+  paramètre au caret s'échange avec son VOISIN dans la signature ET
+  chaque appelant échange ses arguments aux MÊMES rangs — la liaison
+  expression↔paramètre est PRÉSERVÉE ((int a, String b) devient
+  (String b, int a) ; m(1, "x") devient m("x", 1)). Le paramètre PEUT
+  être utilisé : il se déplace AVEC ses lectures (c'est la
+  SUPPRESSION qui refuse « utilise » — note de contrat du test V-D3).
+  REFUS HONNÊTES motivés (oracle MoteurJava.deplacementParametreSure) :
+  borne (rang 0 à gauche, terminal à droite) / hierarchie / varargs
+  (un échange qui TOUCHE le paramètre étalé — toujours le dernier —
+  changerait la sémantique des appels étalés) / surcharge (une autre
+  méthode du même sélecteur dans le type déclarant : l'échange
+  d'arguments aux sites d'appel pourrait déplacer la résolution —
+  sémantique silencieuse, refus) / referenceMethode / appelIncomplet.
+
+(c) RENAME DEPUIS UN DOCUMENT XML (G-028, reste « rename depuis un
+  XML ») : textDocument/prepareRename et textDocument/rename servent
+  la ressource au caret d'un XML DU MODULE — la DÉCLARATION name="…"
+  des values (éléments typés + <item type=…>) ou le SEGMENT <nom>
+  d'une RÉFÉRENCE @<type>/…, @+<type>/…, ?<type>/… et de l'expression
+  R.<type>.<nom> du data binding. La PROPAGATION est la MÊME que
+  depuis le code Java (code Java par bindings + XML du module — le
+  scan R.* garde le comportement V-D3 mesuré, préfixe exact à courses
+  d'identifiants maximales) ; le document XML COURANT est servi depuis
+  son TAMPOIN OUVERT (fait foi — le disque peut être périmé, cas doré
+  TextView+Button du tampon). Refus honnêtes inchangés (fichier,
+  styleable, inconnu, hors res/) ; collisions typées inchangées
+  (identifiant invalide, nom déjà pris — référentiel source de
+  vérité) ; formes négociées inchangées (changes ou documentChanges
+  versionnée, jamais les deux ; le document courant voyage sous SON
+  URI). GARDE PUBLICATEUR posée : un document XML ne publie JAMAIS de
+  diagnostics Java (l'intention documentée de V-B « aucun diagnostic
+  Java publié » devient une garde EFFECTIVE — sans elle, un XML ouvert
+  serait compilé comme Java et publierait du bruit de parse ;
+  prouvé au protocole par le client espion).
+
+(d) codeDescription.href (G-023, solde V-G (e)) : le LIEN DE
+  DOCUMENTATION des diagnostics LINT — https://developer.android.com/
+  studio/write/lint, la page officielle « Improve your code with lint
+  checks » (VÉRIFIÉE le 01/11/2026 : répond 200 ; elle n'expose
+  AUCUNE ancre par ID d'issue — AUCUN URL par contrôle n'est fabriqué,
+  l'ID reste dans data.code/source pour un client qui veut naviguer
+  par identifiant). Les diagnostics ecj/inspection n'ont PAS de href :
+  aucune page officielle stable par erreur/inspection — honnête,
+  documenté.
+
+--- Pièges mesurés (R5) --------------------------------------------
+
+ 1. Les arguments STRUCTURÉS de ParameterMismatch se lisent
+    [déclarant, sélecteur, "int", "int, java.lang.String, long"] —
+    QUATRE entrées, les listes de types JOINTES (le print du banc
+    ressemble à six entrées : le quatrième argument contient des
+    virgules). Confirmé par instrumentation du correcteur.
+ 2. Le site fautif méthode garde un binding PROPRE (problemId 0) —
+    le graphe à l'ancienne arité l'inclut ; le site constructeur est
+    un ProblemMethodBinding (exclu naturellement).
+ 3. Le scan R.<type>.<nom> des valeurs XML doit rester un préfixe
+    EXACT à courses d'identifiants maximales : un scan « ident ou
+    point » avalerait R.string.foo.bar en quatre segments et
+    manquerait foo (régression mesurée puis réparée sur le cas doré
+    V-D3 du data binding).
+ 4. Le kind refactor.rewrite.signature porte désormais AUSSI le
+    réordonnancement : la garde R1 « paramètre utilisé » du banc V-D3
+    se prouve sur le TITRE de suppression, plus sur le kind seul
+    (note de contrat posée dans le test).
+
+--- Critères éprouvés (plan 04 §V-D/§V-G, R5 mesuré) ----------------
+
+  - CAS DORÉS multi-fichiers : 9 tests (ComplementCatalogueTest) —
+    chaque WorkspaceEdit doré appliqué puis RE-DIAGNOSTIQUÉ fichier
+    par fichier sur un témoin NEUF (esprit P5) : 0 ERREUR partout
+    (Main/Client). Détail : ajout de 2 paramètres (String, long) avec
+    appelant distant servi (null, 0) ; ajout AVEC IMPORT
+    (java.math.BigDecimal raccourci + édition d'import dans le
+    fichier déclarant) ; extension de CONSTRUCTEUR (new X(2) →
+    new X(2, null)) ; déplacement GAUCHE et DROITE (paramètres
+    UTILISÉS — la liaison expression↔paramètre est préservée, les
+    appelants locaux et distants échangés).
+  - ORACLE motifs : ajout (surcharge / varargs / hierarchie / binaire /
+    sansConstructeur / mismatch) et déplacement (varargs / surcharge /
+    referenceMethode sur this::m).
+  - LISTE honnête : sans argument excédentaire (pur mismatch) ni sur
+    un littéral null : AUCUNE action servie.
+  - RENAME DEPUIS XML : 6 tests moteur + 1 test protocole (boucle
+    locale LSP4J authentique) — cible au caret (déclaration values,
+    référence @string/, voisine qui ne vole pas le caret), propagation
+    code + XML avec le TAMPPOIN OUVERT en fait de foi (les DEUX
+    occurrences du tampon retouchées), refus (fichier, inconnu, hors
+    res/), collisions typées, formes négociées, erreur typée
+    RenommageSansCible sur caret sans ressource, AUCUN diagnostic Java
+    publié pour le document XML (client espion).
+  - codeDescription.href : lint → la page officielle (vérifiée) ;
+    ecj → null ; inspection → null.
+  - LATENCE liste (LatenceComplementCatalogueTest, transcript) : 36
+    requêtes (2 positions de paramètre × 12 tours + passe quickfix
+    des diagnostics) : p50 = 227 µs, p95 = 410 µs, max = 6 345 µs —
+    budget < 30 ms TENU (×73).
+  - SUITE : 900 tests / 0 échec (770 java dont 17 de la tranche ;
+    index 84 ; model 42 ; testing 4) ; 73 gates environnementales
+    ignorées avec raison. `gradlew build` STRICT (BANC_COHERENCE_
+    STRICT=true, P1–P8) VERT. Banc N1 tenu : démarrage à froid
+    893 ms, diagnose complet p50 13,1 ms, diagnose rapide p50 4,9 ms,
+    hover p50 0,11 ms, resolveUnit p50 0,0 ms (cache chaud), tas au
+    repos 35 Mo.
+
+--- Version et documents --------------------------------------------
+
+  Version 1.12.0. Documents : USAGE §7.27 ; ADR 0032 Accepté ;
+  plan 04 §V-D (complément de catalogue) + §V-G (e) complété ;
+  matrice G-016/G-023/G-028 ; synthèse.
+  Reste ouvert (catalogue TOUJOURS ouvert, famille = PR unitaire) :
+  introduce parameter object, extract/inline des champs d'instance,
+  invert boolean, wrap return value, convert lambda↔anonyme,
+  stream↔loop — et le rendu client (K2) des href/relatedInformation.

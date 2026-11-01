@@ -171,6 +171,30 @@ public class ServiceRefactorisations(
                     ),
                 )
             }
+            // Complément de catalogue (ADR 0032) — RÉORDONNANCEMENT : le
+            // caret porte un paramètre dont le VOISIN existe (le paramètre
+            // PEUT être utilisé — il se déplace avec ses lectures).
+            ServiceChangeSignature(arbre, source, "").deplacementServable(position)?.let { possible ->
+                val nomParametre = possible.cible.nom
+                if (possible.gauche) {
+                    resultat.add(
+                        ActionCode(
+                            "refactor.rewrite.signature",
+                            "Déplacer le paramètre « $nomParametre » vers la gauche",
+                            ModCommande.Differee(CLE_DEPLACER_PARAMETRE, listOf(position.toString(), "-1")),
+                        ),
+                    )
+                }
+                if (possible.droite) {
+                    resultat.add(
+                        ActionCode(
+                            "refactor.rewrite.signature",
+                            "Déplacer le paramètre « $nomParametre » vers la droite",
+                            ModCommande.Differee(CLE_DEPLACER_PARAMETRE, listOf(position.toString(), "1")),
+                        ),
+                    )
+                }
+            }
             // Inline VARIABLE : le caret porte une locale initialisée
             // (les RÉAFFECTATIONS ferment la porte — une variable écrite
             // ne se met pas en ligne).
@@ -1414,5 +1438,6 @@ public class ServiceRefactorisations(
         const val CLE_SUPPRIMER_SURE = "refactor.supprimerSure"
         const val CLE_SUPPRIMER_HIERARCHIQUE = "refactor.supprimerHierarchique"
         const val CLE_SUPPRIMER_PARAMETRE = "refactor.supprimerParametre"
+        const val CLE_DEPLACER_PARAMETRE = "refactor.deplacerParametre"
     }
 }

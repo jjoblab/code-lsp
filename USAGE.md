@@ -1575,6 +1575,71 @@ le document VIVANT des capacités servies non consommées (l'héritage) et
 des nouvelles par vague ; prêt à devenir le prompt d'exécution
 `cel-lsp`/`code-editor`.
 
+### 7.27 Complément de catalogue : ajout/réordonnancement de paramètres, rename depuis un XML, lien de documentation lint (v1.12.0)
+
+Le reste consigné du PV V-D3 et le solde (e) de V-G, en PR unitaires
+(ADR 0032).
+
+**Ajouter les paramètres manquants (quickfix, ID-FIRST)** — sur un
+appel qui passe PLUS d'arguments que la signature n'en prend
+(`calcul(3, "x", 4L)` sur `calcul(int)` ; `new Main(1, "y")` sur
+`Main(int)`) :
+
+```java
+// AVANT — l'appel fautif :
+int calcul(int a) { return a * 2; }
+int appel() { return calcul(3, "x", 4L); }        // ← le quickfix ici
+
+// APRÈS l'application (action différée, éditions au resolve) :
+int calcul(int a, String texte, long nombre) { return a * 2; }
+int appel() { return calcul(3, "x", 4L); }        // inchangé (il porte déjà les futurs paramètres)
+// chaque AUTRE appelant de l'ancienne arité reçoit la valeur PAR DÉFAUT :
+// m.calcul(4)  →  m.calcul(4, null, 0)
+```
+
+Les paramètres ajoutés sont typés par les types RÉSOLUS des arguments
+excédentaires (FQN raccourcis + import dans le fichier déclarant),
+nommés par l'heuristique par type (`texte`, `nombre`…) avec
+anti-collision (params, locales du corps, champs). Refus honnêtes
+motivés : pur mismatch de types, littéral `null`, déclarant binaire
+(SDK), surcharge (plusieurs méthodes du même sélecteur), constructeur
+synthétique, varargs, hiérarchie d'overrides, référence `X::m`.
+
+**Déplacer un paramètre (refactor.rewrite.signature)** — au caret d'un
+paramètre, « Déplacer le paramètre « x » vers la gauche/droite » : les
+fragments de la signature s'échangent et CHAQUE appelant échange ses
+arguments aux mêmes rangs (la liaison expression↔paramètre est
+préservée — `(int a, String b)` → `(String b, int a)` et
+`m(1, "x")` → `m("x", 1)`). Le paramètre peut être UTILISÉ (il se
+déplace avec ses lectures). Refus : borne, hiérarchie, frontière
+varargs, surcharge (risque de bascule de résolution), `X::m`,
+appelant incomplet.
+
+**Renommer une ressource DEPUIS un XML** — `prepareRename`/`rename`
+fonctionnent sur un document XML du module : le caret sur
+`@string/bonjour` (ou `@+id/…`, `?attr/…`, `R.string.…` du data
+binding, ou la valeur `name="bonjour"` d'une déclaration values) rend
+le placeholder exact et propage le renommage au code Java ET aux XML du
+module — le document XML courant est servi depuis son tampon ouvert
+(fait foi, même non sauvegardé). Refus et collisions identiques au
+rename depuis le code Java (ressource-fichier, styleable, inconnu ;
+identifiant invalide, nom déjà pris). Un document XML ouvert ne publie
+JAMAIS de diagnostics Java.
+
+**Lien de documentation des contrôles lint (codeDescription.href)** —
+chaque diagnostic de provenance `lint` porte
+`codeDescription.href = https://developer.android.com/studio/write/lint`
+(la page officielle — VÉRIFIÉE : elle n'a PAS d'ancre par ID ; l'ID
+reste dans `data.code` pour un client qui veut naviguer par
+identifiant). Les diagnostics ecj/inspection n'ont pas de href : aucune
+page officielle stable par erreur/inspection (documenté).
+
+Latence liste mesurée : p95 = 410 µs (budget 30 ms). Validation :
+17 tests (cas dorés multi-fichiers re-diagnostiqués — 0 erreur ;
+oracles de motifs ; tampon XML en fait de foi ; client espion — aucun
+diagnostic Java publié ; href), cf.
+`docs/etudes/niveau-android-studio/mesures/2026-11-01-complement-catalogue.txt`.
+
 ## 8. Capability maison `x-codeide.completionRanking`
 
 Le protocole riche de classement (ADR 0012/0015, design intégré N8) :

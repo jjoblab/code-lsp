@@ -195,6 +195,17 @@ public object ConvertisseurLsp {
             "provenance" to (diagnostic.source ?: PROVENANCE_ECJ),
             "code" to diagnostic.code,
         )
+        // Complément de catalogue (ADR 0032 — G-023, reste « href ») :
+        // le LIEN DE DOCUMENTATION d'un contrôle LINT — la page officielle
+        // « Improve your code with lint checks » de developer.android.com
+        // (VÉRIFIÉE : elle n'expose AUCUNE ancre par ID d'issue — aucun URL
+        // par contrôle n'est fabriqué, l'ID reste dans data.code/source
+        // pour un client qui veut naviguer par identifiant). Les
+        // diagnostics ecj/inspection n'ont PAS de page officielle stable
+        // par inspection : pas de href (honnête, documenté).
+        if (diagnostic.source == SOURCE_LINT) {
+            lsp.codeDescription = org.eclipse.lsp4j.DiagnosticCodeDescription(HREF_DOC_LINT)
+        }
         // V-G (ADR 0031 (e)) : relatedInformation — les liens moteur,
         // localisés dans le document porteur.
         if (uri != null && diagnostic.liens.isNotEmpty()) {
@@ -238,6 +249,16 @@ public object ConvertisseurLsp {
 
     /** La provenance du compilateur dans le champ data (V-G — ADR 0031 (e)). */
     private const val PROVENANCE_ECJ: String = "ecj"
+
+    /** La provenance LINT des contrôles Android (miroir ContratInspection). */
+    private const val SOURCE_LINT: String = "lint"
+
+    /**
+     * La page officielle des contrôles lint (codeDescription.href, ADR
+     * 0032) — VÉRIFIÉE le 01/11/2026 : `https://developer.android.com/
+     * studio/write/lint` répond 200 et n'expose PAS d'ancre par ID.
+     */
+    private const val HREF_DOC_LINT: String = "https://developer.android.com/studio/write/lint"
 
     // ----------------------------------------------------------------- //
     // Navigation : cibles, usages, surbrillances

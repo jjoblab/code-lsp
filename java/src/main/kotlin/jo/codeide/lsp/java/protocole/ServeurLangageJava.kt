@@ -1235,6 +1235,26 @@ public class ServeurLangageJava(
         garde<Either3<Range, PrepareRenameResult, org.eclipse.lsp4j.PrepareRenameDefaultBehavior>>()?.let { return it }
         val uri = params.textDocument.uri
         val document = documentDe(uri)
+        // Complément de catalogue (ADR 0032) — rename DEPUIS UN XML : la
+        // ressource au caret d'un document XML du module (déclaration
+        // name="…" des values ou référence @type/…) se prépare comme
+        // depuis le code Java.
+        if (uri.endsWith(".xml") && document != null) {
+            val (cheminXml, texteXml) = document
+            val preparationXml = avecMoteurFrais(cheminXml) { _ ->
+                serviceRenommage?.preparerRenommageXml(cheminXml, texteXml, offsetDe(texteXml, params.position))
+            }
+            return CompletableFuture.completedFuture(
+                preparationXml?.let {
+                    Either3.forSecond(
+                        PrepareRenameResult(
+                            ConvertisseurLsp.repere(texteXml).plage(it.plage),
+                            it.placeholder,
+                        ),
+                    )
+                },
+            )
+        }
         val preparation = document?.let { (chemin, texte) ->
             avecMoteurFrais(chemin) { _ ->
                 serviceRenommage?.preparerRenommage(chemin, texte, offsetDe(texte, params.position))
@@ -1260,6 +1280,23 @@ public class ServeurLangageJava(
         val uri = params.textDocument.uri
         val document = documentDe(uri)
         val service = serviceRenommage
+        // Complément de catalogue (ADR 0032) — rename DEPUIS UN XML : la
+        // MÊME propagation multi-fichiers (code Java + XML), le document
+        // XML courant servi depuis son tampon OUVERT.
+        if (uri.endsWith(".xml") && document != null) {
+            val (cheminXml, texteXml) = document
+            if (service == null || moteurPour(cheminXml) == null) {
+                return refuse(ResponseErrorCode.RequestFailed, "Aucun symbole renommable")
+            }
+            return try {
+                val edition = avecMoteurFrais(cheminXml) { _ ->
+                    service.renommageXml(uri, cheminXml, texteXml, offsetDe(texteXml, params.position), params.newName)
+                }
+                CompletableFuture.completedFuture(espaceDeTravailLsp(edition))
+            } catch (e: RenommageSansCible) {
+                refuse(ResponseErrorCode.RequestFailed, e.message ?: "Aucun symbole renommable")
+            }
+        }
         // Régime vivant : la garde moteur passe par le ROUTAGE du document
         // renommé (fiche 047) — le champ figé resterait null en mode
         // environnement et rejetterait le rename à tort.

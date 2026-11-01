@@ -181,7 +181,7 @@ internal object CorrecteurCreationMethode {
      * séparent les paramètres — celles INTERNES aux génériques
      * (« Map&lt;String, Integer&gt; ») ne comptent jamais.
      */
-    private fun decouperTypesParametres(jointe: String): List<String> {
+    internal fun decouperTypesParametres(jointe: String): List<String> {
         val types = ArrayList<String>()
         val tampon = StringBuilder()
         var profondeur = 0
@@ -212,7 +212,7 @@ internal object CorrecteurCreationMethode {
      * (noms simples) et le FQN dont l'import est requis (null si java.lang
      * ou sans point).
      */
-    private data class TypeRaccourci(public val court: String, public val fqnImport: String?)
+    internal data class TypeRaccourci(public val court: String, public val fqnImport: String?)
 
     /**
      * Raccourcit un type lisible ecj vers ses noms SIMPLES (fiche 064 :
@@ -220,7 +220,7 @@ internal object CorrecteurCreationMethode {
      * lang.String&gt; ») — les FQN à import (hors java.lang) sont
      * collectés pour l'édition d'import.
      */
-    private fun raccourcirType(type: String): TypeRaccourci {
+    internal fun raccourcirType(type: String): TypeRaccourci {
         val imports = LinkedHashSet<String>()
         val court = Regex("[A-Za-z_$][A-Za-z0-9_$]*(?:\\.[A-Za-z_$][A-Za-z0-9_$]*)*")
             .replace(type) { occurrence ->
@@ -241,7 +241,7 @@ internal object CorrecteurCreationMethode {
      * l'ancre (les imports requis, triés, un par ligne — jamais deux éditions
      * au même offset) ; null si aucun import requis.
      */
-    private fun editionsImports(source: String, raccourcis: List<TypeRaccourci>): EditionTexte? {
+    internal fun editionsImports(source: String, raccourcis: List<TypeRaccourci>): EditionTexte? {
         val fqns = raccourcis.mapNotNull { it.fqnImport }
             .filter { !CorrecteursTexte.dejaImporte(source, it) }
             .distinct()

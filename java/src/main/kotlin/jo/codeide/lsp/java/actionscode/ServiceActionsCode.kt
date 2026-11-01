@@ -124,6 +124,13 @@ public class ServiceActionsCode(
             FamilleProbleme.CAST_INUTILE -> {
                 CorrecteursEtendus.castInutile(source, diagnostic)?.let { resultat.add(it) }
             }
+            FamilleProbleme.PARAMETRES_INAPPLICABLES -> {
+                // Complément de catalogue (ADR 0032) : l'action est
+                // DIFFÉRÉE (clé + offset du site fautif) — les gardes
+                // multi-fichiers et les éditions vivent au resolve
+                // (MoteurJava.resoudreActionProjet), miroir V-D3.
+                CorrecteurAjoutParametres.action(diagnostic)?.let { resultat.add(it) }
+            }
             FamilleProbleme.UNKNOWN -> Unit
         }
         return resultat

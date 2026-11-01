@@ -71,6 +71,24 @@ public enum class FamilleProbleme {
     /** Cast redondant — le signal de l'INSPECTION V-C1 (code nommé) — fix = retrait. */
     CAST_INUTILE,
 
+    /**
+     * Méthode/constructeur NON APPLICABLE aux arguments (complément de
+     * catalogue — ADR 0032) : l'appel passe PLUS d'arguments que la
+     * signature n'en prend — fix = AJOUT DE PARAMÈTRES (extension de
+     * signature multi-fichiers, miroir du quickfix « Change Signature »
+     * de la référence). Les deux IDs MESURÉS au banc (sonde du 01/11,
+     * structure confirmée par instrumentation) : un appel méthode fautif
+     * émet ParameterMismatch (67108979) avec QUATRE arguments
+     * `[déclarant, sélecteur, typesExistantsJOINTS,
+     * typesArgumentsJOINTS]` (les deux listes de types sont des chaînes
+     * JOINTES par « , » — miroir des jetons du message) ; un `new X(…)`
+     * fautif émet UndefinedConstructor (134217858) avec
+     * `[déclarant, typesArgumentsJOINTS]` (le message « The constructor
+     * X(int) is undefined » — PAS de variante « not applicable » pour
+     * les constructeurs, mesuré).
+     */
+    PARAMETRES_INAPPLICABLES,
+
     /** ID non mappé — ne déclenche AUCUN quick-fix ID-FIRST (fiche 065). */
     UNKNOWN;
 
@@ -149,6 +167,16 @@ public enum class FamilleProbleme {
             // Imports en conflit/dupliqués (V-D — suppression de ligne).
             put(268435841L, IMPORT_CONFLIT) // ConflictingImport
             put(268435842L, IMPORT_CONFLIT) // DuplicateImport (collides with another import)
+
+            // Signature inapplicable aux arguments (complément de catalogue
+            // — ADR 0032, IDs MESURÉS : l'appel fautif `calcul(3, "x", 4L)`
+            // sur `calcul(int)` émet 67108979 args [demo.Main, calcul, int,
+            // "int, java.lang.String, long"] (types existants et types
+            // d'arguments JOINTS — QUATRE entrées, mesuré) ; `new Main(1,
+            // "y")` sur `Main(int)` émet 134217858 args [demo.Main,
+            // "int, java.lang.String"]).
+            put(67108979L, PARAMETRES_INAPPLICABLES) // ParameterMismatch (méthode)
+            put(134217858L, PARAMETRES_INAPPLICABLES) // UndefinedConstructor (new X(…))
         }
 
         /**

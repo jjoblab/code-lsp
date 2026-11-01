@@ -244,9 +244,14 @@ class RefactorisationsVd3Test {
         """.trimIndent()
         val (moteur, chemin) = moteurAvec(propre(source))
         val position = caret(source)
+        // NOTE DE CONTRAT (complément de catalogue — ADR 0032) : le kind
+        // refactor.rewrite.signature porte désormais AUSSI le
+        // RÉORDONNANCEMENT (un paramètre LU se DÉPLACE avec ses lectures —
+        // c'est la SUPPRESSION qui refuse) : la garde R1 se prouve sur le
+        // TITRE de suppression, plus sur le kind seul.
         assertTrue(
-            moteur.intentions(chemin, propre(source), position, position).none { it.kind == "refactor.rewrite.signature" },
-            "un paramètre LU dans le corps ne se sert pas (R1)",
+            moteur.intentions(chemin, propre(source), position, position).none { it.kind == "refactor.rewrite.signature" && it.titre.startsWith("Supprimer") },
+            "un paramètre LU dans le corps ne se SUPPRIME pas (R1)",
         )
         val verdict = moteur.changementSignatureSure(chemin, propre(source), position)
         assertNotNull(verdict)

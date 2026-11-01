@@ -621,6 +621,37 @@ complètent la couverture.
 > (G-028), création de champ sur UndefinedField — le critère « conflits
 > rename/safe-delete : 0 manqué (oracle) » suivra ces tranches.
 
+> **COMPLÉMENT DE CATALOGUE LIVRÉ le 01/11/2026 (v1.12.0 — ADR 0032,
+> PV `mesures/2026-11-01-complement-catalogue.txt`)** — les restes des
+> familles unitaires :
+>
+> - **AJOUT de paramètres** (quickfix ID-FIRST sur l'appel fautif —
+>   ParameterMismatch 67108979 / UndefinedConstructor 134217858, IDs et
+>   arguments MESURÉS) : la signature s'étend des types RÉSOLUS des
+>   arguments excédentaires, les autres appelants reçoivent la valeur
+>   PAR DÉFAUT (0/false/null — préremplissage de la référence), l'import
+>   raccourci vit dans le fichier déclarant ; le site fautif ne se
+>   retouche pas (MESURÉ : son binding reste lisible, il porte déjà les
+>   futurs paramètres) ;
+> - **RÉORDONNANCEMENT** (« Déplacer le paramètre vers la gauche/
+>   droite ») : échange des fragments de signature + des arguments aux
+>   mêmes rangs chez chaque appelant — la liaison expression↔paramètre
+>   est préservée ; le paramètre peut être utilisé (il se déplace avec
+>   ses lectures) ;
+> - **RENAME DEPUIS UN XML** (G-028, solde) : prepareRename/rename sur
+>   un document XML du module (déclaration name= des values, références
+>   @type/, @+type/, ?type/, data binding R.*), propagation code + XML,
+>   tampon ouvert en fait de foi ; garde publicateur (aucun diagnostic
+>   Java pour un XML ouvert) ;
+> - **codeDescription.href** (solde V-G (e), G-023) : provenance lint →
+>   la page officielle des contrôles lint (VÉRIFIÉE : pas d'ancre par
+>   ID — aucun URL fabriqué) ; ecj/inspection sans href (documenté).
+>
+> Validation : 17 tests (cas dorés re-diagnostiqués — 0 erreur ; oracles
+> de motifs ; client espion protocole) ; latence liste p95 MESURÉE
+> 410 µs (< 30 ms) ; 900 tests / 0 échec ; build STRICT vert ; banc N1
+> tenu.
+
 - **Périmètre** : organizeImports exposé + kinds (ADR 0027/0031), génération de code
   (6 capacités), intentions sans diagnostic, familles ecj étendues, extract
   variable/constant puis method, safe delete, inline, change signature, resolve réel.
@@ -689,8 +720,10 @@ complètent la couverture.
 > périmètre honnête : usages qualifiés sans import non réécrits.
 > **(e)** diagnostics enrichis (G-023 résolu EN PARTIE) — `data
 > {provenance, code}` machine-readable + relatedInformation « requis
-> par X » (fiche 019) ; `codeDescription.href` non livré (aucun
-> consommateur identifié). **(f)** `completionItem/resolve` RÉEL
+> par X » (fiche 019) ; `codeDescription.href` livré au COMPLÉMENT
+> de catalogue (v1.12.0 — ADR 0032 : provenance lint → la page
+> officielle developer.android.com/studio/write/lint, VÉRIFIÉE sans
+> ancre par ID ; ecj/inspection sans href, documenté). **(f)** `completionItem/resolve` RÉEL
 > (G-021 RÉSOLU) — auto-import DIFFÉRÉ négocié par `resolveSupport`
 > (règles fiche 029 miroir, balayage lexical) ; sans annonce, liste
 > complète d'avant V-G. **(g)** registre client K2 VIVANT
@@ -717,9 +750,9 @@ complètent la couverture.
 | V-B projet Android | 36–60 | 4–7 | D2 (contrat modèle), D6 |
 | V-F1 double-tampon | 8–14 | 1–2 | aucune |
 | V-C intelligence | 28–44 | 3–5 | V-B, V-F1, D7 |
-| V-D actions | 28–46 | 3–5 | V-C partiel |
+| V-D actions | 28–46 | 3–5 (livrée 31/10–01/11 — trois tranches + complément de catalogue ADR 0032) | V-C partiel |
 | V-F perf complète | 16–26 | 2–3 (livrée 01/11 — phases 3–4 ; phase 5 reportée motivée) | aucune |
-| V-G protocole | 10–18 | 1–2 (livrée 01/11) | client (K2) |
+| V-G protocole | 10–18 | 1–2 (livrée 01/11 ; solde href livré au complément ADR 0032) | client (K2) |
 | **Total** | **145–241 j-h agent** | **16–29 séances** | — |
 
 > Recoupement volumétrie (méthode §3.2 du PLAN-REECRITURE) : les vagues ajoutent

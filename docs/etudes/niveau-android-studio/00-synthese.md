@@ -195,6 +195,21 @@ ajout/réordonnancement de paramètres) ; resolveCodeAction sert la forme
 MULTI-URI ; 23 cas V-D3 dorés multi-fichiers compilables, latence liste
 p95 mesurée 442 µs (< 30 ms), 860 tests / 0 échec — cf.
 `04-plan-vagues.md` §V-D et `mesures/2026-11-01-vd3-refactorings.txt`) ;
+**Complément de catalogue livré le 01/11 au soir (v1.12.0 — ADR
+0032)** — les restes des familles unitaires : **ajout de paramètres**
+(quickfix ID-FIRST sur l'appel fautif, ParameterMismatch/
+UndefinedConstructor MESURÉS — types résolus des arguments
+excédentaires, valeur PAR DÉFAUT chez les autres appelants, import
+raccourci dans le fichier déclarant) ; **réordonnancement** (échange
+signature + arguments aux mêmes rangs — liaison expression↔paramètre
+préservée) ; **rename DEPUIS un XML** (G-028, solde — déclaration
+name=/références @type/, data binding ; tampon ouvert en fait de foi ;
+garde publicateur : aucun diagnostic Java pour un XML ouvert) ;
+**codeDescription.href** (G-023 ENTIÈREMENT résolu — provenance lint →
+page officielle VÉRIFIÉE sans ancre par ID, ecj/inspection sans href
+documenté). 17 tests, latence liste p95 mesurée 410 µs (< 30 ms),
+900 tests / 0 échec — cf. `04-plan-vagues.md` §V-D (complément) et
+`mesures/2026-11-01-complement-catalogue.txt` ;
 **V-F finale + V-G livrées le 01/11 au soir (v1.11.0) — les vagues V-F
 et V-G sont COMPLÈTES, la SÉQUENCE V-A→V-G DU PLAN EST BOUCLÉE** :
 **V-F3** budgets d'OCTETS (cache de parse 8 Mio estimés — garde
