@@ -994,9 +994,9 @@ L'organisateur d'imports (étage N7, fiche 022) — identification des FQN
 à importer depuis les **bindings**, règles d'exemption (`java.lang`,
 même paquet, paquet couvert par un on-demand existant), remplacement du
 bloc existant par un bloc **trié** — est servi par l'API moteur
-(`MoteurJava.organiserImports`, §10) : la couche protocole ne l'expose
-pas encore comme action `source.organizeImports` (amélioration
-candidate). Exemple d'emploi en Kotlin :
+(`MoteurJava.organiserImports`, §10) ET, depuis la vague V-D tranche 1,
+comme action `source.organizeImports` au fil LSP (§7.22). Exemple
+d'emploi en Kotlin :
 
 ```kotlin
 val proposition = moteur.organiserImports(chemin, source)
@@ -2006,7 +2006,8 @@ re-signature de `parite-completion.json` (les stubs de façade suivent).
   mise en œuvre client : `docs/BASCULE-CODEIDE.md` +
   `docs/INTEGRATION-CODEIDE.md` ; suivi post-bascule borné au §6 du
   gabarit.
-- **Organisation des imports** : API moteur seulement (§7.17) — pas
-  encore d'action `source.organizeImports` au fil LSP.
+- **Organisation des imports** : exposée comme action
+  `source.organizeImports` au fil LSP depuis la vague V-D tranche 1
+  (§7.22) ET par l'API moteur (§7.17).
 - Le serveur n'écrit **jamais** sur le disque : preview = résultat
   (renommage, actions de code — le client applique).
