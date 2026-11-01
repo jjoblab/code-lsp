@@ -182,6 +182,23 @@ public class ClientEspion : LanguageClient {
         diagnostics?.let { publications.add(it) }
     }
 
+    /** Les progressions reçues (V-G — workDoneProgress), dans l'ordre. */
+    public val progressions: MutableList<ProgressParams> =
+        java.util.concurrent.CopyOnWriteArrayList()
+
+    /** Les jetons créés par le serveur (V-G — un par workDoneProgress). */
+    public val jetonsCrees: MutableList<String> =
+        java.util.concurrent.CopyOnWriteArrayList()
+
+    override fun createProgress(params: WorkDoneProgressCreateParams?): CompletableFuture<Void> {
+        params?.token?.left?.let { jetonsCrees.add(it) }
+        return CompletableFuture.completedFuture(null)
+    }
+
+    override fun notifyProgress(params: ProgressParams?) {
+        params?.let { progressions.add(it) }
+    }
+
     override fun showMessage(messageParams: MessageParams?): Unit = Unit
 
     override fun showMessageRequest(requestParams: ShowMessageRequestParams?): CompletableFuture<MessageActionItem> {

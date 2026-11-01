@@ -273,6 +273,37 @@ plugins {
 // 2 passes (livraison par l'époque neuve) ; bancs d8 (1,000/1,000/1,000,
 // p95 35,96 ms), usages (1,000, p95 40,62 ms), parité et N1
 // (diagnose rapide p50 4,8 ms, tas 17 Mo) non régressés.
+// 1.11.0 : VAGUES V-F FINALE + V-G (ADR 0029 phases 3–4 + ADR 0031 — la
+// vague V-F est COMPLÈTE, la vague V-G est LIVRÉE) : V-F3 budgets d'OCTETS
+// du cache de parse (coût estimé par fichier, garde anti-cyclage : la
+// dernière entrée posée survit seule) et du mémo de localisation (négatifs
+// évincés d'abord — re-probe honnête, contrats fiche 024 intacts) + shim
+// onTrimMemory (pressionMemoire par niveau ComponentCallbacks2 miroir,
+// relais multi-modules EnvironnementCompilation.pressionMemoire, rapport
+// CHIFFRÉ, kill-switches memoire.budgets/ontrim.disabled) ; V-F4 PLAGE
+// PRIORITAIRE (notification $/codeide.plageVisible v1 + double publication
+// « visible d'abord » sur les grands fichiers ≥ SEUIL_PRIORITAIRE — passe
+// prioritaire PURE (aucune écriture d'état), la complète fait foi, inert
+// sans notification : contrats du cahier intacts, kill-switch
+// plageprioritaire.disabled) ; V-F5 incrémentalité : report honnête
+// conditionné (ADR 0017 (b) non clos, critère utile déjà tenu par le
+// diagnose rapide fiche 014) ; V-G workDoneProgress d'indexation (jeton
+// begin/report/end throttlé, préchauffage au creux initialized, G-032),
+// diagnostics enrichis (data {provenance, code} machine-readable +
+// relatedInformation « requis par X » sur la clause extends — fiche 019),
+// willRenameFiles (package + imports du cas doré, fileOperations annoncé,
+// didRenameFiles invalide), semanticTokens sur bindings (légende 8 types
+// standard + 4 modificateurs, full sans delta, cas doré + latence p95
+// mesurée < 25 ms), completionItem/resolve RÉEL (auto-import différé
+// négocié par resolveSupport client — sans annonce, liste complète
+// d'avant V-G), registre client K2 (docs/REGISTRE-CLIENT-K2.md).
+// Validation : 919 tests / 0 échec (753 java dont 23 V-F3/V-F4/V-G ;
+// 73 gates environnementales ignorées avec raison), `clean build` strict
+// (P1–P8) VERT ; banc N1 tenu (démarrage à froid 1 011 ms, diagnose
+// complet p50 13,8 ms, rapide p50 5,3 ms, hover p50 0,089 ms, complétion
+// membres p50 6,8 ms, tas au repos 35 Mo) ; semanticTokens p95 mesuré
+// 1 ms (cible ADR 0031 < 25 ms). §7.16/§7.25/§7.26/§9.5, ADR
+// 0029/0031/0011 à jour.
 allprojects {
-    version = "1.10.0"
+    version = "1.11.0"
 }

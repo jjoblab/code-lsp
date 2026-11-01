@@ -964,15 +964,29 @@ C'est aussi la base de la **cible de formatage à la frappe** (§7.10).
 `var message = greet("monde");` — chaque maillon englobe strictement le
 précédent.)
 
-### 7.16 `textDocument/semanticTokens/full` — tolérant, non annoncé
+### 7.16 `textDocument/semanticTokens/full` — coloration sémantique (vague V-G)
 
-Aucun service moteur ne sert les tokens sémantiques : la capability est
-**absente** de l'annonce (règle matrice ADR 0015) mais la requête reste
-**tolérante** — réponse à `data` vide (fiche 059 I9), jamais d'erreur :
+Annoncé depuis la vague V-G (ADR 0031 (a) — la capability voyage avec sa
+**légende**, annoncée ⇔ testée) : le calcul parcourt l'arbre **RÉSOLU**
+du document (résolution complète, jamais masquée — la coloration porte
+sur TOUT le fichier) et rend le vecteur **encodé en deltas relatifs**
+(spécification LSP 3.17 : 5 entiers par jeton — delta de ligne, delta de
+colonne, longueur, index du type dans la légende, bitfield des
+modificateurs). Légende des types : `class`, `interface`, `enum`,
+`decorator` (annotations), `method` (déclarations, invocations et
+**constructeurs** — miroir V-D2), `property` (champs), `parameter`,
+`variable` (locales) ; modificateurs : `declaration`, `static`, `final`,
+`abstract`.
 
 ```json
-{"jsonrpc":"2.0","id":28,"result":{"data":[]}}
+{"jsonrpc":"2.0","id":28,"result":{"data":[0,6,5,0,1,0,8,7,4,0,…]}}
 ```
+
+**Pas de delta serveur** (borne honnête documentée) : `range` n'est pas
+servi, le client re-demande le vecteur complet à chaque édition — jamais
+un delta faux. Document absent ou moteur introuvable : `data` vide
+(I9 — jamais null, jamais d'exception). Latence mesurée au banc : p95
+**1 ms** sur le cas doré JVM (cible ADR 0031 : < 25 ms — §12).
 
 ### 7.17 Organisation des imports (API moteur)
 
@@ -1422,6 +1436,145 @@ sert la forme multi-URI — les éditions par fichier deviennent une map
 URI → éditions (le document courant sous SON URI, les autres sous
 `file://<chemin>`, convention du renommage N5).
 
+### 7.25 V-F finale — budgets d'octets, onTrimMemory, plage prioritaire (vagues V-F3/V-F4)
+
+**Budgets d'octets (V-F3 — ADR 0029 phase 3, exécution de l'ADR 0011
+point 2)**. Deux caches gagnent une borne en **octets estimés** (le tas
+réel reste l'affaire du banc mémoire, R5) :
+
+- le **cache de parse** (arbres résolus) : coût estimé par entrée =
+  source retenue × facteur d'arbre **estimé** (×6, gestion) + enveloppe ;
+  budget par défaut **8 Mio** (généreux devant le régime typique 8
+  entrées ≈ 800 Ko de l'audit ADR 0011 — il ne mord que sur les fichiers
+  GÉANTS) ; éviction **LRU** au-delà du budget, EN PLUS de la borne en
+  entrées. **Garde anti-cyclage** : l'entrée la plus récente est
+  TOUJOURS retenue — un fichier unique plus gros que le budget vit seul
+  jusqu'à la suivante, jamais de put/éviction en boucle ;
+- le **mémo de localisation** (verdicts fqcn → jar) : les verdicts
+  ne périment jamais par conception (fiche 024) ; budget par défaut
+  **2 Mio**, les **NÉGATIFS sont évincés d'abord** (un re-probe honnête
+  re-sonde les tables centrales, le verdict rendu reste EXACT), et si le
+  budget reste dépassé le mémo est vidé ENTIÈREMENT (rare, documenté).
+  Les contrats observables de la fiche 024 sont INCHANGÉS — seul le
+  COÛT du re-probe revient.
+
+Kill-switch commun :
+`jo.codeide.lsp.java.memoire.budgets.disabled=true` rétablit les bornes
+d'avant V-F3 (budget infini).
+
+**Shim `onTrimMemory` (V-F3 — ADR 0029 phase 3, exécution de l'ADR 0011
+point 5)**. L'hôte Android relaie
+`ComponentCallbacks2.onTrimMemory(level)` vers
+`MoteurJava.pressionMemoire(niveau)` **avec le même entier** (les
+constants `NiveauxPressionMemoire` sont le miroir exact de la
+plateforme — identité, pas traduction) ; le relais multi-modules
+`EnvironnementCompilation.pressionMemoire(niveau)` touche TOUS les
+moteurs vivants et rend un **rapport chiffré** (`RapportPressionMemoire`
+: entrées de parse libérées, mémos de diagnose, négatifs de
+localisation, libération intégrale oui/non — journalisable côté hôte).
+Politique cumulative :
+
+| Niveaux reçus | Ce qui est libéré |
+|---|---|
+| `RUNNING_MODERATE/LOW/CRITICAL` (5/10/15), `UI_HIDDEN` (20) | les arbres RÉSOLUS du cache de parse seuls (le mémo de diagnose reste — la frappe reste servie au chemin chaud) |
+| `BACKGROUND` (40), `MODERATE` (60) | + les MÉMOS de diagnose et les NÉGATIFS de localisation (les positifs gardent leurs handles) |
+| `COMPLETE` (80) | libération INTÉGRALE (`dispose` drainé par le verrou de compilation — le moteur reste utilisable, tout se reconstruit paresseusement) |
+
+Un niveau INCONNU reste servi sans exception (< 20 → traitement doux,
+≥ 80 → libération intégrale). Le signal ne paie JAMAIS la construction
+de l'environnement de noms (jrt/jars). Kill-switch :
+`jo.codeide.lsp.java.memoire.ontrim.disabled=true` rend le shim
+inopérant (rapport « rien libéré »).
+
+**Plage prioritaire (V-F4 — ADR 0029 phase 4, « zone visible d'abord »)**.
+La notification maison `$/codeide/plageVisible` (§9.5) déclare la zone
+de CHAQUE document réellement affichée ; quand une passe à venir serait
+COMPLÈTE (sonde `serviraitPasseComplete` — ouverture de grand fichier,
+édition structurelle) et que le document dépasse
+`MoteurJava.SEUIL_PRIORITAIRE` (16 000 caractères ≈ 500 lignes), le
+publicateur publie DEUX fois dans le MÊME tir : la passe **PRIORITAIRE**
+d'abord (le corps VISIBLE intact + tout le hors-corps — masquage
+isomorphe au diagnose rapide, fiche 014 ; partielle ASSUMÉE), la passe
+COMPLÈTE ensuite — **elle fait foi** (fil unique : l'ordre d'arrivée au
+client est garanti, le client rend la dernière reçue). La passe
+prioritaire est **PURE** : elle n'écrit NI mémo NI cache de parse (un
+diagnostic partiel ne devient jamais la source de portage d'une passe
+rapide suivante). Refus honnêtes (null → publication complète
+directement) : fichier sous le seuil, accolades déséquilibrées, offset
+visible hors de tout corps, moins de deux corps, régime non plein. Un
+client SANS notification garde le comportement d'avant V-F4 **à
+l'identique** (une salve = une publication, contrats du cahier intacts).
+Kill-switch : `jo.codeide.lsp.java.plageprioritaire.disabled=true`.
+
+**Incrémentalité (V-F5 — report honnête)** : non livrée — conditionnée à
+l'ADR 0017 (b) (artefacts JetBrains java-syntax, décision D4 non
+tranchée par le propriétaire) ; le critère utile (« la frappe ne paie
+pas la re-résolution complète ») est déjà tenu par le diagnose rapide
+(fiche 014 — frappe confinée, p50 mesuré au banc). La V-F est COMPLÈTE
+au sens du plan 04 (phases 1–4 livrées, phase 5 reportée motivée).
+
+### 7.26 V-G — surface protocole : progression, diagnostics enrichis, willRenameFiles, resolve réel (vague V-G)
+
+**Progression d'indexation (ADR 0031 (c), écart G-032)**. Juste après
+`initialized`, un fil de démon (`lspjava-indexation`)
+**préchauffe** l'index de mots du moteur par défaut — la construction
+froide est payée au moment le plus creux de la session (aucune requête
+en vol ; valeur PROPRE : la première requête d'usages/renommage ne paie
+plus le froid). Si le client a annoncé `window.workDoneProgress`, le
+serveur ouvre un jeton `codeide-indexation-*` et envoie
+`begin`/`report`/`end` — titre « Indexation des sources », pourcentage
+RÉEL (les `report` suivent les fichiers effectivement lexés, throttlés
+à ~50), `end` TOUJOURS envoyé (le jeton ne fuit jamais, même sur
+exception). Sans la capability : préchauffage silencieux (aucun bruit).
+Kill-switch : `jo.codeide.lsp.java.progression.disabled=true` coupe le
+fil entier.
+
+**Diagnostics enrichis (ADR 0031 (e))**. Chaque diagnostic publié porte
+désormais un champ `data` **machine-readable** :
+`{"provenance": "ecj" | "inspection" | "lint", "code": "<ID nu>"}` — un
+client filtre ou groupe SANS parser le code préfixé humain (miroir du
+champ source moteur, ADR 0025). `relatedInformation` : le lien
+« requis par X » de l'enrichissement hiérarchique (fiche 019 — la clause
+`extends` exigeante d'un supertype absent du classpath) devient une
+localisation CLIQUABLE dans le document porteur. `codeDescription.href`
+n'est PAS livré (aucun consommateur identifié — écart documenté, la
+matrice suit).
+
+**Renommage de fichier (ADR 0031 (d), écart G-022)**.
+`workspace/willRenameFiles` (annoncé via
+`workspace.fileOperations.willRename` sur `**/*.java`) : le geste
+« renommer / déplacer un `.java` » de l'arbre éditeur reçoit, AVANT le
+renommage effectif, les éditions qui gardent le projet cohérent — la
+**déclaration de paquet** du fichier déplacé (le FQCN change) et les
+**imports** de ses porteurs (`import demo.A;`, `import demo.A.Imbrique;`,
+`import static demo.A.CHAMP;` — le segment FQCN seul est réécrit). La
+source fraîche de chaque porteur : le TAMPON OUVERT si le document
+l'est, le DISQUE sinon. Réponse TOUJOURS un `WorkspaceEdit` (vide
+honnête si rien à ajuster — renommage conservant le FQCN, fichier hors
+racines). Périmètre honnête : les usages qualifiés complets SANS import
+(`demo.A a = …`) ne sont PAS réécrits (le cas doré de la décision est
+« package + imports »). `didRenameFiles` (annoncé aussi) invalide la
+présence source et l'index de mots — le FQCN a changé.
+
+**`completionItem/resolve` réel (ADR 0031 (f), écart G-021)**. Le serveur
+annonce `resolveProvider: true`. La négociation décide : SI le client
+annonce `textDocument.completion.completionItem.resolveSupport`, les
+items à auto-import perdent leur édition d'import à la liste (les
+snippets restent) et portent `data.importFqn`/`importStatique`/`uri` —
+le **resolve de l'item choisi** recalcule l'insertion sur le TEXTE
+COURANT (miroir exact des règles fiche 029 : déjà importé exact ou
+`.*`, `java.lang`, paquet courant, type imbriqué `$` → AUCUNE édition ;
+sinon insertion après le DERNIER import, sinon après `package`, sinon au
+début) — un seul calcul au lieu de N, jamais derrière une compilation en
+vol (balayage purement lexical). SANS l'annonce : la liste reste
+complète d'avant V-G, AUCUN changement. Le resolve d'un item sans FQCN
+différé le rend TEL QUEL (jamais d'édition fabriquée).
+
+**Registre client K2 (ADR 0031 (g))** : `docs/REGISTRE-CLIENT-K2.md` —
+le document VIVANT des capacités servies non consommées (l'héritage) et
+des nouvelles par vague ; prêt à devenir le prompt d'exécution
+`cel-lsp`/`code-editor`.
+
 ## 8. Capability maison `x-codeide.completionRanking`
 
 Le protocole riche de classement (ADR 0012/0015, design intégré N8) :
@@ -1461,10 +1614,25 @@ filtrage standard par `filterText` — **repli automatique**, aucune
 dégradation de service. Un futur protocole v2 se portera en valeur
 `version: 2` (ou capability nouvelle), jamais par mutation silencieuse.
 
+**Clés additives V-G (ADR 0031 (f) — la version RESTE 2)** : quand le
+client annonce `completionItem.resolveSupport`, le `data` des items à
+auto-import gagne `importFqn`, `importStatique` et `uri` (l'édition
+d'import est alors différée au resolve, §7.26) — clés ADDITIVES et
+conditionnées à l'annonce client : un client ancien voit la liste
+complète d'avant V-G, AUCUN changement sémantique (règle ADR 0015 R1 :
+la version monte sur évolution SÉMANTIQUE, pas additive).
+
+**Capability `x-codeide.plageVisible` v1 (V-F4 — posée à la livraison,
+ADR 0029 phase 4)** : le contrat de la notification
+`$/codeide/plageVisible` (§9.5) — offsets ABSOLUS, dernière notification
+gagnante, oubli au didClose ; toute évolution sémantique montera la
+version.
+
 ## 9. Extensions expérimentales
 
-Deux méthodes JSON-RPC héritées du protocole maison du vendored
-(fiche 054) — un client standard ne les appelle jamais :
+Les extensions MAISON du protocole (héritées du vendored, fiche 054, et
+posées par les vagues — chaque annonce est versionnée `x-codeide.*`) —
+un client standard ne les appelle jamais :
 
 ### 9.1 `superDefinition` — le « GO TO Super »
 
@@ -1571,6 +1739,28 @@ caret à `caret`. Le texte tapé APRÈS le caret sur la même instruction reste
 (registre K2) — l'appel par un client standard qui ne connaît pas la
 méthode est simplement absent.
 
+### 9.5 `$/codeide/plageVisible` — la zone affichée (V-F4)
+
+La notification MAISON (announce `x-codeide.plageVisible` **v1** —
+ADR 0029 phase 4) par laquelle le client déclare, pour CHAQUE document,
+la zone qu'il affiche réellement — le publicateur s'en sert pour la
+double publication « visible d'abord » sur les grands fichiers (§7.25).
+
+```json
+{"jsonrpc":"2.0","method":"$/codeide/plageVisible","params":{
+  "uri":"file:///projet/demo/src/demo/Doree.java",
+  "start":4210,"end":9877}}
+```
+
+Convention : offsets **ABSOLUS** dans le texte du document (jamais de
+conversion ligne/colonne côté serveur — même convention que
+`superDefinition`). Sémantique de fraîcheur : la dernière notification
+gagne (la zone défile) ; un document fermé est OUBLIÉ ; l'ABSENCE de
+notification = comportement d'avant V-F4, à l'identique. Le client
+throttle l'envoi (défilement + ouverture) ; hors fenêtre de vie
+(avant initialize, après shutdown) la notification est ignorée
+silencieusement (règle maison des notifications).
+
 ## 10. Utilisation in-process du moteur
 
 Le moteur pur (`jo.codeide.lsp.java.MoteurJava`) s'utilise sans boucle
@@ -1592,17 +1782,19 @@ code) :
 
 | Domaine | Méthodes |
 |---|---|
-| Diagnostics | `diagnose(chemin, source)`, `diagnoseSyntax(chemin, source)` (repli instantané) |
+| Diagnostics | `diagnose(chemin, source)`, `diagnoseSyntax(chemin, source)` (repli instantané), `serviraitPasseComplete(…)` + `diagnosePrioritaire(…)` (V-F4 — sonde et passe « visible d'abord », §7.25) |
 | Complétion | `completer(chemin, source, offset)` → `ReponseCompletion` (items + `totalDisponible` + genre), `complete(…)` |
 | Survol | `hoverAt(chemin, source, offset)`, `survolRiche(…)` |
 | Signatures / inlay | `signatureHelp(…)` → `AideSignature`, `inlayHints(chemin, source)` |
 | Navigation | `definition`, `typeDefinition`, `implementation`, `superDefinition`, `fqcnAt`, `isBinaryType`, `decompiledSource` |
 | Usages | `references`, `referencesParBalayageComplet` (l'oracle), `surbrillances` |
-| Renommage | `cibleRenommageA`, `renommageProjet`, `conflitsRenommage`, `editionsRenommage`, `apercuRenommage` (preview sur copie) |
+| Renommage | `cibleRenommageA`, `renommageProjet`, `conflitsRenommage`, `editionsRenommage`, `apercuRenommage` (preview sur copie), `editionsRenommageFichier(ancien, nouveau, texteDe)` (V-G — `willRenameFiles`, §7.26) |
 | Actions de code | `actionsCode(chemin, source, diagnostics)`, `actionsCodePour(…, diagnostic)` |
 | Confort éditeur | `formater(source, style)`, `formaterPlage`, `editionsFormatagePlage`, `plis(source)`, `organiserImports`, `chainesSelection` |
 | Hiérarchies | `typeAuCaret`, `supertypesDirects`, `sousTypes`, `methodeAuCaret`, `appelsEntrants`, `appelsSortants` |
-| Index / types | `findTypesByPrefix`, `fqnsForSimpleName`, `typesDansPaquet`, `constructionsIndexMots` |
+| Coloration | `jetonsSemantiques(chemin, source)` (V-G — `semanticTokens`, §7.16) |
+| Mémoire | `pressionMemoire(niveau)` → `RapportPressionMemoire` (V-F3 — shim `onTrimMemory`, §7.25 ; relais multi-modules `EnvironnementCompilation.pressionMemoire`), `parseCacheOctetsEstimes()` (sonde budget) |
+| Index / types | `findTypesByPrefix`, `fqnsForSimpleName`, `typesDansPaquet`, `constructionsIndexMots`, `prechaufferIndexMots(signalement)` (V-G — progression d'indexation, §7.26) |
 
 Exemple — survol + complétion + renommage :
 
@@ -1684,6 +1876,9 @@ reconstruit » est devenu ASYNCHRONE.
 | `./gradlew :java:test --tests 'jo.codeide.lsp.java.ControlesLintTest'` | **banc V-C2** : 8 cas dorés du lint (échappatoires NewApi une à une, @SuppressLint, base synthétique, repli honnête, garde erreurs) — gate android.jar du banc |
 | `./gradlew :java:test --tests 'jo.codeide.lsp.java.completion.CompletionVagueC3Test'` | **banc V-C3** : 26 cas dorés (smart S1–S5, typedef T1–T3, second appel D1–D4 avec imports statiques et index projet, chaîne, statement completion, stats à fenêtre glissante, mémo binaire avec transcript de latence, littéral `R.string.*` sur la fixture mini, mots-clés de tête de déclaration D7) |
 | `./gradlew :java:test --tests 'jo.codeide.lsp.java.RefactorisationsVd2Test'` | **banc V-D2** : 22 cas dorés des refactorings lourds (extractions dorées + compilables, refus honnêtes — paresseuse, condition de boucle, return, deux sorties, réaffectée, effets multi-usages, hors-fichier ; oracle safe-delete — usage même fichier, autre fichier, sites `new`, références `X::m`, override, paramètre, champ/locale inutilisés) + `LatenceRefactorissementsVd2Test` : transcript de latence de la liste avec refactorings (48 requêtes, p95 mesuré < 30 ms) |
+| `./gradlew :java:test --tests 'jo.codeide.lsp.java.memoire.MemoireBudgetsOctetsTest'` | **banc V-F3** : budgets d'octets (éviction LRU du cache de parse au-delà du budget, garde anti-cyclage — un fichier seul plus gros que le budget vit seul, cumul borne d'entrées + budget, invalidation suit les octets ; mémo de localisation — négatifs évincés d'abord, verdict rendu EXACT après re-probe, `evictNegatifs` garde les positifs) + pressions `onTrimMemory` (RUNNING → parse seul et moteur utilisable, BACKGROUND → + mémos + négatifs, COMPLETE → libération intégrale et le moteur SURVIT, relais environnement → tous les moteurs vivants) |
+| `./gradlew :java:test --tests 'jo.codeide.lsp.java.protocole.PlagePrioritaireTest'` | **banc V-F4** : la passe prioritaire publie le corps visible (pas les masques), les refus honnêtes rendent null, la sonde distingue mémo/confinement SANS compiler, la notification `$/codeide/plageVisible` déclenche la double publication « visible d'abord » (l'ordre et la version finale font foi), SANS notification le comportement d'avant V-F4 est identique |
+| `./gradlew :java:test --tests 'jo.codeide.lsp.java.protocole.SurfaceProtocoleVgTest'` | **banc V-G** (ADR 0031) : progression `workDoneProgress` (séquence begin/report/end si annoncée, silence sinon), `data.provenance` typée par diagnostic, `willRenameFiles` (déplacer une classe publique → paquet + imports ; FQCN conservé → edit vide honnête), vecteur sémantique du cas doré EXACT (genres, déclaration, static/final) + **latence p95 mesurée** (cible < 25 ms), `completionItem/resolve` (import différé avec `resolveSupport`, liste complète sinon) |
 
 Re-baseline : par **PR dédiée** uniquement (ADR 0016 — jamais en passant).
 Re-pin de l'oracle (montée de version du vendored) : PR dédiée de re-pin +
@@ -1699,8 +1894,11 @@ re-signature de `parite-completion.json` (les stubs de façade suivent).
   §10.4 est abandonnée, la rupture est annoncée par `x-codeide.usages`) ;
   le RPC groupé `usagesGroupes` borne à 2 000 rendus AVEC total exact et
   drapeau `tronque` (§9.3).
-- **Pas de semanticTokens** : capability non annoncée (règle matrice
-  ADR 0015), requête tolérante vide.
+- **Coloration sémantique (V-G)** : `semanticTokens` ANNONCÉ avec légende,
+  vecteur **full uniquement** — PAS de delta serveur (`range` non servi : le
+  client re-demande le vecteur complet à chaque édition, jamais un delta
+  faux) ; `codeDescription.href` NON livré (aucun consommateur identifié).
+  Cf. §7.16.
 - **Quick-fixes mono-fichier** (fiche 063) : le multi-fichiers passe
   par le renommage (N5) et le protocole (N8), jamais par ces édits.
 - **`decompiledSource` hors protocole d'époque** (V-F1, résiduel documenté) :
@@ -1708,7 +1906,28 @@ re-signature de `parite-completion.json` (les stubs de façade suivent).
   dit pas de quel module il vient — ADR 0215) ; une source décompilée
   pendant un swap peut donc refléter l'époque précédente — la requête
   suivante re-sonde (comportement d'aperçu, jamais un diagnostic).
-- **Version 1.9.0 = vague V-D tranche 2 (refactorings lourds — ADR 0027 Accepté-tranche 2 : extract variable/constante/méthode sur SÉLECTION avec heuristiques §A5 — une sortie au plus, paramètres par première lecture, locales écrites-d'abord déclarées dedans, refus honnête des positions paresseuses et du contrôle de flux non local ; inline variable — réaffectations et effets multi-usages fermés — et inline constante mono-fichier ; safe delete par usages multi-fichiers exhaustifs avec oracle « 0 manqué » — refus motivés override/paramètre ; socle usages étendu aux sites new X(…) et références X::m, constructeurs identifiés au caret, égalité d'étendue de la fenêtre +120 corrigée ; kinds refactor.extract.*/inline.*/rewrite.delete annoncés ; cas dorés compilables par capacité, latence liste p95 mesurée 3 881 µs < 30 ms — §7.23)** ; - **Version 1.8.0 = vague V-D tranche 1 + V-C2 complément de catalogue (ADR 0027 Accepté-tranche 1 + ADR 0024 : organizeImports exposé M3/G-020 avec kinds source.*/refactor.* et codeAction/resolve DIFFÉRÉ ; génération de code — getter/setter/constructeur/equals+hashCode/toString/stubs d'outrepassement ; intentions sans diagnostic — ternaire, constante, référence de méthode, var↔explicite ; familles ecj étendues +7 IDs avec P5 étendu 0 violation ; latence liste p95 mesurée 255 µs < 30 ms ; lint Range/ResourceType/CommitPrefEdits/Recycle — catalogue 15 contrôles ; segment compact CLBA de la base api-versions, re-compilable bit-à-bit — §7.22)** ; - **Version 1.7.0 = vague V-C3 (complétion niveau Android Studio — ADR 0026 Accepté-livré : smart par bindings avec filtrage gradué jamais caché, typedef @IntDef/@StringDef en tête avec import statique, littéraux R.* par @…Res + référentiel, second appel — inaccessibles marqués + imports statiques — et 3ᵉ appel projet par CIDX, chaîne à deux sauts, statement completion lexicale moteur + RPC textDocument/statementCompletion, stats locales opt-in à fenêtre glissante, mémoïsation des membres binaires, mots-clés de tête de déclaration D7/G-024 avec fusion stubs ; capability completionRanking **v2** ; corpus qualité **v2 24 positions split train/éval** — ÉVAL 1,000/1,000 ; fiches 066 et 007 amendées, ECARTS-SERVEUR M1 résolu — §7.21/§8/§9.4)** ; **version 1.0.0 = bascule §8.5 SIGNÉE (30/10/2026)** ; **version 1.1.0 = intégration CodeIDE (§4.4 : régime vivant, option B arbitrée ; superDefinition aligné contrat vendord ; fiche 066)** ; **version 1.3.0 = vague V-E (références multi-fichiers D1, surbrillances composées typées, RPC usagesGroupes ; le 1.2.0 est SAUTÉ : valeur fantôme du vendord proscrite par la fiche 059 I7)** ; **version 1.4.0 = vague V-B (projet Android : modèle v11 + dérivateur disque, référentiel de ressources, classes light R/BuildConfig/Binding/BR, navigation ressource, interop Kotlin — décisions D2/D3/D6 ; `declasserDatabinding` RETIRÉ, rupture d'API consignée)** ; **version 1.5.0 = vague V-F1 (double-tampon + époques de l'environnement : 0 figage / 0 réponse périmée, rejeu des requêtes coupées, annulation fine complétion + usages, republication au swap d'époque, repli `jo.codeide.lsp.java.doubletampon.disabled` — ADR 0029 phase 1, §7.19/§11.1)** ; **version 1.6.0 = vagues V-F2 + V-C1/V-C2 (verrous par périmètre + chaos tests + banc de charge ADR 0010, comptage synchronized 99 → 0 ; inspections — contrat, profil, suppressions, 8 pilotes, provenance "inspection" ; lint Android — base api-versions en tâche de fond, NewApi/InlinedApi/ObsoleteSdkInt/MissingSuperCall/SetTextI18n, @SuppressLint, provenance "lint" — §7.20)** : checklist 6/6 du
+- **Version 1.11.0 = vagues V-F finale + V-G (ADR 0029 phases 3–4 +
+  ADR 0031 Accepté-livré : budgets d'OCTETS du cache de parse — 8 Mio,
+  coût ESTIMÉ source×6, garde anti-cyclage — et du mémo de localisation
+  — 2 Mio, négatifs évincés d'abord, re-probe honnête, contrats fiche 024
+  intacts ; shim `onTrimMemory` par niveaux miroirs ComponentCallbacks2
+  avec rapport CHIFFRÉ et relais multi-modules, jamais de construction
+  d'environnement sur signal mémoire ; plage prioritaire `$/codeide/plageVisible`
+  v1 — double publication « visible d'abord » ≥ 16 000 caractères, passe
+  prioritaire PURE (aucune écriture d'état), la complète fait foi, INERTE
+  sans notification ; V-F5 incrémentalité REPORTÉE motivée — conditionnée
+  à ADR 0017 (b)/décision D4, critère utile déjà tenu par le diagnose
+  rapide fiche 014 ; workDoneProgress d'indexation G-032 — préchauffage
+  au creux initialized, jeton begin/report/end throttlé si et seulement si
+  annoncé ; diagnostics enrichis — `data {provenance, code}` machine-readable
+  + relatedInformation « requis par X » fiche 019 ; willRenameFiles G-022
+  — package + imports du cas doré, usages QUALIFIÉS sans import non
+  réécrits (périmètre honnête) ; semanticTokens G-019 — légende 8 types +
+  4 modificateurs, full sans delta, p95 mesuré 1 ms < 25 ms ;
+  completionItem/resolve RÉEL G-021 — import différé négocié par
+  resolveSupport, sans annonce la liste reste complète ; registre client
+  K2 vivant `docs/REGISTRE-CLIENT-K2.md` G-023 partiel — §7.25/§7.26/§9.5)** ;
+  - **Version 1.9.0 = vague V-D tranche 2 (refactorings lourds — ADR 0027 Accepté-tranche 2 : extract variable/constante/méthode sur SÉLECTION avec heuristiques §A5 — une sortie au plus, paramètres par première lecture, locales écrites-d'abord déclarées dedans, refus honnête des positions paresseuses et du contrôle de flux non local ; inline variable — réaffectations et effets multi-usages fermés — et inline constante mono-fichier ; safe delete par usages multi-fichiers exhaustifs avec oracle « 0 manqué » — refus motivés override/paramètre ; socle usages étendu aux sites new X(…) et références X::m, constructeurs identifiés au caret, égalité d'étendue de la fenêtre +120 corrigée ; kinds refactor.extract.*/inline.*/rewrite.delete annoncés ; cas dorés compilables par capacité, latence liste p95 mesurée 3 881 µs < 30 ms — §7.23)** ; - **Version 1.8.0 = vague V-D tranche 1 + V-C2 complément de catalogue (ADR 0027 Accepté-tranche 1 + ADR 0024 : organizeImports exposé M3/G-020 avec kinds source.*/refactor.* et codeAction/resolve DIFFÉRÉ ; génération de code — getter/setter/constructeur/equals+hashCode/toString/stubs d'outrepassement ; intentions sans diagnostic — ternaire, constante, référence de méthode, var↔explicite ; familles ecj étendues +7 IDs avec P5 étendu 0 violation ; latence liste p95 mesurée 255 µs < 30 ms ; lint Range/ResourceType/CommitPrefEdits/Recycle — catalogue 15 contrôles ; segment compact CLBA de la base api-versions, re-compilable bit-à-bit — §7.22)** ; - **Version 1.7.0 = vague V-C3 (complétion niveau Android Studio — ADR 0026 Accepté-livré : smart par bindings avec filtrage gradué jamais caché, typedef @IntDef/@StringDef en tête avec import statique, littéraux R.* par @…Res + référentiel, second appel — inaccessibles marqués + imports statiques — et 3ᵉ appel projet par CIDX, chaîne à deux sauts, statement completion lexicale moteur + RPC textDocument/statementCompletion, stats locales opt-in à fenêtre glissante, mémoïsation des membres binaires, mots-clés de tête de déclaration D7/G-024 avec fusion stubs ; capability completionRanking **v2** ; corpus qualité **v2 24 positions split train/éval** — ÉVAL 1,000/1,000 ; fiches 066 et 007 amendées, ECARTS-SERVEUR M1 résolu — §7.21/§8/§9.4)** ; **version 1.0.0 = bascule §8.5 SIGNÉE (30/10/2026)** ; **version 1.1.0 = intégration CodeIDE (§4.4 : régime vivant, option B arbitrée ; superDefinition aligné contrat vendord ; fiche 066)** ; **version 1.3.0 = vague V-E (références multi-fichiers D1, surbrillances composées typées, RPC usagesGroupes ; le 1.2.0 est SAUTÉ : valeur fantôme du vendord proscrite par la fiche 059 I7)** ; **version 1.4.0 = vague V-B (projet Android : modèle v11 + dérivateur disque, référentiel de ressources, classes light R/BuildConfig/Binding/BR, navigation ressource, interop Kotlin — décisions D2/D3/D6 ; `declasserDatabinding` RETIRÉ, rupture d'API consignée)** ; **version 1.5.0 = vague V-F1 (double-tampon + époques de l'environnement : 0 figage / 0 réponse périmée, rejeu des requêtes coupées, annulation fine complétion + usages, republication au swap d'époque, repli `jo.codeide.lsp.java.doubletampon.disabled` — ADR 0029 phase 1, §7.19/§11.1)** ; **version 1.6.0 = vagues V-F2 + V-C1/V-C2 (verrous par périmètre + chaos tests + banc de charge ADR 0010, comptage synchronized 99 → 0 ; inspections — contrat, profil, suppressions, 8 pilotes, provenance "inspection" ; lint Android — base api-versions en tâche de fond, NewApi/InlinedApi/ObsoleteSdkInt/MissingSuperCall/SetTextI18n, @SuppressLint, provenance "lint" — §7.20)** : checklist 6/6 du
   gabarit `bancs/GABARIT-BASCULE-APPAREIL.md` (passe appareil moto g06 —
   18/18, 0 saut, p50/p95 GLOBAL 42,93/73,01 ms ; deltas 165 arbitrés
   103/62/0 — `ANALYSE-DELTAS-BASCULE.md`) ; `serverInfo.version` rend

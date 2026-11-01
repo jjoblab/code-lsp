@@ -7,6 +7,7 @@ import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
+import jo.codeide.lsp.java.memoire.RapportPressionMemoire
 
 /**
  * Environnement de compilation (étage N1, fiches 034/047) — nom neutre :
@@ -540,6 +541,37 @@ public class EnvironnementCompilation(
 
     /** Niveau Java par défaut de l'environnement (défaut constructeur « 17 »). */
     public fun complianceDefaut(): String = complianceDefaut
+
+    /**
+     * Le relais MULTI-MODULES du shim `onTrimMemory` (vague V-F3 — ADR 0029
+     * phase 3) : l'entrée NATURELLE de l'hôte — UN appel par signal, le
+     * relais touche TOUS les moteurs VIVANTS (photographie — un moteur
+     * construit pendant la fenêtre reçoit le signal suivant).
+     *
+     * La sémantique par moteur est celle de
+     * [MoteurJava.pressionMemoire] (politique cumulative par niveau) ; le
+     * rapport agrégé ADDITIONNE les compteurs et porte le drapeau
+     * `environnementLibere` si AU MOINS UN moteur a été intégralement
+     * libéré. Les moteurs en reconstruction de double-tampon sont
+     * touchés AUSSI (leur `retirer`/dispose suit son propre drainage).
+     *
+     * @param niveau le niveau reçu (miroir ComponentCallbacks2).
+     * @return le rapport agrégé de tout ce qui a été libéré.
+     */
+    public fun pressionMemoire(niveau: Int): RapportPressionMemoire {
+        var parse = 0
+        var memos = 0
+        var negatifs = 0
+        var environnementLibere = false
+        for (moteur in moteursVivants()) {
+            val rapport = moteur.pressionMemoire(niveau)
+            parse += rapport.entreesParseLiberees
+            memos += rapport.memosDiagnoseLiberes
+            negatifs += rapport.negatifsLocalisationLiberes
+            environnementLibere = environnementLibere || rapport.environnementLibere
+        }
+        return RapportPressionMemoire(niveau, parse, memos, negatifs, environnementLibere)
+    }
 
     /**
      * Libère l'environnement : tous les moteurs vivants sont disposés et

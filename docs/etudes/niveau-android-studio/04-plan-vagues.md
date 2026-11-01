@@ -632,6 +632,36 @@ complètent la couverture.
 
 ### V-F (suite) — Performance/concurrence complète
 
+> **LIVRÉE le 01/11/2026 (v1.11.0 — phases 3–4 ; phase 5 reportée
+> motivée)**. **Phase 3 (budgets octets + onTrimMemory — exécution ADR
+> 0011 points 2 et 5)** : budget d'octets ESTIMÉS du cache de parse
+> (8 Mio — facteur arbre ×6, estimation de gestion R5 ; garde
+> ANTI-CYCLAGE : la dernière entrée posée survit seule) et du mémo de
+> localisation (2 Mio — négatifs évincés d'abord, re-probe honnête,
+> contrats fiche 024 INTACTS) ; shim `pressionMemoire(niveau)` miroir
+> `ComponentCallbacks2` (G-033 RÉSOLU) — politique cumulative
+> (premier plan → arbres résolus seuls ; arrière-plan → + mémos +
+> négatifs ; COMPLETE → libération intégrale drainée, le moteur
+> SURVIT), rapport CHIFFRÉ `RapportPressionMemoire`, relais
+> MULTI-MODULES `EnvironnementCompilation.pressionMemoire`, jamais de
+> construction d'environnement sur signal mémoire ; kill-switches
+> `memoire.budgets.disabled` / `memoire.ontrim.disabled`.
+> **Phase 4 (plage prioritaire)** : notification `$/codeide/plageVisible`
+> v1 (offsets ABSOLUS, dernière gagnante, oubli au didClose, INERTE sans
+> envoi — contrats du cahier intacts) + sonde `serviraitPasseComplete`
+> PUREMENT LEXICALE + `diagnosePrioritaire` (masquage isomorphe fiche
+> 014, PURE — aucune écriture d'état) : double publication « visible
+> d'abord » ≥ 16 000 caractères, la COMPLÈTE fait foi (fil unique) ;
+> kill-switch `plageprioritaire.disabled`. **Phase 5
+> (incrémentalité) : REPORTÉE motivée** — conditionnée à l'ADR 0017 (b)
+> (artefacts JetBrains java-syntax, décision D4 non tranchée par le
+> propriétaire) ; le critère utile (« la frappe ne paie pas la
+> re-résolution complète ») est déjà tenu par le diagnose rapide
+> (fiche 014). Validation : PV
+> `mesures/2026-11-01-vf-finale-vg-protocole.txt` — 23 tests V-F3/V-F4/V-G
+> verts (9 budgets/pressions, 5 plage prioritaire, 9 V-G), suite complète
+> verte, banc N1 tenu (diagnose rapide p50 4,2 ms).
+
 - **Périmètre** : verrous par périmètre + chaos tests (ADR 0029 phase 2), budgets
   octets + onTrimMemory (phase 3), plage prioritaire (phase 4), incrémentalité si
   conditions ADR 0017 (phase 5).
@@ -641,6 +671,33 @@ complètent la couverture.
 - **Effort [estimé]** : **16–26 j-h** (2–3 séances).
 
 ### V-G — Protocole/sémantique
+
+> **LIVRÉE le 01/11/2026 (v1.11.0 — ADR 0031 Accepté-livré, PV
+> `mesures/2026-11-01-vf-finale-vg-protocole.txt`)**. Les sept briques :
+> **(a)** `semanticTokens` (G-019 RÉSOLU) — légende 8 types STANDARD +
+> 4 modificateurs, calcul sur arbre RÉSOLU, deltas relatifs 5
+> entiers/jeton, constructeurs = method (miroir V-D2) ; banc de rendu
+> cas doré + latence p95 MESURÉE **1 ms** (cible < 25 ms) ; PAS de delta
+> serveur (honnête — le client re-demand le vecteur complet). **(b)**
+> kinds source.*/refactor.* — livrés depuis V-D. **(c)**
+> `workDoneProgress` d'indexation (G-032 RÉSOLU) — fil démon de
+> PRÉCHAUFFAGE après `initialized` (valeur propre : la 1re requête
+> usages/renommage ne paie plus le froid) + jeton négocié
+> begin/report/end (report par fichier RÉELLEMENT lexé, throttlé ~50,
+> end TOUJOURS). **(d)** `willRenameFiles` (G-022 RÉSOLU) — package +
+> imports du cas doré AVANT le geste, `didRenameFiles` invalide,
+> périmètre honnête : usages qualifiés sans import non réécrits.
+> **(e)** diagnostics enrichis (G-023 résolu EN PARTIE) — `data
+> {provenance, code}` machine-readable + relatedInformation « requis
+> par X » (fiche 019) ; `codeDescription.href` non livré (aucun
+> consommateur identifié). **(f)** `completionItem/resolve` RÉEL
+> (G-021 RÉSOLU) — auto-import DIFFÉRÉ négocié par `resolveSupport`
+> (règles fiche 029 miroir, balayage lexical) ; sans annonce, liste
+> complète d'avant V-G. **(g)** registre client K2 VIVANT
+> (`docs/REGISTRE-CLIENT-K2.md`) + capability `x-codeide.plageVisible`
+> v1 posée (V-F4) ; clés V-G de complétion ADDITIVES → la version de
+> `completionRanking` RESTE 2 (ADR 0015 R1). Tests contractuels par
+> capability (annoncée ⇔ testée) : 9 cas V-G.
 
 - **Périmètre** : `workDoneProgress`, diagnostics enrichis (relatedInformation,
   provenance), `willRenameFiles`, `semanticTokens` (avec banc de rendu), resolve
@@ -661,8 +718,8 @@ complètent la couverture.
 | V-F1 double-tampon | 8–14 | 1–2 | aucune |
 | V-C intelligence | 28–44 | 3–5 | V-B, V-F1, D7 |
 | V-D actions | 28–46 | 3–5 | V-C partiel |
-| V-F perf complète | 16–26 | 2–3 | aucune |
-| V-G protocole | 10–18 | 1–2 | client (K2) |
+| V-F perf complète | 16–26 | 2–3 (livrée 01/11 — phases 3–4 ; phase 5 reportée motivée) | aucune |
+| V-G protocole | 10–18 | 1–2 (livrée 01/11) | client (K2) |
 | **Total** | **145–241 j-h agent** | **16–29 séances** | — |
 
 > Recoupement volumétrie (méthode §3.2 du PLAN-REECRITURE) : les vagues ajoutent

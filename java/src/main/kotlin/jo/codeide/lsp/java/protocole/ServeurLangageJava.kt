@@ -3,6 +3,12 @@ package jo.codeide.lsp.java.protocole
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.TimeUnit
+import org.eclipse.lsp4j.ProgressParams
+import org.eclipse.lsp4j.WorkDoneProgressBegin
+import org.eclipse.lsp4j.WorkDoneProgressCreateParams
+import org.eclipse.lsp4j.WorkDoneProgressEnd
+import org.eclipse.lsp4j.WorkDoneProgressReport
 import jo.codeide.lsp.java.EnvironnementCompilation
 import jo.codeide.lsp.java.MoteurJava
 import jo.codeide.lsp.java.completion.ChaineClassement
@@ -215,12 +221,23 @@ public class ServeurLangageJava(
     /** Le publicateur asynchrone des diagnostics. */
     private var publicateur: PublicateurDiagnostics? = null
 
+    /** Le registre des plages visibles (V-F4 — zone visible d'abord). */
+    private val plagesVisibles: PlagesVisibles = PlagesVisibles()
+
     /** Le miroir des versions pour le renommage (forme versionnée). */
     private var serviceRenommage: ServiceRenommage? = null
 
     /** Les capacités d'édition du client (négociation de forme du rename). */
     @Volatile
     private var capsEspaceDeTravail: CapsEspaceDeTravailClient = CapsEspaceDeTravailClient()
+
+    /** Vrai ssi le client sait rendre un `workDoneProgress` (V-G — négociation). */
+    @Volatile
+    private var capsProgressionClient: Boolean = false
+
+    /** Vrai ssi le client SAIT RÉSOUDRE un item de complétion (V-G — ADR 0031 (f)). */
+    @Volatile
+    private var capsResolveCompletion: Boolean = false
 
     /** Le service des symboles d'espace de travail (null = moteur absent). */
     private var symbolesEspace: SymbolesEspace? = null
@@ -281,6 +298,20 @@ public class ServeurLangageJava(
             documentChanges = params.capabilities?.workspace?.workspaceEdit?.documentChanges ?: false,
         )
 
+        // V-G (ADR 0031 (c)) : la capability client `workDoneProgress` —
+        // sans elle, le préchauffage d'indexation reste SILENCIEUX (la
+        // valeur propre du préchauffage subsiste, aucune notification
+        // n'est envoyée — un client qui ne sait pas rendre une progression
+        // ne reçoit jamais de bruit).
+        capsProgressionClient = params.capabilities?.window?.workDoneProgress ?: false
+
+        // V-G (ADR 0031 (f)) : la capability client `resolveSupport` —
+        // sans elle, les éditions d'AUTO-IMPORT restent calculées pour
+        // CHAQUE item au moment de la liste (le comportement d'avant V-G,
+        // AUCUNE perte pour un client qui ne résout pas) ; avec elle, le
+        // calcul est DIFFÉRÉ à l'item CHOISI (`completionItem/resolve`).
+        capsResolveCompletion = params.capabilities?.textDocument?.completion?.completionItem?.resolveSupport != null
+
         // Le moteur naît de la racine annoncée (null → protocole pur,
         // fiche 055 ; racine inexistante → protocole pur aussi — moteur
         // non prêt, fiche 056 : liste vide, jamais d'exception).
@@ -297,7 +328,7 @@ public class ServeurLangageJava(
         // Gradle) traverse le serveur SANS re-initialize.
         val env = envVivant
         if (env != null) {
-            publicateur = PublicateurDiagnostics(clientOuRefus(), etats, env::moteurPourFichier)
+            publicateur = PublicateurDiagnostics(clientOuRefus(), etats, env::moteurPourFichier, plagesVisibles)
             serviceRenommage = ServiceRenommage(env::moteurPourFichier, capsEspaceDeTravail)
             symbolesEspace = SymbolesEspace(racines = { env.racinesSources() })
             moteur = null
@@ -353,7 +384,7 @@ public class ServeurLangageJava(
 
             // Les services dérivés du moteur (régime figé).
             moteur?.let { m ->
-                publicateur = PublicateurDiagnostics(clientOuRefus(), m, etats)
+                publicateur = PublicateurDiagnostics(clientOuRefus(), m, etats, plagesVisibles)
                 serviceRenommage = ServiceRenommage(m, capsEspaceDeTravail)
                 symbolesEspace = SymbolesEspace(racines = { listOfNotNull(racine.takeIf { Files.isDirectory(it) }) })
             }
@@ -367,6 +398,123 @@ public class ServeurLangageJava(
         // La transition finale (fiche 055) ; les notifications didOpen
         // deviennent efficaces à partir d'ici (garde ci-dessous).
         cycle.surInitialized()
+        // V-G (ADR 0031 (c), G-032) : le PRÉCHAUFFAGE d'indexation en fil
+        // de démon — la première analyse paie la construction froide de
+        // l'index de mots ICI (l'utilisateur n'attend rien), et le client
+        // qui sait rendre une progression voit « Indexation des sources…
+        // n/m » au lieu du silence.
+        demarrerPrechauffageIndexation()
+    }
+
+    /**
+     * Le PRÉCHAUFFAGE D'INDEXATION (V-G — ADR 0031 (c), écart G-032) :
+     * un fil de DÉMON force la construction froide de l'index de mots
+     * du moteur DÉFAUT juste après `initialized` — le moment le plus
+     * creux de la session (aucune requête en vol).
+     *
+     * **Progression honnête** : le jeton `window/workDoneProgress` n'est
+     * créé QUE si le client l'a annoncé ([capsProgressionClient]) ; les
+     * `report` suivent les fichiers RÉELLEMENT lexés (jamais de
+     * pourcentage fabriqué — l'auditeur moteur appelle après CHAQUE
+     * fichier) et sont THROTTLÉS (un report tous les [PAS_REPORT] fichiers
+     * minimum, jamais plus de ~50 reports) pour ne pas noyer le fil
+     * JSON-RPC ; `end` part TOUJOURS (le jeton ne fuit jamais — même sur
+     * exception, le finally le ferme).
+     *
+     * **Régimes** : figé — le moteur de la racine (aucun moteur = aucun
+     * préchauffage, silencieux) ; vivant — le moteur DÉFAUT de
+     * l'environnement (les modules suivants se préchauffent à leur
+     * première requête, documenté).
+     *
+     * Kill-switch : `jo.codeide.lsp.java.progression.disabled=true` coupe
+     * le préchauffage ENTIER (repli documenté — comportement d'avant V-G).
+     */
+    private fun demarrerPrechauffageIndexation() {
+        if (PROGRESSION_DESACTIVEE) return
+        val clientLSP = client ?: return
+        val moteurDefaut = moteurPour("") ?: return
+        val avecProgression = capsProgressionClient
+        val fil = Thread(
+            {
+                val jeton = "codeide-indexation-${System.nanoTime()}"
+                var ouvert = false
+                try {
+                    if (avecProgression) {
+                        // La création du jeton est une REQUÊTE serveur→client
+                        // (le client peut refuser — la progression devient
+                        // silencieuse, le préchauffage continue).
+                        runCatching { clientLSP.createProgress(WorkDoneProgressCreateParams(Either.forLeft(jeton))).get(2, TimeUnit.SECONDS) }
+                        ouvert = true
+                        val debut = WorkDoneProgressBegin()
+                        debut.title = "Indexation des sources"
+                        debut.cancellable = false
+                        clientLSP.notifyProgress(ProgressParams(Either.forLeft(jeton), Either.forLeft(debut)))
+                    }
+                    moteurDefaut.prechaufferIndexMots { construits, total ->
+                        if (avecProgression && ouvert && total > 0) {
+                            val pas = maxOf(1, total / NB_REPORTS_MAX)
+                            if (construits == total || construits % pas == 0) {
+                                val report = WorkDoneProgressReport()
+                                report.percentage = construits * 100 / total
+                                runCatching {
+                                    clientLSP.notifyProgress(ProgressParams(Either.forLeft(jeton), Either.forLeft(report)))
+                                }
+                            }
+                        }
+                    }
+                } catch (_: Exception) {
+                    // Le préchauffage est un GAIN, jamais un devoir : une
+                    // panne ici n'affecte aucune requête (l'index se
+                    // reconstruit paresseusement au besoin).
+                } finally {
+                    if (ouvert) {
+                        runCatching {
+                            clientLSP.notifyProgress(
+                                ProgressParams(Either.forLeft(jeton), Either.forLeft(WorkDoneProgressEnd())),
+                            )
+                        }
+                    }
+                }
+            },
+            "lspjava-indexation",
+        )
+        fil.isDaemon = true
+        fil.start()
+    }
+
+    private companion object {
+        /**
+         * Kill-switch du préchauffage/progression (V-G — repli documenté) :
+         * `jo.codeide.lsp.java.progression.disabled=true` coupe le fil
+         * d'indexation et son `workDoneProgress` (comportement d'avant V-G).
+         */
+        private val PROGRESSION_DESACTIVEE: Boolean =
+            System.getProperty("jo.codeide.lsp.java.progression.disabled") == "true"
+
+        /** Le nombre maximal de `report` par préchauffage (throttle du fil). */
+        private const val NB_REPORTS_MAX: Int = 50
+
+        /** Le nom LSP d'un genre de jeton (son INDEX dans la légende voyage). */
+        private fun nomTypeLsp(genre: jo.codeide.lsp.java.coloration.GenreJeton): String = when (genre) {
+            jo.codeide.lsp.java.coloration.GenreJeton.CLASSE -> "class"
+            jo.codeide.lsp.java.coloration.GenreJeton.INTERFACE -> "interface"
+            jo.codeide.lsp.java.coloration.GenreJeton.ENUM -> "enum"
+            jo.codeide.lsp.java.coloration.GenreJeton.ANNOTATION -> "decorator"
+            jo.codeide.lsp.java.coloration.GenreJeton.METHODE -> "method"
+            jo.codeide.lsp.java.coloration.GenreJeton.PROPRIETE -> "property"
+            jo.codeide.lsp.java.coloration.GenreJeton.PARAMETRE -> "parameter"
+            jo.codeide.lsp.java.coloration.GenreJeton.VARIABLE -> "variable"
+        }
+
+        /** Le bitfield des modificateurs d'un jeton (l'ordre de la légende). */
+        private fun modificateursLsp(jeton: jo.codeide.lsp.java.coloration.JetonSemantique): Int {
+            var bits = 0
+            if (jeton.declaration) bits = bits or (1 shl 0)
+            if (jeton.statique) bits = bits or (1 shl 1)
+            if (jeton.final) bits = bits or (1 shl 2)
+            if (jeton.abstrait) bits = bits or (1 shl 3)
+            return bits
+        }
     }
 
     override fun shutdown(): CompletableFuture<Any> {
@@ -510,6 +658,8 @@ public class ServeurLangageJava(
         if (!cycle.requetesPermises()) return
         etats.fermer(params.textDocument.uri)
         serviceRenommage?.fermerDocument(params.textDocument.uri)
+        // V-F4 : la zone visible d'un tampon mort ne priorise rien.
+        plagesVisibles.oublier(params.textDocument.uri)
     }
 
     // ----------------------------------------------------------------- //
@@ -530,9 +680,82 @@ public class ServeurLangageJava(
         symbolesEspace?.invalider()
     }
 
+    override fun didRenameFiles(params: org.eclipse.lsp4j.RenameFilesParams) {
+        if (!cycle.requetesPermises()) return
+        // V-G : le renommage EFFECTIF — la présence source et l'index de
+        // mots doivent réapprendre l'arborescence (le FQCN a changé).
+        for (renommage in params.files) {
+            val chemin = ConvertisseurLsp.cheminDeUri(renommage.oldUri) ?: continue
+            moteurPour(chemin)?.invalidateSourcePresence()
+        }
+    }
+
+    /**
+     * `workspace/willRenameFiles` (V-G — ADR 0031 (d)) : les éditions qui
+     * gardent le projet COHÉRENT pendant le geste « renommer / déplacer
+     * un `.java` » de l'arbre éditeur — la déclaration de PAQUET du
+     * fichier déplacé et les IMPORTS de ses porteurs suivent le NOUVEAU
+     * FQCN. Cas doré de la décision : « déplacer une classe publique →
+     * package + imports ».
+     *
+     * La source FRAÎCHE de chaque porteur : le TAMPON OUVERT si le
+     * document l'est (l'utilisateur peut éditer pendant le geste), le
+     * DISQUE sinon ; un fichier illisible est écarté honnêtement. La
+     * réponse est TOUJOURS un WorkspaceEdit (vide si rien à ajuster —
+     * jamais null, jamais d'exception).
+     */
+    override fun willRenameFiles(params: org.eclipse.lsp4j.RenameFilesParams): CompletableFuture<WorkspaceEdit> {
+        garde<WorkspaceEdit>()?.let { return it }
+        val changes = LinkedHashMap<String, List<org.eclipse.lsp4j.TextEdit>>()
+        for (renommage in params.files) {
+            val ancienChemin = ConvertisseurLsp.cheminDeUri(renommage.oldUri) ?: continue
+            val nouveauChemin = ConvertisseurLsp.cheminDeUri(renommage.newUri) ?: continue
+            val ancien = Path.of(ancienChemin)
+            val nouveau = Path.of(nouveauChemin)
+            val moteur = moteurPour(ancienChemin) ?: continue
+            // Le lecteur de source fraîche : tampon ouvert d'abord, disque ensuite.
+            val texteDe: (Path) -> String? = { fichier ->
+                val uri = ConvertisseurLsp.uriDeFichier(fichier.toString())
+                etats.instantane(uri)?.texte
+                    ?: runCatching { java.nio.file.Files.readString(fichier) }.getOrNull()
+            }
+            val editions = runCatching {
+                moteur.editionsRenommageFichier(ancien, nouveau, texteDe)
+            }.getOrNull() ?: continue
+            for ((cheminPorteur, editionsPorteur) in editions.editionsParFichier) {
+                val uri = ConvertisseurLsp.uriDeFichier(cheminPorteur)
+                val texte = texteDe(Path.of(cheminPorteur)) ?: continue
+                val repere = ConvertisseurLsp.repere(texte)
+                val textEdits = editionsPorteur.map { edition ->
+                    org.eclipse.lsp4j.TextEdit(
+                        repere.plage(jo.codeide.lsp.java.diagnostics.Plage(edition.offset, edition.offset + edition.longueur)),
+                        edition.texte,
+                    )
+                }
+                // Fusion honnête : un porteur touché par plusieurs renommages
+                // cumule ses éditions (elles restent disjointes par construction).
+                val existantes = changes[uri] ?: emptyList()
+                changes[uri] = existantes + textEdits
+            }
+        }
+        return CompletableFuture.completedFuture(WorkspaceEdit(changes))
+    }
+
     override fun executeCommand(params: ExecuteCommandParams): CompletableFuture<Any> {
         garde<Any>()?.let { return it }
         return refuse(ResponseErrorCode.MethodNotFound, "commande inconnue : ${params.command}")
+    }
+
+    /**
+     * La notification `$/codeide/plageVisible` (V-F4 — ADR 0029 phase 4) :
+     * enregistre la zone affichée du document — le publicateur s'en sert
+     * pour la double publication « visible d'abord » sur les grands
+     * fichiers. Hors fenêtre de vie : ignorée silencieusement (la règle
+     * maison des notifications — aucune réponse d'erreur possible).
+     */
+    override fun plageVisible(params: ParamsPlageVisibleRpc) {
+        if (!cycle.requetesPermises()) return
+        plagesVisibles.notifier(params.uri, params.start, params.end)
     }
 
     override fun symbol(params: WorkspaceSymbolParams): CompletableFuture<Either<List<SymbolInformation>, List<org.eclipse.lsp4j.WorkspaceSymbol>>> {
@@ -648,6 +871,21 @@ public class ServeurLangageJava(
                 CorrespondanceGraduee.LONGUEUR_MIN_SOUS_CHAINE,
             )
             item.marqueur?.let { donnees.addProperty("marqueur", it) }
+            // V-G : l'URI du document voyage dans data (le resolve en a
+            // besoin pour relire le texte courant).
+            donnees.addProperty("uri", uri)
+            // V-G (ADR 0031 (f)) — l'import DIFFÉRÉ : quand le client sait
+            // résoudre, l'édition d'auto-import est RETIRÉE de la liste (les
+            // AUTRES éditions additionnelles — snippets — restent) et le
+            // FQCN voyage dans data : le resolve de l'item CHOISI la
+            // recalcule sur le texte courant (un seul calcul au lieu de N).
+            val fqnImport = item.autoImportFqn ?: item.importStatiqueFqn
+            if (capsResolveCompletion && fqnImport != null && lsp.additionalTextEdits != null) {
+                lsp.additionalTextEdits = lsp.additionalTextEdits
+                    ?.filterNot { it.newText.startsWith("import ") } ?: emptyList()
+                donnees.addProperty("importFqn", fqnImport)
+                donnees.addProperty("importStatique", item.importStatiqueFqn != null)
+            }
             lsp.data = donnees
             lsp
         }
@@ -664,7 +902,39 @@ public class ServeurLangageJava(
 
     override fun resolveCompletionItem(unresolved: CompletionItem): CompletableFuture<CompletionItem> {
         garde<CompletionItem>()?.let { return it }
-        return CompletableFuture.completedFuture(unresolved)
+        // V-G (ADR 0031 (f)) — le resolve RÉEL : l'édition d'AUTO-IMPORT de
+        // l'item choisi est calculée ICI, sur le texte COURANT du document
+        // (miroir exact des règles du calcul à la liste — [ImportsDifferes]).
+        // Sans FQCN différé dans data : l'item revient TEL QUEL (jamais
+        // d'édition fabriquée, jamais d'exception). Sur le fil, `data`
+        // revient comme JsonObject (Gson) — lu par SON API, jamais par un
+        // cast de Map.
+        val donnees = unresolved.data as? com.google.gson.JsonObject
+            ?: return CompletableFuture.completedFuture(unresolved)
+        val fqn = donnees.get("importFqn")?.takeIf { it.isJsonPrimitive }?.asString
+            ?: return CompletableFuture.completedFuture(unresolved)
+        val statique = donnees.get("importStatique")?.takeIf { it.isJsonPrimitive }?.asBoolean ?: false
+        val uri = donnees.get("uri")?.takeIf { it.isJsonPrimitive }?.asString
+            ?: return CompletableFuture.completedFuture(unresolved)
+        val document = documentDe(uri) ?: return CompletableFuture.completedFuture(unresolved)
+        val (chemin, texte) = document
+        val edition = jo.codeide.lsp.java.imports.ImportsDifferes.edition(texte, fqn, statique)
+            ?: return CompletableFuture.completedFuture(unresolved)
+        val repere = ConvertisseurLsp.repere(texte)
+        val editionImport = org.eclipse.lsp4j.TextEdit(
+            repere.plage(jo.codeide.lsp.java.diagnostics.Plage(edition.offset, edition.offset + edition.longueur)),
+            edition.texte,
+        )
+        val enrichi = CompletionItem()
+        enrichi.label = unresolved.label
+        enrichi.kind = unresolved.kind
+        enrichi.detail = unresolved.detail
+        enrichi.filterText = unresolved.filterText
+        enrichi.insertText = unresolved.insertText
+        enrichi.insertTextFormat = unresolved.insertTextFormat
+        enrichi.data = unresolved.data
+        enrichi.additionalTextEdits = (unresolved.additionalTextEdits ?: emptyList()) + editionImport
+        return CompletableFuture.completedFuture(enrichi)
     }
 
     override fun signatureHelp(params: SignatureHelpParams): CompletableFuture<SignatureHelp> {
@@ -927,9 +1197,34 @@ public class ServeurLangageJava(
 
     override fun semanticTokensFull(params: SemanticTokensParams): CompletableFuture<SemanticTokens> {
         garde<SemanticTokens>()?.let { return it }
-        // Non annoncé (règle matrice) mais TOLÉRANT : data vide (I9 —
-        // jamais null, jamais d'exception).
-        return CompletableFuture.completedFuture(SemanticTokens(ArrayList()))
+        // V-G (ADR 0031 (a)) : la coloration SÉMANTIQUE sur bindings — la
+        // réponse est le VECTEUR ENCODÉ EN DELTAS RELATIFS (5 entiers par
+        // jeton : deltaLigne, deltaColonne, longueur, type, modificateurs).
+        // Document absent ou moteur introuvable : data VIDE (I9 — jamais
+        // null, jamais d'exception).
+        val uri = params.textDocument.uri
+        val document = documentDe(uri) ?: return CompletableFuture.completedFuture(SemanticTokens(ArrayList()))
+        val (chemin, texte) = document
+        val jetons = avecMoteurFrais(chemin) { moteur ->
+            moteur?.jetonsSemantiques(chemin, texte)
+        } ?: return CompletableFuture.completedFuture(SemanticTokens(ArrayList()))
+        val repere = ConvertisseurLsp.repere(texte)
+        val donnees = ArrayList<Int>(jetons.size * 5)
+        var lignePrecedente = 0
+        var colonnePrecedente = 0
+        for (jeton in jetons) {
+            val plage = repere.plage(jo.codeide.lsp.java.diagnostics.Plage(jeton.offset, jeton.offset + jeton.longueur))
+            val ligne = plage.start.line
+            val colonne = plage.start.character
+            donnees.add(ligne - lignePrecedente)
+            donnees.add(if (ligne == lignePrecedente) colonne - colonnePrecedente else colonne)
+            donnees.add(jeton.longueur)
+            donnees.add(CapacitesServeur.TYPES_LEGENDE_SEMANTIQUES.indexOf(nomTypeLsp(jeton.genre)).let { if (it < 0) 0 else it })
+            donnees.add(modificateursLsp(jeton))
+            lignePrecedente = ligne
+            colonnePrecedente = colonne
+        }
+        return CompletableFuture.completedFuture(SemanticTokens(donnees))
     }
 
     // ----------------------------------------------------------------- //

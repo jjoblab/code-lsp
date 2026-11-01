@@ -159,24 +159,52 @@ public object ConvertisseurLsp {
     )
 
     /**
-     * Convertit un diagnostic moteur (fiche 056 : tags, code préfixé).
+     * Convertit un diagnostic moteur (fiche 056 : tags, code préfixé ;
+     * V-G — ADR 0031 (e) : champ `data` typé + relatedInformation).
      *
      * Les TAGS suivent les familles du cahier : `Unnecessary` sur les
      * déclarables inutilisés (import inutilisé, déclaration inutilisée —
      * le rendu estompé côté éditeur) ; TOUTE autre famille reste SANS
      * tag (liste vide — jamais un tag inventé).
      *
+     * Le champ **data** (machine-readable, LSP 3.17) porte la
+     * PROVENANCE (`ecj`/`inspection`/`lint` — le miroir du champ source
+     * moteur, ADR 0025) et le CODE nu : un client peut filtrer ou
+     * regrouper SANS parser le code préfixé humain.
+     *
+     * La **relatedInformation** (V-G) rend les LIENS moteur comme
+     * localisations du document porteur — l'URI est celle du document
+     * publié (le paramètre [uri]) ; sans URI (conversions internes sans
+     * document), les liens sont omis honnêtement.
+     *
      * @param diagnostic le diagnostic moteur.
      * @param repere le repère du document porteur.
+     * @param uri l'URI du document porteur (V-G — null : pas de
+     *   relatedInformation).
      * @return le diagnostic LSP + traçabilité moteur.
      */
-    public fun diagnostic(diagnostic: Diagnostic, repere: Repere): DiagnosticLsp {
+    public fun diagnostic(diagnostic: Diagnostic, repere: Repere, uri: String? = null): DiagnosticLsp {
         val lsp = org.eclipse.lsp4j.Diagnostic()
         lsp.range = repere.plage(diagnostic.plage)
         lsp.severity = severite(diagnostic.severite)
         lsp.message = diagnostic.message
         lsp.code = diagnostic.code?.let { Either.forLeft(PREFIXE_CODE_ECJ + it) }
         lsp.tags = tagsDe(diagnostic)
+        // V-G (ADR 0031 (e)) : la provenance TYPÉE, machine-readable.
+        lsp.data = mapOf(
+            "provenance" to (diagnostic.source ?: PROVENANCE_ECJ),
+            "code" to diagnostic.code,
+        )
+        // V-G (ADR 0031 (e)) : relatedInformation — les liens moteur,
+        // localisés dans le document porteur.
+        if (uri != null && diagnostic.liens.isNotEmpty()) {
+            lsp.relatedInformation = diagnostic.liens.map { lien ->
+                org.eclipse.lsp4j.DiagnosticRelatedInformation(
+                    Location(uri, repere.plage(lien.plage)),
+                    lien.message,
+                )
+            }
+        }
         return DiagnosticLsp(lsp, diagnostic)
     }
 
@@ -185,11 +213,13 @@ public object ConvertisseurLsp {
      *
      * @param diagnostics les diagnostics moteur.
      * @param repere le repère du document porteur.
+     * @param uri l'URI du document porteur (V-G — null : pas de
+     *   relatedInformation).
      * @return les diagnostics LSP (même ordre — l'ordre moteur est déjà
      *   le contrat de tri stable de la publication).
      */
-    public fun diagnostics(diagnostics: List<Diagnostic>, repere: Repere): List<org.eclipse.lsp4j.Diagnostic> =
-        diagnostics.map { diagnostic(it, repere).lsp }
+    public fun diagnostics(diagnostics: List<Diagnostic>, repere: Repere, uri: String? = null): List<org.eclipse.lsp4j.Diagnostic> =
+        diagnostics.map { diagnostic(it, repere, uri).lsp }
 
     /** La sévérité LSP d'une sévérité moteur. */
     private fun severite(severite: Severite): DiagnosticSeverity = when (severite) {
@@ -205,6 +235,9 @@ public object ConvertisseurLsp {
                 listOf(DiagnosticTag.Unnecessary)
             else -> emptyList()
         }
+
+    /** La provenance du compilateur dans le champ data (V-G — ADR 0031 (e)). */
+    private const val PROVENANCE_ECJ: String = "ecj"
 
     // ----------------------------------------------------------------- //
     // Navigation : cibles, usages, surbrillances

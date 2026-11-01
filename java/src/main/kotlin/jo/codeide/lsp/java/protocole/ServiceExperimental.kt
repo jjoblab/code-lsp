@@ -2,6 +2,7 @@ package jo.codeide.lsp.java.protocole
 
 import java.util.concurrent.CompletableFuture
 import org.eclipse.lsp4j.TextDocumentPositionParams
+import org.eclipse.lsp4j.jsonrpc.services.JsonNotification
 import org.eclipse.lsp4j.jsonrpc.services.JsonRequest
 import org.eclipse.lsp4j.services.LanguageServer
 
@@ -113,6 +114,25 @@ public interface ServiceExperimental {
      */
     @JsonRequest("textDocument/statementCompletion")
     public fun statementCompletion(params: TextDocumentPositionParams): CompletableFuture<ReponseInstructionRpc>
+
+    /**
+     * La notification de PLAGE VISIBLE (vague V-F4 — ADR 0029 phase 4,
+     * annonce `x-codeide.plageVisible` v1) : le client y déclare la zone
+     * de CHAQUE document qu'il affiche réellement (offsets ABSOLUS — même
+     * convention que `CibleSuperRpc`, jamais de conversion ligne/colonne
+     * côté serveur). Le publicateur s'en sert pour la double publication
+     * « visible d'abord » sur les GRANDS fichiers ([MoteurJava.diagnosePrioritaire]
+     * — la passe complète suit, la publication complète fait foi).
+     *
+     * Un client qui n'envoie JAMAIS cette notification obtient le
+     * comportement d'avant V-F4, à l'identique (aucune priorité n'engage).
+     * La notification est IGNORÉE hors fenêtre de vie (avant initialize,
+     * après shutdown — la règle maison des notifications).
+     *
+     * @param params l'URI et la plage visible (offsets absolus).
+     */
+    @JsonNotification("$/codeide/plageVisible")
+    public fun plageVisible(params: ParamsPlageVisibleRpc)
 }
 
 /**
@@ -257,6 +277,20 @@ public fun grouperUsages(usages: List<jo.codeide.lsp.java.navigation.Usage>, pla
         groupes = parFichier.map { (chemin, occurrences) -> GroupeUsagesRpc(chemin, occurrences) },
     )
 }
+
+/**
+ * Le paramètre de la notification `$/codeide/plageVisible` (V-F4) : la
+ * zone du document réellement affichée par le client.
+ *
+ * @property uri l'URI du document affiché.
+ * @property start l'offset ABSOLU du début de la zone visible.
+ * @property end l'offset ABSOLU de la fin (exclusive) de la zone visible.
+ */
+public data class ParamsPlageVisibleRpc(
+    public val uri: String,
+    public val start: Int,
+    public val end: Int,
+)
 
 /**
  * La réponse de `textDocument/statementCompletion` (V-C3) : l'édition à

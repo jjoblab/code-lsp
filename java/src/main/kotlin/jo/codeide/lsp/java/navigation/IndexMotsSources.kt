@@ -32,7 +32,9 @@ import kotlin.concurrent.withLock
  * @param racines les racines sources du projet (l'ordre n'est jamais
  *   signifiant — l'énumération est triée pour la reproductibilité).
  */
-public class IndexMotsSources(private val racines: List<Path>) {
+public class IndexMotsSources(
+    private val racines: List<Path>,
+) {
 
     /**
      * Verrou de construction (une seule construction à la fois) — périmètre
@@ -121,11 +123,41 @@ public class IndexMotsSources(private val racines: List<Path>) {
         }
     }
 
+    /**
+     * Préchauffe l'index (V-G — ADR 0031 (c)) : force la construction
+     * froide MAINTENANT avec l'auditeur de progression, et rend le
+     * nombre de fichiers indexés — le serveur y branche son
+     * `workDoneProgress` (« Indexation des sources… n/m »).
+     *
+     * Sur un index DÉJÀ construit : aucune reconstruction (le compteur
+     * de constructions ne bouge pas) — le signalement reçoit le compte
+     * courant COMPLET (n = m), la progression est celle du chemin réel.
+     *
+     * @param signalement l'auditeur (construits, total) après chaque
+     *   fichier lexé ; null = aucun signalement.
+     * @return le nombre de fichiers sources indexés.
+     */
+    public fun prechauffer(signalement: ((construits: Int, total: Int) -> Unit)? = null): Int {
+        assurerConstruit(signalement)
+        return verrou.withLock { fichiersConnus.size }
+    }
+
     /** Construit l'index si nécessaire (l'appelant NE détient PAS le verrou). */
-    private fun assurerConstruit() {
-        if (construit) return
+    private fun assurerConstruit(signalement: ((construits: Int, total: Int) -> Unit)? = null) {
+        if (construit) {
+            signalement?.let { auditeur ->
+                val (construits, total) = verrou.withLock { fichiersConnus.size to fichiersConnus.size }
+                auditeur(construits, total)
+            }
+            return
+        }
         verrou.withLock {
-            if (construit) return
+            if (construit) {
+                signalement?.let { auditeur ->
+                    auditeur(fichiersConnus.size, fichiersConnus.size)
+                }
+                return
+            }
             val fichiers = ArrayList<Path>()
             for (racine in racines) {
                 if (!Files.isDirectory(racine)) continue
@@ -141,13 +173,16 @@ public class IndexMotsSources(private val racines: List<Path>) {
             val motsVers = HashMap<String, MutableSet<Path>>()
             val motsPar = HashMap<Path, Set<String>>()
             val empreintesLocales = HashMap<Path, Pair<Long, Long>>()
-            for (fichier in fichiers) {
+            for ((index, fichier) in fichiers.withIndex()) {
                 val mots = lexMotsDe(fichier)
                 motsPar[fichier] = mots
                 for (mot in mots) {
                     motsVers.getOrPut(mot) { LinkedHashSet() }.add(fichier)
                 }
                 empreintesLocales[fichier] = empreinteDe(fichier) ?: Pair(0L, 0L)
+                // V-G : la progression du chemin froid (jamais mensongère —
+                // chaque appel suit un fichier RÉELLEMENT lexé).
+                signalement?.invoke(index + 1, fichiers.size)
             }
             motsVersFichiers = motsVers
             motsParFichier = motsPar

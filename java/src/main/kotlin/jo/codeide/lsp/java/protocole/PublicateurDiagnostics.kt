@@ -36,6 +36,21 @@ import org.eclipse.lsp4j.services.LanguageClient
  *    (15 s — fiche 056 ; 3 s — fiche 059) : 50 ms de debounce +
  *    compilation asynchrone les tient par construction.
  *
+ * **PLAGE PRIORITAIRE (vague V-F4 — ADR 0029 phase 4, « zone visible
+ * d'abord »)** : quand le client a déclaré une zone visible
+ * (`$/codeide/plageVisible`) ET que la passe à venir serait COMPLÈTE
+ * (sonde [MoteurJava.serviraitPasseComplete] — ouverture de grand
+ * fichier, édition structurelle) ET que le moteur accepte la priorité
+ * ([MoteurJava.diagnosePrioritaire]), le tir publie DEUX fois : la passe
+ * PRIORITAIRE d'abord (le corps visible + tout le hors-corps — partielle
+ * annoncée), la passe COMPLÈTE ensuite (elle fait foi). Le fil unique
+ * conserve l'ordre ; le client rend la dernière reçue. Un client sans
+ * notification de plage garde le comportement d'avant V-F4, À L'IDENTIQUE
+ * (les contrats du cahier — dont « une salve = une publication » — ne
+ * sont touchés que dans ce scénario opt-in). Kill-switch :
+ * `jo.codeide.lsp.java.plageprioritaire.disabled=true` coupe la double
+ * publication (repli documenté).
+ *
  * **Séquentialité** : un exécuteur À FIL UNIQUE sert toutes les
  * publications — l'ordre d'arrivée au client est l'ordre de demande, la
  * version la plus fraîche gagne toujours (le client rend les publications
@@ -56,11 +71,14 @@ import org.eclipse.lsp4j.services.LanguageClient
  * @param client le client LSP (bout publishDiagnostics).
  * @param etats le magasin des documents ouverts (instantanés vivants).
  * @param fournisseur le résolveur du moteur par chemin de document.
+ * @param plagesVisibles le registre des zones visibles (V-F4 — défaut :
+ *   un registre vide, la double publication n'engage jamais).
  */
 public class PublicateurDiagnostics(
     private val client: LanguageClient,
     private val etats: EtatsDocuments,
     private val fournisseur: (chemin: String) -> MoteurJava?,
+    private val plagesVisibles: PlagesVisibles = PlagesVisibles(),
 ) {
 
     /**
@@ -76,6 +94,22 @@ public class PublicateurDiagnostics(
         moteur: MoteurJava,
         etats: EtatsDocuments,
     ) : this(client, etats, { _ -> moteur })
+
+    /**
+     * La forme FIGÉE avec registre de plages visibles (V-F4 — régime figé
+     * du serveur : le publicateur partage le registre des notifications).
+     *
+     * @param client le client LSP (bout publishDiagnostics).
+     * @param moteur le moteur hôte (diagnose complet, replis internes).
+     * @param etats le magasin des documents ouverts (instantanés vivants).
+     * @param plagesVisibles le registre des zones visibles (V-F4).
+     */
+    public constructor(
+        client: LanguageClient,
+        moteur: MoteurJava,
+        etats: EtatsDocuments,
+        plagesVisibles: PlagesVisibles,
+    ) : this(client, etats, { _ -> moteur }, plagesVisibles)
 
     /** Le fil unique des publications (ordre + jamais de fil RPC bloqué). */
     private val ordonnanceur = Executors.newSingleThreadScheduledExecutor { runnable ->
@@ -113,6 +147,11 @@ public class PublicateurDiagnostics(
      * introuvable → AUCUNE publication (l'absence de publicateur, jamais
      * une liste vide mensongère).
      *
+     * V-F4 : si une zone visible est déclarée, que la passe serait
+     * COMPLÈTE et que le moteur accepte la priorité, la passe PRIORITAIRE
+     * (partielle, annoncée) part D'ABORD — la passe complète suit dans le
+     * MÊME tir (fil unique : l'ordre d'arrivée au client est garanti).
+     *
      * @param uri l'URI du document à publier.
      */
     private fun tirer(uri: String) {
@@ -123,11 +162,29 @@ public class PublicateurDiagnostics(
         }
         val chemin = ConvertisseurLsp.cheminDeUri(uri) ?: uri
         val moteur = fournisseur(chemin) ?: return
-        val diagnostics = moteur.diagnose(chemin, instantane.texte)
+        // V-F4 — la PLAGE PRIORITAIRE : visible d'abord, complète ensuite.
+        if (!PLAGE_PRIORITAIRE_DESACTIVEE) {
+            val plage = plagesVisibles.plageDe(uri)
+            if (plage != null && moteur.serviraitPasseComplete(chemin, instantane.texte)) {
+                val prioritaire = moteur.diagnosePrioritaire(
+                    chemin,
+                    instantane.texte,
+                    (plage.debut + plage.fin) / 2,
+                )
+                if (prioritaire != null) {
+                    publier(uri, instantane, prioritaire)
+                }
+            }
+        }
+        publier(uri, instantane, moteur.diagnose(chemin, instantane.texte))
+    }
+
+    /** Publie une liste de diagnostics pour l'instantané donné (version fait foi). */
+    private fun publier(uri: String, instantane: EtatsDocuments.Instantane, diagnostics: List<jo.codeide.lsp.java.diagnostics.Diagnostic>) {
         val repere = ConvertisseurLsp.repere(instantane.texte)
         val params = PublishDiagnosticsParams(
             uri,
-            ConvertisseurLsp.diagnostics(diagnostics, repere),
+            ConvertisseurLsp.diagnostics(diagnostics, repere, uri),
         )
         params.version = instantane.version.toInt()
         client.publishDiagnostics(params)
@@ -150,5 +207,13 @@ public class PublicateurDiagnostics(
     private companion object {
         /** Le debounce du cahier (fiche 059 : « debounce de 50 ms »). */
         private const val DEBOUNCE_MS: Long = 50
+
+        /**
+         * Kill-switch de la plage prioritaire (V-F4 — repli documenté) :
+         * `jo.codeide.lsp.java.plageprioritaire.disabled=true` coupe la
+         * double publication (comportement d'avant V-F4, à l'identique).
+         */
+        private val PLAGE_PRIORITAIRE_DESACTIVEE: Boolean =
+            System.getProperty("jo.codeide.lsp.java.plageprioritaire.disabled") == "true"
     }
 }

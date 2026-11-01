@@ -20,6 +20,9 @@ import org.eclipse.lsp4j.SignatureHelpOptions
 import org.eclipse.lsp4j.TextDocumentSyncKind
 import org.eclipse.lsp4j.jsonrpc.json.MessageJsonHandler
 import org.eclipse.lsp4j.jsonrpc.messages.Either
+import org.eclipse.lsp4j.SemanticTokensLegend
+import org.eclipse.lsp4j.SemanticTokensServerFull
+import org.eclipse.lsp4j.SemanticTokensWithRegistrationOptions
 
 /**
  * Les capabilities du serveur + la réponse `initialize` (étage N8 — cahier
@@ -27,9 +30,9 @@ import org.eclipse.lsp4j.jsonrpc.messages.Either
  *
  * **Règle matrice (ADR 0015)** : « capacité testée = annoncée ; sinon
  * absente ». Chaque capability ci-dessous renvoie à un comportement du
- * cahier VERROUILLÉ PAR TEST — aucune annonce de `semanticTokens` (aucun
- * service moteur ne le sert ; la requête reste TOLÉRANTE et rend une data
- * vide, fiche 059 I9, mais l'annonce est absente).
+ * cahier VERROUILLÉ PAR TEST — `semanticTokens` est annoncé depuis la
+ * vague V-G (ADR 0031 (a) : le banc de rendu et la latence mesurée
+ * verrouillent le contrat).
  *
  * **Capability maison** (design intégré de l'ancienne vague 4, plan §4 N8 ;
  * ADR 0012 vague (b) ; ADR 0015 : préfixe `x-codeide.`, versionné) :
@@ -62,6 +65,20 @@ public object CapacitesServeur {
 
     /** Le champ capability maison du protocole riche (ADR 0012/0015). */
     public const val CHAMP_COMPLETION_RANKING: String = "x-codeide.completionRanking"
+
+    /**
+     * La LÉGENDE des types de jetons sémantiques (V-G — ADR 0031 (a)) :
+     * l'ordre EST le contrat du vecteur (l'index du type voyage dans les
+     * données encodées). Types STANDARD LSP pour la compatibilité client.
+     */
+    public val TYPES_LEGENDE_SEMANTIQUES: List<String> = listOf(
+        "class", "interface", "enum", "decorator", "method", "property", "parameter", "variable",
+    )
+
+    /** La LÉGENDE des modificateurs (V-G) — l'ordre est le contrat du bitfield. */
+    public val MODIFICATEURS_LEGENDE_SEMANTIQUES: List<String> = listOf(
+        "declaration", "static", "final", "abstract",
+    )
 
     /**
      * La version du protocole maison (évolution = nouvelle version, jamais
@@ -198,8 +215,14 @@ public object CapacitesServeur {
         // VIDE après un déclencheur est le seul chemin d'ouverture
         // automatique côté client cel-lsp (politique « préfixe vide =
         // légitime uniquement après un char déclencheur »).
+        // V-G (ADR 0031 (f)) : `resolveProvider` VRAI — quand le client
+        // annonce `resolveSupport`, l'édition d'AUTO-IMPORT de l'item
+        // choisi est calculée au RESOLVE (texte courant) au lieu de la
+        // liste (N items) ; sans resolveSupport, la liste reste complète.
         capacites.setCompletionProvider(
-            CompletionOptions(false, listOf(".", "@")),
+            CompletionOptions(false, listOf(".", "@")).apply {
+                resolveProvider = true
+            },
         )
 
         // Survol (étage N3 — fiches 020/021), aide de signature (fiche 023).
@@ -275,12 +298,39 @@ public object CapacitesServeur {
         // Symboles d'espace de travail (fiche 056 : forme booléenne TRUE).
         capacites.setWorkspaceSymbolProvider(true)
 
+        // Opérations de fichiers (V-G — ADR 0031 (d)) : le serveur sert
+        // `workspace/willRenameFiles` pour les `.java` — le geste « renommer
+        // / déplacer » de l'arbre éditeur reçoit les éditions (package +
+        // imports) AVANT le renommage effectif. Annoncé ⇔ testé (ADR 0015).
+        val operationsFichier = org.eclipse.lsp4j.FileOperationsServerCapabilities()
+        operationsFichier.willRename = org.eclipse.lsp4j.FileOperationOptions(
+            listOf(org.eclipse.lsp4j.FileOperationFilter(org.eclipse.lsp4j.FileOperationPattern("**/*.java"))),
+        )
+        operationsFichier.didRename = org.eclipse.lsp4j.FileOperationOptions(
+            listOf(org.eclipse.lsp4j.FileOperationFilter(org.eclipse.lsp4j.FileOperationPattern("**/*.java"))),
+        )
+        capacites.workspace = org.eclipse.lsp4j.WorkspaceServerCapabilities().apply {
+            fileOperations = operationsFichier
+        }
+
         // Indices inlay (étage N3 — fiches 002/003/030 ; fiche 059 : liste
         // vide honnête).
         capacites.setInlayHintProvider(true)
 
-        // PAS de semanticTokens : aucun service moteur — règle matrice
-        // (ADR 0015 : capacité non testée = non annoncée).
+        // Coloration SÉMANTIQUE (V-G — ADR 0031 (a)) : `semanticTokensFull`
+        // sur bindings — le calcul parcourt l'arbre RÉSOLU (traversée
+        // résiliente, jamais d'échec sur code en recovery). Annoncé ⇔ testé
+        // (ADR 0015) : le banc de rendu (cas dorés → vecteur attendu) et la
+        // latence mesurée (< 25 ms p95) verrouillent le contrat. PAS de
+        // delta serveur (le client re-demande le vecteur complet — honnête,
+        // jamais un delta faux).
+        val legende = SemanticTokensLegend(
+            TYPES_LEGENDE_SEMANTIQUES,
+            MODIFICATEURS_LEGENDE_SEMANTIQUES,
+        )
+        val optionsJetons = SemanticTokensWithRegistrationOptions(legende)
+        optionsJetons.full = org.eclipse.lsp4j.jsonrpc.messages.Either.forRight(SemanticTokensServerFull(false))
+        capacites.setSemanticTokensProvider(optionsJetons)
 
         // Extensions MAISON (fiche 054 — INTEGRATION-CODEIDE §2) :
         // `superDefinition` et `decompiledSource` sont annoncées dans
@@ -308,6 +358,15 @@ public object CapacitesServeur {
                     "multiFichiers" to true,
                     "groupes" to true,
                     "plafondRendu" to PLAFOND_USAGES_RENDUS,
+                ),
+                // V-F4 (ADR 0029 phase 4) : le contrat de la PLAGE VISIBLE
+                // — la notification `$/codeide/plageVisible` (offsets
+                // absolus) déclenche la double publication « visible
+                // d'abord » sur les grands fichiers. Version 1 : posée À
+                // LA LIVRAISON — toute évolution sémantique montera la
+                // version (jamais de mutation silencieuse, ADR 0015 R1).
+                "x-codeide.plageVisible" to mapOf(
+                    "version" to 1,
                 ),
             ),
         )

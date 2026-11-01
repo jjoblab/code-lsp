@@ -7,8 +7,24 @@
   31/10/2026 au soir** (PV dans `mesures/2026-10-31-vf2-vc1-vc2.txt` —
   comptage `synchronized(` 99 → 0 pour la cible < 6, métrique CI portée
   par `VerrousPerimetreTest` ; chaos 6 fils verts ; banc de charge
-  « complétion A ∥ diagnose B » TENU) ; phases 3–5 (budgets/onTrim,
-  priorité visible, incrémentalité) restent à livrer.
+  « complétion A ∥ diagnose B » TENU) ; **phases 3–4 (V-F3 budgets
+  octets + onTrimMemory, V-F4 plage prioritaire) LIVRÉES le 01/11/2026
+  (v1.11.0 — PV `mesures/2026-11-01-vf-finale-vg-protocole.txt`)** :
+  budgets d'octets ESTIMÉS du cache de parse (8 Mio, facteur arbre ×6 —
+  garde anti-cyclage : la dernière entrée posée survit seule) et du mémo
+  de localisation (2 Mio, négatifs évincés d'abord — re-probe honnête,
+  contrats fiche 024 intacts), exécution de l'ADR 0011 point 2 ; shim
+  `pressionMemoire(niveau)` miroir `ComponentCallbacks2` avec rapport
+  CHIFFRÉ et relais multi-modules, exécution de l'ADR 0011 point 5
+  (G-033 RÉSOLU) ; notification `$/codeide/plageVisible` v1 + double
+  publication « visible d'abord » ≥ 16 000 caractères (passe prioritaire
+  PURE, la complète fait foi, INERTE sans notification — kill-switches
+  `memoire.budgets/ontrim/plageprioritaire.disabled`) ; **phase 5
+  (incrémentalité) REPORTÉE motivée** : conditionnée à l'ADR 0017 (b)
+  (artefacts JetBrains java-syntax, décision D4 non tranchée par le
+  propriétaire) et le critère utile (« la frappe ne paie pas la
+  re-résolution complète ») est déjà tenu par le diagnose rapide
+  (fiche 014) — la vague V-F est COMPLÈTE au sens du plan 04.
 - **Date** : 2026-10-31
 - **Écarts résolus** : G-029 (partiel — annulation fine + époques), G-030
   (double-tampon), G-031, G-033 (`01-audit-moteur.md` §1.13, §1.14)
@@ -154,9 +170,48 @@ plan 04 comme vague **V-F**, avec dépendance inversée : V-F1 **avant** V-C
   concurrent vs 43 séquentiel — l'ancien moniteur échouait) — verts.
   Note honnête différée à V-C3 : la collecte de membres sur type BINAIRE
   jrt paie l'énumération à chaque appel (mesuré 15–26 ms).
-- **Phases 3–5** : à livrer dans la vague V-F finale (budgets octets +
-  onTrimMemory, plage prioritaire, incrémentalité conditionnée ADR
-  0017/0006).
+- **V-F3 + V-F4 (01/11/2026, v1.11.0) — LIVRÉES (la vague V-F est
+  COMPLÈTE).** **V-F3 — budgets d'octets (ADR 0011 point 2)** :
+  `CacheParse` porte un budget d'octets ESTIMÉS (défaut 8 Mio — coût par
+  entrée = source × facteur d'arbre ×6 + enveloppe, ESTIMATION de gestion
+  R5, le tas réel reste l'affaire du banc mémoire) avec éviction LRU en
+  PLUS de la borne d'entrées, et la garde ANTI-CYCLAGE (l'entrée la plus
+  récente survit toujours — un fichier seul plus gros que le budget vit
+  seul, jamais de put/éviction en boucle) ; le mémo de localisation
+  (verdicts fqcn → jar, fiche 024) gagne 2 Mio estimés : les NÉGATIFS
+  partent d'abord (re-probe honnête, le verdict rendu reste EXACT), le
+  robinet intégral ne s'ouvre que si le budget reste dépassé. **V-F3 —
+  shim `onTrimMemory` (ADR 0011 point 5, G-033)** :
+  `MoteurJava.pressionMemoire(niveau)` reçoit l'ENTIER ComponentCallbacks2
+  (miroir `NiveauxPressionMemoire` — identité, pas traduction) ;
+  politique cumulative : < 20 → arbres résolus seuls (le mémo de diagnose
+  reste, la frappe reste servie) ; 40/60 → + mémos + négatifs (les
+  positifs gardent leurs handles) ; ≥ 80 → libération INTÉGRALE drainée
+  par le verrou de compilation (le moteur SURVIT — tout se reconstruit
+  paresseusement) ; le signal ne paie JAMAIS la construction de
+  l'environnement (jrt/jars) ; rapport CHIFFRÉ `RapportPressionMemoire`
+  (journalisable côté hôte — l'observable des logs appareil « caches
+  d'arbre libérés » devient une donnée) et relais MULTI-MODULES
+  `EnvironnementCompilation.pressionMemoire`. **V-F4 — plage prioritaire
+  (phase 4, « zone visible d'abord » — transposition du §A1 de la
+  référence)** : notification maison `$/codeide/plageVisible` v1 (offsets
+  ABSOLUS, dernière gagnante, oubli au didClose, INERTE sans envoi —
+  contrats du cahier intacts) ; sonde `serviraitPasseComplete` PUREMENT
+  LEXICALE (mémo + preuve de confinement, jamais de compilation) ;
+  `diagnosePrioritaire` masque le hors-visible (isomorphe fiche 014) et
+  reste PURE (aucune écriture d'état — un partiel ne devient jamais
+  source de portage) ; la publication COMPLÈTE suit dans le même tir et
+  FAIT FOI (fil unique : ordre garanti). Seuil 16 000 caractères (~500
+  lignes). Kill-switches : `memoire.budgets.disabled`,
+  `memoire.ontrim.disabled`, `plageprioritaire.disabled`. **Phase 5
+  (incrémentalité) : REPORTÉE motivée** — conditionnée à l'ADR 0017 (b)
+  (artefacts JetBrains, décision D4 du propriétaire non tranchée) ; le
+  critère utile est déjà tenu par le diagnose rapide (fiche 014).
+  Validation (R5, PV `mesures/2026-11-01-vf-finale-vg-protocole.txt`) :
+  23 tests V-F3/V-F4 verts (9 budgets + pressions, 5 plage prioritaire,
+  9 V-G), suite complète verte, banc N1 tenu.
+- **Phases 3–4 : LIVRÉES ci-dessus (01/11/2026). Phase 5 : reportée
+  motivée (ADR 0017 (b), décision D4).**
 
 ## Tests de non-régression et critères de sortie
 

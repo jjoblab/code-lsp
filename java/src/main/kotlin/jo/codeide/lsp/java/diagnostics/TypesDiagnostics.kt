@@ -40,6 +40,22 @@ public data class Plage(
 )
 
 /**
+ * Un LIEN de diagnostic (vague V-G — ADR 0031 (e), relatedInformation) :
+ * l'information RELATIVE d'un diagnostic, dans le MÊME document — la
+ * localisation du membre exigeant (p. ex. la clause `extends` du type
+ * qui exige la classe absente du classpath, fiche 019).
+ *
+ * @property message le libellé du lien (« requis par X » — vocabulaire
+ *   maison français, cohérent avec l'enrichissement fiche 019).
+ * @property plage la localisation dans le document porteur (offsets
+ *   absolus — même convention que [Plage]).
+ */
+public data class LienDiagnostic(
+    public val message: String,
+    public val plage: Plage,
+)
+
+/**
  * Un diagnostic de compilation publié par le moteur.
  *
  * L'identité de valeur ([equals] de la classe de données) est le contrat
@@ -66,10 +82,16 @@ public data class Plage(
  *   `null` = le compilateur ecj (ou un enrichissement synthétique du
  *   moteur), `"inspection"` = la couche IDE au-dessus du compilateur
  *   (ADR 0013 : le rouge n'a qu'une source — les inspections n'ajoutent
- *   JAMAIS de sévérité Erreur, uniquement Warning/Info). Transportée pour
+ *   JAMAIS de sévérité Erreur, uniquement Warning/Info), `"lint"` = les
+ *   contrôles Android à valeur Java (V-C2 — ADR 0024). Transportée pour
  *   le filtrage et la provenance côté hôte (G-023 : relatedInformation en
  *   V-G). L'équivalence des valeurs par défaut préserve l'identité des
  *   diagnostics ecj existants (contrat fiche 014).
+ * @property liens les informations RELATIVES du diagnostic (V-G — ADR 0031
+ *   (e) : relatedInformation) : localisations du MEME document qui
+ *   EXPLIQUENT le signal (la clause `extends` exigeante, fiche 019).
+ *   Vide par défaut — l'identité de valeur des diagnostics existants est
+ *   préservée (contrat fiche 014).
  */
 public data class Diagnostic(
     public val severite: Severite,
@@ -78,4 +100,5 @@ public data class Diagnostic(
     public val code: String? = null,
     public val arguments: List<String> = emptyList(),
     public val source: String? = null,
+    public val liens: List<LienDiagnostic> = emptyList(),
 )

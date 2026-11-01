@@ -62,6 +62,8 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
+import jo.codeide.lsp.java.memoire.NiveauxPressionMemoire
+import jo.codeide.lsp.java.memoire.RapportPressionMemoire
 
 /**
  * Moteur Java par module (étage N1) — nom NEUTRE : cette classe ne dérive
@@ -303,6 +305,9 @@ public class MoteurJava(
     /** Compteur des services par l'arbre RÉEL du cache de parse (fiche 015). */
     private val compteurCachedResolve = AtomicInteger(0)
 
+    /** Compteur des passes PRIORITAIRES (V-F4 — sonde observable). */
+    private val compteurPrioritaire = AtomicInteger(0)
+
     public companion object {
         /**
          * Kill-switch du diagnose rapide (contrat de présence verrouillé par
@@ -334,6 +339,29 @@ public class MoteurJava(
          */
         private val INTEROPERABILITE_KOTLIN_DESACTIVEE: Boolean =
             System.getProperty("jo.codeide.lsp.java.interoperabilite.kotlin.disabled") == "true"
+
+        /**
+         * Kill-switch du shim onTrimMemory (V-F3 — ADR 0029 phase 3 /
+         * ADR 0011 point 5, repli documenté) :
+         * `jo.codeide.lsp.java.memoire.ontrim.disabled=true` rend
+         * [pressionMemoire] INOPÉRANTE (rapport « rien libéré » — les
+         * caches ne réagissent plus au signal, comportement d'avant V-F3).
+         * Les budgets d'octets ont leur PROPRE kill-switch
+         * (`jo.codeide.lsp.java.memoire.budgets.disabled` — voir
+         * [jo.codeide.lsp.java.interne.CacheParse] et
+         * [jo.codeide.lsp.java.classpath.CacheLocalisation]).
+         */
+        private val ONTRIM_DESACTIVE: Boolean =
+            System.getProperty("jo.codeide.lsp.java.memoire.ontrim.disabled") == "true"
+
+        /**
+         * Le seuil de la PLAGE PRIORITAIRE (V-F4 — ADR 0029 phase 4) : la
+         * double publication (visible d'abord, complète ensuite) ne paie
+         * que sur les fichiers où la passe complète est PERCEVABLE — en
+         * dessous, une seule publication (le comportement d'avant V-F4).
+         * Constante documentée, ajustable : ~500 lignes.
+         */
+        public const val SEUIL_PRIORITAIRE: Int = 16_000
     }
 
     // ------------------------------------------------------------------ //
@@ -532,6 +560,101 @@ public class MoteurJava(
         RegimeInstantane.diagnosticsSyntaxe(pontEcj(), unite(chemin, source))
     }
 
+    /**
+     * Sonde de la PLAGE PRIORITAIRE (V-F4 — ADR 0029 phase 4) : le
+     * publicateur y détecte — SANS COMPILER — qu'un [diagnose] de cette
+     * source paierait la passe COMPLÈTE (mémo manquant ET confinement
+     * non prouvable) : c'est le seul cas où la double publication
+     * « visible d'abord » apporte quelque chose (ouverture de grand
+     * fichier, édition structurelle).
+     *
+     * Le calcul est PUREMENT LEXICAL (lecture du mémo + preuve de
+     * confinement — jamais d'arbre, jamais de verrou : la sonde ne se
+     * met pas derrière une résolution en vol).
+     *
+     * @param chemin chemin logique du document.
+     * @param source le texte Java complet.
+     * @return vrai ssi la passe complète serait la réponse (priorité utile).
+     */
+    public fun serviraitPasseComplete(chemin: String, source: String): Boolean {
+        val memo = etatsRapides[chemin]
+        if (memo?.source == source && memo.dependancesInchangees()) return false // mémo : rien à prioriser
+        val hote = if (FAST_DIAGNOSE_DISABLED || DESACTIVE_PAR_PROPRIETE) {
+            null
+        } else {
+            DiagnoseRapide.preuveDeConfinement(memo, source)
+        }
+        // Confinement prouvable (et régime plein) → la passe RAPIDE sert :
+        // la priorité ne s'applique pas.
+        return hote == null || !regimePlein()
+    }
+
+    /**
+     * La passe PRIORITAIRE (V-F4 — ADR 0029 phase 4 : « plage prioritaire,
+     * zone visible d'abord », transposition honnête du §A1 de la
+     * référence) : la source est MASQUÉE hors du corps VISIBLE (même
+     * mécanique isomorphe que le diagnose rapide, fiche 014) et la passe
+     * ne publie que ce qui est calculable au fragile : le corps visible +
+     * TOUT le hors-corps (signatures, imports, types — INTACTS dans la
+     * source masquée).
+     *
+     * **Partialité ASSUMÉE et annoncée** : les diagnostics des corps
+     * HORS zone visible sont absents de cette passe (ils le resteront
+     * jusqu'à la passe complète qui SUIT — la publication complète fait
+     * foi ; le client rend la dernière reçue). C'est le comportement
+     * « analyzing… » de la référence : l'utilisateur voit d'abord les
+     * erreurs de SA zone.
+     *
+     * **Pureté d'état** : cette passe N'ÉCRIT RIEN — ni mémo
+     * ([etatsRapides]), ni cache de parse : un diagnostic partiel ne doit
+     * JAMAIS devenir la source de portage d'une passe rapide suivante
+     * (sinon l'omission deviendrait permanente). Elle ne fait que LIRE
+     * l'état courant.
+     *
+     * Refus honnêtes (null → le publicateur sert la passe complète
+     * directement, aucune double publication) : fichier sous le seuil
+     * [SEUIL_PRIORITAIRE] ; accolades déséquilibrées ; offset visible hors
+     * de tout corps (la zone montre la structure — la passe complète EST
+     * la bonne réponse) ; moins de deux corps (le masquage ne change
+     * rien) ; régime non plein (la passe de syntaxe est déjà rapide).
+     *
+     * @param chemin chemin logique du document.
+     * @param source le texte Java complet.
+     * @param offsetVisible un offset de la ZONE VISIBLE (le corps le
+     *   contenant devient l'hôte intact).
+     * @return les diagnostics de la passe prioritaire (PARTIELLE), ou
+     *   null si la priorité ne s'applique pas.
+     */
+    public fun diagnosePrioritaire(chemin: String, source: String, offsetVisible: Int): List<Diagnostic>? =
+        verrouCompilation.withLock {
+            if (source.length < SEUIL_PRIORITAIRE) return@withLock null
+            if (!isLikelyUsableInterne()) return@withLock null
+            val corps = ScannerCorps.corpsDeMethodes(source) ?: return@withLock null
+            if (corps.size < 2) return@withLock null
+            val hote = corps.firstOrNull { plage ->
+                plage.debutInterieur <= offsetVisible && offsetVisible < plage.finInterieur
+            } ?: return@withLock null
+            val masquee = DiagnoseRapide.sourceMasquee(source, corps, hote)
+            val environnement = environnementNoms()
+            val piste = environnement.ouvrirPiste()
+            val reponse = try {
+                pontEcj().resoudre(unite(chemin, masquee), genererCode = true, rapide = true)
+            } finally {
+                environnement.fermerPiste()
+            }
+            compteurPrioritaire.incrementAndGet()
+            var frais = reponse.problemes().map { RegimeInstantane.convertir(it) }
+                .sortedWith(compareBy({ it.plage.debutOffset }, { it.plage.finOffset }))
+            frais = enrichirHierarchie(frais, reponse.arbre)
+            // Inspections sur l'arbre masqué : squelette et corps hôte
+            // intacts — mêmes garanties que la passe rapide (P1).
+            val inspections = MoteurInspections.inspecter(reponse.arbre, masquee, chemin, frais, minSdk = projetAndroid?.minSdk)
+            if (inspections.isNotEmpty()) {
+                frais = (frais + inspections).sortedWith(compareBy({ it.plage.debutOffset }, { it.plage.finOffset }))
+            }
+            frais
+        }
+
     /** Diagnose complet : résolution, enrichissement de hiérarchie, caches. */
     private fun diagnostiquerComplet(chemin: String, source: String): List<Diagnostic> {
         // Table ANALYTIQUE (étage N8, fiche 056) : les corps ENTIERS sont
@@ -662,10 +785,20 @@ public class MoteurJava(
                 .removePrefix(amorce)
                 .removeSuffix(" is inconsistent")
             val supertypes = supertypesBinairesDe(arbre, nomType)
-            for ((exigeant, superFqcn) in supertypes) {
+            for ((exigeant, superFqcn, plageExigeant) in supertypes) {
                 if (env.trouverFqcn(superFqcn) == null) {
+                    // V-G (ADR 0031 (e)) : le LIEN « requis par X » devient
+                    // une relatedInformation — la localisation de la clause
+                    // EXIGEANTE dans CE document (fiche 019 : le message
+                    // porte déjà l'exigeant ; le lien porte SA plage).
+                    val liens = if (plageExigeant != null) {
+                        listOf(jo.codeide.lsp.java.diagnostics.LienDiagnostic("requis par $exigeant", plageExigeant))
+                    } else {
+                        emptyList()
+                    }
                     return@map diagnostic.copy(
                         message = diagnostic.message + " — absent du classpath : $superFqcn (requis par $exigeant)",
+                        liens = liens,
                     )
                 }
             }
@@ -674,15 +807,18 @@ public class MoteurJava(
     }
 
     /**
-     * Fournit (exigeant, super-FQN-déclaré) pour les supertypes BINAIRES
-     * d'un type source : lit le `.class` du supertype dans le jar et rend
-     * le nom de SA superclasse déclarée.
+     * Fournit (exigeant, super-FQN-déclaré, plage de la clause exigeante)
+     * pour les supertypes BINAIRES d'un type source : lit le `.class` du
+     * supertype dans le jar et rend le nom de SA superclasse déclarée.
+     * La PLAGE (V-G — relatedInformation) est celle de la RÉFÉRENCE
+     * `extends` DANS CE document (positions sources de la référence) —
+     * null si les positions sont indisponibles (référence synthétique).
      */
     private fun supertypesBinairesDe(
         arbre: org.eclipse.jdt.internal.compiler.ast.CompilationUnitDeclaration,
         nomType: String,
-    ): List<Pair<String, String>> {
-        val resultats = mutableListOf<Pair<String, String>>()
+    ): List<Triple<String, String, jo.codeide.lsp.java.diagnostics.Plage?>> {
+        val resultats = mutableListOf<Triple<String, String, jo.codeide.lsp.java.diagnostics.Plage?>>()
         val declarations = mutableListOf<org.eclipse.jdt.internal.compiler.ast.TypeDeclaration>()
         fun collecter(types: Array<org.eclipse.jdt.internal.compiler.ast.TypeDeclaration>?) {
             types?.forEach { type ->
@@ -694,6 +830,14 @@ public class MoteurJava(
         for (declaration in declarations) {
             if (String(declaration.name) != nomType) continue
             val superReference = declaration.superclass ?: continue
+            val plageExigeant = if (superReference.sourceStart >= 0 && superReference.sourceEnd >= superReference.sourceStart) {
+                jo.codeide.lsp.java.diagnostics.Plage(
+                    superReference.sourceStart,
+                    superReference.sourceEnd + 1,
+                )
+            } else {
+                null
+            }
             val binding = try {
                 superReference.resolvedType as? ReferenceBinding
             } catch (_: Exception) {
@@ -708,7 +852,7 @@ public class MoteurJava(
             } ?: continue
             val superDeclare = lecteur.superclassName?.let { String(it).replace('/', '.') } ?: continue
             if (superDeclare != "java.lang.Object") {
-                resultats.add(fqcnSuper to superDeclare)
+                resultats.add(Triple(fqcnSuper, superDeclare, plageExigeant))
             }
         }
         return resultats
@@ -1031,6 +1175,77 @@ public class MoteurJava(
      * @return le nombre de constructions de l'index.
      */
     public fun constructionsIndexMots(): Int = indexMotsSources().constructions()
+
+    /**
+     * Préchauffe l'INDEX DE MOTS des sources (vague V-G — ADR 0031 (c),
+     * `workDoneProgress` « Indexation des sources… n/m ») : force la
+     * construction froide MAINTENANT, en fil de démon, avec le
+     * signalement de progression après CHAQUE fichier lexé — le serveur
+     * y branche son jeton `window/workDoneProgress` (G-032 : le silence
+     * d'indexation devient une progression visible, miroir du
+     * « scanning/analyzing » de la référence §A1).
+     *
+     * Le préchauffage a une valeur PROPRE au-delà de la progression :
+     * la première requête d'usages/renommage ne paiera plus la
+     * construction froide (le critère « Files.walk hors du chemin chaud »
+     * est déjà tenu — ici le froid lui-même est payé D'AVANCE, à un
+     * moment où l'utilisateur n'attend rien).
+     *
+     * @param signalement l'auditeur (construits, total) — appelé dans le
+     *   FIL APPELANT, après chaque fichier lexé ; null = aucun
+     *   signalement (préchauffage silencieux).
+     * @return le nombre de fichiers sources indexés.
+     */
+    public fun prechaufferIndexMots(signalement: ((construits: Int, total: Int) -> Unit)? = null): Int =
+        indexMotsSources().prechauffer(signalement)
+
+    /**
+     * Les JETONS SÉMANTIQUES d'un document (vague V-G — ADR 0031 (a),
+     * `textDocument/semanticTokens` : « calcul sur bindings ») : la
+     * coloration SÉMANTIQUE (membre vs type vs variable vs paramètre —
+     * types/paramètres/méthodes/champs/annotations + modificateurs
+     * static/final/abstract, ADR 0031 (a)) calculée sur l'arbre RÉSOLU
+     * du fichier (résolution complète, jamais masquée — la coloration
+     * porte sur TOUT le fichier).
+     *
+     * @param chemin chemin logique du document.
+     * @param source le texte Java complet.
+     * @return les jetons triés par offset croissant (VIDE honnête si la
+     *   résolution échoue — jamais nul).
+     */
+    public fun jetonsSemantiques(chemin: String, source: String): List<jo.codeide.lsp.java.coloration.JetonSemantique> =
+        verrouCompilation.withLock {
+            val unite = resolveUnit(chemin, source, genererCode = false)
+            jo.codeide.lsp.java.coloration.ColorationSemantique.jetons(unite?.arbre, source)
+        }
+
+    /**
+     * Les éditions d'un RENOMMAGE DE FICHIER (vague V-G — ADR 0031 (d),
+     * `workspace/willRenameFiles`) : le geste « renommer / déplacer un
+     * `.java` » dans l'arbre éditeur — la déclaration de PAQUET du fichier
+     * déplacé et les IMPORTS de ses porteurs sont réécrits vers le
+     * NOUVEAU FQCN (calcul purement LEXICAL, sans résolution — le nouveau
+     * fichier n'existe pas encore, `willRename` précède le geste).
+     *
+     * @param ancien le chemin du fichier AVANT le geste (existant).
+     * @param nouveau le chemin APRÈS le geste (pas encore créé).
+     * @param texteDe la source FRAÎCHE d'un fichier porteur (le serveur
+     *   choisit : tampon ouvert si le document l'est, disque sinon).
+     * @return les éditions par fichier porteur, ou null si le fichier
+     *   n'appartient à aucune racine du module (rien à ajuster).
+     */
+    public fun editionsRenommageFichier(
+        ancien: java.nio.file.Path,
+        nouveau: java.nio.file.Path,
+        texteDe: (java.nio.file.Path) -> String?,
+    ): jo.codeide.lsp.java.renommage.EditionsRenommageFichier? =
+        jo.codeide.lsp.java.renommage.ServiceRenommageFichier.editions(
+            racines,
+            ancien,
+            nouveau,
+            indexMotsSources().fichiers(),
+            texteDe,
+        )
 
     // ------------------------------------------------------------------ //
     // Renommage par phases (étage N5 — cahier fiches 026 et 061)
@@ -2166,6 +2381,64 @@ public class MoteurJava(
     /** Nombre d'entrées du cache de parse (sonde des tests du cahier). */
     public fun parseCacheSize(): Int = cacheParse.taille()
 
+    /**
+     * Le total des coûts ESTIMÉS du cache de parse (sonde V-F3 — budget
+     * d'octets observable par le banc mémoire).
+     */
+    public fun parseCacheOctetsEstimes(): Long = cacheParse.octetsEstimes()
+
+    /**
+     * Le shim `onTrimMemory` (vague V-F3 — ADR 0029 phase 3, exécution de
+     * l'ADR 0011 point 5) : l'hôte Android relaie ici le signal de
+     * `ComponentCallbacks2.onTrimMemory(level)` avec le MÊME ENTIER (les
+     * valeurs de [NiveauxPressionMemoire] sont celles de la plateforme).
+     *
+     * Politique CUMULATIVE (documentée, jamais d'exception — un niveau
+     * inconnu prend le traitement le plus doux) :
+     *
+     *  - **RUNNING_\*** (5/10/15) et **UI_HIDDEN** (20) : le cache de
+     *    PARSE seul part (les arbres résolus — le morceau le plus lourd,
+     *    reconstruit paresseusement) ; le MÉMO de diagnose reste (la
+     *    frappe reste servie au chemin chaud) — aucune prise du verrou de
+     *    compilation (périmètre FEUILLE) ;
+     *  - **BACKGROUND** (40) / **MODERATE** (60) : en plus, les MÉMOS de
+     *    diagnose et les NÉGATIFS de localisation partent (les positifs
+     *    gardent leurs handles ouverts) ;
+     *  - **COMPLETE** (80) : libération INTÉGRALE — [dispose] sous le
+     *    verrou de compilation (drainage des calculs en vol), le moteur
+     *    reste utilisable (reconstruction paresseuse, contrat dispose).
+     *
+     * L'environnement de noms n'est JAMAIS CONSTRUIT par ce chemin (la
+     * référence volatile est lue, pas résolue) : un signal de pression
+     * mémoire ne paie jamais jrt/jars.
+     *
+     * @param niveau le niveau reçu (miroir ComponentCallbacks2).
+     * @return le rapport CHIFFRÉ de ce qui a été libéré (journalisable).
+     */
+    public fun pressionMemoire(niveau: Int): RapportPressionMemoire {
+        if (ONTRIM_DESACTIVE) return RapportPressionMemoire.rien(niveau)
+        // Premier plan / interface cachée : les arbres résolus seuls.
+        if (niveau < NiveauxPressionMemoire.BACKGROUND) {
+            val liberees = cacheParse.vider()
+            return RapportPressionMemoire(niveau, liberees, 0, 0, false)
+        }
+        // Arrière-plan : + mémos de diagnose + négatifs de localisation.
+        if (niveau < NiveauxPressionMemoire.COMPLETE) {
+            val parse = cacheParse.vider()
+            val memos = etatsRapides.size
+            etatsRapides.clear()
+            // La référence volatile sans verrou : on ne CONSTRUIT jamais
+            // l'environnement sur un signal mémoire (le trim ne paie pas
+            // jrt) ; les caches trimés sont de périmètre FEUILLE.
+            val negatifs = environnement?.cacheLocalisation?.evictNegatifs() ?: 0
+            return RapportPressionMemoire(niveau, parse, memos, negatifs, false)
+        }
+        // Le système va tuer : tout (drainage par le verrou de compilation).
+        val parse = cacheParse.taille()
+        dispose()
+        return RapportPressionMemoire(niveau, parse, 0, 0, true)
+    }
+
     /** Nombre de diagnostiques COMPLETS depuis la naissance (fiche 014). */
     public val fullDiagnoseCount: Int
         get() = compteurFullDiagnose.get()
@@ -2181,6 +2454,10 @@ public class MoteurJava(
     /** Nombre de services par l'arbre RÉEL du cache de parse (fiche 015). */
     public val cachedResolveHits: Int
         get() = compteurCachedResolve.get()
+
+    /** Nombre de passes PRIORITAIRES depuis la naissance (sonde V-F4). */
+    public val prioritaireDiagnoseCount: Int
+        get() = compteurPrioritaire.get()
 
     // ------------------------------------------------------------------ //
     // Internes

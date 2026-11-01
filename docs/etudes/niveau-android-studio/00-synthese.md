@@ -194,7 +194,34 @@ collisions par le référentiel ; G-016 RÉSOLU (catalogue ouvert :
 ajout/réordonnancement de paramètres) ; resolveCodeAction sert la forme
 MULTI-URI ; 23 cas V-D3 dorés multi-fichiers compilables, latence liste
 p95 mesurée 442 µs (< 30 ms), 860 tests / 0 échec — cf.
-`04-plan-vagues.md` §V-D et `mesures/2026-11-01-vd3-refactorings.txt`).
+`04-plan-vagues.md` §V-D et `mesures/2026-11-01-vd3-refactorings.txt`) ;
+**V-F finale + V-G livrées le 01/11 au soir (v1.11.0) — les vagues V-F
+et V-G sont COMPLÈTES, la SÉQUENCE V-A→V-G DU PLAN EST BOUCLÉE** :
+**V-F3** budgets d'OCTETS (cache de parse 8 Mio estimés — garde
+anti-cyclage ; mémo de localisation 2 Mio — négatifs évincés d'abord,
+re-probe honnête, contrats fiche 024 intacts ; exécution ADR 0011
+point 2) + shim `onTrimMemory` (**G-033 RÉSOLU** — niveaux miroirs
+ComponentCallbacks2, politique cumulative, rapport CHIFFRÉ, relais
+multi-modules, jamais de construction d'environnement sur signal ;
+exécution ADR 0011 point 5) ; **V-F4** PLAGE PRIORITAIRE
+(`$/codeide/plageVisible` v1 — double publication « visible d'abord »
+≥ 16 000 caractères, passe prioritaire PURE, la complète fait foi,
+INERTE sans notification) ; **V-F5 incrémentalité REPORTÉE motivée**
+(ADR 0017 (b)/décision D4 — le critère utile est déjà tenu par le
+diagnose rapide fiche 014) ; **V-G** workDoneProgress d'indexation
+(**G-032 RÉSOLU** — préchauffage au creux initialized + progression
+négociée), diagnostics enrichis (**G-023 résolu en partie** —
+`data {provenance, code}` machine-readable + relatedInformation
+« requis par X » fiche 019 ; `codeDescription.href` non livré),
+`willRenameFiles` (**G-022 RÉSOLU** — package + imports du cas doré,
+didRenameFiles invalide), `semanticTokens` (**G-019 RÉSOLU** — légende
+8 types + 4 modificateurs, full sans delta, p95 MESURÉ 1 ms < 25 ms),
+`completionItem/resolve` RÉEL (**G-021 RÉSOLU** — import différé négocié
+par resolveSupport, sans annonce la liste reste complète), registre
+client K2 VIVANT (`docs/REGISTRE-CLIENT-K2.md` — ADR 0031 (g)) ; 23 cas
+V-F3/V-F4/V-G verts, latence semanticTokens p95 mesurée 1 ms — cf.
+`04-plan-vagues.md` §V-F (suite)/§V-G et
+`mesures/2026-11-01-vf-finale-vg-protocole.txt`).
 
 | # | Décision | Recommandation |
 |---|---|---|

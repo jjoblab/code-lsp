@@ -1,8 +1,15 @@
 # ADR 0031 — Surface protocole (semanticTokens, kinds, progression, willRenameFiles, diagnostics enrichis, capabilities maison versionnées)
 
-- **Statut** : Proposé
+- **Statut** : Accepté — **LIVRÉE le 01/11/2026 (v1.11.0 — PV
+  `mesures/2026-11-01-vf-finale-vg-protocole.txt`)** : les sept briques
+  de l'option 1 sont livrées (a–g), les écarts honnêtes sont consignés
+  dans le suivi d'exécution ci-dessous (pas de delta serveur
+  semanticTokens ; `codeDescription.href` non livré ; périmètre
+  `willRenameFiles` = package + imports du cas doré).
 - **Date** : 2026-10-31
-- **Écarts résolus** : G-019, G-021, G-022, G-023 (partie protocole), G-032 (`01-audit-moteur.md` §1.15)
+- **Écarts résolus** : G-019, G-021, G-022, G-023 (partiel — provenance
+  `data` + relatedInformation ; `codeDescription.href` non livré), G-032
+  (`01-audit-moteur.md` §1.15)
 
 ## Contexte
 
@@ -91,6 +98,68 @@ livrable séparé de chaque vague (prêt à devenir le prompt `cel-lsp`/`code-ed
 
 Sept briques = sept PR (une capacité par commit) ; V-G du plan 04 ; aucune
 suppression de capability existante (ajouts uniquement).
+
+## Suivi d'exécution
+
+- **V-G (01/11/2026, v1.11.0) — LIVRÉE.** Les sept briques :
+  **(a) `semanticTokens`** — calcul sur l'arbre RÉSOLU (résolution
+  complète, jamais masquée), légende 8 types STANDARD LSP (`class`,
+  `interface`, `enum`, `decorator`/annotations, `method` — y compris
+  constructeurs, miroir V-D2 —, `property`, `parameter`, `variable`) +
+  4 modificateurs (`declaration`, `static`, `final`, `abstract`),
+  encodage deltas relatifs 5 entiers/jeton (spec 3.17 — la colonne
+  relative suit le DÉBUT du jeton précédent, décodage vérifié au cas
+  doré) ; annoncé ⇔ testé (banc de rendu `SurfaceProtocoleVgTest` —
+  chaque genre, déclaration + référence, modificateurs) ; latence p95
+  MESURÉE 1 ms (cas doré, 30 passes — cible < 25 ms). **Écart honnête** :
+  PAS de delta serveur — `range` non servi, le client re-demande le
+  vecteur complet (jamais un delta faux) ; l'option (a) « delta si le
+  client le demande » est différée jusqu'à demande client réelle.
+  **(c) `workDoneProgress` d'indexation (G-032)** — fil démon
+  `lspjava-indexation` juste après `initialized` : PRÉCHAUFFAGE de
+  l'index de mots (valeur propre — la première requête
+  usages/renommage ne paie plus le froid) + jeton `codeide-indexation-*`
+  SI ET SEULEMENT SI le client a annoncé `window.workDoneProgress` ;
+  `report` après CHAQUE fichier lexé (pourcentage réel, throttlé ~50),
+  `end` TOUJOURS (jeton jamais fuité, `finally`) ; kill-switch
+  `progression.disabled`. **(e) diagnostics enrichis** — champ `data`
+  machine-readable `{provenance: ecj|inspection|lint, code}` (miroir
+  ADR 0025) sur CHAQUE diagnostic publié ; `relatedInformation` « requis
+  par X » (fiche 019) : la PLAGE de la clause `extends` exigeante voyage
+  depuis les positions sources de la référence (nulle si synthétique —
+  liens omis honnêtement). **Écart honnête** :
+  `codeDescription.href` NON livré (aucun consommateur identifié).
+  **(d) `workspace/willRenameFiles` (G-022)** — `fileOperations`
+  willRename + didRename annoncés sur `**/*.java` ; le geste reçoit les
+  éditions AVANT renommage : déclaration de PAQUET du fichier déplacé
+  (plage du NOM seul) + IMPORTS des porteurs (`import`, `import static`,
+  segment FQCN seul réécrit — types imbriqués suivent) ; source fraîche
+  = tampon ouvert sinon disque ; réponse TOUJOURS un `WorkspaceEdit`
+  (vide honnête si FQCN conservé ou hors racines) ; `didRenameFiles`
+  invalide présence source + index. **Périmètre honnête** : usages
+  QUALIFIÉS complets sans import (`demo.A a = …`) non réécrits — le cas
+  doré de la décision est « package + imports » (documenté, USAGE §7.26).
+  **(f) `completionItem/resolve` RÉEL (G-021)** — `resolveProvider:
+  true` annoncé ; négociation : SI le client annonce `resolveSupport`,
+  les items à auto-import perdent l'édition d'import à la liste et
+  portent `data.importFqn`/`importStatique`/`uri` — le resolve de
+  l'item CHOISI recalcule sur le texte COURANT (`ImportsDifferes`,
+  miroir EXACT des règles fiche 029 : déjà importé/`.*`, `java.lang`,
+  paquet courant, imbriqué `$` → rien ; ancre après dernier import sinon
+  `package` sinon début) ; balayage purement LEXICAL (jamais derrière
+  une compilation en vol). SANS annonce : liste complète d'avant V-G à
+  l'identique. **(b) kinds Source/Refactor** — livrés depuis V-D (ADR
+  0027). **(g) capabilities maison versionnées + registre K2** —
+  `x-codeide.plageVisible` **v1** posée à la livraison (V-F4) ; les clés
+  V-G de `data` complétion sont ADDITIVES et conditionnées à l'annonce
+  client → la version de `x-codeide.completionRanking` RESTE 2 (règle
+  R1 : additive ≠ sémantique) ; `docs/REGISTRE-CLIENT-K2.md` posé — le
+  document VIVANT des capacités non consommées (l'héritage) et des
+  nouvelles par vague, prêt à devenir le prompt `cel-lsp`/
+  `code-editor`. Validation (R5) : 9 tests V-G (progression annoncée/
+  silencieuse, provenance, willRenameFiles doré + FQCN conservé,
+  vecteur exact, latence p95 mesurée, resolve négocié des deux côtés),
+  suite complète verte, banc N1 tenu.
 
 ## Tests de non-régression et critères de sortie
 
