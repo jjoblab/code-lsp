@@ -35,11 +35,14 @@ plugins {
     id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
 }
 
+// Socle partagé (réorganisation Phase 2 — docs/REORGANISATION.md §3) :
+// les chemins de projets Gradle (:java, :kotlin, :index, :model, :testing,
+// :ecj-art) NE CHANGENT PAS — seuls les répertoires sont remappés.
 include(":java")
-include(":index")
-include(":model")
-include(":testing")
-include(":ecj-art")
+include(":index");     project(":index").projectDir     = file("socle/index")
+include(":model");     project(":model").projectDir     = file("socle/model")
+include(":testing");   project(":testing").projectDir   = file("socle/testing")
+include(":ecj-art");   project(":ecj-art").projectDir   = file("socle/ecj-art")
 // Moteur Kotlin LSP (voie C, ADR 0100 — étage 0 : grammaire vendorée par
 // ré-obtention amont + suite de parité fiches 010–012 + descripteur de pack).
 include(":kotlin")

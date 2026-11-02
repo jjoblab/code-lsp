@@ -4,7 +4,7 @@
 # Exécuté par la CI à chaque push (ADR 0001 : exclusion DÉFINITIVE du moteur
 # vendored de codeide-lsp — ce script en est le garant automatique).
 #
-# Échoue si un fichier suivi par git sous index/ ou model/ n'est NI :
+# Échoue si un fichier suivi par git sous socle/index/ ou socle/model/ n'est NI :
 #   - un fichier de squelette autorisé (build.gradle.kts du vague 0),
 #   - NI inscrit au manifeste de provenance lsp-java/docs/PROVENANCE-REPRISE.md
 #     (une reprise contrôlée R9.2 exige une inscription PRÉALABLE).
@@ -65,10 +65,10 @@ while IFS= read -r f; do
   echo "  → inscrivez-le au manifeste $MANIFESTE (R9.2 : inscription PRÉALABLE à toute copie),"
   echo "    ou retirez-le du dépôt."
   CODE=1
-done < <(git ls-files -- 'index/*' 'model/*')
+done < <(git ls-files -- 'socle/index/*' 'socle/model/*')
 
 if [[ "$CODE" -eq 0 ]]; then
-  echo "OK : aucun fichier hors registre sous index/, model/ (manifeste respecté)."
+  echo "OK : aucun fichier hors registre sous socle/index/, socle/model/ (manifeste respecté)."
 fi
 
 # --- Extension Kotlin : 1) vendoring (notices + inscription) ---------------
