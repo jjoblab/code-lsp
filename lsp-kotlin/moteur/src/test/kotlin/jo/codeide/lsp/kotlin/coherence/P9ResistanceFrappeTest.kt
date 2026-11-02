@@ -33,7 +33,7 @@ class P9ResistanceFrappeTest {
     @Test
     fun `des-documents-tronqués-ne-cassent-jamais-diagnostic-ni-complétion`() {
         val racine = Files.createTempDirectory("p9-frappe")
-        val source = SocleCoherence.racineDepot.resolve("kotlin/src/test/resources/fidelite")
+        val source = SocleCoherence.racineDepot.resolve("lsp-kotlin/moteur/src/test/resources/fidelite")
         assertTrue(Files.isDirectory(source), "le répertoire des mondes doit exister")
         val documents = Files.list(source).use { flux ->
             flux.filter { it.fileName.toString().endsWith(".kt") }

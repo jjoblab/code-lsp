@@ -42,7 +42,7 @@ class P4EquivalenceCheminsTest {
 
     /** Les fichiers du corpus de P4 (les mondes, sans le témoin positif). */
     private fun copierMondes(racine: Path): List<Path> {
-        val source = SocleCoherence.racineDepot.resolve("kotlin/src/test/resources/fidelite")
+        val source = SocleCoherence.racineDepot.resolve("lsp-kotlin/moteur/src/test/resources/fidelite")
         assertTrue(Files.isDirectory(source), "le répertoire des mondes doit exister")
         val copies = Files.list(source).use { flux ->
             flux.filter { it.fileName.toString().endsWith(".kt") && it.fileName.toString() != "temoin-positif.kt" }

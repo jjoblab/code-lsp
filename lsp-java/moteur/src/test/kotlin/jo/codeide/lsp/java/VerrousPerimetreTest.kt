@@ -32,7 +32,7 @@ class VerrousPerimetreTest {
 
     /** Localise la racine des sources du module java (métrique CI). */
     private fun racineSources(): Path? {
-        val candidats = listOf(Path.of("src/main"), Path.of("java/src/main"), Path.of("../java/src/main"))
+        val candidats = listOf(Path.of("src/main"), Path.of("lsp-java/moteur/src/main"), Path.of("../java/src/main"))
         return candidats.firstOrNull { Files.isDirectory(it) }
     }
 

@@ -45,7 +45,7 @@ class P3VraisPositifsParMutationTest {
 
     /** Les fichiers du corpus de mutation : les 4 mondes + 10 fichiers auto-corpus. */
     private fun corpusMutation(): List<Pair<String, String>> {
-        val racineFidelite = SocleCoherence.racineDepot.resolve("kotlin/src/test/resources/fidelite")
+        val racineFidelite = SocleCoherence.racineDepot.resolve("lsp-kotlin/moteur/src/test/resources/fidelite")
         val fichiers = mutableListOf<Pair<String, String>>()
         if (Files.isDirectory(racineFidelite)) {
             Files.list(racineFidelite).use { flux ->
