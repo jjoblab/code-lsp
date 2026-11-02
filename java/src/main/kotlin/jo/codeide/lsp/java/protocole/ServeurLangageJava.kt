@@ -537,6 +537,10 @@ public class ServeurLangageJava(
     override fun exit() {
         cycle.surExit()
         publicateur?.fermer()
+        // V-H : le répartiteur s'arrête — les requêtes en attente se
+        // soldent par leur réponse vide honnête (jamais d'exception au
+        // client pour un arrêt de serveur).
+        repartiteur.shutdown()
         // Second appel du rappel (confirmation — fiche 056).
         rappelArret?.run()
         // Mode autonome uniquement : le processus s'arrête (fiche 055 :
@@ -826,23 +830,139 @@ public class ServeurLangageJava(
         ConvertisseurLsp.repere(texte).offset(position)
 
     // ----------------------------------------------------------------- //
+    // Répartition priorisée des requêtes (V-H — branchement ADR 0010)   //
+    // ----------------------------------------------------------------- //
+
+    /**
+     * Le répartiteur des requêtes de document (V-H — ADR 0010 : « le
+     * scheduler 3 lanes est conservé », chaînon manquant du branchement
+     * protocole). Avant V-H, CHAQUE requête était calculée SYNCHRONEMENT
+     * sur le fil de lecture lsp4j : sous la tempête d'appareil (inlay +
+     * surbrillances + actions + complétion à CHAQUE frappe, mesuré
+     * `codeide-logs-2026-11-01-221628.zip` : complétion servie en 29–87 s
+     * derrière la file, timeout client 5 s), la complétion patientait
+     * derrière TOUT. Le fil de lecture ne porte plus que les magasins
+     * (didOpen/didChange : stockage copy-on-write bon marché) et les
+     * soumissions ; les calculs courent sur le pool plafonné, la voie
+     * FRAPPE devant les voies NAVIGATION et CONFORT.
+     */
+    private val repartiteur = jo.codeide.lsp.java.concurrence.OrdonnanceurMoteur("requetes")
+
+    /** La voie FRAPPE : complétion, aide de signature (V-H). */
+    private val voieFrappe: Int = jo.codeide.lsp.java.concurrence.OrdonnanceurMoteur.PRIORITE_FRAPPE
+
+    /** La voie NAVIGATION : survol, définitions, usages, surbrillances (V-H). */
+    private val voieNavigation: Int = 1
+
+    /** La voie CONFORT : inlay, actions, lentilles, pliage, formatage (V-H). */
+    private val voieConfort: Int = 2
+
+    /**
+     * La capture d'un document À LA SOUMISSION (V-H) : le couple
+     * (chemin, texte) + l'instantané D'ÉPOQUE si le document est ouvert.
+     *
+     * Pourquoi capturer : la requête porte des coordonnées (position LSP)
+     * relatives au texte AU MOMENT de son émission ; si le calcul court
+     * plus tard sur un texte ayant muté entre-temps, les offsets seraient
+     * FAUX (silencieusement). La capture fige le couple exact ; la
+     * vérification d'époque à la livraison préserve l'invariant
+     * « 0 réponse périmée » : un texte ayant muté rend la réponse VIDE
+     * honnête — jamais une réponse calculée contre un texte révolu.
+     *
+     * @property instantane l'instantané ouvert (null = lecture disque).
+     * @property chemin le chemin logique du document.
+     * @property texte le texte intégral capturé.
+     */
+    private class CaptureDocument(
+        val instantane: EtatsDocuments.Instantane?,
+        val chemin: String,
+        val texte: String,
+    )
+
+    /** Capture le document (overlay vivant puis disque — convention I9). */
+    private fun capturer(uri: String): CaptureDocument? {
+        etats.instantane(uri)?.let {
+            return CaptureDocument(it, ConvertisseurLsp.cheminDeUri(uri) ?: uri, it.texte)
+        }
+        val chemin = ConvertisseurLsp.cheminDeUri(uri) ?: return null
+        val texte = runCatching { Files.readString(Path.of(chemin)) }.getOrNull() ?: return null
+        return CaptureDocument(null, chemin, texte)
+    }
+
+    /**
+     * Répartit une requête de DOCUMENT sur le pool priorisé (V-H).
+     *
+     * La capture se fait sur le FIL D'APPEL (cohérence coordonnées ↔
+     * texte) ; le calcul court sur un worker — la voie commande l'ordre
+     * de service ; la supersession solde par [vide] (réponse VIDE
+     * honnête — ou NULL pour les requêtes qui l'admettent, convention
+     * I9 du survol) ; la péremption d'époque À LA LIVRAISON solde aussi
+     * par [vide] (invariant « 0 réponse périmée »). Un document
+     * introuvable répond [vide] immédiatement (miroir des corps
+     * historiques).
+     *
+     * @param uri l'URI du document (clé de supersession/exclusion).
+     * @param voie la voie (0 frappe, 1 navigation, 2 confort).
+     * @param vide la réponse vide honnête du type de la requête (null
+     *   admis — l'effacement Java de [CompletableFuture] tolère la
+     *   valeur nulle EXACTEMENT comme l'historique
+     *   `completedFuture(survol?.let(::survolLsp))`).
+     * @param calcul le corps historique (chemin, texte) → réponse.
+     * @return la future de la requête.
+     */
+    private fun <T : Any> repartirDocument(
+        uri: String,
+        voie: Int,
+        vide: () -> T?,
+        calcul: (chemin: String, texte: String) -> T?,
+    ): CompletableFuture<T> {
+        val capture = capturer(uri)
+            ?: return CompletableFuture.completedFuture(vide())
+        return repartirCapturee(capture, uri, voie, vide, calcul)
+    }
+
+    /**
+     * La variante À CAPTURE IMPOSÉE (V-H) : le corps du renommage refuse
+     * un document introuvable par une erreur TYPIÉE (I8) au lieu de la
+     * réponse vide — il capture LUI-MÊME puis répartit.
+     */
+    private fun <T : Any> repartirCapturee(
+        capture: CaptureDocument,
+        uri: String,
+        voie: Int,
+        vide: () -> T?,
+        calcul: (chemin: String, texte: String) -> T?,
+    ): CompletableFuture<T> {
+        @Suppress("UNCHECKED_CAST")
+        val avenir: CompletableFuture<T> =
+            repartiteur.soumettrePrioritaire<T?>(uri, voie, {
+                val resultat = calcul(capture.chemin, capture.texte)
+                // Invariant « 0 réponse périmée » : le document a muté pendant
+                // le calcul — la réponse calculée ne part JAMAIS, la requête
+                // suivante (déjà soumise par le client) sert l'état neuf.
+                if (capture.instantane != null && etats.estPerime(capture.instantane)) vide() else resultat
+            }, vide) as CompletableFuture<T>
+        return avenir
+    }
+
+    // ----------------------------------------------------------------- //
     // Survol, complétion, signatures (fiches 054/058/059)
     // ----------------------------------------------------------------- //
 
     override fun hover(params: HoverParams): CompletableFuture<Hover> {
         garde<Hover>()?.let { return it }
         val uri = params.textDocument.uri
-        val document = documentDe(uri)
-        // Convention I9 : hover → null quand il n'y a rien (le client a
-        // un repli) — jamais une structure vide.
-        val survol = guetterLenteur("hover") {
-            document?.let { (chemin, texte) ->
+        // V-H : voie NAVIGATION ; convention I9 : hover → null quand il n'y
+        // a rien (le client a un repli) — jamais une structure vide.
+        // Chien de garde V-A3 : le chronomètre court SUR LE WORKER du
+        // répartiteur (le fil de lecture ne porte plus que la soumission).
+        return repartirDocument<Hover>(uri, voieNavigation, { null }) { chemin, texte ->
+            guetterLenteur("hover") {
                 avecMoteurFrais(chemin) { moteur ->
                     moteur?.survolRiche(chemin, texte, offsetDe(texte, params.position))
-                }
+                }?.let(::survolLsp)
             }
         }
-        return CompletableFuture.completedFuture(survol?.let(::survolLsp))
     }
 
     /** Le Hover LSP d'un survol riche (conventions fiche 057 : PLAINTEXT
@@ -859,29 +979,43 @@ public class ServeurLangageJava(
     override fun completion(params: CompletionParams): CompletableFuture<Either<List<CompletionItem>, CompletionList>> {
         garde<Either<List<CompletionItem>, CompletionList>>()?.let { return it }
         val uri = params.textDocument.uri
-        val document = documentDe(uri)
-        val reponse = guetterLenteur("completion") {
-            document?.let { (chemin, texte) ->
-                etats.calculerFraiche(uri) { instantane ->
-                    avecMoteurFrais(chemin) { moteur ->
-                        moteur?.completer(chemin, instantane.texte, offsetDe(instantane.texte, params.position))
-                    }
+        // V-H : voie FRAPPE — la complétion ne patiente jamais derrière la
+        // file de confort (inlay/actions) ; capture à la soumission (elle
+        // remplace calculerFraiche : la position de la requête est relative
+        // au texte À L'ÉMISSION — recalculer contre un texte muté y
+        // appliquerait une position révolue ; l'époque à la livraison rend
+        // la réponse vide honnête, la requête suivante sert l'état neuf).
+        // Chien de garde V-A3 : le chronomètre court sur le worker.
+        return repartirDocument(
+            uri,
+            voieFrappe,
+            { Either.forRight(CompletionList(false, emptyList())) },
+        ) { chemin, texte ->
+            val reponse = guetterLenteur("completion") {
+                avecMoteurFrais(chemin) { moteur ->
+                    moteur?.completer(chemin, texte, offsetDe(texte, params.position))
                 }
             }
+            val liste = reponse
+                ?: jo.codeide.lsp.java.completion.ReponseCompletion(
+                    emptyList(),
+                    0,
+                    jo.codeide.lsp.java.completion.GenreContexte.INCONNU,
+                )
+            listeCompletion(uri, texte, liste, params.position).let { Either.forRight(it) }
         }
-        val liste = reponse ?: jo.codeide.lsp.java.completion.ReponseCompletion(emptyList(), 0, jo.codeide.lsp.java.completion.GenreContexte.INCONNU)
-        return CompletableFuture.completedFuture(Either.forRight(listeCompletion(uri, liste, params.position)))
     }
 
     /** La CompletionList LSP d'une réponse moteur (I12 : filterText = label
-     *  sur CHAQUE item ; data = payload de classement x-codeide). */
+     *  sur CHAQUE item ; data = payload de classement x-codeide). Le texte
+     *  est CELUI DE LA CAPTURE (V-H — jamais l'état vivant : le préfixe et
+     *  le repère doivent correspondre aux coordonnées de la requête). */
     private fun listeCompletion(
         uri: String,
+        texte: String,
         reponse: jo.codeide.lsp.java.completion.ReponseCompletion,
         position: Position,
     ): CompletionList {
-        val document = documentDe(uri)
-        val texte = document?.second ?: ""
         val repere = ConvertisseurLsp.repere(texte)
         val prefixe = prefixeAuCaret(texte, repere.offset(position))
         val contexte = ContexteClassement(reponse.genre, prefixe)
@@ -986,23 +1120,26 @@ public class ServeurLangageJava(
     override fun signatureHelp(params: SignatureHelpParams): CompletableFuture<SignatureHelp> {
         garde<SignatureHelp>()?.let { return it }
         val uri = params.textDocument.uri
-        val document = documentDe(uri)
-        val aide = guetterLenteur("signatureHelp") {
-            document?.let { (chemin, texte) ->
+        // V-H : voie FRAPPE — l'aide de signature est le popup de frappe.
+        // Chien de garde V-A3 : le chronomètre court sur le worker.
+        return repartirDocument(uri, voieFrappe, {
+            SignatureHelp().apply { signatures = emptyList() }
+        }) { chemin, texte ->
+            val aide = guetterLenteur("signatureHelp") {
                 avecMoteurFrais(chemin) { moteur ->
                     moteur?.signatureHelp(chemin, texte, offsetDe(texte, params.position))
                 }
             }
+            val reponse = SignatureHelp()
+            reponse.signatures = aide?.signatures?.map { candidat ->
+                SignatureInformation(candidat.libelle).apply {
+                    parameters = candidat.parametres.map { ParameterInformation(it) }
+                }
+            } ?: emptyList()
+            reponse.activeSignature = aide?.signatureActive
+            reponse.activeParameter = aide?.parametreActif
+            reponse
         }
-        val reponse = SignatureHelp()
-        reponse.signatures = aide?.signatures?.map { candidat ->
-            SignatureInformation(candidat.libelle).apply {
-                parameters = candidat.parametres.map { ParameterInformation(it) }
-            }
-        } ?: emptyList()
-        reponse.activeSignature = aide?.signatureActive
-        reponse.activeParameter = aide?.parametreActif
-        return CompletableFuture.completedFuture(reponse)
     }
 
     // ----------------------------------------------------------------- //
@@ -1011,24 +1148,43 @@ public class ServeurLangageJava(
 
     override fun definition(params: DefinitionParams): CompletableFuture<Either<List<Location>, List<org.eclipse.lsp4j.LocationLink>>> {
         garde<Either<List<Location>, List<org.eclipse.lsp4j.LocationLink>>>()?.let { return it }
-        return CompletableFuture.completedFuture(Either.forLeft(ciblesNavigation(params)))
+        // V-H : voie NAVIGATION.
+        return repartirDocument(
+            params.textDocument.uri,
+            voieNavigation,
+            { Either.forLeft(emptyList()) },
+        ) { chemin, texte ->
+            Either.forLeft(ciblesNavigation(chemin, texte, params))
+        }
     }
 
     override fun typeDefinition(params: TypeDefinitionParams): CompletableFuture<Either<List<Location>, List<org.eclipse.lsp4j.LocationLink>>> {
         garde<Either<List<Location>, List<org.eclipse.lsp4j.LocationLink>>>()?.let { return it }
-        return CompletableFuture.completedFuture(Either.forLeft(ciblesNavigation(params)))
+        // V-H : voie NAVIGATION.
+        return repartirDocument(
+            params.textDocument.uri,
+            voieNavigation,
+            { Either.forLeft(emptyList()) },
+        ) { chemin, texte ->
+            Either.forLeft(ciblesNavigation(chemin, texte, params))
+        }
     }
 
     override fun implementation(params: ImplementationParams): CompletableFuture<Either<List<Location>, List<org.eclipse.lsp4j.LocationLink>>> {
         garde<Either<List<Location>, List<org.eclipse.lsp4j.LocationLink>>>()?.let { return it }
-        return CompletableFuture.completedFuture(Either.forLeft(ciblesNavigation(params)))
+        // V-H : voie NAVIGATION.
+        return repartirDocument(
+            params.textDocument.uri,
+            voieNavigation,
+            { Either.forLeft(emptyList()) },
+        ) { chemin, texte ->
+            Either.forLeft(ciblesNavigation(chemin, texte, params))
+        }
     }
 
-    /** Les localisations LSP d'une requête de navigation (I9 : liste vide). */
-    private fun ciblesNavigation(params: TextDocumentPositionParams): List<Location> {
-        val uri = params.textDocument.uri
-        val document = documentDe(uri) ?: return emptyList()
-        val (chemin, texte) = document
+    /** Les localisations LSP d'une requête de navigation (I9 : liste vide).
+     *  Le couple (chemin, texte) est CELUI DE LA CAPTURE (V-H). */
+    private fun ciblesNavigation(chemin: String, texte: String, params: TextDocumentPositionParams): List<Location> {
         val cibles = avecMoteurFrais(chemin) { moteur ->
             val m = moteur ?: return@avecMoteurFrais emptyList()
             when (params) {
@@ -1052,8 +1208,8 @@ public class ServeurLangageJava(
     override fun references(params: ReferenceParams): CompletableFuture<List<Location>> {
         garde<List<Location>>()?.let { return it }
         val uri = params.textDocument.uri
-        val document = documentDe(uri) ?: return CompletableFuture.completedFuture(emptyList())
-        val (chemin, texte) = document
+        // V-H : voie NAVIGATION.
+        //
         // LEVÉE DU CONFINEMENT (vague V-E — décision D1 du propriétaire,
         // 31/10/2026 ; ADR 0028). La parité stricte §10.4 avec le vendored
         // est FORMELLEMENT abandonnée pour `references` : le programme de
@@ -1070,24 +1226,26 @@ public class ServeurLangageJava(
         // RPC maison `textDocument/usagesGroupes` sert la vue groupée.
         // V-F1 : le balayage passe par le protocole d'époque (rejeu au
         // swap, coupure fine par fichier — jamais d'usages périmés).
-        val usages = avecMoteurFrais(chemin) { moteur ->
-            moteur?.references(chemin, texte, offsetDe(texte, params.position), params.context.isIncludeDeclaration)
-        } ?: return CompletableFuture.completedFuture(emptyList())
-        // Conversion offset → ligne/colonne : le repère du FICHIER
-        // PORTEUR de chaque usage (l'ancien confinement convertissait
-        // toujours avec le repère du document interrogé — cela ne restait
-        // vrai que pour lui). Les usages des AUTRES fichiers vivent sur
-        // leur texte DISQUE (celui que le moteur a analysé), l'overlay
-        // ouvert ne servant que de repli si le disque est illisible.
-        val repereCourant = ConvertisseurLsp.repere(texte)
-        val reperesPorteurs = HashMap<String, ConvertisseurLsp.Repere>()
-        val localisations = ArrayList<Location>(usages.size)
-        for (usage in usages) {
-            val repere = if (usage.chemin == chemin) repereCourant
-            else reperesPorteurs.getOrPut(usage.chemin) { repereDuPorteur(usage.chemin) }
-            localisations.add(Location(ConvertisseurLsp.uriDeFichier(usage.chemin), repere.plage(usage.plage)))
+        return repartirDocument(uri, voieNavigation, { emptyList() }) { chemin, texte ->
+            val usages = avecMoteurFrais(chemin) { moteur ->
+                moteur?.references(chemin, texte, offsetDe(texte, params.position), params.context.isIncludeDeclaration)
+            } ?: return@repartirDocument emptyList()
+            // Conversion offset → ligne/colonne : le repère du FICHIER
+            // PORTEUR de chaque usage (l'ancien confinement convertissait
+            // toujours avec le repère du document interrogé — cela ne restait
+            // vrai que pour lui). Les usages des AUTRES fichiers vivent sur
+            // leur texte DISQUE (celui que le moteur a analysé), l'overlay
+            // ouvert ne servant que de repli si le disque est illisible.
+            val repereCourant = ConvertisseurLsp.repere(texte)
+            val reperesPorteurs = HashMap<String, ConvertisseurLsp.Repere>()
+            val localisations = ArrayList<Location>(usages.size)
+            for (usage in usages) {
+                val repere = if (usage.chemin == chemin) repereCourant
+                else reperesPorteurs.getOrPut(usage.chemin) { repereDuPorteur(usage.chemin) }
+                localisations.add(Location(ConvertisseurLsp.uriDeFichier(usage.chemin), repere.plage(usage.plage)))
+            }
+            localisations
         }
-        return CompletableFuture.completedFuture(localisations)
     }
 
     /**
@@ -1110,26 +1268,31 @@ public class ServeurLangageJava(
     override fun documentHighlight(params: DocumentHighlightParams): CompletableFuture<List<DocumentHighlight>> {
         garde<List<DocumentHighlight>>()?.let { return it }
         val uri = params.textDocument.uri
-        val document = documentDe(uri) ?: return CompletableFuture.completedFuture(emptyList())
-        val (chemin, texte) = document
-        val surbrillances = guetterLenteur("documentHighlight") {
-            avecMoteurFrais(chemin) { moteur ->
-                moteur?.surbrillances(chemin, texte, offsetDe(texte, params.position))
-            }
-        } ?: return CompletableFuture.completedFuture(emptyList())
-        val repere = ConvertisseurLsp.repere(texte)
-        return CompletableFuture.completedFuture(surbrillances.map { ConvertisseurLsp.surlignage(it, repere) })
+        // V-H : voie NAVIGATION (la requête la plus fréquente de la
+        // tempête d'appareil — un déplacement de caret) ; supersession par
+        // voie : seule la plus récente patiente. Chien de garde V-A3 : le
+        // chronomètre court sur le worker.
+        return repartirDocument(uri, voieNavigation, { emptyList() }) { chemin, texte ->
+            val surbrillances = guetterLenteur("documentHighlight") {
+                avecMoteurFrais(chemin) { moteur ->
+                    moteur?.surbrillances(chemin, texte, offsetDe(texte, params.position))
+                }
+            } ?: return@repartirDocument emptyList()
+            val repere = ConvertisseurLsp.repere(texte)
+            surbrillances.map { ConvertisseurLsp.surlignage(it, repere) }
+        }
     }
 
     override fun documentSymbol(params: DocumentSymbolParams): CompletableFuture<List<Either<SymbolInformation, DocumentSymbol>>> {
         garde<List<Either<SymbolInformation, DocumentSymbol>>>()?.let { return it }
         val uri = params.textDocument.uri
-        val document = documentDe(uri) ?: return CompletableFuture.completedFuture(emptyList())
-        val (chemin, texte) = document
-        val symboles = avecMoteurFrais(chemin) { moteur ->
-            moteur?.let { SymbolesDocument(it).symboles(chemin, texte) }
-        } ?: return CompletableFuture.completedFuture(emptyList())
-        return CompletableFuture.completedFuture(symboles.map { Either.forRight(it) })
+        // V-H : voie CONFORT.
+        return repartirDocument(uri, voieConfort, { emptyList() }) { chemin, texte ->
+            val symboles = avecMoteurFrais(chemin) { moteur ->
+                moteur?.let { SymbolesDocument(it).symboles(chemin, texte) }
+            } ?: return@repartirDocument emptyList()
+            symboles.map { Either.forRight(it) }
+        }
     }
 
     // ----------------------------------------------------------------- //
@@ -1139,48 +1302,51 @@ public class ServeurLangageJava(
     override fun formatting(params: DocumentFormattingParams): CompletableFuture<List<TextEdit>> {
         garde<List<TextEdit>>()?.let { return it }
         val uri = params.textDocument.uri
-        val document = documentDe(uri) ?: return CompletableFuture.completedFuture(emptyList())
-        val (chemin, texte) = document
-        val formate = avecMoteurFrais(chemin) { moteur -> moteur?.formater(texte) }
-        if (formate == null || formate == texte) return CompletableFuture.completedFuture(emptyList())
-        // Une édition pleine page : le texte reconstruit EST le texte
-        // formaté (fiche 054 : « le texte reconstruit ... contient
-        // “int x = 1;” précédé de 8 espaces »).
-        val repere = ConvertisseurLsp.repere(texte)
-        val plage = Range(Position(0, 0), repere.position(texte.length))
-        return CompletableFuture.completedFuture(listOf(TextEdit(plage, formate)))
+        // V-H : voie CONFORT.
+        return repartirDocument(uri, voieConfort, { emptyList() }) { chemin, texte ->
+            val formate = avecMoteurFrais(chemin) { moteur -> moteur?.formater(texte) }
+            if (formate == null || formate == texte) return@repartirDocument emptyList()
+            // Une édition pleine page : le texte reconstruit EST le texte
+            // formaté (fiche 054 : « le texte reconstruit ... contient
+            // “int x = 1;” précédé de 8 espaces »).
+            val repere = ConvertisseurLsp.repere(texte)
+            val plage = Range(Position(0, 0), repere.position(texte.length))
+            listOf(TextEdit(plage, formate))
+        }
     }
 
     override fun rangeFormatting(params: DocumentRangeFormattingParams): CompletableFuture<List<TextEdit>> {
         garde<List<TextEdit>>()?.let { return it }
         val uri = params.textDocument.uri
-        val document = documentDe(uri) ?: return CompletableFuture.completedFuture(emptyList())
-        val (chemin, texte) = document
-        val repere = ConvertisseurLsp.repere(texte)
-        val debut = repere.offset(params.range.start)
-        val fin = repere.offset(params.range.end)
-        val editions = avecMoteurFrais(chemin) { moteur ->
-            moteur?.editionsFormatagePlage(texte, debut, fin - debut)
+        // V-H : voie CONFORT.
+        return repartirDocument(uri, voieConfort, { emptyList() }) { chemin, texte ->
+            val repere = ConvertisseurLsp.repere(texte)
+            val debut = repere.offset(params.range.start)
+            val fin = repere.offset(params.range.end)
+            val editions = avecMoteurFrais(chemin) { moteur ->
+                moteur?.editionsFormatagePlage(texte, debut, fin - debut)
+            }
+            editions?.let { ConvertisseurLsp.editions(it, repere) } ?: emptyList()
         }
-        return CompletableFuture.completedFuture(editions?.let { ConvertisseurLsp.editions(it, repere) } ?: emptyList())
     }
 
     override fun onTypeFormatting(params: DocumentOnTypeFormattingParams): CompletableFuture<List<TextEdit>> {
         garde<List<TextEdit>>()?.let { return it }
         val uri = params.textDocument.uri
-        val document = documentDe(uri) ?: return CompletableFuture.completedFuture(emptyList())
-        val (chemin, texte) = document
-        val repere = ConvertisseurLsp.repere(texte)
-        val offset = repere.offset(params.position)
-        // Fiche 058 : no-op (liste VIDE) si le caractère tapé ne
-        // correspond pas au caractère à la position.
-        val plage = avecMoteurFrais(chemin) { moteur ->
-            moteur?.plageFormattable(chemin, texte, offset, params.ch.singleOrNull() ?: ' ')
-        } ?: return CompletableFuture.completedFuture(emptyList())
-        val editions = avecMoteurFrais(chemin) { moteur ->
-            moteur?.editionsFormatagePlage(texte, plage.debutOffset, plage.finOffset - plage.debutOffset)
+        // V-H : voie CONFORT.
+        return repartirDocument(uri, voieConfort, { emptyList() }) { chemin, texte ->
+            val repere = ConvertisseurLsp.repere(texte)
+            val offset = repere.offset(params.position)
+            // Fiche 058 : no-op (liste VIDE) si le caractère tapé ne
+            // correspond pas au caractère à la position.
+            val plage = avecMoteurFrais(chemin) { moteur ->
+                moteur?.plageFormattable(chemin, texte, offset, params.ch.singleOrNull() ?: ' ')
+            } ?: return@repartirDocument emptyList()
+            val editions = avecMoteurFrais(chemin) { moteur ->
+                moteur?.editionsFormatagePlage(texte, plage.debutOffset, plage.finOffset - plage.debutOffset)
+            }
+            editions?.let { ConvertisseurLsp.editions(it, repere) } ?: emptyList()
         }
-        return CompletableFuture.completedFuture(editions?.let { ConvertisseurLsp.editions(it, repere) } ?: emptyList())
     }
 
     // ----------------------------------------------------------------- //
@@ -1190,29 +1356,27 @@ public class ServeurLangageJava(
     override fun selectionRange(params: SelectionRangeParams): CompletableFuture<List<SelectionRange>> {
         garde<List<SelectionRange>>()?.let { return it }
         val uri = params.textDocument.uri
-        val document = documentDe(uri) ?: return CompletableFuture.completedFuture(emptyList())
-        val (chemin, texte) = document
-        val repere = ConvertisseurLsp.repere(texte)
-        val chaines = avecMoteurFrais(chemin) { moteur ->
-            moteur?.chainesSelection(chemin, texte, params.positions.map { repere.offset(it) })
-        } ?: return CompletableFuture.completedFuture(emptyList())
-        return CompletableFuture.completedFuture(
+        // V-H : voie CONFORT.
+        return repartirDocument(uri, voieConfort, { emptyList() }) { chemin, texte ->
+            val repere = ConvertisseurLsp.repere(texte)
+            val chaines = avecMoteurFrais(chemin) { moteur ->
+                moteur?.chainesSelection(chemin, texte, params.positions.map { repere.offset(it) })
+            } ?: return@repartirDocument emptyList()
             chaines.mapNotNull { chaine ->
                 chaine?.let { SelectionRangeLsp.deChaine(it, repere) }
-            },
-        )
+            }
+        }
     }
 
     override fun foldingRange(params: FoldingRangeRequestParams): CompletableFuture<List<FoldingRange>> {
         garde<List<FoldingRange>>()?.let { return it }
         val uri = params.textDocument.uri
-        val document = documentDe(uri) ?: return CompletableFuture.completedFuture(emptyList())
-        // I9 : liste non-null VIDE (moteur utilisable + aucun pli).
-        val texte = document.second
-        val repere = ConvertisseurLsp.repere(texte)
-        val plis = avecMoteurFrais(document.first) { moteur -> moteur?.plis(texte) }
-            ?: return CompletableFuture.completedFuture(emptyList())
-        return CompletableFuture.completedFuture(
+        // V-H : voie CONFORT.
+        return repartirDocument(uri, voieConfort, { emptyList() }) { chemin, texte ->
+            // I9 : liste non-null VIDE (moteur utilisable + aucun pli).
+            val repere = ConvertisseurLsp.repere(texte)
+            val plis = avecMoteurFrais(chemin) { moteur -> moteur?.plis(texte) }
+                ?: return@repartirDocument emptyList()
             plis.map { pli ->
                 val debut = repere.position(pli.debut)
                 val fin = repere.position(pli.fin)
@@ -1222,28 +1386,30 @@ public class ServeurLangageJava(
                     kind = pli.genre.libelleLsp
                     collapsedText = pli.texteReplie
                 }
-            },
-        )
+            }
+        }
     }
 
     override fun inlayHint(params: InlayHintParams): CompletableFuture<List<InlayHint>> {
         garde<List<InlayHint>>()?.let { return it }
         val uri = params.textDocument.uri
-        val document = documentDe(uri) ?: return CompletableFuture.completedFuture(emptyList())
-        val (chemin, texte) = document
-        val indices = guetterLenteur("inlayHint") {
-            avecMoteurFrais(chemin) { moteur -> moteur?.inlayHints(chemin, texte) }
-        } ?: return CompletableFuture.completedFuture(emptyList())
-        val repere = ConvertisseurLsp.repere(texte)
-        return CompletableFuture.completedFuture(
+        // V-H : voie CONFORT — l'inlay est la requête la plus coûteuse de
+        // la tempête d'appareil ; supersession par voie : seule la plus
+        // récente patiente, la frappe la rend caduque. Chien de garde
+        // V-A3 : le chronomètre court sur le worker.
+        return repartirDocument(uri, voieConfort, { emptyList() }) { chemin, texte ->
+            val indices = guetterLenteur("inlayHint") {
+                avecMoteurFrais(chemin) { moteur -> moteur?.inlayHints(chemin, texte) }
+            } ?: return@repartirDocument emptyList()
+            val repere = ConvertisseurLsp.repere(texte)
             indices.map { indice ->
                 InlayHint(repere.position(indice.offset), Either.forLeft(indice.libelle)).apply {
                     kind = InlayHintKind.forValue(indice.genre.codeLsp)
                     paddingLeft = indice.paddingGauche
                     paddingRight = indice.paddingDroit
                 }
-            },
-        )
+            }
+        }
     }
 
     override fun semanticTokensFull(params: SemanticTokensParams): CompletableFuture<SemanticTokens> {
@@ -1254,28 +1420,29 @@ public class ServeurLangageJava(
         // Document absent ou moteur introuvable : data VIDE (I9 — jamais
         // null, jamais d'exception).
         val uri = params.textDocument.uri
-        val document = documentDe(uri) ?: return CompletableFuture.completedFuture(SemanticTokens(ArrayList()))
-        val (chemin, texte) = document
-        val jetons = avecMoteurFrais(chemin) { moteur ->
-            moteur?.jetonsSemantiques(chemin, texte)
-        } ?: return CompletableFuture.completedFuture(SemanticTokens(ArrayList()))
-        val repere = ConvertisseurLsp.repere(texte)
-        val donnees = ArrayList<Int>(jetons.size * 5)
-        var lignePrecedente = 0
-        var colonnePrecedente = 0
-        for (jeton in jetons) {
-            val plage = repere.plage(jo.codeide.lsp.java.diagnostics.Plage(jeton.offset, jeton.offset + jeton.longueur))
-            val ligne = plage.start.line
-            val colonne = plage.start.character
-            donnees.add(ligne - lignePrecedente)
-            donnees.add(if (ligne == lignePrecedente) colonne - colonnePrecedente else colonne)
-            donnees.add(jeton.longueur)
-            donnees.add(CapacitesServeur.TYPES_LEGENDE_SEMANTIQUES.indexOf(nomTypeLsp(jeton.genre)).let { if (it < 0) 0 else it })
-            donnees.add(modificateursLsp(jeton))
-            lignePrecedente = ligne
-            colonnePrecedente = colonne
+        // V-H : voie CONFORT.
+        return repartirDocument(uri, voieConfort, { SemanticTokens(ArrayList()) }) { chemin, texte ->
+            val jetons = avecMoteurFrais(chemin) { moteur ->
+                moteur?.jetonsSemantiques(chemin, texte)
+            } ?: return@repartirDocument SemanticTokens(ArrayList())
+            val repere = ConvertisseurLsp.repere(texte)
+            val donnees = ArrayList<Int>(jetons.size * 5)
+            var lignePrecedente = 0
+            var colonnePrecedente = 0
+            for (jeton in jetons) {
+                val plage = repere.plage(jo.codeide.lsp.java.diagnostics.Plage(jeton.offset, jeton.offset + jeton.longueur))
+                val ligne = plage.start.line
+                val colonne = plage.start.character
+                donnees.add(ligne - lignePrecedente)
+                donnees.add(if (ligne == lignePrecedente) colonne - colonnePrecedente else colonne)
+                donnees.add(jeton.longueur)
+                donnees.add(CapacitesServeur.TYPES_LEGENDE_SEMANTIQUES.indexOf(nomTypeLsp(jeton.genre)).let { if (it < 0) 0 else it })
+                donnees.add(modificateursLsp(jeton))
+                lignePrecedente = ligne
+                colonnePrecedente = colonne
+            }
+            SemanticTokens(donnees)
         }
-        return CompletableFuture.completedFuture(SemanticTokens(donnees))
     }
 
     // ----------------------------------------------------------------- //
@@ -1285,91 +1452,107 @@ public class ServeurLangageJava(
     override fun prepareRename(params: PrepareRenameParams): CompletableFuture<Either3<Range, PrepareRenameResult, org.eclipse.lsp4j.PrepareRenameDefaultBehavior>> {
         garde<Either3<Range, PrepareRenameResult, org.eclipse.lsp4j.PrepareRenameDefaultBehavior>>()?.let { return it }
         val uri = params.textDocument.uri
-        val document = documentDe(uri)
+        // V-H : voie NAVIGATION.
+        //
         // Complément de catalogue (ADR 0032) — rename DEPUIS UN XML : la
         // ressource au caret d'un document XML du module (déclaration
         // name="…" des values ou référence @type/…) se prépare comme
         // depuis le code Java.
-        if (uri.endsWith(".xml") && document != null) {
-            val (cheminXml, texteXml) = document
-            val preparationXml = avecMoteurFrais(cheminXml) { _ ->
-                serviceRenommage?.preparerRenommageXml(cheminXml, texteXml, offsetDe(texteXml, params.position))
-            }
-            return CompletableFuture.completedFuture(
-                preparationXml?.let {
+        return repartirDocument<Either3<Range, PrepareRenameResult, org.eclipse.lsp4j.PrepareRenameDefaultBehavior>>(
+            uri,
+            voieNavigation,
+            { null },
+        ) { chemin, texte ->
+            if (uri.endsWith(".xml")) {
+                val preparationXml = avecMoteurFrais(chemin) { _ ->
+                    serviceRenommage?.preparerRenommageXml(chemin, texte, offsetDe(texte, params.position))
+                }
+                return@repartirDocument preparationXml?.let {
                     Either3.forSecond(
                         PrepareRenameResult(
-                            ConvertisseurLsp.repere(texteXml).plage(it.plage),
+                            ConvertisseurLsp.repere(texte).plage(it.plage),
                             it.placeholder,
                         ),
                     )
-                },
-            )
-        }
-        val preparation = document?.let { (chemin, texte) ->
-            avecMoteurFrais(chemin) { _ ->
+                }
+            }
+            val preparation = avecMoteurFrais(chemin) { _ ->
                 serviceRenommage?.preparerRenommage(chemin, texte, offsetDe(texte, params.position))
             }
-        }
-        // Null = pas renommable à cette position (le client désactive le
-        // rename) — la fiche 054 teste le cas NON-null (le champ, forme
-        // plage).
-        return CompletableFuture.completedFuture(
+            // Null = pas renommable à cette position (le client désactive le
+            // rename) — la fiche 054 teste le cas NON-null (le champ, forme
+            // plage).
             preparation?.let {
                 Either3.forSecond(
                     PrepareRenameResult(
-                        ConvertisseurLsp.repere(document.second).plage(it.plage),
+                        ConvertisseurLsp.repere(texte).plage(it.plage),
                         it.placeholder,
                     ),
                 )
-            },
-        )
+            }
+        }
     }
 
     override fun rename(params: RenameParams): CompletableFuture<WorkspaceEdit> {
         garde<WorkspaceEdit>()?.let { return it }
         val uri = params.textDocument.uri
-        val document = documentDe(uri)
         val service = serviceRenommage
+        // V-H : voie NAVIGATION — le geste explicite du renommage. Le
+        // document introuvable garde son refus TYPIÉ (I8 — jamais un
+        // WorkspaceEdit vide silencieux), la capture est faite AVANT la
+        // répartition.
+        //
         // Complément de catalogue (ADR 0032) — rename DEPUIS UN XML : la
         // MÊME propagation multi-fichiers (code Java + XML), le document
         // XML courant servi depuis son tampon OUVERT.
-        if (uri.endsWith(".xml") && document != null) {
-            val (cheminXml, texteXml) = document
-            if (service == null || moteurPour(cheminXml) == null) {
-                return refuse(ResponseErrorCode.RequestFailed, "Aucun symbole renommable")
-            }
-            return try {
-                val edition = avecMoteurFrais(cheminXml) { _ ->
-                    service.renommageXml(uri, cheminXml, texteXml, offsetDe(texteXml, params.position), params.newName)
+        val capture = capturer(uri)
+            ?: return refuse(ResponseErrorCode.RequestFailed, "Aucun symbole renommable")
+        return repartirCapturee(capture, uri, voieNavigation, {
+            WorkspaceEdit()
+        }) { chemin, texte ->
+            if (uri.endsWith(".xml")) {
+                if (service == null || moteurPour(chemin) == null) {
+                    throw ResponseErrorException(
+                        ResponseError(ResponseErrorCode.RequestFailed, "Aucun symbole renommable", null),
+                    )
                 }
-                CompletableFuture.completedFuture(espaceDeTravailLsp(edition))
-            } catch (e: RenommageSansCible) {
-                refuse(ResponseErrorCode.RequestFailed, e.message ?: "Aucun symbole renommable")
+                return@repartirCapturee try {
+                    val edition = avecMoteurFrais(chemin) { _ ->
+                        service.renommageXml(uri, chemin, texte, offsetDe(texte, params.position), params.newName)
+                    }
+                    espaceDeTravailLsp(edition)
+                } catch (e: RenommageSansCible) {
+                    throw ResponseErrorException(
+                        ResponseError(ResponseErrorCode.RequestFailed, e.message ?: "Aucun symbole renommable", null),
+                    )
+                }
             }
-        }
-        // Régime vivant : la garde moteur passe par le ROUTAGE du document
-        // renommé (fiche 047) — le champ figé resterait null en mode
-        // environnement et rejetterait le rename à tort.
-        if (document == null || service == null || moteurPour(document.first) == null) {
-            // I8 — erreur TYPIE RequestFailed (-32803), message FR contenant
-            // « Aucun symbole renommable » (fiche 059) — jamais un
-            // WorkspaceEdit vide silencieux. Le rejet passe par un FUTUR
-            // EN ERREUR (le contrat d'lsp4j : un throw synchrone serait
-            // reformé en InternalError par la couche réflexive).
-            return refuse(ResponseErrorCode.RequestFailed, "Aucun symbole renommable")
-        }
-        val (chemin, texte) = document
-        return try {
+            // Régime vivant : la garde moteur passe par le ROUTAGE du document
+            // renommé (fiche 047) — le champ figé resterait null en mode
+            // environnement et rejetterait le rename à tort.
+            if (service == null || moteurPour(chemin) == null) {
+                // I8 — erreur TYPIE RequestFailed (-32803), message FR contenant
+                // « Aucun symbole renommable » (fiche 059) — jamais un
+                // WorkspaceEdit vide silencieux. Le rejet passe par un FUTUR
+                // EN ERREUR (le contrat d'lsp4j : un throw synchrone serait
+                // reformé en InternalError par la couche réflexive).
+                throw ResponseErrorException(
+                    ResponseError(ResponseErrorCode.RequestFailed, "Aucun symbole renommable", null),
+                )
+            }
             // V-F1 : le renommage entier vit sous le protocole d'époque du
             // document CIBLE — un swap pendant les phases rejeue le calcul
             // (jamais d'éditions mixtes de deux époques).
-            val edition = avecMoteurFrais(chemin) { _ ->
-                service.renommage(uri, chemin, texte, offsetDe(texte, params.position), params.newName)
+            try {
+                val edition = avecMoteurFrais(chemin) { _ ->
+                    service.renommage(uri, chemin, texte, offsetDe(texte, params.position), params.newName)
+                }
+                espaceDeTravailLsp(edition)
+            } catch (e: RenommageSansCible) {
+                throw ResponseErrorException(
+                    ResponseError(ResponseErrorCode.RequestFailed, e.message ?: "Aucun symbole renommable", null),
+                )
             }
-            CompletableFuture.completedFuture(espaceDeTravailLsp(edition))
-        } catch (e: RenommageSansCible) {
-            refuse(ResponseErrorCode.RequestFailed, e.message ?: "Aucun symbole renommable")
         }
     }
 
@@ -1410,56 +1593,56 @@ public class ServeurLangageJava(
     override fun codeAction(params: CodeActionParams): CompletableFuture<List<Either<Command, CodeAction>>> {
         garde<List<Either<Command, CodeAction>>>()?.let { return it }
         val uri = params.textDocument.uri
-        val document = documentDe(uri) ?: return CompletableFuture.completedFuture(emptyList())
-        val (chemin, texte) = document
-        // V-D (ADR 0027) : le filtre `only` de LSP 3.17 — un kind est
-        // servi s'il ÉGALE une valeur demandée ou la PROLONGE (préfixe
-        // hiérarchique) ; sans `only`, tout est servi (quickfixes +
-        // intentions + générateurs).
-        val only = params.context.only
-        fun demande(kind: String): Boolean =
-            only == null || only.isEmpty() || correspondKind(kind, only)
-        // Les diagnostics du contexte voyagent en forme moteur (le
-        // service N6 consomme les diagnostics moteur).
-        val diagnosticsMoteur = params.context.diagnostics.mapNotNull { diagnostic ->
-            diagnosticVersMoteur(diagnostic)
-        }
-        // V-F1 : les actions vivent sous le protocole d'époque du document
-        // (rejeu au swap, jamais de correcteurs périmés).
-        val actions = avecMoteurFrais(chemin) { moteur ->
-            val m = moteur ?: return@avecMoteurFrais emptyList()
-            val resultat = mutableListOf<jo.codeide.lsp.java.actionscode.ActionCode>()
-            if (demande("quickfix")) {
-                resultat.addAll(jo.codeide.lsp.java.actionscode.ServiceActionsCode(m).actions(chemin, texte, diagnosticsMoteur))
+        // V-H : voie CONFORT — la tempête d'appareil en fait une requête
+        // fréquente (chaque frappe/déplacement de caret).
+        return repartirDocument(uri, voieConfort, { emptyList() }) { chemin, texte ->
+            // V-D (ADR 0027) : le filtre `only` de LSP 3.17 — un kind est
+            // servi s'il ÉGALE une valeur demandée ou la PROLONGE (préfixe
+            // hiérarchique) ; sans `only`, tout est servi (quickfixes +
+            // intentions + générateurs).
+            val only = params.context.only
+            fun demande(kind: String): Boolean =
+                only == null || only.isEmpty() || correspondKind(kind, only)
+            // Les diagnostics du contexte voyagent en forme moteur (le
+            // service N6 consomme les diagnostics moteur).
+            val diagnosticsMoteur = params.context.diagnostics.mapNotNull { diagnostic ->
+                diagnosticVersMoteur(diagnostic)
             }
-            if (demande("source.organizeImports")) {
-                m.organiserImportsEditions(chemin, texte)?.let { editions ->
-                    resultat.add(
-                        jo.codeide.lsp.java.actionscode.ActionCode(
-                            "source.organizeImports",
-                            "Organiser les imports",
-                            jo.codeide.lsp.java.actionscode.ModCommande.EditsTexte(editions),
-                        ),
-                    )
+            // V-F1 : les actions vivent sous le protocole d'époque du document
+            // (rejeu au swap, jamais de correcteurs périmés).
+            val actions = avecMoteurFrais(chemin) { moteur ->
+                val m = moteur ?: return@avecMoteurFrais emptyList()
+                val resultat = mutableListOf<jo.codeide.lsp.java.actionscode.ActionCode>()
+                if (demande("quickfix")) {
+                    resultat.addAll(jo.codeide.lsp.java.actionscode.ServiceActionsCode(m).actions(chemin, texte, diagnosticsMoteur))
                 }
-            }
-            // Intentions + générateurs (V-D) : sans `only` tout est servi ;
-            // avec `only`, seules les actions dont le KIND correspond.
-            if (only == null || only.isEmpty()) {
-                val debut = offsetDe(texte, params.range.start)
-                val fin = offsetDe(texte, params.range.end)
-                resultat.addAll(m.intentions(chemin, texte, debut, fin))
-            } else {
-                val debut = offsetDe(texte, params.range.start)
-                val fin = offsetDe(texte, params.range.end)
-                resultat.addAll(m.intentions(chemin, texte, debut, fin).filter { correspondKind(it.kind, only) })
-            }
-            resultat
-        } ?: return CompletableFuture.completedFuture(emptyList())
-        val repere = ConvertisseurLsp.repere(texte)
-        return CompletableFuture.completedFuture(
-            actions.map { action -> Either.forRight(ConvertisseurLsp.actionCode(action, uri, repere)) },
-        )
+                if (demande("source.organizeImports")) {
+                    m.organiserImportsEditions(chemin, texte)?.let { editions ->
+                        resultat.add(
+                            jo.codeide.lsp.java.actionscode.ActionCode(
+                                "source.organizeImports",
+                                "Organiser les imports",
+                                jo.codeide.lsp.java.actionscode.ModCommande.EditsTexte(editions),
+                            ),
+                        )
+                    }
+                }
+                // Intentions + générateurs (V-D) : sans `only` tout est servi ;
+                // avec `only`, seules les actions dont le KIND correspond.
+                if (only == null || only.isEmpty()) {
+                    val debut = offsetDe(texte, params.range.start)
+                    val fin = offsetDe(texte, params.range.end)
+                    resultat.addAll(m.intentions(chemin, texte, debut, fin))
+                } else {
+                    val debut = offsetDe(texte, params.range.start)
+                    val fin = offsetDe(texte, params.range.end)
+                    resultat.addAll(m.intentions(chemin, texte, debut, fin).filter { correspondKind(it.kind, only) })
+                }
+                resultat
+            } ?: return@repartirDocument emptyList()
+            val repere = ConvertisseurLsp.repere(texte)
+            actions.map { action -> Either.forRight(ConvertisseurLsp.actionCode(action, uri, repere)) }
+        }
     }
 
     override fun resolveCodeAction(unresolved: CodeAction): CompletableFuture<CodeAction> {
@@ -1556,13 +1739,15 @@ public class ServeurLangageJava(
     override fun codeLens(params: CodeLensParams): CompletableFuture<List<CodeLens>> {
         garde<List<CodeLens>>()?.let { return it }
         val uri = params.textDocument.uri
-        val document = documentDe(uri) ?: return CompletableFuture.completedFuture(emptyList())
-        // V-F1 : les lentilles vivent sous le protocole d'époque du document.
-        val lentilles = avecMoteurFrais(document.first) { moteur ->
-            val m = moteur ?: return@avecMoteurFrais null
-            LentillesCode(m, etats).lentilles(uri, document.first, document.second)
-        } ?: return CompletableFuture.completedFuture(emptyList())
-        return CompletableFuture.completedFuture(lentilles)
+        // V-H : voie CONFORT. V-F1 : les lentilles vivent sous le protocole
+        // d'époque du document.
+        return repartirDocument(uri, voieConfort, { emptyList() }) { chemin, texte ->
+            val lentilles = avecMoteurFrais(chemin) { moteur ->
+                val m = moteur ?: return@avecMoteurFrais null
+                LentillesCode(m, etats).lentilles(uri, chemin, texte)
+            } ?: return@repartirDocument emptyList()
+            lentilles
+        }
     }
 
     override fun resolveCodeLens(unresolved: CodeLens): CompletableFuture<CodeLens> {
@@ -1588,23 +1773,22 @@ public class ServeurLangageJava(
     override fun prepareTypeHierarchy(params: TypeHierarchyPrepareParams): CompletableFuture<List<TypeHierarchyItem>> {
         garde<List<TypeHierarchyItem>>()?.let { return it }
         val uri = params.textDocument.uri
-        val document = documentDe(uri) ?: return CompletableFuture.completedFuture(emptyList())
-        val (chemin, texte) = document
-        // V-F1 : la préparation vit sous le protocole d'époque du document.
-        val cible = avecMoteurFrais(chemin) { moteur ->
-            val m = moteur ?: return@avecMoteurFrais null
-            val offset = offsetDe(texte, params.position)
-            m.typeAuCaret(chemin, texte, offset)
-                // Convention contextType (fiche 058) : un caret SANS référence
-                // dans le corps d'un type rend le type ENGLOBANT — le moteur
-                // sert les références et déclarations (fiche 018), la couche
-                // protocole complète l'englobant ; avant toute déclaration
-                // (« package ») → liste VIDE.
-                ?: typeEnglobant(m, chemin, texte, offset, uri)
-        } ?: return CompletableFuture.completedFuture(emptyList())
-        return CompletableFuture.completedFuture(
-            listOfNotNull(cible?.let { itemTypeHierarchie(it) }),
-        )
+        // V-H : voie CONFORT. V-F1 : la préparation vit sous le protocole
+        // d'époque du document.
+        return repartirDocument(uri, voieConfort, { emptyList() }) { chemin, texte ->
+            val cible = avecMoteurFrais(chemin) { moteur ->
+                val m = moteur ?: return@avecMoteurFrais null
+                val offset = offsetDe(texte, params.position)
+                m.typeAuCaret(chemin, texte, offset)
+                    // Convention contextType (fiche 058) : un caret SANS référence
+                    // dans le corps d'un type rend le type ENGLOBANT — le moteur
+                    // sert les références et déclarations (fiche 018), la couche
+                    // protocole complète l'englobant ; avant toute déclaration
+                    // (« package ») → liste VIDE.
+                    ?: typeEnglobant(m, chemin, texte, offset, uri)
+            } ?: return@repartirDocument emptyList()
+            listOfNotNull(cible?.let { itemTypeHierarchie(it) })
+        }
     }
 
     override fun typeHierarchySupertypes(params: TypeHierarchySupertypesParams): CompletableFuture<List<TypeHierarchyItem>> {
@@ -1612,13 +1796,14 @@ public class ServeurLangageJava(
         val element = params.item
         val (uri, offset) = ancreDe(element.data)
         if (uri == null || offset == null) return CompletableFuture.completedFuture(emptyList())
-        val document = documentDe(uri) ?: return CompletableFuture.completedFuture(emptyList())
-        val (chemin, texte) = document
-        // V-F1 : la hiérarchie vit sous le protocole d'époque du document.
-        val supertypes = avecMoteurFrais(chemin) { moteur ->
-            moteur?.supertypesDirects(chemin, texte, offset)
-        } ?: return CompletableFuture.completedFuture(emptyList())
-        return CompletableFuture.completedFuture(supertypes.map { itemTypeHierarchie(it) })
+        // V-H : voie CONFORT. V-F1 : la hiérarchie vit sous le protocole
+        // d'époque du document.
+        return repartirDocument(uri, voieConfort, { emptyList() }) { chemin, texte ->
+            val supertypes = avecMoteurFrais(chemin) { moteur ->
+                moteur?.supertypesDirects(chemin, texte, offset)
+            } ?: return@repartirDocument emptyList()
+            supertypes.map { itemTypeHierarchie(it) }
+        }
     }
 
     override fun typeHierarchySubtypes(params: TypeHierarchySubtypesParams): CompletableFuture<List<TypeHierarchyItem>> {
@@ -1626,55 +1811,57 @@ public class ServeurLangageJava(
         val element = params.item
         val (uri, offset) = ancreDe(element.data)
         if (uri == null || offset == null) return CompletableFuture.completedFuture(emptyList())
-        val document = documentDe(uri) ?: return CompletableFuture.completedFuture(emptyList())
-        val (chemin, texte) = document
-        // V-F1 : la hiérarchie vit sous le protocole d'époque du document.
-        val sousTypes = avecMoteurFrais(chemin) { moteur ->
-            moteur?.sousTypes(chemin, texte, offset)
-        } ?: return CompletableFuture.completedFuture(emptyList())
-        return CompletableFuture.completedFuture(sousTypes.map { itemTypeHierarchie(it) })
+        // V-H : voie CONFORT. V-F1 : la hiérarchie vit sous le protocole
+        // d'époque du document.
+        return repartirDocument(uri, voieConfort, { emptyList() }) { chemin, texte ->
+            val sousTypes = avecMoteurFrais(chemin) { moteur ->
+                moteur?.sousTypes(chemin, texte, offset)
+            } ?: return@repartirDocument emptyList()
+            sousTypes.map { itemTypeHierarchie(it) }
+        }
     }
 
     override fun prepareCallHierarchy(params: CallHierarchyPrepareParams): CompletableFuture<List<CallHierarchyItem>> {
         garde<List<CallHierarchyItem>>()?.let { return it }
         val uri = params.textDocument.uri
-        val document = documentDe(uri) ?: return CompletableFuture.completedFuture(emptyList())
-        val (chemin, texte) = document
-        // V-F1 : la préparation vit sous le protocole d'époque du document.
-        val items = avecMoteurFrais(chemin) { moteur ->
-            val m = moteur ?: return@avecMoteurFrais emptyList()
-            val offset = offsetDe(texte, params.position)
-            // Fiche 058 : le prepare sur un APPEL rend la DÉCLARATION de la
-            // MÉTHODE APPELÉE (utilise dans Base.java) ; le prepare sur le NOM
-            // D'UNE DÉCLARATION rend cette déclaration. La DÉFINITION N4 sert
-            // les DEUX cas (un caret sur un identifiant de méthode — appel ou
-            // déclaration — se résout vers le fichier de déclaration) ; la
-            // méthode ENGLOBANTE (fiche 018, methodeAuCaret) sert le caret
-            // ordinaire du corps.
-            val definitions = m.definition(chemin, texte, offset)
-            val itemAppel = definitions.firstOrNull()?.let { definition ->
-                val cheminDeclaration = definition.chemin?.toString() ?: return@let null
-                val texteDeclaration = runCatching { Files.readString(Path.of(cheminDeclaration)) }.getOrNull()
-                    ?: return@let null
-                val repere = ConvertisseurLsp.repere(texteDeclaration)
-                CallHierarchyItem(
-                    definition.nomSimple,
-                    org.eclipse.lsp4j.SymbolKind.Method,
-                    definition.uri,
-                    repere.plage(definition.plage),
-                    repere.plage(definition.plage),
-                ).apply {
-                    data = mapOf(
-                        "uri" to definition.uri,
-                        "offset" to definition.plage.debutOffset,
-                    )
+        // V-H : voie CONFORT. V-F1 : la préparation vit sous le protocole
+        // d'époque du document.
+        return repartirDocument(uri, voieConfort, { emptyList() }) { chemin, texte ->
+            val items = avecMoteurFrais(chemin) { moteur ->
+                val m = moteur ?: return@avecMoteurFrais emptyList()
+                val offset = offsetDe(texte, params.position)
+                // Fiche 058 : le prepare sur un APPEL rend la DÉCLARATION de la
+                // MÉTHODE APPELÉE (utilise dans Base.java) ; le prepare sur le NOM
+                // D'UNE DÉCLARATION rend cette déclaration. La DÉFINITION N4 sert
+                // les DEUX cas (un caret sur un identifiant de méthode — appel ou
+                // déclaration — se résout vers le fichier de déclaration) ; la
+                // méthode ENGLOBANTE (fiche 018, methodeAuCaret) sert le caret
+                // ordinaire du corps.
+                val definitions = m.definition(chemin, texte, offset)
+                val itemAppel = definitions.firstOrNull()?.let { definition ->
+                    val cheminDeclaration = definition.chemin?.toString() ?: return@let null
+                    val texteDeclaration = runCatching { Files.readString(Path.of(cheminDeclaration)) }.getOrNull()
+                        ?: return@let null
+                    val repere = ConvertisseurLsp.repere(texteDeclaration)
+                    CallHierarchyItem(
+                        definition.nomSimple,
+                        org.eclipse.lsp4j.SymbolKind.Method,
+                        definition.uri,
+                        repere.plage(definition.plage),
+                        repere.plage(definition.plage),
+                    ).apply {
+                        data = mapOf(
+                            "uri" to definition.uri,
+                            "offset" to definition.plage.debutOffset,
+                        )
+                    }
                 }
-            }
-            if (itemAppel != null) return@avecMoteurFrais listOf(itemAppel)
-            val cible = m.methodeAuCaret(chemin, texte, offset)
-            listOfNotNull(cible?.let { itemMethodeHierarchie(it) })
-        } ?: return CompletableFuture.completedFuture(emptyList())
-        return CompletableFuture.completedFuture(items)
+                if (itemAppel != null) return@avecMoteurFrais listOf(itemAppel)
+                val cible = m.methodeAuCaret(chemin, texte, offset)
+                listOfNotNull(cible?.let { itemMethodeHierarchie(it) })
+            } ?: return@repartirDocument emptyList()
+            items
+        }
     }
 
     override fun callHierarchyIncomingCalls(params: CallHierarchyIncomingCallsParams): CompletableFuture<List<CallHierarchyIncomingCall>> {
@@ -1682,13 +1869,12 @@ public class ServeurLangageJava(
         val element = params.item
         val (uri, offset) = ancreDe(element.data)
         if (uri == null || offset == null) return CompletableFuture.completedFuture(emptyList())
-        val document = documentDe(uri) ?: return CompletableFuture.completedFuture(emptyList())
-        val (chemin, texte) = document
-        // V-F1 : la hiérarchie vit sous le protocole d'époque du document.
-        val entrants = avecMoteurFrais(chemin) { moteur ->
-            moteur?.appelsEntrants(chemin, texte, offset)
-        } ?: return CompletableFuture.completedFuture(emptyList())
-        return CompletableFuture.completedFuture(
+        // V-H : voie CONFORT. V-F1 : la hiérarchie vit sous le protocole
+        // d'époque du document.
+        return repartirDocument(uri, voieConfort, { emptyList() }) { chemin, texte ->
+            val entrants = avecMoteurFrais(chemin) { moteur ->
+                moteur?.appelsEntrants(chemin, texte, offset)
+            } ?: return@repartirDocument emptyList()
             entrants.map { appelant ->
                 val texteAppelant = runCatching { Files.readString(appelant.chemin) }.getOrNull() ?: texte
                 val repere = ConvertisseurLsp.repere(texteAppelant)
@@ -1701,8 +1887,8 @@ public class ServeurLangageJava(
                     plage ?: Range(Position(0, 0), Position(0, 0)),
                 )
                 CallHierarchyIncomingCall(item, listOfNotNull(plage))
-            },
-        )
+            }
+        }
     }
 
     override fun callHierarchyOutgoingCalls(params: CallHierarchyOutgoingCallsParams): CompletableFuture<List<CallHierarchyOutgoingCall>> {
@@ -1710,13 +1896,12 @@ public class ServeurLangageJava(
         val element = params.item
         val (uri, offset) = ancreDe(element.data)
         if (uri == null || offset == null) return CompletableFuture.completedFuture(emptyList())
-        val document = documentDe(uri) ?: return CompletableFuture.completedFuture(emptyList())
-        val (chemin, texte) = document
-        // V-F1 : la hiérarchie vit sous le protocole d'époque du document.
-        val sortants = avecMoteurFrais(chemin) { moteur ->
-            moteur?.appelsSortants(chemin, texte, offset)
-        } ?: return CompletableFuture.completedFuture(emptyList())
-        return CompletableFuture.completedFuture(
+        // V-H : voie CONFORT. V-F1 : la hiérarchie vit sous le protocole
+        // d'époque du document.
+        return repartirDocument(uri, voieConfort, { emptyList() }) { chemin, texte ->
+            val sortants = avecMoteurFrais(chemin) { moteur ->
+                moteur?.appelsSortants(chemin, texte, offset)
+            } ?: return@repartirDocument emptyList()
             sortants.mapNotNull { cible ->
                 // Localisation de la DÉCLARATION cible : fichier du FQN
                 // propriétaire, jeton du sélecteur (noms canoniques).
@@ -1734,8 +1919,8 @@ public class ServeurLangageJava(
                 // Les sites d'appel vivent dans le document SOURCE.
                 val sites = cible.sites.mapNotNull { site -> plageJetonDans(texte, site) }
                 CallHierarchyOutgoingCall(item, sites)
-            },
-        )
+            }
+        }
     }
 
     /** L'ancre (uri, offset) transportée dans le champ data d'un élément
@@ -1866,13 +2051,12 @@ public class ServeurLangageJava(
     override fun superDefinition(params: TextDocumentPositionParams): CompletableFuture<List<CibleSuperRpc>> {
         garde<List<CibleSuperRpc>>()?.let { return it }
         val uri = params.textDocument.uri
-        val document = documentDe(uri) ?: return CompletableFuture.completedFuture(emptyList())
-        val (chemin, texte) = document
-        // V-F1 : la navigation vit sous le protocole d'époque du document.
-        val cibles = avecMoteurFrais(chemin) { moteur ->
-            moteur?.superDefinition(chemin, texte, offsetDe(texte, params.position))
-        } ?: return CompletableFuture.completedFuture(emptyList())
-        return CompletableFuture.completedFuture(
+        // V-H : voie NAVIGATION. V-F1 : la navigation vit sous le protocole
+        // d'époque du document.
+        return repartirDocument(uri, voieNavigation, { emptyList() }) { chemin, texte ->
+            val cibles = avecMoteurFrais(chemin) { moteur ->
+                moteur?.superDefinition(chemin, texte, offsetDe(texte, params.position))
+            } ?: return@repartirDocument emptyList()
             cibles.mapNotNull { cible ->
                 // Contrat de sérialisation du vendored (`NavigationTarget`)
                 // — miroir exact du client cel-lsp : path/start/end/label,
@@ -1886,8 +2070,8 @@ public class ServeurLangageJava(
                         label = cible.libelle,
                     )
                 }
-            },
-        )
+            }
+        }
     }
 
     override fun decompiledSource(params: ParamsFqcnRpc): CompletableFuture<SourceDecompileeRpc> {
@@ -1918,36 +2102,38 @@ public class ServeurLangageJava(
         val uri = params.textDocument.uri
         // Vue VIDE honnête (convention I9) : symbole absent, document
         // disparu ou moteur manquant → groupes vides, total 0.
-        val vide = ReponseUsagesGroupesRpc(0, 0, PLAFOND_USAGES_RENDUS, false, emptyList())
-        val document = documentDe(uri) ?: return CompletableFuture.completedFuture(vide)
-        val (chemin, texte) = document
-        // V-F1 : même requête moteur que `references` sous le protocole
-        // d'époque (rejeu au swap, coupure fine par fichier balayé).
-        val usages = avecMoteurFrais(chemin) { moteur ->
-            moteur?.references(chemin, texte, offsetDe(texte, params.position), true)
-        } ?: return CompletableFuture.completedFuture(vide)
-        return CompletableFuture.completedFuture(grouperUsages(usages, PLAFOND_USAGES_RENDUS))
+        // V-H : voie NAVIGATION. V-F1 : même requête moteur que
+        // `references` sous le protocole d'époque (rejeu au swap,
+        // coupure fine par fichier balayé).
+        val vide = { ReponseUsagesGroupesRpc(0, 0, PLAFOND_USAGES_RENDUS, false, emptyList()) }
+        return repartirDocument(uri, voieNavigation, vide) { chemin, texte ->
+            val usages = avecMoteurFrais(chemin) { moteur ->
+                moteur?.references(chemin, texte, offsetDe(texte, params.position), true)
+            } ?: return@repartirDocument vide()
+            grouperUsages(usages, PLAFOND_USAGES_RENDUS)
+        }
     }
 
     override fun statementCompletion(params: TextDocumentPositionParams): CompletableFuture<ReponseInstructionRpc> {
         garde<ReponseInstructionRpc>()?.let { return it }
         val uri = params.textDocument.uri
-        val document = documentDe(uri)
-            ?: return CompletableFuture.completedFuture(ReponseInstructionRpc(null, null, null, null, false))
-        val (chemin, texte) = document
+        // V-H : voie FRAPPE (la fin d'instruction est un geste de frappe).
+        //
         // V-C3 (ADR 0026 (c)) : le calcul est PUREMENT LEXICAL — aucun
         // verrou, aucun arbre, servi dans tous les régimes. Le protocole
         // d'époque ne s'y raccroche pas (aucune résolution sous-jacente).
-        val edition = avecMoteurFrais(chemin) { moteur ->
-            moteur?.completerInstruction(chemin, texte, offsetDe(texte, params.position))
-        }
-        return CompletableFuture.completedFuture(
+        return repartirDocument(uri, voieFrappe, {
+            ReponseInstructionRpc(null, null, null, null, false)
+        }) { chemin, texte ->
+            val edition = avecMoteurFrais(chemin) { moteur ->
+                moteur?.completerInstruction(chemin, texte, offsetDe(texte, params.position))
+            }
             if (edition != null) {
                 ReponseInstructionRpc(edition.offset, edition.longueur, edition.texte, edition.caret, true)
             } else {
                 ReponseInstructionRpc(null, null, null, null, false)
-            },
-        )
+            }
+        }
     }
 }
 

@@ -369,6 +369,43 @@ plugins {
 // Test au vert dont 2 régressions nouvelles (héritage Java depuis open
 // class accepté / classe non ouverte refusée — fidélité conservée),
 // régressions jar-prime de V-A2 inchangées.
+// 1.13.0 : V-H — BRANCHEMENT DU RÉPARTISSEUR AU PROTOCOLE (ADR 0010 :
+// « le scheduler 3 lanes est conservé », le chaînon que la réécriture
+// avait laissé au sol). Retour appareil du 01/11/2026 (CodeIDE 0.205.2,
+// moto g06, logs codeide-logs-2026-11-01-221628.zip) : « liaison. » et
+// « greeter. » ne proposaient RIEN — la cause mesurée n'est PAS la
+// résolution (la complétion liaison. A rendu 120 items par deux fois)
+// mais la TEMPÊTE : le client émet complétion + inlayHint +
+// documentHighlight (+ codeAction sur idle) à CHAQUE frappe, et CHAQUE
+// requête était calculée SYNCHRONEMENT sur le fil de lecture lsp4j —
+// la complétion patientait derrière TOUTE la file (29 s et 87 s
+// mesurés côté serveur, timeout client 5 s : rien ne s'affichait). Le
+// correctif : OrdonnanceurMoteur.soumettrePrioritaire (voies 0 FRAPPE
+// complétion/signatureHelp/statementCompletion, 1 NAVIGATION, 2
+// CONFORT ; supersession à VALEUR — la réponse VIDE honnête du type,
+// jamais une annulation : le client attend une réponse ; la FRAPPE
+// rend caduques les voies inférieures EN ATTENTE du même document ;
+// exclusion par fichier toutes voies — contrat V-F2 inchangé) câblé
+// sur 29 méthodes de document de ServeurLangageJava ; CAPTURE du
+// document À LA SOUMISSION (cohérence coordonnées ↔ texte sous le
+// nouveau parallélisme) + vérification d'époque à la livraison
+// (invariant « 0 réponse périmée » tenu sous concurrence) ; exit()
+// solde les requêtes en attente par la réponse vide. Validation :
+// 959 tests / 0 échec (793 java dont 8 V-H ; 45 gates environnementales
+// ignorées avec raison — corpus CORPUS_ANDROID absent, racines SDK
+// réelles ; le banc projet RÉEL, lui, a tourné : libs Android
+// téléchargées sans 429, liaison.s| → 2 items, préfixe vide → 120
+// items) ; après rebase sur V-A2/V-A3 du distant, les repros appareil
+// v1.12.1 (rafale, invocations ×3, freeze) passent AVEC le
+// répartiteur V-H — pré-chauffe/budget/chien de garde attaquent le
+// COÛT de chaque calcul, la répartition attaque la FILE : le chien
+// de garde chronomètre désormais sur le WORKER du répartiteur ;
+// verrous RepartitionPrioriteeVhTest (voies,
+// supersession à valeur, frappe-caducité, exclusion par fichier, arrêt)
+// + TempeteAppareilVhTest au PROTOCOLE (BoucleLocale : la tempête ne
+// perd ni n'échoue aucune future, la complétion rend ses membres PENDANT
+// la tempête, péremption honnête, arrêt propre). §7.29, ADR 0010 à jour,
+// PV mesures/2026-11-02-vh-repartition.txt.
 allprojects {
-    version = "1.12.2"
+    version = "1.13.0"
 }
