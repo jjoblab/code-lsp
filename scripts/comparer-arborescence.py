@@ -63,8 +63,12 @@ def principal():
     perdus = multiset_avant - multiset_apres   # blobs existant avant, plus là
     gagnes = multiset_apres - multiset_avant   # blobs nouveaux (ajouts de contenu)
 
-    # Ajouts de FICHIERS (chemins présents après, pas avant).
-    chemins_ajoutes = sorted(set(apres) - set(avant))
+    # Ajouts de CONTENU : chemins présents après dont l'empreinte de blob
+    # n'existe pas avant (un déplacement pur garde le blob — ce n'est PAS un
+    # ajout ; la réorganisation déplace, elle ne duplique pas).
+    empilements_avant = set(avant.values())
+    chemins_ajoutes = sorted(
+        c for c, e in apres.items() if e not in empilements_avant)
     # Déplacements purs : chemin disparu dont le blob existe encore ailleurs.
     deplacements = sorted(
         (a, b) for a in avant if a not in apres
