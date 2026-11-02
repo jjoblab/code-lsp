@@ -2,7 +2,7 @@
 
 > Guide d'utilisation du serveur Kotlin, construit (Phase 3, 03/11/2026)
 > depuis le **journal d'exécution de l'étage 6** (serveur LSP + protocole
-> riche — `docs/etudes/moteur-kotlin/09-execution-etage6.md`) et la
+> riche — `lsp-kotlin/docs/etudes/moteur-kotlin/09-execution-etage6.md`) et la
 > **matrice de capacités paritaire** qu'il verrouille. Tous les
 > comportements décrits sont couverts par le cahier (469/469) et les 12 cas
 > dorés. Le miroir architectural est le [`USAGE.md`](../lsp-java/USAGE.md)
@@ -128,4 +128,4 @@ c'est la raison d'être du séquencement.
 | Échec de build Maven Central 429 | panne transitoire déjà consignée (AL4 / E-K10) — relancer, jamais de reprise de code |
 | Parité du digeste en échec après déplacement de fichiers | procédure P-1 : preuve d'équivalence puis re-signature dédiée (E-K9 consigné) |
 
-Les alertes complètes : [`docs/etudes/moteur-kotlin/ALERTES.md`](docs/etudes/moteur-kotlin/ALERTES.md).
+Les alertes complètes : [`lsp-kotlin/docs/etudes/moteur-kotlin/ALERTES.md`](docs/etudes/moteur-kotlin/ALERTES.md).

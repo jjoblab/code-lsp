@@ -36,7 +36,21 @@
 5. **Bancs et baselines signées** dès la première capacité mesurable,
    sur le modèle des bancs Java/Kotlin (baseline JSON signée + digeste).
 
-## 3. Étapes d'arrivée (ordre indicatif)
+## 3. Jalons proposés — alignés sur les étages des deux autres LSP
+
+Miroir de la méthode des aînés (Java : étages N1–N8+T ; Kotlin : étages
+0–6+T) — **aucune estimation chiffrée inventée** (les fourchettes des
+aînés ont été mesurées sur leur propre exécution et ne préjugent en rien
+du XML ; toute estimation sera produite par l'étude d'amorçage) :
+
+| Jalon | Contenu (miroir des aînés) |
+|---|---|
+| **Amorçage** (miroir étage 0 Kotlin / vague 0 Java) | ADR fondatrices (voie de gouvernance, périmètre), registre de provenance ouvert, cahier extrait de l'existant (oracle en boîte noire), CI et seuils dex posés dès le premier module |
+| **Étages moteur** | parse/validate → diagnostics → complétion/navigation → confort → serveur LSP4J + protocole riche (matrice de capacités verrouillée par cas dorés — miroir étage 6 Kotlin / N8 Java) ; chaque étage clos sur preuve mécanique (CI verte, cahier à jour) |
+| **Transverse T** | banc de qualité à baseline signée, mesures de performance, passe appareil au gabarit commun, décisions de bascule |
+| **Bascule CodeIDE** | séquencement I0–I6 (miroir ADR 0136 : la bascule passe avant l'extension des capacités), publication du pack, mesure sur appareil |
+
+## 4. Étapes d'arrivée (ordre indicatif)
 
 1. Décommenter la réservation `:xml` dans `settings.gradle.kts` —
    uniquement quand `lsp-xml/moteur/` contient un `build.gradle.kts` réel
@@ -49,7 +63,7 @@
    manifests — le corpus existe déjà dans les bancs Android des aînés).
 5. Premier bump de version et publication selon la voie choisie.
 
-## 4. Ce qui ne changera pas
+## 5. Ce qui ne changera pas
 
 - Les chemins des autres LSP, les coordonnées publiées, les capacités LSP
   existantes (contractuel pour l'hôte CodeIDE — docs/REORGANISATION.md §1).

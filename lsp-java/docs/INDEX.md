@@ -3,7 +3,7 @@
 > Index des documents du périmètre `lsp-java/` — sans réécrire les
 > documents. Vue d'ensemble : [`lsp-java/README.md`](../README.md) ; règles
 > propres : [`lsp-java/AGENTS.md`](../AGENTS.md). Index transverse :
-> [`docs/INDEX.md`](../../../docs/INDEX.md) du dépôt.
+> [`docs/INDEX.md`](../../docs/INDEX.md) du dépôt.
 
 ## ADR (32 — numéros, titres, statuts)
 
@@ -77,9 +77,9 @@ clean-room `codeide-lsp` @ `cb809e14`, lecture seule) ; fiches dans
 
 [`../bancs/`](../bancs/) — corpus de bancs, projet Android réel (réplique
 monip, 16 AARs/jars), baselines signées
-[`bancs/baselines/completion.json`](../bancs/baselines/completion.json) et
-[`parite-completion.json`](../bancs/baselines/parite-completion.json)
+[`lsp-java/bancs/baselines/completion.json`](../bancs/baselines/completion.json) et
+[`lsp-java/bancs/baselines/parite-completion.json`](../bancs/baselines/parite-completion.json)
 (SHA-256 consignés dans
-[`REORGANISATION-AVANT.md`](../../../docs/REORGANISATION-AVANT.md) §4) ;
+[`REORGANISATION-AVANT.md`](../../docs/REORGANISATION-AVANT.md) §4) ;
 scripts de montage dans [`../scripts/`](../scripts/) ; bancs de mesure du
 spike dans [`../spike/`](../spike/).

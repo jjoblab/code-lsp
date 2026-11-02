@@ -3,7 +3,7 @@
 > Index des documents du périmètre `lsp-kotlin/` — sans réécrire les
 > documents. Vue d'ensemble : [`lsp-kotlin/README.md`](../README.md) ;
 > règles propres : [`lsp-kotlin/AGENTS.md`](../AGENTS.md). Index
-> transverse : [`docs/INDEX.md`](../../../docs/INDEX.md) du dépôt.
+> transverse : [`docs/INDEX.md`](../../docs/INDEX.md) du dépôt.
 
 ## ADR (37 — numéros, titres, statuts)
 
@@ -79,6 +79,6 @@ fiches, 469 comportements** (extraction clean-room `codeide-lsp` @
 
 [`../bancs/`](../bancs/) — baselines signées (qualité complétion, digeste
 de parité), corpus de mesure
-([`bancs/corpus-android-kotlin/LISEZMOI.md`](../bancs/corpus-android-kotlin/LISEZMOI.md)) ;
+([`lsp-kotlin/bancs/corpus-android-kotlin/LISEZMOI.md`](../bancs/corpus-android-kotlin/LISEZMOI.md)) ;
 scripts dans [`../scripts/`](../scripts/) ; module de mesure
 [`../spike/`](../spike/) (tâches sans `-PspikeKotlin` désactivées).

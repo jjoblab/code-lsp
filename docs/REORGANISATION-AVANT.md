@@ -121,6 +121,24 @@ Kotlin). Le digeste `digeste-corpus.txt` liste des empreintes
 | Jar moteur Java (`jo-codeide-lsp-java`) | `[À COMPLÉTER PAR LE PROPRIÉTAIRE]` | Non imprimé par la CI ; build local impossible dans le bac à sable de mesure (rate-limit Maven Central, même classe de panne que l'alerte du 31/10) ; packages GitHub non visibles par le jeton de mission |
 | Jar moteur Kotlin | `[À COMPLÉTER PAR LE PROPRIÉTAIRE]` | Idem (seule la borne basse de méthodes est mesurée, §5) |
 
+> **Complément de mesure du 03/11/2026** (demande propriétaire « les tailles
+> de jars » — le rate-limit s'est dissipé et les paquets GitHub sont devenus
+> visibles au jeton) ; les deux valeurs manquantes sont mesurées :
+>
+> | Artefact | Taille | Source |
+> |---|---:|---|
+> | Jar moteur Java **publié v1.12.2** (`jo-codeide-lsp-java-1.12.2.jar`) | **1 523 043 o** | paquet GitHub téléchargé et pesé (03/11/2026) ; reproduit à l'octet près par un build local au tag `v1.12.2` (tâche `:java:jar`) — la méthode est vérifiée |
+> | Jar moteur Java **tête 1.13.0** | **1 532 056 o** | build local 03/11/2026, identique avant (`pre-fusion/etude-moteur-java`) et après (tête `refonte/organisation`) : entrées 100 % identiques par CRC |
+> | Jar moteur Kotlin **tête d'étude** (`kotlin-1.0.0.jar` @ 8856b95) | **991 021 o** | build local 03/11/2026 au tag `pre-fusion/etude-moteur-kotlin` |
+> | Jar moteur Kotlin **tête fusionnée** (`kotlin-1.13.0.jar`) | **991 023 o** | build local 03/11/2026 — 385/386 entrées identiques par CRC au jar d'étude, seule `jo/codeide/lsp/kotlin/pack/version.properties` change (1.0.0 → 1.13.0, unification par la fusion) |
+>
+> Invariant §10.4 (« taille des jars identiques ») : **CONFIRMÉ** — le jar
+> moteur Java est identique entrée pour entrée avant/après réorganisation ;
+> le jar moteur Kotlin ne diffère que par la chaîne de version. L'historique
+> complet des 11 versions publiées (780 607 → 1 523 043 o, compagnon
+> constant 3 288 188 o) est consigné dans
+> [`lsp-java/CHANGELOG.md`](../lsp-java/CHANGELOG.md).
+
 ## 7. CI — noms exacts des jobs (à conserver à l'identique)
 
 - `ci.yml`, branche Java (6 jobs) : `Build et tests (JDK 21)` ·

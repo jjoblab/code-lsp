@@ -24,7 +24,7 @@
 Les reprises contrôlées (zones `synthetics/`, `preview/`, `classpath/`,
 `format/`, `plis/`, `documentation/`, `symboles/` — reprises R1–R8,
 ~2 600 lignes) sont inscrites au manifeste
-[`docs/PROVENANCE-REPRISE-KOTLIN.md`](docs/PROVENANCE-REPRISE-KOTLIN.md) ;
+[`lsp-kotlin/docs/PROVENANCE-REPRISE-KOTLIN.md`](docs/PROVENANCE-REPRISE-KOTLIN.md) ;
 le noyau (parse/résolution/session/diagnostics/complétion, serveur) est du
 code NEUF clean-room.
 

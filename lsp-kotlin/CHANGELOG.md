@@ -3,7 +3,7 @@
 > Le moteur Kotlin n'a pas d'historique de versions publiées : le pack
 > langue n'est **pas publié** (demande d'interface Q-K4). Les versions
 > ci-dessous sont reconstituées depuis les journaux d'étages
-> (`docs/etudes/moteur-kotlin/`) et l'en-tête de version du module.
+> (`lsp-kotlin/docs/etudes/moteur-kotlin/`) et l'en-tête de version du module.
 > Format : **Ajouté / Modifié / Corrigé**.
 
 ## 1.13.0 — version unifiée par la fusion (02/11/2026, NON PUBLIÉE)

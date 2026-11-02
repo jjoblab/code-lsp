@@ -15,7 +15,7 @@
 - **Zones de reprise** (voie C, inscription PRÉALABLE fichier par fichier) :
   `synthetics/`, `preview/`, `classpath/`, `format/`, `plis/`,
   `documentation/`, `symboles/` — reprises R1–R8, toutes livrées ;
-  manifeste [`docs/PROVENANCE-REPRISE-KOTLIN.md`](docs/PROVENANCE-REPRISE-KOTLIN.md).
+  manifeste [`lsp-kotlin/docs/PROVENANCE-REPRISE-KOTLIN.md`](docs/PROVENANCE-REPRISE-KOTLIN.md).
 - **Vendoring** (R9.2) : la grammaire se **ré-obtient de l'amont**
   (jamais depuis l'ancien dépôt) — notices obligatoires, dérive gardée par
   le digeste structurel. Ne JAMAIS modifier le contenu de
@@ -30,10 +30,10 @@
    (voie C) et [`0103`](docs/adr/0103-strategie-semantique-kotlin.md)
    (voie (i) — parseur officiel + modèle conservateur).
 3. Le cahier de spécifications Kotlin
-   ([`docs/cahier-specifications-kotlin/`](docs/cahier-specifications-kotlin/) —
+   ([`lsp-kotlin/docs/cahier-specifications-kotlin/`](docs/cahier-specifications-kotlin/) —
    53 fiches, 469 comportements) : c'est le contrat.
 4. Les journaux d'étages
-   ([`docs/etudes/moteur-kotlin/`](docs/etudes/moteur-kotlin/) — 03 à 10 :
+   ([`lsp-kotlin/docs/etudes/moteur-kotlin/`](docs/etudes/moteur-kotlin/) — 03 à 10 :
    étages 0 à 6 et transverse T) — la méthode et les preuves de clôture.
 5. [`USAGE.md`](USAGE.md) — la surface LSP exacte (matrice paritaire),
    référence avant toute modification de comportement visible du client.
@@ -56,13 +56,13 @@ scripts/verifier-provenance.sh        # vendoring + zones de reprise : aucun fic
 
 ## Pièges et alertes connus (consignés — les lire avant d'y retomber)
 
-- [`docs/etudes/moteur-kotlin/ALERTES.md`](docs/etudes/moteur-kotlin/ALERTES.md) :
+- [`lsp-kotlin/docs/etudes/moteur-kotlin/ALERTES.md`](docs/etudes/moteur-kotlin/ALERTES.md) :
   E-K9 (re-signature digeste — procédure), E-K10 (zéro faux positif infirmé
   à l'échelle : 980/34 934 l.), E-K11 (banc complétion saturé), E-K12
   (exclusion fiche 010), E-K13 (kit `.kt.txt`) — et la classe de panne
   **rate-limit Maven Central 429** (déjà rencontrée côté Java et Kotlin :
   relancer, jamais de reprise de code).
-- [`docs/etudes/moteur-kotlin/DEMANDES-INTERFACE.md`](docs/etudes/moteur-kotlin/DEMANDES-INTERFACE.md) :
+- [`lsp-kotlin/docs/etudes/moteur-kotlin/DEMANDES-INTERFACE.md`](docs/etudes/moteur-kotlin/DEMANDES-INTERFACE.md) :
   demandes d'interface Q-K1…Q-K9 — le propriétaire arbitre (R3) ; les
   arbitrages rendus sont consignés.
 - « Preuve ou silence » (ADR 0107) : un comportement non prouvé n'est pas

@@ -131,12 +131,12 @@
 ## 1.1.6 — vague corrective complétion (31/10/2026, PUBLIÉE v1.1.6)
 
 - **Corrigé** : retours appareil du 31/10 — inventaire des écarts
-  ([`docs/ECARTS-SERVEUR.md`](docs/ECARTS-SERVEUR.md)) + les trois
+  ([`lsp-java/docs/ECARTS-SERVEUR.md`](docs/ECARTS-SERVEUR.md)) + les trois
   urgences de la complétion (commit `f15b738`).
 
 ## 1.1.5 — banc projet Android réel (31/10/2026, PUBLIÉE v1.1.5)
 
-- **Ajouté** : `bancs/projet-android/` (réplique monip + sources générées,
+- **Ajouté** : `lsp-java/bancs/projet-android/` (réplique monip + sources générées,
   16 AARs/jars réels) et `BancProjetAndroidReelTest` (20 tests — timeline
   appareil rejouée au protocole).
 - **Corrigé** : qualifier imbriqué muet, auto-import muet (devenu

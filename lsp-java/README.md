@@ -10,7 +10,7 @@
 
 | Grandeur | Valeur | Source |
 |---|---|---|
-| Statut | **EN SERVICE** dans CodeIDE — bascule §8.5 signée le 30/10/2026 (checklist 6/6, passe appareil moto g06 18/18 / 0 saut) | `docs/HISTORIQUE-README-RACINE.md` · [gabarit](../docs/GABARIT-BASCULE-APPAREIL.md) |
+| Statut | **EN SERVICE** dans CodeIDE — bascule §8.5 signée le 30/10/2026 (checklist 6/6, passe appareil moto g06 18/18 / 0 saut) | `lsp-java/docs/HISTORIQUE-README-RACINE.md` · [gabarit](../docs/GABARIT-BASCULE-APPAREIL.md) |
 | Version de tête | **1.13.0** (vague V-H — répartiteur au protocole) | `build.gradle.kts` (racine) l. 410 |
 | Dernière version publiée | **1.12.2** (02/11/2026) — `jo.codeide.lsp.java:jo-codeide-lsp-java` sur GitHub Packages | registre de publication, run id 41372554541 |
 | Tests | **959 / 0 échec** (45 gates ignorées avec raison ; banc projet réel exécuté) | PV vague V-H (commit `4724fe9`) — build strict P1–P8 |
@@ -35,7 +35,7 @@ in-process `MoteurJava`.
 **Absents / assumés** : fidélité §10.4 du vendored levée sur
 `references` (ADR 0028 D1, capability versionnée) ; les limites documentées
 sont listées dans [`USAGE.md`](USAGE.md) et
-[`docs/ECARTS-SERVEUR.md`](docs/ECARTS-SERVEUR.md).
+[`lsp-java/docs/ECARTS-SERVEUR.md`](docs/ECARTS-SERVEUR.md).
 
 ## Architecture en 10 lignes
 
@@ -85,12 +85,12 @@ train/éval déterministe ADR 0030) ; banc usages rappel 1,000 / p95 ≤ 51 ms.
 | [`CHANGELOG.md`](CHANGELOG.md) | versions du moteur (1.0.0 → 1.13.0), format Ajouté / Modifié / Corrigé |
 | [`AGENTS.md`](AGENTS.md) | règles propres au LSP Java (clean-room, nommage `Ecj*`/`Jdt*`, pièges) — renvoie au [`AGENTS.md`](../AGENTS.md) racine |
 | [`docs/INDEX.md`](docs/INDEX.md) | index des ADR (0001–0032), du cahier, des études, des journaux et alertes |
-| [`docs/BASCULE-CODEIDE.md`](docs/BASCULE-CODEIDE.md) | procédure de bascule côté client CodeIDE (publication, rails, retour arrière) |
-| [`docs/INTEGRATION-CODEIDE.md`](docs/INTEGRATION-CODEIDE.md) | audit des logs appareil et plan de branchement complet I0–I6 |
-| [`docs/ECARTS-SERVEUR.md`](docs/ECARTS-SERVEUR.md) | inventaire des écarts reportés / non étudiés |
-| [`docs/PROVENANCE-REPRISE.md`](docs/PROVENANCE-REPRISE.md) | manifeste de provenance (reprises contrôlées, registre) |
+| [`lsp-java/docs/BASCULE-CODEIDE.md`](docs/BASCULE-CODEIDE.md) | procédure de bascule côté client CodeIDE (publication, rails, retour arrière) |
+| [`lsp-java/docs/INTEGRATION-CODEIDE.md`](docs/INTEGRATION-CODEIDE.md) | audit des logs appareil et plan de branchement complet I0–I6 |
+| [`lsp-java/docs/ECARTS-SERVEUR.md`](docs/ECARTS-SERVEUR.md) | inventaire des écarts reportés / non étudiés |
+| [`lsp-java/docs/PROVENANCE-REPRISE.md`](docs/PROVENANCE-REPRISE.md) | manifeste de provenance (reprises contrôlées, registre) |
 
-Bancs et baselines : [`bancs/`](bancs/) (corpus, projet Android réel,
-baselines signées `bancs/baselines/completion.json` et
+Bancs et baselines : [`lsp-java/bancs/`](bancs/) (corpus, projet Android réel,
+baselines signées `lsp-java/bancs/baselines/completion.json` et
 `parite-completion.json` — SHA-256 consignés dans
 [`docs/REORGANISATION-AVANT.md`](../docs/REORGANISATION-AVANT.md) §4).

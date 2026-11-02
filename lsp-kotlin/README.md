@@ -12,10 +12,10 @@
 
 | Grandeur | Valeur | Source |
 |---|---|---|
-| Statut | **LIVRÉ, NON BRANCHÉ** — programme étages 0–6+T clos sur preuve mécanique le 31/10/2026 ; aucune bascule CodeIDE (ADR 0136 : la bascule I0–I6 passe AVANT l'extension des capacités — KH16 : sans bascule, toute capacité est invisible) | journaux [`docs/etudes/moteur-kotlin/`](docs/etudes/moteur-kotlin/) · ADR 0136 |
+| Statut | **LIVRÉ, NON BRANCHÉ** — programme étages 0–6+T clos sur preuve mécanique le 31/10/2026 ; aucune bascule CodeIDE (ADR 0136 : la bascule I0–I6 passe AVANT l'extension des capacités — KH16 : sans bascule, toute capacité est invisible) | journaux [`lsp-kotlin/docs/etudes/moteur-kotlin/`](docs/etudes/moteur-kotlin/) · ADR 0136 |
 | Cahier | **469/469 comportements** + 12 cas dorés (53 fiches) | journal 10 §8.4 (CI verte 10/10, run 41165869078) |
 | Tests du module | **522 tests** à la clôture de l'étage 6 (477 + fiches 001/015/018/051 + 7 dorés protocole) | journal étage 6 §9.3 |
-| Version | tête **1.13.0** (unifiée par la fusion du 02/11/2026 — `version.properties`) ; le pack langue n'est **pas publié** (Q-K4 ; bloqueurs P-K1/P-K2 levés le 31/10) | `mesures` · [`docs/etudes/moteur-kotlin/11-decisions-proprio-post-cloture.md`](docs/etudes/moteur-kotlin/11-decisions-proprio-post-cloture.md) |
+| Version | tête **1.13.0** (unifiée par la fusion du 02/11/2026 — `version.properties`) ; le pack langue n'est **pas publié** (Q-K4 ; bloqueurs P-K1/P-K2 levés le 31/10) | `mesures` · [`lsp-kotlin/docs/etudes/moteur-kotlin/11-decisions-proprio-post-cloture.md`](docs/etudes/moteur-kotlin/11-decisions-proprio-post-cloture.md) |
 | Jar du moteur | `kotlin-1.13.0.jar` **991 023 o** (tête ; 990 859 o à la clôture étage 6 ; 892 147 o étage 5) | build local 03/11/2026 · journal étage 6 §9.3 |
 | Budget dex (pile chaude) | **26 590 method_ids / classes.dex 4 294 352 o (4,10 Mo)** — 81 % du plafond 32 768, 68 % du budget 6 Mo ; câble lsp4j NON compté (porté par l'hôte) | CI run 41196064353 · journal étage 6 §9.3 |
 | Qualité complétion | p95 **6,28 ms** (sous la baseline signée 7,53 ms), 0 saut de liste | journal étage 6 §9.3 |
@@ -85,9 +85,9 @@ p95 6,28 ms (baseline signée 7,53 ms).
 | [`CHANGELOG.md`](CHANGELOG.md) | versions du moteur (étages 0–6+T → 1.0.0 → 1.13.0 unifiée) |
 | [`AGENTS.md`](AGENTS.md) | règles propres au LSP Kotlin (voie C, zones interdites R9.1, pièges) — renvoie au [`AGENTS.md`](../AGENTS.md) racine |
 | [`docs/INDEX.md`](docs/INDEX.md) | index des ADR (0100–0136), du cahier, des études et journaux d'étages |
-| [`docs/PROVENANCE-REPRISE-KOTLIN.md`](docs/PROVENANCE-REPRISE-KOTLIN.md) | manifeste de provenance (zones de reprise R1–R8, vendoring, corpus) |
-| [`docs/etudes/moteur-kotlin/DEMANDES-INTERFACE.md`](docs/etudes/moteur-kotlin/DEMANDES-INTERFACE.md) | demandes d'interface Q-K1…Q-K9 (le propriétaire arbitre) |
+| [`lsp-kotlin/docs/PROVENANCE-REPRISE-KOTLIN.md`](docs/PROVENANCE-REPRISE-KOTLIN.md) | manifeste de provenance (zones de reprise R1–R8, vendoring, corpus) |
+| [`lsp-kotlin/docs/etudes/moteur-kotlin/DEMANDES-INTERFACE.md`](docs/etudes/moteur-kotlin/DEMANDES-INTERFACE.md) | demandes d'interface Q-K1…Q-K9 (le propriétaire arbitre) |
 
-Bancs et baselines : [`bancs/`](bancs/) (baselines signées, corpus —
-`corpus-android-kotlin/LISEZMOI.md`) ; module de mesure : [`spike/`](spike/)
+Bancs et baselines : [`lsp-kotlin/bancs/`](bancs/) (baselines signées, corpus —
+`corpus-android-kotlin/LISEZMOI.md`) ; module de mesure : [`lsp-kotlin/spike/`](spike/)
 (tâches désactivées sans `-PspikeKotlin`).

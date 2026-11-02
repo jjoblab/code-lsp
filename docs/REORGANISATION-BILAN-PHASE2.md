@@ -145,6 +145,9 @@ fidélité par un littéral d'ancien chemin (commit 17).
   ecj (3 211 Ko) sont à relever sur ce run pour clore la comparaison.
 - **Tailles de jars moteurs** : `[À COMPLÉTER PAR LE PROPRIÉTAIRE]` dans la
   photographie AVANT §6 — inchangé par la Phase 2 (aucun build modifié).
+  *(Complété le 03/11/2026 : mesures effectuées et consignées en complément
+  daté de l'AVANT §6 — jar Java identique avant/après par CRC, jar Kotlin
+  +2 o de chaîne de version ; invariant CONFIRMÉ.)*
 - **Phase 3** : documentation par LSP (README généraux et par LSP, USAGE
   Kotlin, ARCHITECTURE, CHANGELOG, AGENTS par LSP, INDEX) — hors périmètre
   Phase 2, plan §2.

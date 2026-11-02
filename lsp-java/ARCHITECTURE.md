@@ -77,7 +77,7 @@
 Cibles « niveau Android Studio » arbitrées (ADR 0030 / doctrine D5) :
 complétion < 100 ms p95 perçu, diagnostics < 300 ms, démarrage chaud
 < 3 s — les bancs à baselines signées
-([`bancs/baselines/`](bancs/baselines/)) échouent la CI sur régression
+([`lsp-java/bancs/baselines/`](bancs/baselines/)) échouent la CI sur régression
 (ADR 0016).
 
 ## 5. Décisions structurantes (lecture rapide)

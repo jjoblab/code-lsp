@@ -12,13 +12,13 @@
   uniquement d'**oracle en boîte noire** (exécution en sous-processus,
   comparaison des sorties — banc de parité croisée T).
 - La base de spécification est le **cahier**
-  ([`docs/cahier-specifications/`](docs/cahier-specifications/) — 66 fiches,
+  ([`lsp-java/docs/cahier-specifications/`](docs/cahier-specifications/) — 66 fiches,
   449 comportements extraits des tests de l'ancien moteur) : c'est le
   contrat ; un comportement découvert « en route » qui n'y figure pas est
   **signalé**, pas implémenté en silence.
 - Les reprises contrôlées (socle `:index`, `:model` — vague 1b) sont
   inscrites fichier par fichier au manifeste
-  [`docs/PROVENANCE-REPRISE.md`](docs/PROVENANCE-REPRISE.md) ; `:java`,
+  [`lsp-java/docs/PROVENANCE-REPRISE.md`](docs/PROVENANCE-REPRISE.md) ; `:java`,
   `:testing`, `:ecj-art` sont clean-room intégral (rien à inscrire).
 
 ## Nommons les classes
@@ -37,9 +37,9 @@
    PARTIEL), puis les ADR du domaine concerné — index :
    [`docs/INDEX.md`](docs/INDEX.md).
 3. Le cahier de spécifications (le contrat).
-4. [`docs/etudes/moteur-java-psi/00-synthese.md`](docs/etudes/moteur-java-psi/00-synthese.md)
+4. [`lsp-java/docs/etudes/moteur-java-psi/00-synthese.md`](docs/etudes/moteur-java-psi/00-synthese.md)
    (étude d'architecture D1–D12) et
-   [`docs/etudes/niveau-android-studio/00-synthese.md`](docs/etudes/niveau-android-studio/00-synthese.md)
+   [`lsp-java/docs/etudes/niveau-android-studio/00-synthese.md`](docs/etudes/niveau-android-studio/00-synthese.md)
    (mission « niveau Android Studio », vagues V-A→V-H).
 5. [`USAGE.md`](USAGE.md) — la surface LSP exacte, référence avant toute
    modification de comportement visible du client.
@@ -56,7 +56,7 @@ scripts/verifier-provenance.sh         # aucun fichier hors registre
 - **P1–P8** : propriétés de qualité du cahier (fidélité au compilateur,
   exhaustivité des usages, honnêteté des troncatures…) — le build strict
   les vérifie (règles attestées dans les PV de vagues).
-- Les **baselines signées** (`bancs/baselines/*.json`) ne se re-signent
+- Les **baselines signées** (`lsp-java/bancs/baselines/*.json`) ne se re-signent
   JAMAIS à la légère : re-signature par étape dédiée avec preuve
   d'équivalence et accord du propriétaire (piège P-1 de la réorganisation,
   ADR 0016).
@@ -65,11 +65,11 @@ scripts/verifier-provenance.sh         # aucun fichier hors registre
 
 ## Pièges connus (consignés — les lire avant d'y retomber)
 
-- [`docs/ECARTS-SERVEUR.md`](docs/ECARTS-SERVEUR.md) — écarts reportés /
+- [`lsp-java/docs/ECARTS-SERVEUR.md`](docs/ECARTS-SERVEUR.md) — écarts reportés /
   non étudiés (inventaire demandé par le propriétaire, 31/10/2026).
-- [`docs/etudes/niveau-android-studio/ALERTES.md`](docs/etudes/niveau-android-studio/ALERTES.md)
+- [`lsp-java/docs/etudes/niveau-android-studio/ALERTES.md`](docs/etudes/niveau-android-studio/ALERTES.md)
   et
-  [`docs/etudes/moteur-java-psi/ALERTES.md`](docs/etudes/moteur-java-psi/ALERTES.md)
+  [`lsp-java/docs/etudes/moteur-java-psi/ALERTES.md`](docs/etudes/moteur-java-psi/ALERTES.md)
   — alertes des deux missions (classes de pannes, rate-limit Maven Central,
   faux positifs mesurés).
 - En-têtes de version du `build.gradle.kts` racine (l. 17–408) : chaque
