@@ -52,6 +52,23 @@ classpath:<chemin absolu d'un jar (plateforme, artefact, R.jar, classes Kotlin)>
    — le tas du JVM de test passe alors de 640 Mio à 2 048 Mio (conditionné à
    `CORPUS_ANDROID`, `java/build.gradle.kts`).
 
+> **Passe complémentaire SANS build (02/11) — diagnostic du repli lexical
+> avant build** : `scripts/ask-export.init.gradle` (tâche `exportClasspathAsk
+> -PsortieAsk=<dir>`, générique) résout la copie `debugCompileClasspath` de
+> chaque module avec les dépendances projet SUBSTITUÉES par un module « void »
+> local — AUCUN build de projet (ni javac ni CMake), donc AUCUNE classe
+> `built_in_kotlinc` : les sources fraternelles couvrent les dépendances projet
+> via les `racine:`, et le REPLI lexical Kotlin (ADR 0022) est exercé TEL QUEL
+> — c'est cette passe qui a exposé la `open class` synthétisée finale
+> (correctif v1.12.2), invisible du montage canonique qui fournit les classes
+> compilées. `scripts/preparer-manifeste-ask.sh` (déclinaison AnySoftKeyboard)
+> assemble le manifeste : android.jar, R.jar debug (`generateDebugRFile` +
+> `:ime:app:processDebugResources`, plus `:ime:app:generateDebugBuildConfig`
+> après coup), AAR réduits à leur classes.jar sous `prepares/ask-libs/`, et
+> racines générées remontées au répertoire CONTENANT l'arbre de paquets (la
+> déclaration `package` du fichier fait foi). PV :
+> mesures/2026-11-02-va2-complement-repli-lexical.txt.
+
 > **Note d'honnêteté (R5)** : le manifeste dépend du SDK/Gradle locaux ; il n'est
 > pas committé. Tant qu'il n'existe pas, la gate corpus s'ignore **avec la raison
 > affichée** (`assumeTrue`) — jamais un vert silencieux. La métrique FP/1 000 lignes

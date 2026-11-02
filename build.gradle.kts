@@ -352,6 +352,23 @@ plugins {
 // tests java / 0 échec dont 4 repros appareil (rafale + invocations ×3
 // à la même ancre + diagnose concurrente + jar dupliqué + android.jar
 // réel 43 Mo — invocations 1-3 à 92/118/67 ms), §7.28 USAGE à jour.
+// 1.12.2 : CORRECTIF INTEROP KOTLIN, REPLI LEXICAL AVANT BUILD
+// (complément V-A2 — primeSurJars règle l'APRÈS-build, pas le repli) —
+// une `open class` Kotlin était synthétisée FINALE : toute classe Java
+// l'étendant recevait « cannot subclass the final class » (cas réel du
+// corpus AnySoftKeyboard : PackBroadcastReceiverBase, addons/base —
+// masqué par le montage V-A2 qui fournit built_in_kotlinc, exposé par
+// une passe de préparation SANS classes compilées). DeclarationsKotlin
+// capte désormais le mot-clé et les modificateurs (open/abstract/
+// sealed/data/value) : finale PAR DÉFAUT (sémantique Kotlin), SAUF
+// open/abstract/sealed pour une class ; une interface n'est jamais
+// marquée (ACC_FINAL y est sans objet) ; object/enum class et facades
+// restent finales. Limite documentée (ADR 0022 complément 02/11) : les
+// MEMBRES d'object/class Kotlin restent hors du scanner lexical
+// top-level (jamais un type inventé). Validation : DeclarationsKotlin-
+// Test au vert dont 2 régressions nouvelles (héritage Java depuis open
+// class accepté / classe non ouverte refusée — fidélité conservée),
+// régressions jar-prime de V-A2 inchangées.
 allprojects {
-    version = "1.12.1"
+    version = "1.12.2"
 }

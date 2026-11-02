@@ -54,6 +54,10 @@ public class DeclarationsKotlin(
         val genre: Genre,
         val fichier: Path,
         val offsetNom: Int,
+        /** Mot-clé de déclaration : class, interface, object, enum class. */
+        val motsCles: String = "class",
+        /** Modificateurs captés (abstract, sealed, open, data, value…). */
+        val modificateurs: List<String> = emptyList(),
         /** Pour les fonctions : (nom, descripteur). */
         val methodes: MutableList<Pair<String, String>> = mutableListOf(),
     )
@@ -81,7 +85,21 @@ public class DeclarationsKotlin(
         octetsParFqcn[fqcn]?.let { return it }
         val declaration = scanner()[fqcn] ?: return null
         val ecrivain = EcrivainClasseLegere.pour(fqcn)
-        ecrivain.finale()
+        // Finale par défaut en Kotlin — SAUF `open`/`abstract`/`sealed`
+        // (divergence exposée par le corpus réel V-A2 : une classe Java
+        // héritant d'une `open class` Kotlin était refusée comme « cannot
+        // subclass the final class » — G-001/G-005). Les `object`/`enum
+        // class` et les facades restent finales ; une `interface` n'est
+        // jamais marquée (ACC_FINAL y est sans objet).
+        val finale = when {
+            declaration.genre == Genre.FACADE -> true
+            declaration.motsCles == "interface" -> false
+            "open" in declaration.modificateurs ||
+                "abstract" in declaration.modificateurs ||
+                "sealed" in declaration.modificateurs -> false
+            else -> true // class, object, enum class : finale par défaut en Kotlin
+        }
+        if (finale) ecrivain.finale()
         if (declaration.genre == Genre.FACADE) {
             // Facade : jamais instanciable (constructeur privé).
             ecrivain.constructeurPrive()
@@ -192,10 +210,19 @@ public class DeclarationsKotlin(
 
             // Types de premier niveau.
             MOTIF_TYPE.find(ligne)?.let { correspondance ->
-                val nomType = correspondance.groupValues[2]
+                val nomType = correspondance.groupValues[3]
                 if (nomType.isValidJavaIdentifier()) {
                     val offset = texte.indexOfSegment(lignes, ligne, nomType)
-                    resultat["$paquet.$nomType"] = Declaration(paquet, nomType, Genre.TYPE, fichier, offset)
+                    resultat["$paquet.$nomType"] = Declaration(
+                        paquet,
+                        nomType,
+                        Genre.TYPE,
+                        fichier,
+                        offset,
+                        motsCles = correspondance.groupValues[2],
+                        modificateurs = correspondance.groupValues[1]
+                            .trim().split(Regex("\\s+")).filter { it.isNotEmpty() },
+                    )
                 }
                 continue
             }
@@ -331,7 +358,7 @@ public class DeclarationsKotlin(
         private val MOTIF_PACKAGE = Regex("""^\s*package\s+([\w.]+)""")
         private val MOTIF_JVM_NAME = Regex("""@file:JvmName\("([^"]+)"""")
         private val MOTIF_TYPE = Regex(
-            """^(?:public\s+)?(?:abstract\s+|sealed\s+|open\s+|data\s+|value\s+)*(class|interface|object|enum class)\s+([A-Za-z_]\w*)""",
+            """^(?:public\s+)?((?:(?:abstract|sealed|open|data|value)\s+)*)(class|interface|object|enum class)\s+([A-Za-z_]\w*)""",
         )
         private val MOTIF_FONCTION = Regex("""^(?:@\w+(?:\([^)]*\))?\s*)*(?:public\s+|inline\s+|suspend\s+)*fun\s+(?:<[^>]+>\s*)?([A-Za-z_]\w*)\s*\(""")
         private val MOTIF_PROPRIETE = Regex("""^(?:@\w+\s*)*(?:public\s+)*(val|var)\s+([A-Za-z_]\w*)\s*(?::\s*([^.=\s][^={]*))?""")

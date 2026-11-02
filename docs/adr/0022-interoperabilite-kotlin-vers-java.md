@@ -124,3 +124,26 @@ V-B3 — comportement inchangé pour lui). Régression :
 `DeclarationsKotlinTest` « la classe light kotlin cede aux jars du classpath ».
 Détail chiffré : `mesures/2026-11-01-va2-corpus-reel.txt`, rapport
 `08-rapport-divergences-ecj-javac.md` §5.
+
+## Complément (02/11/2026) — `open class` sur le repli lexical (avant build)
+
+L'amendement V-A2 règle l'APRÈS-build (la light cède aux jars) ; le REPLI
+lexical lui-même était fautif sur la finalité : `DeclarationsKotlin`
+synthétisait TOUTE classe finale, modificateurs captés mais jetés — une
+classe Java héritant d'une `open class` Kotlin recevait « cannot subclass
+the final class » (cas réel : `PackBroadcastReceiverBase`, addons/base du
+corpus ; masqué par le montage V-A2 qui fournit `built_in_kotlinc`, exposé
+par une passe de préparation sans classes compilées). La `Declaration`
+porte désormais le mot-clé et les modificateurs : finale **par défaut**
+(sémantique Kotlin), SAUF `open`/`abstract`/`sealed` (les membres d'un
+`sealed` Java-side restent légaux tant que `PermittedSubclasses` n'est pas
+émis) ; une `interface` n'est jamais marquée ; `object`/`enum class` et
+facades restent finales. Deux régressions verrouillent les deux sens
+(héritage Java depuis `open class` accepté / classe non ouverte refusée).
+
+Limite inchangée, confirmée par la même passe : les MEMBRES d'`object`/
+`class` Kotlin (cas réel : `ThemeAttributeKeyCodes.getKeyCodeForIconTheme-
+Attribute`, `@JvmStatic`) restent hors du scanner lexical top-level —
+l'extraction des corps indentés exigerait un mini-front-end ; jamais un
+type inventé en attendant. Détail chiffré :
+`mesures/2026-11-02-va2-complement-repli-lexical.txt`.

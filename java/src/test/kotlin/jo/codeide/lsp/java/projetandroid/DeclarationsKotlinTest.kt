@@ -28,6 +28,52 @@ class DeclarationsKotlinTest {
     }
 
     @Test
+    fun `l heritage java depuis une open class kotlin est accepte - regression corpus V-A2`() {
+        val moteur = MoteurJava(listOf(MIXTE), emptyList(), null, "17", null, null, null)
+        // `open class BaseOuverte` : le Java DOIT pouvoir hériter (le corpus
+        // réel V-A2 exposait « cannot subclass the final class
+        // PackBroadcastReceiverBase » sur la base `open` Kotlin).
+        val source = """
+            package demo;
+
+            public class ConsommateurOuvert extends BaseOuverte {
+                @Override
+                public String accueil() { return "derive"; }
+            }
+
+            public class ConsommateurAbstrait extends BaseAbstraite {
+                @Override
+                public int calcul() { return 2; }
+            }
+        """.trimIndent()
+        val erreurs = moteur.diagnose("/demo/ConsommateurOuvert.java", source)
+            .filter { it.severite == Severite.ERREUR }
+        assertTrue(
+            erreurs.none { erreur -> erreur.message.contains("final class") },
+            "open/abstract class Kotlin : héritage Java accepté — erreurs réelles : $erreurs",
+        )
+    }
+
+    @Test
+    fun `l heritage java depuis une classe kotlin non ouverte reste refuse`() {
+        val moteur = MoteurJava(listOf(MIXTE), emptyList(), null, "17", null, null, null)
+        // `class FermeeParDefaut` : finale par défaut en Kotlin — fidélité
+        // conservée (l'assouplissement `open` ne doit PAS ouvrir tout).
+        val source = """
+            package demo;
+
+            public class ContreExemple extends FermeeParDefaut {
+            }
+        """.trimIndent()
+        val erreurs = moteur.diagnose("/demo/ContreExemple.java", source)
+            .filter { it.severite == Severite.ERREUR }
+        assertTrue(
+            erreurs.any { erreur -> erreur.message.contains("final class") },
+            "classe Kotlin non ouverte : héritage refusé (final par défaut)",
+        )
+    }
+
+    @Test
     fun `les declarations publiques kotlin resolvent depuis java avant build`() {
         val moteur = MoteurJava(listOf(MIXTE), emptyList(), null, "17", null, null, null)
         val source = """

@@ -1,0 +1,99 @@
+// ask-export.init.gradle — EXPORT du classpath externe de debug pour le corpus
+// AnySoftKeyboard (V-A2, ADR 0030). Usage LOCAL, jamais committé dans le corpus :
+//
+//   ./gradlew --init-script scripts/ask-export.init.gradle exportClasspathAsk \
+//             -PsortieAsk=<repertoire>
+//
+// Principe (règle R5 — honnêteté sur la préparation) :
+//  - les dépendances PROJET sont SUBSTITUÉES par un module « void » local
+//    (jar vide servi par un dépôt fichier sous GRADLE_USER_HOME) : la
+//    résolution ne déclenche AUCUNE tâche de build des modules du corpus
+//    (pas de javac, pas de CMake/NDK) ;
+//  - chaque module résout sa copie de debugCompileClasspath (attributs AGP
+//    conservés → les artefacts AAR sortent TRANSFORMÉS en jars de classes,
+//    exactement ce que javac consomme) ;
+//  - l'union des artefacts + l'union des src/main/java sont écrites dans
+//    <sortie>/{artefacts.txt,externes.txt,racines.txt}.
+import org.gradle.api.artifacts.component.ModuleComponentIdentifier
+import org.gradle.api.artifacts.component.ProjectComponentSelector
+
+def VOID = 'com.bac.void:void:1.0'
+
+// 0. Dépôt fichier local portant le module void (créé s'il manque).
+def depotVoid = new File(gradle.gradleUserHomeDir, 'ask-void-repo')
+def jarVide = new File(depotVoid, 'com/bac/void/void/1.0/void-1.0.jar')
+if (!jarVide.exists()) {
+    jarVide.getParentFile().mkdirs()
+    new java.util.zip.ZipOutputStream(new java.io.FileOutputStream(jarVide)).withCloseable { }
+    new File(depotVoid, 'com/bac/void/void/1.0/void-1.0.pom').text =
+        '''<project xmlns="http://maven.apache.org/POM/4.0.0">''' +
+        '''<modelVersion>4.0.0</modelVersion><groupId>com.bac.void</groupId>''' +
+        '''<artifactId>void</artifactId><version>1.0</version><packaging>jar</packaging></project>'''
+}
+allprojects {
+    repositories {
+        maven { url = depotVoid.toURI() }
+    }
+}
+
+gradle.projectsLoaded {
+    def racineP = gradle.rootProject
+    racineP.tasks.register('exportClasspathAsk') {
+        doLast {
+            def sortieDir = racineP.hasProperty('sortieAsk')
+                ? racineP.property('sortieAsk').toString()
+                : '/tmp/ask-export'
+            def sortie = new File(sortieDir)
+            sortie.mkdirs()
+            def fGav = new PrintWriter(new FileWriter(new File(sortie, 'externes.txt')))
+            def fArt = new PrintWriter(new FileWriter(new File(sortie, 'artefacts.txt')))
+            def fRac = new PrintWriter(new FileWriter(new File(sortie, 'racines.txt')))
+            try {
+                def artefactsVus = new LinkedHashSet<File>()
+                racineP.allprojects { p ->
+                    def c = p.configurations.findByName('debugCompileClasspath')
+                    if (c == null) return
+                    def copie = c.copyRecursive()
+                    copie.setCanBeResolved(true)
+                    copie.resolutionStrategy.dependencySubstitution(
+                        new org.gradle.api.Action<org.gradle.api.artifacts.DependencySubstitutions>() {
+                            void execute(org.gradle.api.artifacts.DependencySubstitutions subs) {
+                                subs.all(
+                                    new org.gradle.api.Action<org.gradle.api.artifacts.DependencySubstitution>() {
+                                        void execute(org.gradle.api.artifacts.DependencySubstitution sub) {
+                                            if (sub.requested instanceof ProjectComponentSelector) {
+                                                sub.useTarget(VOID)
+                                            }
+                                        }
+                                    })
+                            }
+                        })
+                    try {
+                        copie.resolve().each { f ->
+                            if (f.name != 'void-1.0.jar' && artefactsVus.add(f)) {
+                                fArt.println(f.absolutePath)
+                            }
+                        }
+                        copie.incoming.resolutionResult.allComponents { comp ->
+                            if (comp.id instanceof ModuleComponentIdentifier &&
+                                comp.id.group != 'com.bac.void') {
+                                fGav.println("${comp.id.group}:${comp.id.module}:${comp.id.version}\t${p.path}")
+                            }
+                        }
+                    } catch (Throwable t) {
+                        println "[ask-export] ÉCHEC ${p.path} : ${String.valueOf(t.message).take(300)}"
+                    }
+                }
+                racineP.allprojects { p ->
+                    def src = new File(p.projectDir, 'src/main/java')
+                    if (src.isDirectory()) {
+                        fRac.println("${p.path}\t${src.absolutePath}")
+                    }
+                }
+            } finally {
+                fGav.close(); fArt.close(); fRac.close()
+            }
+            println "[ask-export] export écrit dans ${sortie}"
+        }
+    }
+}

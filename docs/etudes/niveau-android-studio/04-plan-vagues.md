@@ -141,6 +141,17 @@ complètent la couverture.
 >   agent au lieu des 18–30 j-h estimés — la fourchette initiale du plan
 >   était calibrée sur un périmètre incluant l'incrémentalité structurelle,
 >   reportée ; les vagues suivantes gardent leurs estimations.
+>
+> **Complément V-A2 (02/11) — le repli lexical exercé sans classes
+> compilées** : une passe de préparation du corpus SANS `built_in_kotlinc`
+> (dépendances projet substituées, aucun build déclenché) a exposé ce que
+> le montage canonique masque : le REPLI lexical de l'ADR 0022 synthétisait
+> toute classe Kotlin FINALE — héritage Java depuis une `open class` refusé
+> (cas réel : `PackBroadcastReceiverBase`). Correctif **v1.12.2** + 2
+> régressions (ADR 0022 complément) ; sur cette passe, FP/1 000 lignes
+> mesuré 0,843 → 0,0444 (anysoftkeyboard, 150 fichiers/22 535 lignes, le
+> restant = limite documentée des MEMBRES d'object Kotlin, confirmée).
+> Détail : mesures/2026-11-02-va2-complement-repli-lexical.txt.
 
 - **Périmètre** : exécution du banc P1–P8 sur corpus → correction des faux positifs
   et incohérences : pipeline unifié + re-validation du report rapide (ADR 0025),
