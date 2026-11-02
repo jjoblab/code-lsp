@@ -3,7 +3,7 @@
 > Ce guide décrit l'utilisation du serveur de langage Java de CodeIDE
 > livré par le programme de réécriture N1–N8 (`lsp-java/docs/PLAN-REECRITURE.md` §4).
 > Il complète le [`README.md`](README.md) (état du programme, décisions) et
-> les ADR (`docs/adr/`) — en cas de divergence, le code et le cahier de
+> les ADR (`lsp-java/docs/adr/`) — en cas de divergence, le code et le cahier de
 > spécifications (`lsp-java/docs/cahier-specifications/`) font foi.
 
 **Sommaire**
