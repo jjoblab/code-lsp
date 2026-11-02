@@ -20,12 +20,12 @@ Décisions actées par le propriétaire le 28/10/2026 :
 | Convention de nommage : préfixes `Ecj*`/`Jdt*` réservés aux classes dérivant réellement d'ECJ/JDT | ADR 0002 (point 5) |
 
 Décisions sur le programme de réécriture, actées par le propriétaire le
-28/10/2026 en séance (`docs/PLAN-REECRITURE.md` §10) :
+28/10/2026 en séance (`lsp-java/docs/PLAN-REECRITURE.md` §10) :
 
 - **Fourchette 160–270 j-h (médiane 213) approuvée** comme enveloppe de
   planification — engagement contractuel **borné à N1 + banc de parité
   croisé**, décision de suite re-soumise au recalage de fin N1 ;
-- **mesure sur appareil = porte d'entrée bloquante de N1** (`spike/appareil/`)
+- **mesure sur appareil = porte d'entrée bloquante de N1** (`lsp-java/spike/appareil/`)
   : aucune implémentation du noyau avant retour du gabarit rempli ;
 - **séquence confirmée** : N1 → (N2, N3, N7) → (N4, N5, N6) → N8 ;
 - **écart moteur de la fiche 054 reproduit en parité stricte** — correction
@@ -34,7 +34,7 @@ Décisions sur le programme de réécriture, actées par le propriétaire le
 Le moteur est réécrit de zéro : **aucun code** du moteur vendored de
 `codeide-lsp` n'est repris (ni production, ni tests). La base contractuelle
 de la réécriture est le **cahier de spécifications** extrait des 449 tests
-de l'ancien moteur (`docs/cahier-specifications/` — **livré en vague 1a** :
+de l'ancien moteur (`lsp-java/docs/cahier-specifications/` — **livré en vague 1a** :
 65 fiches, 449 comportements).
 
 **Vague 1b (28/10/2026) — premières reprises contrôlées effectuées** :
@@ -97,7 +97,7 @@ diagnostic / 044 règles d'or sur android.jar réel / 050 kinds LSP / 053
 composition didChange→complétion) — build complet **344 tests, 0 échec,
 1 ignoré** (gate appareil). **Banc qualité en CI bloquante**
 (`:java:benchQualite`, ADR 0016) : corpus versionné 18 positions, baseline
-JSON signée `bancs/baselines/completion.json` — **recall 1,000, top-1
+JSON signée `lsp-java/bancs/baselines/completion.json` — **recall 1,000, top-1
 1,000, MRR 1,000** (chaîne naïve : 0,611 / 0,715 — **+38,9 pts top-1,
 +28,5 pts MRR**, ADR 0012 validée), zéro saut de liste, p95 31 ms.
 **Gates requalifiées en CI** (décision propriétaire) : android.jar API 34
@@ -112,24 +112,25 @@ hiérarchie non balayée par `availableMethods` d'ecj, internes
 
 | Chemin | Rôle |
 |---|---|
-| `docs/etudes/moteur-java-psi/` | étude d'architecture IntelliJ PSI (D1–D12), synthèse, mesures du spike, alertes, annexes |
+| `lsp-java/docs/etudes/moteur-java-psi/` | étude d'architecture IntelliJ PSI (D1–D12), synthèse, mesures du spike, alertes, annexes |
 | `docs/adr/` | ADR 0001–0018 (décisions d'architecture, statuts à jour) |
-| `docs/cahier-specifications/` | cahier des comportements attendus (extraction clean-room des 449 tests) — le contrat de la réécriture |
-| `docs/PLAN-REECRITURE.md` | **programme de réécriture chiffré** (étages N1–N8+T, fourchette 160–270 j-h) — **approuvé le 28/10/2026** (engagement borné N1 + banc croisé) ; recalages 1 et 2 exécutés le 29/10 |
-| `docs/RECALAGE-1.md` | **recalage de fin N1 (§8.2)** — vélocité mesurée, re-projection N2–N8, décision de suite soumise au propriétaire |
-| `docs/RECALAGE-2.md` | **recalage de fin N2 (§8.2 — dernier recalage prévu)** — confiance N3–N8 re-évaluée sur les deux étages extrêmes de l'abaque, re-projection 5–8 séances effectives, décision de suite soumise |
-| `bancs/baselines/` | **baselines JSON signées des bancs qualité** (ADR 0016 — `completion.json` : complétion N2 ; `parite-completion.json` : parité croisée T ; re-baseline par PR dédiée) |
-| `bancs/GABARIT-BASCULE-APPAREIL.md` | **gabarit de passe bascule sur appareil REMPLI ET SIGNÉ le 30/10/2026** (étage T §8.5 — passe moto g06 : 18/18, 0 saut ; R5 : valeurs réelles, jamais simulées) ; [`bancs/resultats-bascule.txt`](bancs/resultats-bascule.txt) : transcript brut ; [`bancs/ANALYSE-DELTAS-BASCULE.md`](bancs/ANALYSE-DELTAS-BASCULE.md) : arbitrage des 165 deltas (103 bruit / 62 assumées / 0 à rattraper) |
-| `docs/BASCULE-CODEIDE.md` | **procédure de mise en œuvre de la bascule côté client CodeIDE** (substitution composite ADR 0015 — DEV composite / production GitHub Packages : publication **EFFECTUÉE le 30/10 au soir** — tag `v1.0.0`, workflow vert (run `40942576172`), `jo.codeide.lsp.java:jo-codeide-lsp-java:1.0.0` + compagnon `jo-codeide-lsp-java-ecj-art` vérifiés sur `maven.pkg.github.com/jjoblab/code-lsp` ; rails consommateurs poussés dans `CodeIDE` (`8450bb7`) ; chaînon hôte mesuré : 3–6 j-h, décision au propriétaire ; retour arrière 1 ligne) |
-| `docs/INTEGRATION-CODEIDE.md` | **audit des logs appareil et plan du branchement complet du moteur neuf dans CodeIDE** (objectif propriétaire du 30/10 : « intégration complète, tout connecté, cohérent » — 4 écarts E1–E4 relevés sur CodeIDE 0.202.0/moto g06 : go-to vers sources générées, source décompilée avant session prête, churn de 10 sessions en 1,4 s + pression mémoire ; chaînon restant `:lsp:host` détaillé, arbitrage A/B au propriétaire, plan I0–I6 et critères d'acceptation) — le moteur vendored de `codeide-lsp` est archivé le même jour (ADR 0233, commit `bc11253`) |
-| `docs/PROVENANCE-REPRISE.md` | manifeste de reprise sélective (règle R9 — registre des copies autorisées) |
-| `spike/` | bancs de mesure V1/V2/V3, scanner de compatibilité ART, gabarit appareil |
-| `java/` | **moteur Java LSP réécrit — étages N1–N8 INTÉGRALEMENT LIVRÉS** (noyau compilateur & environnement, complétion & classement avec échelle de variantes, hover/inlay/signatures, navigation & usages, rename v2, actions de code ModCommand, confort éditeur, cycle de vie LSP & protocole riche lsp4j ; bancs `:java:bench` / `:java:benchQualite` / `:java:benchUsages` / `:java:benchParite`) |
-| `USAGE.md` | **guide d'utilisation du serveur `lspjava`** — démarrage LSP, cycle de vie, chaque fonctionnalité avec exemples de requêtes/réponses, capability maison, extensions expérimentales, API in-process du moteur |
-| `testing/` | suite d'intégration moteur ↔ index CIDX — **réécrite en Kotlin neuf à l'étage N1** (adaptateur `IndexNoms` + 4 tests) |
-| `index/` | index disque CIDX — **repris contrôlé vague 1b** (17 f. main + 15 f. test + banc) |
-| `model/` | modèle de projet LSP + types du protocole réécrits — **repris contrôlé vague 1b** (6 f. main + 5 f. test + code neuf) |
-| `ecj-art/` | patcheur build-time d'ecj pour ART — **réécriture Kotlin clean-room vague 1c** (scanner, patcheur, shims, liste versionnée) |
+| `lsp-java/docs/cahier-specifications/` | cahier des comportements attendus (extraction clean-room des 449 tests) — le contrat de la réécriture |
+| `lsp-java/docs/PLAN-REECRITURE.md` | **programme de réécriture chiffré** (étages N1–N8+T, fourchette 160–270 j-h) — **approuvé le 28/10/2026** (engagement borné N1 + banc croisé) ; recalages 1 et 2 exécutés le 29/10 |
+| `lsp-java/docs/RECALAGE-1.md` | **recalage de fin N1 (§8.2)** — vélocité mesurée, re-projection N2–N8, décision de suite soumise au propriétaire |
+| `lsp-java/docs/RECALAGE-2.md` | **recalage de fin N2 (§8.2 — dernier recalage prévu)** — confiance N3–N8 re-évaluée sur les deux étages extrêmes de l'abaque, re-projection 5–8 séances effectives, décision de suite soumise |
+| `lsp-java/bancs/baselines/` | **baselines JSON signées des bancs qualité** (ADR 0016 — `completion.json` : complétion N2 ; `parite-completion.json` : parité croisée T ; re-baseline par PR dédiée) |
+| `docs/GABARIT-BASCULE-APPAREIL.md` | **gabarit de passe bascule sur appareil REMPLI ET SIGNÉ le 30/10/2026** (étage T §8.5 — passe moto g06 : 18/18, 0 saut ; R5 : valeurs réelles, jamais simulées) ; [`lsp-java/bancs/resultats-bascule.txt`](lsp-java/bancs/resultats-bascule.txt) : transcript brut ; [`lsp-java/bancs/ANALYSE-DELTAS-BASCULE.md`](lsp-java/bancs/ANALYSE-DELTAS-BASCULE.md) : arbitrage des 165 deltas (103 bruit / 62 assumées / 0 à rattraper) |
+| `lsp-java/docs/BASCULE-CODEIDE.md` | **procédure de mise en œuvre de la bascule côté client CodeIDE** (substitution composite ADR 0015 — DEV composite / production GitHub Packages : publication **EFFECTUÉE le 30/10 au soir** — tag `v1.0.0`, workflow vert (run `40942576172`), `jo.codeide.lsp.java:jo-codeide-lsp-java:1.0.0` + compagnon `jo-codeide-lsp-java-ecj-art` vérifiés sur `maven.pkg.github.com/jjoblab/code-lsp` ; rails consommateurs poussés dans `CodeIDE` (`8450bb7`) ; chaînon hôte mesuré : 3–6 j-h, décision au propriétaire ; retour arrière 1 ligne) |
+| `lsp-java/docs/INTEGRATION-CODEIDE.md` | **audit des logs appareil et plan du branchement complet du moteur neuf dans CodeIDE** (objectif propriétaire du 30/10 : « intégration complète, tout connecté, cohérent » — 4 écarts E1–E4 relevés sur CodeIDE 0.202.0/moto g06 : go-to vers sources générées, source décompilée avant session prête, churn de 10 sessions en 1,4 s + pression mémoire ; chaînon restant `:lsp:host` détaillé, arbitrage A/B au propriétaire, plan I0–I6 et critères d'acceptation) — le moteur vendored de `codeide-lsp` est archivé le même jour (ADR 0233, commit `bc11253`) |
+| `lsp-java/docs/PROVENANCE-REPRISE.md` | manifeste de reprise sélective (règle R9 — registre des copies autorisées) |
+| `lsp-java/spike/` | bancs de mesure V1/V2/V3, scanner de compatibilité ART, gabarit appareil |
+| `lsp-java/moteur/` | **moteur Java LSP réécrit — étages N1–N8 INTÉGRALEMENT LIVRÉS** (noyau compilateur & environnement, complétion & classement avec échelle de variantes, hover/inlay/signatures, navigation & usages, rename v2, actions de code ModCommand, confort éditeur, cycle de vie LSP & protocole riche lsp4j ; bancs `:java:bench` / `:java:benchQualite` / `:java:benchUsages` / `:java:benchParite`) |
+| `lsp-kotlin/moteur/` | **moteur Kotlin LSP — réécriture voie C (ADR 0100 acceptée, branche `etude/moteur-kotlin`)** : étage 0 CLOS (grammaire officielle vendorée par ré-obtention amont, suite de parité, CI dex/scan/seuils) ; étage 1 ENGAGÉ — vagues 1a/1b/1c LIVRÉES (façade `Kt*` fiche 013 13/13 ; session documents fiches 049 26/26 + 042 4/4, SPI zone `api/` ; scan projet paresseux fiche 041 15/15 — suite 72 tests verts) ; journal `lsp-kotlin/docs/etudes/moteur-kotlin/04-execution-etage1.md` |
+| `lsp-java/USAGE.md` | **guide d'utilisation du serveur `lspjava`** — démarrage LSP, cycle de vie, chaque fonctionnalité avec exemples de requêtes/réponses, capability maison, extensions expérimentales, API in-process du moteur |
+| `socle/testing/` | suite d'intégration moteur ↔ index CIDX — **réécrite en Kotlin neuf à l'étage N1** (adaptateur `IndexNoms` + 4 tests) |
+| `socle/index/` | index disque CIDX — **repris contrôlé vague 1b** (17 f. main + 15 f. test + banc) |
+| `socle/model/` | modèle de projet LSP + types du protocole réécrits — **repris contrôlé vague 1b** (6 f. main + 5 f. test + code neuf) |
+| `socle/ecj-art/` | patcheur build-time d'ecj pour ART — **réécriture Kotlin clean-room vague 1c** (scanner, patcheur, shims, liste versionnée) |
 | `scripts/` | vérifications obligatoires (`verifier-push.sh`, `verifier-provenance.sh`) |
 | `.githooks/` | crochet `pre-push` d'identité jjoblab (activation : `git config core.hooksPath .githooks`) |
 | `.github/workflows/` | CI (build + contrôles de provenance) et publication (`publish.yml` : tag `v*`, build de vérification puis `publish` vers GitHub Packages) |
@@ -181,12 +182,12 @@ dormantes ne le sont plus) et le contrôle « anti-fichier-hors-registre ».
   à l'étage N1) ; ~~réécriture Kotlin du patcheur `ecj-art`~~ ✓ (1c —
   12 fichiers neufs, 36 tests, jar ART re-scanné vierge) ;
   ~~ré-estimation du programme de réécriture cahier en main~~ ✓ (1d —
-  **`docs/PLAN-REECRITURE.md`** : 160–270 j-h, médiane 213, étages
+  **`lsp-java/docs/PLAN-REECRITURE.md`** : 160–270 j-h, médiane 213, étages
   N1–N8+T, **approuvée le 28/10/2026 en séance** — §10 du plan : enveloppe
   approuvée, engagement borné N1 + banc croisé).
 - **Mesure sur appareil (porte d'entrée de N1, décision §10.2) — RETOURNÉE
   le 28/10/2026** : passe 14:33 (heure appareil) sur moto g06 / Android 15 /
-  OpenJDK 17.0.19 (aarch64) — `spike/appareil/GABARIT-RESULTATS.md` rempli +
+  OpenJDK 17.0.19 (aarch64) — `lsp-java/spike/appareil/GABARIT-RESULTATS.md` rempli +
   transcript brut (commit 3c7158d), valeurs consignées telles quelles (R5).
   Passe sur JVM (Termux) — ART non testé (vague « spike ART ») ;
   compléments §5 non réalisés (optionnels).
@@ -194,7 +195,7 @@ dormantes ne le sont plus) et le contrôle « anti-fichier-hors-registre ».
   (25 fiches couvertes, 128 tests noyau + 4 intégration, `:testing` réécrite,
   banc empreinte/latence en CI — détail en tête de page).
 - **Recalage 1 (fin N1, §8.2) — SOUMIS le 29/10/2026** : ~~vélocité mesurée,
-  re-projection N2–N8~~ ✓ (`docs/RECALAGE-1.md`) — N1 livré en 1 séance
+  re-projection N2–N8~~ ✓ (`lsp-java/docs/RECALAGE-1.md`) — N1 livré en 1 séance
   continue (~6 h agent) ; densités mesurées sous le postulat (34,3 l. prod /
   comportement) ; projection N2–N8+T : **6–9 séances effectives** en
   exécution agent, fourchette humaine 160–270 j-h maintenue (R5) ;
@@ -207,7 +208,7 @@ dormantes ne le sont plus) et le contrôle « anti-fichier-hors-registre ».
   baseline, zéro saut ; gates Android requalifiées en CI — détail en tête
   de page).
 - **Recalage 2 (fin N2, §8.2 — dernier recalage prévu) — SOUMIS le
-  29/10/2026** : ~~confiance N3–N8 re-évaluée~~ ✓ (`docs/RECALAGE-2.md`) —
+  29/10/2026** : ~~confiance N3–N8 re-évaluée~~ ✓ (`lsp-java/docs/RECALAGE-2.md`) —
   N2 livré en 3 h 01 d'horloge (trois segments de séance, dont une reprise
   après compression de contexte — sans perte) contre 6 h 05 pour N1 ; densité prod **47,6 l./comp.,
   DANS le postulat 40–62** (l'étage design est plus dense, comme postulé) ;
@@ -228,14 +229,14 @@ dormantes ne le sont plus) et le contrôle « anti-fichier-hors-registre ».
 - **Étage T — banc de parité croisé LIVRÉ le 29/10/2026** : le même corpus
   (completion-n2 v1 — 18 positions + 4 frappes) est rejoué contre le
   **vendored en oracle boîte noire** (jar `codeide-lsp@cb809e14` construit
-  épinglé par `scripts/preparer-oracle.sh`, exécuté en sous-processus JVM
+  épinglé par `lsp-java/scripts/preparer-oracle.sh`, exécuté en sous-processus JVM
   isolé via `DriverOracle`) et le moteur neuf (in-process) ; la baseline
-  **`bancs/baselines/parite-completion.json`** est signée (couverture cahier
+  **`lsp-java/bancs/baselines/parite-completion.json`** est signée (couverture cahier
   1.000/1.000 ; 165 deltas bruts documentés pour l'arbitrage de bascule) ;
   la CI **échoue** sur régression (job `banc-parite` : couverture cahier en
   baisse, libellé perdu, dérive de l'oracle). Le **gabarit de passe bascule
-  sur appareil** (§8.5 — `bancs/GABARIT-BASCULE-APPAREIL.md` + kit
-  `scripts/kit-bascule.sh`) est fourni : la mesure sur appareil et la
+  sur appareil** (§8.5 — `docs/GABARIT-BASCULE-APPAREIL.md` + kit
+  `lsp-java/scripts/kit-bascule.sh`) est fourni : la mesure sur appareil et la
   décision de bascule reviennent au propriétaire (R5 : jamais simulées).
 - **Étage T — volet documentation LIVRÉ le 29/10/2026** : guide
   d'utilisation complet (**`USAGE.md`**) — démarrage du serveur (lanceur
@@ -247,8 +248,32 @@ dormantes ne le sont plus) et le contrôle « anti-fichier-hors-registre ».
   README et structure du dépôt alignés sur l'état N1–N8 (625 tests). Le
   **banc de parité croisé** (cœur historique de T) reste à livrer.
 
-Détail : `docs/PLAN-REECRITURE.md` (programme complet) et
-`docs/etudes/moteur-java-psi/00-synthese.md` §4 (historique du plan).
+Détail : `lsp-java/docs/PLAN-REECRITURE.md` (programme complet) et
+`lsp-java/docs/etudes/moteur-java-psi/00-synthese.md` §4 (historique du plan).
+
+## Chantier Kotlin (ouvert le 30/10/2026 — branche `etude/moteur-kotlin`)
+
+- **Décision** : ADR 0100 **Acceptée** (voie C — hybride : noyau réécrit
+  clean-room depuis le cahier, modules différenciants repris après
+  contrôle, grammaire ré-obtenue de l'amont) ; ADR 0103 **Acceptée**
+  (voie (i) — parseur officiel + modèle conservateur).
+- **Étude** : `lsp-kotlin/docs/etudes/moteur-kotlin/` (inventaire, architectures
+  K1–K12, spike S0–S3, synthèse avec plan par étages 174–282 j-h
+  [estimé]) ; cahier `lsp-kotlin/docs/cahier-specifications-kotlin/` (53 fiches,
+  469 comportements) ; manifeste `lsp-kotlin/docs/PROVENANCE-REPRISE-KOTLIN.md`.
+- **Étage 0 — CLOS le 30/10/2026** (CI verte 9/9) : module `:kotlin`,
+  grammaire vendorée v2.3.0, suite de parité + baseline, CI
+  dex/scan/seuils, gabarit appareil — `03-execution-etage0.md`.
+- **Étage 1 — ENGAGÉ le 30/10/2026** (instruction propriétaire : « commencer
+  les chantiers », passe appareil différée — `banc-appareil.sh` à venir) :
+  vague 1a **façade `Kt*` LIVRÉE** (fiche 013 13/13 ; domaine `parse`
+  27/27) ; vague 1b **session documents LIVRÉE** (fiches 049 26/26 + 042
+  4/4 — SPI `ServiceMoteurLangageKotlin` né en zone `api/`) ; vague 1c
+  **scan projet paresseux LIVRÉE** (fiche 041 15/15 — passe bornée
+  annulable sur fil dédié, amorce warm, incrémental mtime, KP6) — suite
+  72 tests verts, `04-execution-etage1.md` ; suivent les vagues
+  classpath + index (R4/R5, fiches 002–005, 008/009/034) ; synthétiques
+  R1/R2 bloqués à l'audit P-K1.
 
 Historique des livraisons (séquence confirmée N1 → N2 → N3 → N7 → N4 →
 N5 → N6 → N8, T traversant) :
@@ -335,7 +360,7 @@ N5 → N6 → N8, T traversant) :
   JSON maison, baseline `parite-completion.json` signée, CI bloquante
   `banc-parite`, gardes falsifiées : libellé perdu / dérive oracle /
   couverture cahier) ; ~~gabarit bascule appareil~~ ✓ (fourni —
-  `bancs/GABARIT-BASCULE-APPAREIL.md`, kit `scripts/kit-bascule.sh`, banc
+  `docs/GABARIT-BASCULE-APPAREIL.md`, kit `lsp-java/scripts/kit-bascule.sh`, banc
   de passe `BancBasculeAppareil` : couverture cahier + latences p50/p95
   par genre + zéro saut, 18/18 constaté sur JVM de bureau). **Reste à T :
   la passe appareil et la décision de bascule du propriétaire** (§8.5 —

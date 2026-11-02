@@ -15,9 +15,9 @@ plugins {
 // (fiche 059, I7) est GÉNÉRÉE depuis cette valeur — serverInfo.version du
 // protocole et version du dépôt restent synchronisées par construction.
 // 1.0.0 : BASCULE §8.5 SIGNÉE le 30/10/2026 (gabarit
-// bancs/GABARIT-BASCULE-APPAREIL.md — checklist 6/6, passe appareil moto g06
+// docs/GABARIT-BASCULE-APPAREIL.md — checklist 6/6, passe appareil moto g06
 // 18/18 / 0 saut, deltas arbitrés 103/62/0).
-// 1.1.0 : INTÉGRATION CODEIDE (docs/INTEGRATION-CODEIDE.md §3.3, option B
+// 1.1.0 : INTÉGRATION CODEIDE (lsp-java/docs/INTEGRATION-CODEIDE.md §3.3, option B
 // arbitrée) — constructeur VIVANT ServeurLangageJava(environnement) :
 // routeur multi-modules AU PROTOCOLE (résolution par requête, replaceAll
 // à chaud, jamais de re-initialize, invariant ADR 0211) ; contrat de
@@ -72,8 +72,8 @@ plugins {
 // (`__codeide_completion__()` dans l'inventaire à préfixe vide), identifiant
 // isolé en corps de méthode (SingleTypeReference de recovery ECJ → le
 // contexte NOM : la locale en tête, le popup Android Studio). Montage :
-// bancs/projet-android/ (réplique monip) + sources générées +
-// scripts/preparer-projet-android.sh (android.jar 34-ext12 + 16 AARs/jars
+// lsp-java/bancs/projet-android/ (réplique monip) + sources générées +
+// lsp-java/scripts/preparer-projet-android.sh (android.jar 34-ext12 + 16 AARs/jars
 // réels, fermeture transitive vérifiée classe par classe) +
 // BancProjetAndroidReelTest (20 tests : timeline appareil rejouée au
 // protocole — didOpen avant sync, diagnostics du cache, sync,
@@ -296,7 +296,7 @@ plugins {
 // standard + 4 modificateurs, full sans delta, cas doré + latence p95
 // mesurée < 25 ms), completionItem/resolve RÉEL (auto-import différé
 // négocié par resolveSupport client — sans annonce, liste complète
-// d'avant V-G), registre client K2 (docs/REGISTRE-CLIENT-K2.md).
+// d'avant V-G), registre client K2 (lsp-java/docs/REGISTRE-CLIENT-K2.md).
 // Validation : 919 tests / 0 échec (753 java dont 23 V-F3/V-F4/V-G ;
 // 73 gates environnementales ignorées avec raison), `clean build` strict
 // (P1–P8) VERT ; banc N1 tenu (démarrage à froid 1 011 ms, diagnose

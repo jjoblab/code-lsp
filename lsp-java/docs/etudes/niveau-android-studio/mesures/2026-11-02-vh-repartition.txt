@@ -1,0 +1,162 @@
+PV DE MESURE — V-H, BRANCHEMENT DU RÉPARTISSEUR AU PROTOCOLE
+(la complétion pendant la tempête d'appareil) — 02/11/2026
+====================================================================
+
+R5 : AUCUNE valeur fabriquée. Les mesures ci-dessous proviennent des bancs
+et tests exécutés ce jour (JVM du bac à sable — CPU partagé plus bruyant
+que la CI ; les gates de latence y sont re-vérifiées par la CI, la valeur
+de référence reste la passe CI). Contexte bac : les bibliothèques réelles
+du banc projet Android se sont téléchargées SANS incident ce jour
+(lsp-java/scripts/preparer-projet-android.sh — aucun 429 rencontré, contrairement à
+la passe du 01/11 où Maven Central rate-limitait l'IP via Cloudflare).
+
+--- Le retour appareil (cause mesurée, pas devinée) ------------------
+
+CodeIDE 0.205.2, moto g06, logs codeide-logs-2026-11-01-221628.zip :
+« liaison étant une instance de ActivityMainBinding lorsque j'ai tapé
+"liaison." il devrait me proposer des méthodes… De même pour une classe
+Greeter du projet, la complétion ne propose rien. »
+
+Ce que les logs mesuraient : la résolution N'ÉTAIT PAS en cause — la
+complétion « liaison. » a rendu 120 items PAR DEUX FOIS côté serveur.
+La cause : le client émet À CHAQUE frappe/déplacement une rafale
+didChange + complétion + inlayHint + surbrillances (+ codeAction sur
+idle), et CHAQUE requête était calculée SYNCHRONEMENT sur le fil de
+lecture lsp4j — la complétion patientait derrière TOUTE la file :
+29 s et 87 s mesurés côté serveur entre réception et réponse, timeout
+client 5 s : RIEN ne s'affichait jamais.
+
+--- Contenu livré (ADR 0010 : « le scheduler 3 lanes est conservé »,
+    le chaînon que la réécriture avait laissé au sol) ---------------
+
+(a) ORDONNANCEURMOTEUR.SOUMETTREPRIORITAIRE — la soumission GÉNÉRIQUE
+  typée consommée par la couche protocole :
+   - trois VOIES : 0 = FRAPPE (complétion, aide de signature, fin
+     d'instruction), 1 = NAVIGATION, 2 = CONFORT (inlay, actions…) ;
+     la prise d'un worker privilégie la voie la plus BASSE puis l'ordre
+     de soumission — une complétion ne patiente JAMAIS derrière une
+     file d'inlay/actions ;
+   - SUPERSESSION À VALEUR : une tâche EN ATTENTE remplacée (même
+     fichier, même voie — ou voie inférieure lors d'une soumission
+     FRAPPE) se solde par la VALEUR DE REMPLACEMENT fournie — la
+     réponse VIDE honnête du type de la requête ; JAMAIS une
+     annulation : le client attend une réponse pour l'identifiant de
+     sa requête, une liste vide est honnête, une exception serait du
+     bruit ;
+   - EXCLUSION PAR FICHIER toutes voies confondues (contrat V-F2
+     inchangé : jamais deux tâches du MÊME fichier en vol) ;
+   - DURABILITÉ : clé null = tâche DURABLE (requêtes d'espace de
+     travail — jamais supersedée, pas d'exclusion de clé) ;
+   - ARRÊT : après shutdown, la soumission se solde immédiatement par
+     le remplacement ; shutdown solde les en attente pareillement.
+
+(b) CÂBLAGE SUR 29 MÉTHODES DE DOCUMENT de ServeurLangageJava (comptage
+  vérifié par analyse des blocs d'accolades du source) :
+   - voie FRAPPE (3) : completion, signatureHelp, statementCompletion ;
+   - voie NAVIGATION (16) : hover, definition, typeDefinition,
+     implementation, references, documentHighlight, prepareRename,
+     rename, prepareTypeHierarchy, typeHierarchySupertypes,
+     typeHierarchySubtypes, prepareCallHierarchy,
+     callHierarchyIncomingCalls, callHierarchyOutgoingCalls,
+     superDefinition, usagesGroupes ;
+   - voie CONFORT (10) : documentSymbol, formatting, rangeFormatting,
+     onTypeFormatting, selectionRange, foldingRange, inlayHint,
+     semanticTokensFull, codeAction, codeLens.
+  Hors périmètre (documentés) : resolveCodeAction/resolveCodeLens (le
+  resolve porte sur un ITEM, pas sur un document), decompiledSource
+  (RPC d'espace de travail). Le fil de lecture ne porte plus que les
+  magasins (didOpen/didChange : stockage copy-on-write bon marché) et
+  les soumissions.
+
+(c) CAPTURE À LA SOUMISSION + ÉPOQUE À LA LIVRAISON : la requête porte
+  des coordonnées LSP relatives au texte AU MOMENT de son émission ;
+  le couple (chemin, texte) est figé sur le FIL D'APPEL, et la
+  vérification d'époque à la livraison préserve l'invariant
+  « 0 réponse périmée » : un texte ayant muté rend la réponse VIDE
+  honnête — jamais une réponse calculée contre un texte révolu
+  (silencieusement fausse). Un document introuvable répond la valeur
+  vide immédiatement (miroir des corps historiques) ; le renommage,
+  qui refuse par erreur TYPIÉE (I8) un document introuvable, capture
+  lui-même puis répartit (repartirCapturee).
+
+(d) EXIT() SOLDE : exit() arrête le répartiteur — les requêtes en
+  attente se soldent par leur réponse vide honnête ; le client ne
+  voit AUCUNE future en erreur pour un arrêt de serveur.
+
+--- Pièges mesurés et verrous (R5) -----------------------------------
+
+ 1. La supersession NE DOIT PAS annuler : la future du client attend
+    une réponse pour SON identifiant — une CompletionException serait
+    du bruit visible. Solde par valeur de remplacement, éprouvé
+    (« la supersession solde par la valeur de remplacement sans
+    courir » : l'ancienne rend la liste vide, seule la récente court).
+ 2. La FRAPPE seule rend caduques les voies inférieures EN ATTENTE du
+    même document (le texte a bougé, leurs coordonnées sont périmées) ;
+    une NAVIGATION arrivée en dernier NE supersede RIEN — elle DEVANCE
+    la file de confort par sa voie (éprouvé « la voie superieure
+    devance la file de confort en attente »).
+ 3. L'exclusion par fichier DOMINE la priorité : deux voies distinctes
+    sur le MÊME fichier ne courent jamais ensemble (éprouvé sur
+    workers=2, 8 soumissions entrelacées, max en vol = 1).
+ 4. Un test de minutage serait DU BRUIT en bac comme en CI (cœurs
+    partagés) : les verrous protocolaires éprouvent les propriétés
+    OBSERVABLES au fil LSP (aucune future perdue/échouée, items justes
+    PENDANT la tempête, péremption honnête), pas des chronomètres —
+    motif « floçon documenté ».
+
+--- Critères éprouvés (ADR 0010 §tests, plan 04 §gouvernance, R5) ----
+
+  - VERROUS RÉPARTITEUR (RepartitionPrioriteeVhTest, 5) : voies
+    (navigation devance le confort en attente), supersession à valeur
+    (sans courir), frappe-caducité des voies inférieures, exclusion
+    par fichier toutes voies, arrêt par remplacement.
+  - TEMPÊTE AU PROTOCOLE (TempeteAppareilVhTest, 3 — BoucleLocale,
+    allers-retours LSP4J authentiques, fixture com.exemple.monip avec
+    Greeter DU PROJET) :
+    S1 — la rafale du journal (6 tours × inlayHint + documentHighlight
+    + didChange, sans attendre les réponses) ne perd NI n'échoue aucune
+    future, et la complétion « greeter. » rend les membres du Greeter
+    du projet (saluer) PENDANT la tempête ;
+    S2 — une complétion dont le document MUTE entre soumission et
+    service rend la réponse VIDE honnête (jamais perdue, jamais un
+    mélange d'époques), et la complétion NEUVE sur le texte muté
+    (« accueil. ») rend ses membres ;
+    S3 — exit() pendant le service : 8 inlay en vol, AUCUNE future en
+    erreur, serveur EXITED.
+  - BANC N1 PROJET RÉEL (BancProjetAndroidReelTest, 22 tests —
+    bibliothèques réelles téléchargées ce jour, PLUS de gate) :
+    première complétion après sync froide complète 174 ms (2 items) ;
+    « binding.t| » → [textTitre, toString] ; « liaison.s| » →
+    [saluer, setPolitesse] (LE scénario du retour appareil, côté
+    moteur) ; « ActivityMainBinding.inf| » → [inflate] ; préfixe vide
+    corps de classe → 120 items (le compte exact mesuré dans les logs
+    d'appareil) ; chaud p50 = 40 ms, p95 = 77 ms (min 23, max 77) ;
+    frappe continue pire = 120 ms ; « liaiso.s| » EN COURS DE FRAPPE →
+    2 items ; signatures actives correctes.
+  - SUITE (après REBASE sur V-A2/V-A3 du distant — 7f77173, da26624,
+    6f2d2df : les correctifs appareil COMPLÉMENTAIRES ; la pré-chauffe,
+    le budget d'horloge et le chien de garde attaquent le COÛT de
+    chaque calcul, la répartition V-H attaque la FILE ; le chien de
+    garde guetterLenteur chronomètre désormais le calcul SUR LE WORKER
+    du répartiteur, et la capture à la soumission remplace
+    calculerFraiche pour la complétion — recalculer contre un texte
+    muté y appliquerait une position révolue) : 959 tests / 0 échec
+    (793 java dont 8 V-H ET les repros appareil v1.12.1 —
+    Repro20261101AppareilTest 3/3, ReproFreezeInvocation2Test 2/2 —
+    qui passent AVEC le répartiteur ; ecj-art 36 ; index 84 ; model 42 ;
+    testing 4) ; 45 gates environnementales ignorées avec raison
+    (corpus réel CORPUS_ANDROID absent, racines SDK réelles, sonde
+    android.jar dédiée — le banc projet réel, lui, a tourné ce jour).
+    `BANC_COHERENCE_STRICT=true ./gradlew clean build` (P1–P8) VERT —
+    deux passes à froid consécutives (une première passe sous la charge
+    du bac a échoué sans capture de la tâche fautive, non reproduite
+    depuis ; la passe CI reste la valeur de référence).
+
+--- Version et documents --------------------------------------------
+
+  Version 1.13.0. Documents : USAGE §7.29 ; ADR 0010 (Accepté —
+  exécuté par vagues, V-F2 schéma B + V-H branchement protocole) ;
+  matrice G-029 complétée (V-H) ; plan 04 §V-H. Reste ouvert : la
+  mesure APPAREIL du service pendant la tempête réelle (gabarit 07 —
+  propriétaire), le compte des voies à re-vérifier si le protocole
+  gagne des méthodes de document.

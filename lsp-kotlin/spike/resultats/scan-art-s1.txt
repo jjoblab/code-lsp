@@ -1,0 +1,17 @@
+=== kotlin-compiler-embeddable-2.2.10.jar ===
+classes analysées : 25019
+méthodes déclarées (borne basse dex) : 64507
+versions de class-file (majeure:nombre) : 48:1, 49:396, 50:69, 51:159, 52:24394
+références sensibles ART :
+    1050 × MethodHandle   ex: java/lang/invoke/MethodHandles
+    1034 × MethodHandles.Lookup (ART 26+ : OK, à vérifier)   ex: java/lang/invoke/MethodHandles$Lookup
+      33 × javax.swing   ex: javax/swing/SwingUtilities
+      13 × java.lang.management   ex: java/lang/management/ManagementFactory
+      13 × java.awt   ex: java/awt/event/InvocationEvent
+       7 × InputStream.readAllBytes (API 33+)   ex: readAllBytes
+       7 × ServiceLoader (présent ART — vérifier META-INF/services)   ex: java/util/ServiceLoader
+       5 × ClassValue   ex: java/lang/ClassValue
+       3 × java.beans.Introspector   ex: java/beans/Introspector
+       2 × sun.misc.Unsafe   ex: sun/misc/Unsafe
+       1 × InputStream.readNBytes (API 33+)   ex: readNBytes
+

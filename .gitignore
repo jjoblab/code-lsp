@@ -1,10 +1,10 @@
 # Sorties de compilation des bancs (régénérables — cf. spike/README.md)
-spike/build/
-spike/build-v2/
-spike/build-v3/
-spike/build-scan/
-spike/build-sonde/
-# Jarres mesurées : jamais commitées (R6.4, docs/PROVENANCE-REPRISE.md)
+lsp-java/spike/build/
+lsp-java/spike/build-v2/
+lsp-java/spike/build-v3/
+lsp-java/spike/build-scan/
+lsp-java/spike/build-sonde/
+# Jarres mesurées : jamais commitées (R6.4, lsp-java/docs/PROVENANCE-REPRISE.md)
 *.jar
 *.zip
 # ... sauf le wrapper Gradle (chaîne de build officielle du dépôt)
@@ -16,17 +16,32 @@ local.properties
 *.hprof
 .DS_Store
 
-# Oracle du banc de parité croisée (étage T — construit par scripts/preparer-oracle.sh, JAMAIS committé, R6.4)
+# Oracle du banc de parité croisée (étage T — construit par lsp-java/scripts/preparer-oracle.sh, JAMAIS committé, R6.4)
 .oracle/
 
 # Bibliothèques du banc projet Android réel (téléchargées par
-# scripts/preparer-projet-android.sh — jamais committées, R6.4) :
+# lsp-java/scripts/preparer-projet-android.sh — jamais committées, R6.4) :
 # android.jar, AARs et classes.jar extraits.
-bancs/projet-android-libs/
+lsp-java/bancs/projet-android-libs/
 
 # Corpus réel Android Java du banc P1–P8 (téléchargé par
-# scripts/telecharger-corpus-android.sh — jamais committé, R6.4) :
+# lsp-java/scripts/telecharger-corpus-android.sh — jamais committé, R6.4) :
 # sources des 5 projets épinglés + manifestes de classpath préparés localement.
-bancs/corpus-android/*
+lsp-java/bancs/corpus-android/*
 # ... sauf la documentation du corpus (versionnée).
-!bancs/corpus-android/LISEZMOI.md
+!lsp-java/bancs/corpus-android/LISEZMOI.md
+
+# Outils de mesure locaux (build-tools d8 téléchargé + sorties dex — bac à sable)
+bt/
+dex-sortie/
+# Sorties du sous-processus K2 du banc de fidélité (CWD du compilateur)
+lsp-kotlin/moteur/mondes/
+lsp-kotlin/moteur/META-INF/
+
+# Corpus réel Android Kotlin du banc de cohérence P1-P9 (téléchargé par
+# lsp-kotlin/scripts/telecharger-corpus-kotlin.sh — jamais committé, miroir du corpus
+# Java) : sources des 6 projets épinglés + manifestes de classpath préparés
+# localement.
+lsp-kotlin/bancs/corpus-android-kotlin/*
+# ... sauf la documentation du corpus (versionnée).
+!lsp-kotlin/bancs/corpus-android-kotlin/LISEZMOI.md

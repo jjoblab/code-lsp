@@ -1,0 +1,106 @@
+PV DE MESURE — V-A2 COMPLÉMENT : PASSE SANS BUILD, LE REPLI
+LEXICAL KOTLIN EXERCÉ SANS CLASSES COMPILÉES (ANYSOFTKEYBOARD) —
+02/11/2026
+====================================================================
+
+Contrairement au montage canonique V-A2 (mesures/2026-11-01-va2-corpus-
+reel.txt : compile<Variante>JavaWithJavac, classes built_in_kotlinc au
+classpath), la présente passe ne déclenche AUCUN build de projet — elle
+exerce donc le REPLI lexical de l'ADR 0022 TEL QU'IL (le cas « avant
+build » de V-B3). C'est elle qui a exposé la « open class » synthétisée
+finale (correctif v1.12.2).
+
+R5 : AUCUNE valeur fabriquée. Toutes les mesures ci-dessous proviennent
+des bancs et tests exécutés ce jour (JVM du bac à sable — CPU partagé
+plus bruyant que la CI ; la valeur de référence reste la passe CI).
+Contexte bac : Maven Central rate-limitait l'IP du bac (HTTP 429
+Cloudflare, artefacts comme les plugins de build) — la résolution des
+dépendances est passée par le MIROIR PUBLIC Aliyun via des scripts
+d'init STRICTEMENT LOCAUX (GRADLE_USER_HOME du corpus et
+--init-script côté code-lsp, jamais committés) ; la configuration des
+dépôts des projets reste la source de vérité. Le clonage GitHub est
+passé par jeton (extraheader éphémère, jamais persisté).
+
+--- Montage (banc à sable : 4 Go RAM, 2 CPU, JDK 21.0.13+9) ---------
+
+Corpus : AnySoftKeyboard @ 8cf81a3a2f73e9914c8613d56390a933486f0c6b
+(commit épinglé par lsp-java/scripts/telecharger-corpus-android.sh — LISEZMOI
+§1). Outils du projet : Gradle 9.7.1 (wrapper du corpus), AGP 9.4.1,
+Kotlin 2.4.10 ; SDK posé : platforms;android-37.0, build-tools;36.1.0,
+ndk;29.0.14206865 (side-by-side exigé par jnidictionaryv1/v2),
+cmake;3.22.1.
+
+Export du classpath (lsp-java/scripts/ask-export.init.gradle, tâche
+exportClasspathAsk) : les dépendances PROJET sont substituées par un
+module « void » local (jar vide, dépôt fichier sous GRADLE_USER_HOME)
+— la résolution NE DÉCLENCHE AUCUNE tâche de build du corpus (pas de
+javac, pas de CMake) ; chaque module résout une copie de
+debugCompileClasspath (attributs AGP conservés). Sortie MESURÉE :
+  - 245 artefacts externes uniques (80 jars directs + 163 AAR réduits
+    à leur classes.jar + 2 AAR ressources-seules écartés :
+    lifecycle-viewmodel 2.9.0/2.8.7 sans classes.jar) ;
+  - 92 modules portant un src/main/java (323 fichiers .java — le
+    corpus est mixte : Kotlin récent majoritaire, racines Java
+    recensées à 0 fichier .kt voisin SAUF ime/app (10 .kt) et
+    addons/base (1 .kt) DANS src/main/java — l'interop ADR 0022 est
+    donc réellement sollicitée) ;
+  - 156 R.jar debug (compile_r_class_jar / compile_and_runtime, tasks
+    generateDebugRFile + :ime:app:processDebugResources) ;
+  - sources générées : BuildConfig ×3 (app com.menny.android.
+    anysoftkeyboard — requiert :ime:app:generateDebugBuildConfig après
+    processDebugResources, dictionaries, nextword) + safe-args (13
+    fichiers, ime:app).
+
+Manifeste (lsp-java/scripts/preparer-manifeste-ask.sh) :
+lsp-java/bancs/corpus-android/prepares/anysoftkeyboard.manifeste — 96 racines
+(92 sources + 4 racines générées PORTANT LEUR ARBRE DE PAQUETS : la
+racine d'un source généré est le répertoire CONTENANT com/, remontée
+depuis la déclaration package du fichier) et 400 entrées de classpath
+(android-37.0.jar + 156 R.jar + 243 artefacts externes). Jamais
+committé (R6.4).
+
+--- Gate P3 sur corpus réel (divergences ecj↔javac, ADR 0030) -------
+
+Passe 1 (avant correctifs — sans classes compilées) : 150 fichiers, 22 535 lignes,
+FP/1 000 = 0,843 (19 violations) — familles :
+  - 33554515/268435846 (16) : BuildConfig de l'app introuvable —
+    MONTAGE (génération + racine-paquet), pas moteur ;
+  - 16777529 (2) : « cannot subclass the final class
+    PackBroadcastReceiverBase » — MOTEUR : la base Kotlin est
+    `open class` (addons/base/.../PackBroadcastReceiverBase.kt),
+    DeclarationsKotlin la synthétisait FINALE sans condition ;
+  - 67108964 (1) : « getKeyCodeForIconThemeAttribute(int) undefined
+    for ThemeAttributeKeyCodes » — MOTEUR : ThemeAttributeKeyCodes est
+    un `object` Kotlin (ime/app), ses MEMBRES ne sont pas extraits par
+    le scanner lexical (périmètre ADR 0022 : top-level uniquement).
+
+Correctifs appliqués :
+  - montage : génération BuildConfig + racines générées remontées au
+    répertoire source (FP BuildConfig : 16 → 0) ;
+  - moteur (v1.12.1) : DeclarationsKotlin capte les modificateurs
+    (open/abstract/sealed/data/value) et le mot-clé — finale par
+    défaut SAUF open/abstract/sealed (classe), jamais pour une
+    interface ; object/enum class et facades restent finales. Tests
+    de régression : DeclarationsKotlinTest 6/6 dont 2 nouveaux
+    (« héritage Java depuis open class accepté », « classe non
+    ouverte refusée » — fidélité conservée) + fixture Hierarchie.kt.
+
+Passe 3 : 150 fichiers, 22 535 lignes, FP/1 000 = 0,0444
+(1 violation : la méthode d'object Kotlin — divergence CONNUE,
+périmètre ADR 0022 documenté, arbitrage différé : l'extraction des
+membres exigerait un scan des corps indentés, aucune valeur fabriquée
+en attendant).
+
+--- Gates P1–P8 (suite coherence complète, corpus monté) ------------
+
+P1 4/4, P2 4/4, P3 2/2 (synthétique 0 FP + corpus réel ci-dessus),
+P4 1/1, P5 4/4, P6 4/4, P7 3/3, P8 1/1 — 0 échec, 0 ignoré sans
+raison. Rapport de divergences ecj↔javac sur ce corpus : 19 mesurées,
+18 soldées (16 montage + 2 moteur), 1 documentée (supra).
+
+--- Position dans la vague -----------------------------------------
+
+V-A2 est LIVRÉE côté montage canonique (5 manifestes, PV du 01/11).
+La présente passe est un COMPLÉMENT de diagnostic : l'outillage sans
+build (ask-export.init.gradle générique + déclinaison assembleur par
+projet) reste rejouable pour examiner le repli lexical à moindre coût.

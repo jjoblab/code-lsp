@@ -1,0 +1,18 @@
+    S1;demarrage;k2_fichier_trivial=3503ms
+    S1;demarrage;k2_fichier_trivial_passe2=3802ms
+BancS1Test > demarrage a froid - K2 sur fichier trivial PASSED
+    S1;compilation;k2_3000l=13931ms
+BancS1Test > compilation K2 complete - 3000 lignes PASSED
+    S1;compilation;k2_500l=6231ms
+BancS1Test > compilation K2 complete - 500 lignes PASSED
+    S0;corpus=3000;ouvrir_froid=267.4ms;diagnostics_froid=1059.1ms;reparse_chaud_min=37.7ms;diagnostics_chaud_min=363.8ms;passes=5
+BancS0Test > corpus 3000 lignes - reparse et diagnostics, froid puis chaud PASSED
+    S0;corpus=500;ouvrir_froid=4.0ms;diagnostics_froid=46.2ms;reparse_chaud_min=3.4ms;diagnostics_chaud_min=16.5ms;passes=5
+BancS0Test > corpus 500 lignes - reparse et diagnostics, froid puis chaud PASSED
+    S2;corpus=500;parse_froid=10.0ms;parse_chaud_p50=1.8ms;parse_chaud_p95=5.9ms;passes=50;productions=5448;jetons=4210
+BancS2Test > corpus 500 lignes - parse officiel, froid puis chaud, p50-p95 PASSED
+    S2;tolerance;troncatures=100;levers=0
+BancS2Test > tolerance - troncature hostile, aucun lever PASSED
+    S2;corpus=3000;parse_froid=11.2ms;parse_chaud_p50=8.6ms;parse_chaud_p95=33.6ms;passes=20;productions=31368;jetons=24274
+BancS2Test > corpus 3000 lignes - parse officiel, froid puis chaud, p50-p95 PASSED
+BUILD SUCCESSFUL in 34s

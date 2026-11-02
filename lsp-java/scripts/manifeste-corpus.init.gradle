@@ -1,0 +1,172 @@
+// ============================================================================
+// manifeste-corpus.init.gradle — V-A2 (ADR 0030) : export du classpath réel
+// des modules Android du corpus, pour lsp-java/scripts/preparer-manifestes-corpus.sh.
+//
+// Compatible Gradle 7.5 → 9.x (aucune API retirée ; --no-configuration-cache
+// requis : l'enregistrement différé des tâches n'est pas compatible cache de
+// configuration).
+//
+// Enregistre, pour CHAQUE projet portant l'extension `android`
+// (application ou library), une tâche `manifesteCorpus` qui imprime :
+//   MODULE <projectDir>||<path>   — en-tête du module
+//   SRCROOT <dir>                 — racines Java de la variante mesurée
+//                                   (-Pcodeide.variante=flavorDefaultDebug →
+//                                   sourceSets main/debug + flavor/flavorDebug)
+//   ARTIFACT <g:a:v> <file>       — artefact EXTERNE résolu de
+//                                   <variante>CompileClasspath
+//                                   (post-transformations AGP : classes.jar
+//                                   extrait des AAR, jars)
+//   PROJET-DEP <:chemin>          — dépendance de PROJET local
+//   ARTIFACT-ERREUR / SRCROOT-ERREUR <cause> — repli imprimé (jamais silencieux)
+//
+// La tâche racine `manifesteCorpusTous` exécute toutes les tâches de module.
+//
+// ORDRE D'ENREGISTREMENT (corrigé Gradle 8.14 Groovy, vérifié markor) : la
+// tâche racine est posée dans `gradle.projectsLoaded` — AVANT toute évaluation,
+// donc TOUJOURS visible de la sélection de tâches en ligne de commande ; les
+// tâches de module dans `gradle.afterProject` (l'extension `android` existe
+// à ce moment-là, le plugin étant appliqué pendant l'évaluation du projet).
+// `gradle.projectsEvaluated` n'était PAS assez tôt pour la sélection sur
+// Gradle 8.14 (buildscript + `apply plugin` à l'ancienne).
+//
+// L'agrégation (quels modules entrent au manifeste) se fait côté script shell :
+// le module APP fournit ARTIFACT/PROJET-DEP, les modules dépendants fournissent
+// leurs SRCROOT.
+// ============================================================================
+
+import org.gradle.api.artifacts.component.ModuleComponentIdentifier
+import org.gradle.api.artifacts.component.ProjectComponentIdentifier
+import org.gradle.api.attributes.Attribute
+
+gradle.projectsLoaded {
+    def tacheRacine = gradle.rootProject.tasks.register("manifesteCorpusTous") {
+        it.description = "V-A2 (ADR 0030) : exécute manifesteCorpus sur tous les modules Android"
+        it.group = "codeide"
+    }
+
+    gradle.afterProject { sp ->
+        def extAndroid = sp.extensions.findByName("android")
+        if (extAndroid == null) {
+            return
+        }
+
+        def tache = sp.tasks.register("manifesteCorpus") {
+            it.description = "V-A2 (ADR 0030) : imprime racines sources + classpath de la variante résolu"
+            it.group = "codeide"
+            it.doLast {
+                println("MODULE ${sp.projectDir}||${sp.path}")
+
+                // Variante mesurée : debug par défaut ; les projets à flavors
+                // épinglent la leur par -Pcodeide.variante (ex. OpenTracks :
+                // irreproducibleDebug, markor : flavorDefaultDebug — builds
+                // communautaires F-Droid).
+                def variante = sp.findProperty("codeide.variante") ?: "debug"
+
+                // Racines Java de la variante : main + debug + flavor(+Debug).
+                try {
+                    def noms = ["main", "debug"] as Set
+                    def m = (variante =~ /^(.*)Debug$/)
+                    if (m.matches()) {
+                        def flavor = m[0][1]
+                        if (flavor && flavor.length() > 0) {
+                            noms << flavor
+                            noms << variante
+                        }
+                    }
+                    noms.each { nom ->
+                        def ss = extAndroid.sourceSets.findByName(nom)
+                        if (ss == null) {
+                            return
+                        }
+                        ss.java.srcDirs.each { dir ->
+                            if (dir.exists()) {
+                                println("SRCROOT ${dir}")
+                            }
+                        }
+                    }
+                } catch (Throwable e) {
+                    println("SRCROOT-ERREUR ${e.getClass().getName()}: ${e.getMessage()}")
+                }
+
+                // Classpath de compilation de la variante, TEL QUE TRANSFORMÉ
+                // par AGP : vue d'artefacts avec artifactType=android-classes-jar
+                // — c'est la vue EXACTE de javac (jetifier appliqué si
+                // android.enableJetifier=true — vérifié gh4a : rxloader jitpack
+                // référence l'ANCIEN espace de noms androidx.loader.content ;
+                // l'artefact brut laisse LoaderManager non résolu, le jetifié
+                // compile ; classes.jar EXTRAIT des AAR).
+                //
+                // NB (découverte anysoftkeyboard, AGP 9.4 multi-modules) :
+                // `cfg.incoming.artifacts` nu est AMBIGU sur les dépendances
+                // de PROJET (variants debugApiElements sans catégorie) —
+                // ArtifactSelectionException. On sépare donc :
+                //   - les composants EXTERNES par la vue FILTRÉE aux
+                //     ModuleComponentIdentifier (avec l'attribut de
+                //     transformation) ;
+                //   - les dépendances de PROJET par le graphe de résolution
+                //     (resolutionResult — aucune sélection d'artefact).
+                // ARTIFACT-N <modules> <fichiers> : garde anti-vert-silencieux
+                // — lenient(true) SAUTE les transformations en échec, le
+                // script shell compare et REFUSE un manifeste incomplet.
+                try {
+                    def cfg = sp.configurations.findByName("${variante}CompileClasspath")
+                    if (cfg != null && cfg.isCanBeResolved()) {
+                        def resultat = cfg.incoming.resolutionResult
+                        def nModules = 0
+                        resultat.allComponents.each { comp ->
+                            if (comp.id instanceof ProjectComponentIdentifier) {
+                                println("PROJET-DEP ${comp.id.projectPath}")
+                            } else if (comp.id instanceof ModuleComponentIdentifier) {
+                                nModules++
+                            }
+                        }
+                        def vue = cfg.incoming.artifactView { v ->
+                            v.componentFilter { id -> id instanceof ModuleComponentIdentifier }
+                            v.attributes { a ->
+                                // Attribute.of (et pas la constante
+                                // ArtifactTypeDefinition.ARTIFACT_TYPE_ATTRIBUTE :
+                                // cette classe n'est PAS résolvable dans le
+                                // contexte de compilation des scripts d'init —
+                                // vérifié Gradle 8.14 « unable to resolve
+                                // class » ; l'attribut typé équivalent s'obtient
+                                // par Attribute.of, même clé "artifactType").
+                                a.attribute(Attribute.of("artifactType", String), "android-classes-jar")
+                            }
+                            // PAS de lenient : une transformation en échec
+                            // doit ÉCHOUER FRANCHEMENT (ARTIFACT-ERREUR → le
+                            // script refuse et rejoue sur cache) — jamais un
+                            // artefact sauté silencieusement. Les modules sans
+                            // artefact (BOM/platform constraints) sont
+                            // simplement absents de la vue, sans échec.
+                        }
+                        def fichiers = [] as Set
+                        vue.artifacts.each { rar ->
+                            def id = rar.id.componentIdentifier
+                            if (id instanceof ModuleComponentIdentifier) {
+                                println("ARTIFACT ${id.group}:${id.module}:${id.version} ${rar.file}")
+                                fichiers << rar.file
+                            } else {
+                                println("ARTIFACT-AUTRE ${id.getDisplayName()} ${rar.file}")
+                            }
+                        }
+                        println("ARTIFACT-N ${nModules} ${fichiers.size()}")
+                    } else {
+                        println("ARTIFACT-ABSENT ${variante}CompileClasspath non résolvable")
+                    }
+                } catch (Throwable e) {
+                    // Chaîne de causes COMPLÈTE (le message de tête est trop
+                    // pauvre — p. ex. TypedResolveException sans l'artefact
+                    // fautif ; le diagnostic honnête exige la cause racine).
+                    def chain = new StringBuilder("${e.getClass().getName()}: ${e.getMessage()}")
+                    def c = e.getCause()
+                    while (c != null) {
+                        chain.append("\n  causé par ${c.getClass().getName()}: ${c.getMessage()}")
+                        c = c.getCause()
+                    }
+                    println("ARTIFACT-ERREUR ${chain.toString()}")
+                }
+            }
+        }
+        tacheRacine.configure { it.dependsOn(tache) }
+    }
+}

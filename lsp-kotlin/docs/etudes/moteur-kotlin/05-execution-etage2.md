@@ -1,0 +1,1068 @@
+# 05 — Exécution étage 2 : résolution + diagnostics
+
+> **Décision du propriétaire reçue le 2026-10-30** dans le canal de mission :
+> « Go étage 2 » — les chantiers de l'étage 2 (plan §4 de `00-synthese.md`)
+> sont OUVERTS sur la branche `etude/moteur-kotlin`, à la suite de la
+> clôture sur preuve mécanique de l'étage 1 (CI verte 9/9 sur `d3486d7`,
+> run `41024404548` — `04-execution-etage1.md` §17.4). Le présent document
+> est le journal d'exécution de l'étage (méthode : miroir des rapports
+> précédents — chiffres étiquetés [mesuré] / [estimé], écarts signalés).
+> **Vague 2c : les membres hérités — clôture des supertypes (mixte
+> projet/classpath, la voie 2-ter d'ADR 0216), pile des this (objets
+> anonymes, `apply`), chaîne profondeur 7+ du monde Views (ADR 0219),
+> imbriquées projet/classpath, chemins FQN, zones de construction —
+> fiches 044/028/032/040/029.**
+>
+> Gouvernance inchangée : branche `etude/moteur-kotlin` seule ; zones NOYAU
+> anciennes (`resolve/`, `diagnostics/`) en lecture interdite R9.1 —
+> l'étage 2 est du code NEUF écrit cahier en main (ADR 0106 : « le reste est
+> réécrit depuis le tableau ») ; les tests sources anciens restent
+> consultables (R9.5) pour les FIXTURES, jamais copiés.
+>
+> **Mise à jour (30/10, vague 2a) — LE SOCLE DE RÉSOLUTION EST LIVRÉ :
+> modèle de symboles projet (scan Kotlin ET Java — lecteur Java maison),
+> hiérarchie de portées (imports exact/joker/alias, paquets par défaut avec
+> le catalogue KP8 et la voie 6 de l'index), `kt.unresolved` par preuve
+> d'absence (noms nus et sélecteurs qualifiés sur récepteurs PROJET typés —
+> ADR 0223), garde par déclaration (fiche 017), journal « explain » FINE
+> (fiche 006), `kt.missingReturn` (cas positif requis par la fiche 017) et
+> le GERME de complétion membre (requis par la fiche 022) ; 20
+> comportements verts — fiches 017 (8/8), 022 (8/8), 006 (4/4) ; le tableau
+> règles × spec exigé par l'ADR 0106 vit dans
+> `kotlin/SPECIFICATION-RESOLUTION.md` (versionné, rempli fiche par fiche).**
+> **Clôture (30/10) — VAGUE 2A CLOSE : CI VERTE 9/9 sur le commit de
+> livraison `a07d381` (run `41054215181`, tentative 2 — le test flottant
+> E-K6 du chantier Java a fait échouer la tentative 1, sans lien avec le
+> diff) ; 152 tests verts toolchain 17, scan ART 6 × AUCUNE, dex 24 996
+> méthodes / 3 882 064 o (identiques au bac à sable, seuils tenus — E-K8 à
+> 93 %).**
+>
+> **Mise à jour (30/10, vague 2b) — LES FAMILLES SÉMANTIQUES K4 SONT
+> LIVRÉES (fiche 046, 39 comportements) : la VUE JVM DES MEMBRES du
+> classpath (lecteur MAISON — décision Q-K1 tranchée à minima, pilotée par
+> les ENTRÉES, chaîne de supertypes + propriétés dérivées + implicites),
+> les smart casts POSITIONNELS (THEN, garde `!is` à sortie précoce,
+> opérande droit de `&&`, entrée de `when` sans sujet ; ombrage coupé,
+> `||` annule), les lambdas par ATTENTE (paramètre explicite, `it`, SAM
+> projet, type de fonction écrit), la liaison POSITIONNELLE (l'ombre
+> interne gagne), `kt.typeMismatch`/`kt.argumentCount`/`kt.unsafeNullable`/
+> `kt.unreachable`/`kt.valReassign` et le quick-fix `importsCandidats` ;
+> 59/204 comportements diagnostics verts (fiches 017+022+006+046).**
+> **Clôture (30/10) — VAGUE 2B CLOSE : CI VERTE 9/9 sur le commit de
+> livraison `20fd00b` (run `41081927798`, première tentative) ; 191 tests
+> verts toolchain 17, scan ART 6 × AUCUNE, dex 25 152 méthodes /
+> 3 936 216 o (identiques au bac à sable, seuils tenus — E-K8 à 94 %) ;
+> la vague 2c (membres hérités) est la suivante (§6.4).**
+>
+> **Mise à jour (30/10, vague 2c) — LES MEMBRES HÉRITÉS SONT LIVRÉS (44
+> comportements — fiches 044/028/032/040/029) : la CLÔTURE DES SUPERTYPES
+> (fermeture mixte — maillons projet relus récursivement, maillons
+> classpath par le jeu JVM de la chaîne binaire, IMBRIQUÉES `$` comprises ;
+> une chaîne non fermée reste muette D3), la PILE DES THIS (l'objet anonyme
+> d'abord puis les classes englobantes, la lambda traînante d'un
+> `apply`/`also`/`run` sur récepteur typé), les chemins FQN en expression
+> (racine + feuille faillibles, milieu muet) et en type (dernier segment
+> seul), les ZONES DE CONSTRUCTION (paramètres nus du primaire, `field`),
+> la dérivation ADR 0219 CONSCIENTE des descripteurs (getter à paramètre ne
+> synthétise rien), le TERMINAL CONNU `java.lang.Enum`, le SURVOL des
+> membres hérités avec propriétaire déclarant (`val layoutInflater:
+> LayoutInflater` sur `android.app.Activity`) et la complétion membre
+> étendue à la clôture ; 103/204 comportements diagnostics verts.**
+> **Clôture (30/10) — VAGUE 2C CLOSE : CI VERTE 9/9 sur le commit de
+> livraison `c0062d6` (run `41095116471`, première tentative) ; 235 tests
+> verts toolchain 17, scan ART 6 × AUCUNE, dex 25 273 méthodes /
+> 3 980 148 o (identiques au bac à sable, seuils tenus — E-K8 à 95 %,
+> l'arbitrage Q-K1 devient pressant) ; la vague 2d (classpath côté
+> Kotlin) est la suivante (§7.4).**
+>
+> **Décision du propriétaire reçue le 2026-10-31** : « Go vague 2d, 2e, 2f
+> et 2g — Élève le budget (E-k8) » — les QUATRE dernières vagues de
+> l'étage 2 sont ouvertes EN SÉQUENCE sur la branche `etude/moteur-kotlin`,
+> et le budget T1 est ÉLEVÉ 4 Mo → 6 Mo (ALERTES §4 — arbitrage consigné
+> dans le commit `566de1b`, le seuil méthodes reste ≤ 32 768 : moitié du
+> mur 64K, jamais négociable).
+>
+> **Mise à jour (31/10, vague 2d) — LE CLASSPATH CÔTÉ KOTLIN EST LIVRÉ (25
+> comportements — fiches 023/024/026/033/037) : les COMPAGNONS (projet —
+> portée STATIQUE du conteneur, nommé ou anonyme ; classpath — la porte à
+> trois états `fqcn$Companion` : absente/ne change rien, lisible/ses noms
+> et l'absence reste prouvable, illisible/muet), les OBJETS du classpath
+> (`INSTANCE` + membres d'instance — survol typé et propriétaire), les
+> extensions sur les MAILLONS DISTANCIÉS (`collect` sur `SharedFlow` vit
+> sur `Flow` — coroutines RÉELLES 1.9.0 en dépendance de test), les
+> INTRINSÈQUES RÉPUTÉES (voie 6-bis : `arrayOf` et la famille des
+> constructeurs de tableaux vivent dans `kotlin.kotlin_builtins`, aucune
+> facade `*Kt` ne les porte — plancher documenté des appelables), les
+> TYPEALIAS de bibliothèque en chemin qualifié (voie d-bis) et le TYPE des
+> CHAMPS de bibliothèque (descripteur de champ = type NU) ; 128/204
+> comportements diagnostics verts.**
+> **Clôture (31/10) — VAGUE 2D CLOSE : CI VERTE 9/9 sur le commit de
+> livraison `df77e91` (run `41102336444`, première tentative) ; 260 tests
+> verts toolchain 17, scan ART 6 × AUCUNE, dex 25 287 méthodes /
+> 3 985 408 o (identiques au bac à sable, seuils tenus sous le NOUVEAU
+> budget 6 Mo — E-K8 à 63 %) ; la vague 2e (KMP, sources générées,
+> troncation, Compose, `.gradle.kts`) est la suivante (§8.4).**
+>
+> **Mise à jour (31/10, vague 2e) — KMP, SOURCES GÉNÉRÉES, TRONCATION,
+> COMPOSE ET SCRIPTS SONT LIVRÉS (32 comportements — fiches
+> 030/031/035/036/025/027) : le scan MULTI-RACINES du module `shared`
+> (expect/actual, le paquet vit deux fois), le GO-TO-DEFINITION vers
+> l'`expect` (+ `symboles` et `occurrences` — trois contrats SPI de
+> navigation neufs, la plage du nom portée par le scan), l'exclusion
+> `build` de la marche et les CONVENTIONS de sources générées (`Hilt_`,
+> `_Impl`, `BindingImpl` — jamais prouvées absentes), la TRONCATION
+> réfléchie (borne couture de test, fichier au-delà COMPTÉ, passe
+> PARTIELLE), le CHEMIN DE PACKAGE (`kotlin.io.println(…)` — racine et
+> milieu paquets muets, feuille seule faillible) et le CORRECTIF SCRIPT
+> (les instructions d'un `.gradle.kts` vivent sous SCRIPT → BLOCK — la
+> passe sémantique ne les voyait JAMAIS : le Kotlin standard du script
+> résout désormais, la garde D3 s'y exerce) ; 160/204 comportements
+> diagnostics verts.**
+> **Mise à jour (31/10, vague 2f) — CORRECTIFS DE TEXTE, MEMBRES MANQUANTS,
+> SYNTHÉTIQUES + FUSION, MULTI-LANGUE ET `with` SONT LIVRÉS (44
+> comportements — fiches 016/020/047, **LE CRITÈRE §2 DES 23 FICHES
+> DIAGNOSTICS EST ATTEINT : 204/204**) : les correctifs texte (accès non
+> sûr — `?.` sur le point, `!!` après le récepteur, entourage
+> multi-ligne/en ligne/jamais au premier niveau sans bloc ; conversions
+> FERMÉES par famille, alignés sur les diagnostics PAR CONSTRUCTION — le
+> moteur re-prouve), les membres manquants P1-C (abstraits projet ET
+> classpath ACC_ABSTRACT, paramètres substitués, getters/setters
+> appariés), la fusion des synthétiques AVEC COUPURE (une classe réelle
+> du même FQCN EFFACE le groupe, BuildConfig sous-reporté), le
+> multi-langue Java↔Kotlin (classe et membres résolus, définition qui
+> OUVRE le `.java`), les récepteurs implicites `with` et le SAM
+> classpath.**
+> **Clôture (31/10) — VAGUE 2F CLOSE : CI VERTE 9/9 sur le commit de
+> livraison `31f4e1b` (run `41107801655`, PREMIÈRE TENTATIVE — un seul
+> run pour le head_sha) ; suite du module verte toolchain 17, scan ART
+> 6 × AUCUNE, dex 25 420 méthodes / 4 030 652 o IDENTIQUES au bac à
+> sable, banc JDK 17 déterminisme IDENTIQUE marqueurs 0 tas 2 008 Kio ;
+> journal §10.4 + en-tête + critère §2 204/204 attesté (écart de
+> rédaction du message de livraison consigné §10.4).**
+>
+> **Mise à jour (31/10, vague 2g) — LA CLÔTURE EST LIVRÉE : LE BANC DE
+> FIDÉLITÉ K2 (ADR 0119 option 1) — l'oracle est le compilateur K2
+> VÉRITABLE en sous-processus (`kotlin-compiler-embeddable` 2.2.10 en
+> dépendance de TEST seule, aucun impact dex) sur le corpus fixe des
+> QUATRE MONDES + un TÉMOIN POSITIF, comparés en paires (ligne, nom) ;
+> le banc a TROUVÉ et corrigé un vrai faux positif livré (`@Suppress`
+> signalé sur les mondes sains — les annotations standard des paquets
+> par défaut entraient au catalogue KP8, règle A31) ; l'INVARIANT EST
+> TENU : FAUX POSITIFS = 0 sur le corpus entier, les quatre mondes
+> sains muets des DEUX côtés ; les faux négatifs sont BASELINÉS SIGNÉS
+> (compte + empreinte SHA-256 du détail — 1 FN mesuré : preuve
+> d'absence des sélecteurs sur récepteurs builtin non couverte à cet
+> étage, D3 muet — la couverture se mesure, elle ne se déclare pas).**
+> **Clôture (31/10) — VAGUE 2G CLOSE ET ÉTAGE 2 CLOS SUR PREUVE
+> MÉCANIQUE : CI VERTE 9/9 sur le commit de livraison `f9a5a5f` (run
+> `41112383347`, PREMIÈRE TENTATIVE — 337 tests toolchain 17, LE BANC
+> D'ORACLE COMPRIS ; scan ART 6 × AUCUNE, dex 25 420 / 4 030 800 o
+> IDENTIQUES au bac à sable, banc JDK 17 déterminisme IDENTIQUE
+> marqueurs 0 tas 2 008 Kio) ; les TROIS critères §2 sont ATTESTÉS
+> (204/204 comportements, zéro faux positif corpus quatre mondes,
+> baseline signée compte + empreinte) ; PREMIER RECALAGE D'EFFORT
+> exécuté (§11.4 : 12 commits, +17 373 lignes, 132 → 337 tests, ≈ 85
+> l./comportement, coût marginal STABLE — l'abaque 98–156 j-h des
+> étages restants est CONFIRMÉE, recalage n° 2 à la clôture de
+> l'étage 3) ; l'étage 3 (complétion + classement, banc commun Java)
+> est le suivant.**
+
+## 1. Périmètre de l'étage (plan §4 — cahier en main)
+
+| # | Item | Source du contrat |
+|---|---|---|
+| 1 | **Résolution spécifiée avant implémentée** : tableau règles × références de spécification × statut (couvert / sous-rapport / hors périmètre), document interne du module VERSIONNÉ — l'implémentation le remplit fiche par fiche | ADR 0106 (option 1) |
+| 2 | **Hiérarchie de portées** : locales → membres → englobantes → paquet → imports exact/joker/alias → défauts `kotlin.*`/`java.lang.*` ; récepteurs implicites (`with`/`apply`), membres hérités (fermeture mixte projet/classpath), compagnons, typealias, expect/actual | ADR 0106 ; fiches 044/046/047/024/037/031 |
+| 3 | **Catalogue `kt.*` conservateur** : `kt.unresolved`, `kt.typeMismatch`, `kt.argumentCount`, `kt.unsafeNullable`, `kt.missingReturn`, `kt.unreachable`, `kt.valReassign` — une famille n'entre au catalogue que si son absence se DÉCIDE sur l'arbre + la résolution bornée | ADR 0112 (option 1) ; fiche 046 |
+| 4 | **Garde par déclaration** : une zone brisée ne coupe que sa preuve — seules les déclarations au sous-arbre propre sont diagnostiquées ; un nom déclaré n'importe où n'est jamais signalé ; zone import brisée = document muet ; en-tête de classe brisé = absence muette dans les membres | ADR 0112 ; fiche 017 |
+| 5 | **Typage borné et versionné** : familles couvertes / sous-rapportées / frontière d'unification documentées dans le module ; « preuve ou silence » comme méta-critère | ADR 0107 (option 1) |
+| 6 | **Journal « explain »** des `kt.unresolved` émis : niveau FINE, éteint par défaut, forme greppable `clé=valeur` (forme syntaxique, issue de la sélection, récepteur typé, état de l'univers des preuves) | ADR 0112 ; fiche 006 |
+| 7 | **Consommation de l'étage 1** : l'index des appelables (guichet de sous-lecture fiche 042, `VueAppelables.extensionsSur`/`topParNom`) nourrit les preuves ; la fusion des groupes synthétiques AVEC COUPURE (une classe générée réelle efface le groupe homonyme) spécifiée par les fiches 040/045/047 | `04-execution-etage1.md` §16/§17 ; ADR 0109 |
+| 8 | **Banc de fidélité** : oracle K2 en sous-processus sur corpus fixe, baseline signée, faux positifs = 0 (invariant §4) | ADR 0119 (option 1) |
+
+## 2. Critères de sortie de l'étage 2 (synthèse §4 — suivi)
+
+| Critère | État | Preuve |
+|---|---|---|
+| 204 comportements diagnostics verts (23 fiches du domaine) | **ATTESTÉ** (clôture 2f — §10.4 : CI verte 9/9 sur `31f4e1b`, run `41107801655`) | Vague 2a (§5) : fiches 017 (8/8) + 022 (8/8) + 006 (4/4) ; vague 2b (§6) : fiche 046 (39/39) ; vague 2c (§7) : fiches 044 (13/13) + 028 (12/12) + 032 (3/3) + 040 (11/11) + 029 (5/5) ; vague 2d (§8) : fiches 023 (2/2) + 024 (7/7) + 026 (2/2) + 033 (9/9) + 037 (5/5) ; vague 2e (§9) : fiches 030 (5/5) + 031 (5/5) + 035 (2/2) + 036 (3/3) + 025 (12/12) + 027 (5/5) ; vague 2f (§10) : fiches 016 (13/13) + 020 (10/10) + 047 (21/21) — **204/204** |
+| Zéro faux positif corpus quatre mondes | **ATTESTÉ** (vague 2g — §11.4 : CI verte 9/9 sur `f9a5a5f`, run `41112383347`, le banc s'exécute en CI) | `BancFideliteK2Test` : moteur **0** / oracle **0** sur les quatre mondes sains — FP = 0 (invariant §4) ; la PREMIÈRE passe avait 6 FP (dont 5 × `@Suppress`) : corrigés (règle A31), la surveillance est MÉCANIQUE à chaque build |
+| Banc fidélité baseline signée | **ATTESTÉ** (vague 2g — §11.4) | `fidelite/baseline-fidelite.txt` : `faux-negatifs=1` ET empreinte SHA-256 `62b21b7f…` comparés à chaque build (toute variation = divergence à EXPLIQUER avant re-signature : `-Dfidelite.majBase=true --rerun-tasks`) ; le FN mesuré documente la preuve d'absence non couverte sur récepteurs builtin |
+
+## 3. Plan de vagues (cahier en main — l'ordre suit le plan de migration ADR 0106 : portées/imports d'abord, membres hérités ensuite, récepteurs de portée enfin)
+
+| Vague | Périmètre | Fiches | Comportements |
+|---|---|---|---:|
+| **2a** | Socle de résolution : modèle de symboles projet (scan Kotlin ET Java), hiérarchie de portées + imports + défauts KP8, `kt.unresolved` (noms nus et sélecteurs qualifiés sur récepteurs PROJET typés), garde par déclaration, journal explain, `kt.missingReturn` (cas positif requis par la fiche 017), germe de complétion membre (requis par la fiche 022) | 017 + 022 + 006 | 20 |
+| **2b** | Familles sémantiques K4 : typage borné (littéraux, types écrits, initialiseurs, retours), smart casts positionnels, lambdas par attente, `kt.typeMismatch`/`kt.argumentCount`/`kt.unsafeNullable`/`kt.unreachable`/`kt.valReassign`, gardes KP8/ADR 0203, `importsCandidats` ; vue JVM des membres du classpath (récepteurs classpath typés — ADR 0223) | 046 | 39 |
+| **2c** | Membres hérités : clôture des supertypes (clauses écrites + port de fichiers, projet et classpath mixtes), chaîne profondeur 7 du monde Views, frère projet ouvert vivant, récepteur implicite hérité, objets anonymes (pile des this) — **LIVRÉE (§7)** | 044 + 028 + 032 + 040 + 029 | 44 |
+| **2d** | Classpath côté Kotlin : compagnons (anonymes/nommés), objets du classpath (`INSTANCE`), typealias de bibliothèque, extensions à récepteur paramètre de type (`let`/`also`…), appelables builtin (`arrayOf`…) | 023 + 024 + 026 + 033 + 037 | 25 |
+| **2e** | KMP (expect/actual, deux racines), sources générées (`build/generated`), troncation du scan réfléchie dans l'univers, motifs Compose (stdlib réel), scripts `.gradle.kts` (muets sans modèle Gradle) | 030 + 031 + 035 + 036 + 025 + 027 | 32 |
+| **2f** | Correctifs texte (accès non sûr, conversions), membres manquants (quick-fix P1-C), consommation des synthétiques + fusion AVEC COUPURE, multi-langue Java↔Kotlin, récepteurs implicites `with` — **LIVRÉE (§10)** | 016 + 020 + 047 | 44 |
+| **2g** | Clôture : banc fidélité K2 oracle (baseline signée), passe zéro faux positif corpus quatre mondes, recalage de l'effort, journal — **LIVRÉE (§11)** | — | — |
+
+**Total fiches diagnostics : 204 comportements** (agrégat du cahier —
+INVENTAIRE.md). Chaque vague : code + tests NEUFS au nom exact du cahier +
+CI 9 tâques verte + section du présent journal + commit/push.
+
+## 4. Actions propriétaire ouvertes (reprises de l'étage 1 — §6 du journal précédent)
+
+| # | Action | Référence | Bloque |
+|---|---|---|---|
+| 1 | Audit de similarité GPL (P-K1) — la copie R1/R2 est effectuée (vague 1e), l'audit recommandé (rôle distinct des implémenteurs) s'exerce a posteriori | manifeste §3/§6, ALERTES §2 | plus rien de dur — le propriétaire en reste juge |
+| 2 | Arbitrages Q-K1 (CIDX vs index dédié) / Q-K2 (décodage @Metadata maison) — PARTIELLEMENT ARBITRÉ : le budget T1 a été ÉLEVÉ 4 Mo → 6 Mo par le propriétaire le 31/10/2026 (E-K8, ALERTES §4 — l'urgence Q-K1/Q-K2 est levée, les arbitrages restent ouverts pour la structure) | DEMANDES-INTERFACE, ADR 0108, ALERTES §4 | le câblage classpath final ; la marge dex (E-K8 : 63 % du NOUVEAU budget taille) |
+| 3 | Conditions binaires intellij-dependencies (P-K2) | ADR 0120, NOTICE | la PUBLICATION du pack langue |
+| 4 | Lecture du second manifeste | synthèse §6.4 | rien |
+| 5 | Passe appareil couvrant l'étage 1 (kit enrichi de `kotlin-metadata-jvm`) — recommandation consignée, OPTIONNELLE | `04-execution-etage1.md` §16/§6 | rien (les latences S0 restent tenues en JVM) |
+
+## 5. Vague 2a — le socle de résolution (30/10, fiches 017/022/006)
+
+### 5.1 Périmètre exécuté
+
+| # | Item | État | Détail |
+|---|---|---|---|
+| 1 | Tableau règles × spécification | **Fait** | `kotlin/SPECIFICATION-RESOLUTION.md` (ADR 0106 option 1) : portées (P1–P13), sélection par preuve (A1–A16), garde d'édition (G1–G7), sources du projet (S1–S5), journal explain (E1–E3), frontières assumées — chaque ligne cite le canon et le statut, rempli fiche par fiche |
+| 2 | Modèle de symboles du projet | **Fait** | `resolve/ModeleProjet.kt` : types (Kotlin classes/interfaces/enums/OBJETS, Java), membres (fonctions, propriétés, paramètres `val`/`var` du constructeur), supertypes ÉCRITS, data (`copy`/`componentN` synthétisés), entrées d'enum, appelables et EXTENSIONS de premier niveau (récepteur résolu par FQCN en deuxième passe d'assemblage) |
+| 3 | Lecteur Java maison | **Fait** | `resolve/LecteurDeclarationsJava.kt` : conservateur (jetons, accolades balancées, génériques SAUTÉS — la contrainte d'un paramètre de type n'est PAS un héritage, fiche 022), propriétés synthétiques des accesseurs (ADR 0219 : `getTitre()` → `titre`), enum/record Java marqués non absence-fiables, `@interface` lu comme type ; tolérant (jamais d'exception) |
+| 4 | Univers des preuves + résolution | **Fait** | `resolve/ResolutionReferences.kt` : hiérarchie de portées (déclarés → liaisons locales → types projet → imports exacts/alias → package courant → voie 6 de l'index → catalogue KP8), preuve d'absence des sélecteurs (membres complets + implicites Any/Object + extensions projet/classpath + gardes de sonorité : extensions génériques, extensions de `Any`, récepteurs non résolus), régimes (guichet muet, scan partiel, joker non énumérable, script) |
+| 5 | Marche typée | **Fait** | `resolve/MarcheTypee.kt` : liaison nom → type écrit PARESSEUSE (mémoïsée, gardée contre les cycles), typage par initialiseur (`val q = p.copy(x = 1)`), constructeurs, retours écrits |
+| 6 | Journal « explain » | **Fait** | `resolve/ExplicationsNonResolus.kt` : JUL niveau FINE, éteint par défaut (garde `isLoggable` AVANT toute construction), forme greppable `clé=valeur` (forme, sélection, récepteur typé, scan, index, script, position `ligne:colonne`) |
+| 7 | Passe sémantique de session | **Fait** | `session/DiagnosticsSemantiques.kt` : garde par déclaration (régions propres, noms déclarés documentaires avec data synthétisés, zone import brisée, en-tête de classe brisée, univers ouverts héritage/enum), marche des références (noms nus, sélecteurs, types `USER_TYPE` simples — les qualifiés restent muets, fiche 044), `kt.missingReturn` (corps de bloc sans `return` ni `throw`, type écrit ≠ `Unit`) |
+| 8 | Germe de complétion membre | **Fait** | `session/CompletionMembres.kt` + SPI `PropositionKotlin` + `SessionLangageKotlin.completion()` : membres/implicites/extensions du récepteur typé du PROJET après le point (fiche 022 : `copy` proposé) — le pipeline complet est l'étage 3 |
+| 9 | Scan étendu | **Fait** | La marche collecte AUSSI les `.java` (contribution au modèle SEULEMENT — la matière du survol reste Kotlin) ; le snapshot porte les contributions par fichier et l'ÉTAT de la passe (complète ou partielle) ; le consult REJOINT la passe en vol (miroir de la fiche 041) |
+| 10 | Catalogue `kt.*` | **Fait** | `kt.unresolved` + `kt.missingReturn` émis ; `kt.argumentCount` RÉSERVÉ au vocabulaire (famille vague 2b — les comportements 017 de non-émission restent verts par absence d'émission, verrouillage substantiel en 2b) |
+| 11 | Tests neufs | **Fait** | 20 comportements aux noms exacts du cahier : fiche 017 (8) + fiche 022 (8) + fiche 006 (4) — fixtures NEUVES (anciens tests consultés R9.1 pour les fixtures, jamais copiés) ; le câblage suit le chemin de production D6 (moteur nourricier + session branchée + guichet attendu par sondage borné — miroir du patron de la fiche 042) |
+
+### 5.2 Décisions d'exécution consignées (pas dans le plan initial)
+
+1. **Le guichet d'index EST la porte des preuves** : `kt.unresolved` ne
+   prouve RIEN tant que le guichet de la fiche 042 est muet (classpath non
+   posé OU passe non publiée) — la porte « sans classpath, jamais signalé »
+   de la fiche 046 est tenue par construction, et le classpath VIDE mais
+   DÉCLARÉ (passe aboutie) établit un univers VIDE où les preuves ne
+   dépendent que de la structure (fiche 017).
+2. **Le scan se consulte en MODE JOINTURE pour l'univers des preuves** :
+   contrairement au survol (servi après `rafraichirSources` — contrat 049),
+   la passe sémantique REJOINT la passe de scan en vol (jamais de scan sur
+   le fil appelant, fiche 041) — les fiches 022/006 voient le scan sans
+   rafraîchissement explicite, miroir de l'univers `estUniversConna()`
+   ancien ; la consultation se fait HORS verrou de session (le verrou
+   n'a rien à garder pendant l'attente).
+3. **La garde de sonorité des extensions** : (a) les extensions GÉNÉRIQUES
+   (`fun <T> T.…`, indexées sans récepteur de classe) atteignent tout
+   récepteur — leur présence dans l'index MUET la preuve (fiche 026 en 2d) ;
+   (b) les extensions de `kotlin.Any` pareillement ; (c) une extension du
+   projet dont le récepteur ÉCRIT ne résout à AUCUN type (alias, qualifié)
+   marque le modèle « extensions non résolues » et MUET toutes les preuves
+   de sélecteurs — l'univers ouvert est toujours préféré au faux positif.
+4. **Les jokers de packages classpath MUET les preuves de noms nus** : sans
+   vue JVM (la question lecteur maison vs `:index` est la vague 2b, Q-K1 et
+   budget dex E-K8 en jeu), un `import java.util.*` ne permet PAS de prouver
+   qu'un nom n'y vit pas ; les jokers de packages PROJET (énumérables par
+   le scan) laissent les preuves intactes.
+5. **Le catalogue KP8 est un PLANCHER documenté** : les types bien connus
+   des paquets par défaut résolvent sans classpath (garde KP8 de la fiche
+   046 : un type hors catalogue et hors classpath reste SIGNALÉ) ; les
+   APPELABLES des paquets par défaut relèvent de la voie 6 de l'index
+   (ADR 0203) — `println` ne résout donc que lorsque le stdlib est dans les
+   entrées (fidèle au compilateur : sans stdlib, `println` est réellement
+   irrésolvable).
+6. **La complétion est un germe ASSUMÉ** : la fiche 022 exige `copy` proposé
+   après `p.` — le SPI porte `PropositionKotlin` (libellé nu) et la méthode
+   `completion` du contrat de session, documentés comme croissant à l'étage
+   3 (ADR 0113) ; le germe ne devine jamais : sans récepteur typé du
+   projet, liste vide honnête.
+7. **`kt.missingReturn` est livré au cas positif** (requis par la fiche 017
+   « preuve locale ») avec la garde naturelle (corps d'expression, `Unit`,
+   `throw`, `return` imbriqué éteignent) ; les gardes COMPLÈTES de la fiche
+   046 (sous-rapports documentés) arrivent en vague 2b.
+8. **Le document COURANT prime sur son doublon du scan** : sa contribution
+   est assemblée EN PREMIER (les FQCN premiers gagnent) et le scan est
+   filtré de son URI — l'arbre frais est la vérité, jamais contredit.
+
+### 5.3 Mesures de la vague 2a (bac à sable — JVM de bureau conteneurisée, toolchain 17)
+
+- **Suite du module : 152 tests VERTS** (132 + 20) sous la toolchain 17 —
+  fiches 017 (8/8), 022 (8/8), 006 (4/4), l'intégralité de l'étage 1
+  inchangée (010-013, 049/042/041, 002-005/008/009/034, synthétiques,
+  garde JDK 17).
+- **Baseline de parité re-signée** : corpus 324 → **335 fichiers**
+  (+7 main : les cinq fichiers de la zone `resolve/`, la passe sémantique,
+  le germe de complétion ; +3 test ; +1 document de spécification) —
+  procédure documentée `-Dparite.majBase=true --rerun-tasks`.
+- **Jar moteur : 499 730 o** (+81 025 vs vague 1e) — le socle de
+  résolution.
+- **Scan ART pile complète** (mêmes commandes que la CI) : **6 × AUCUNE
+  référence sensible** — moteur **189 classes / 250 méthodes déclarées**
+  (+27 classes / +23 méthodes vs vague 1e : `ModeleProjet`,
+  `LecteurDeclarationsJava`, `ResolutionReferences`, `MarcheTypee`,
+  `ExplicationsNonResolus`, `DiagnosticsSemantiques`, `CompletionMembres`
+  et compagnons), class-file 61:189 (bytecode 17 intégral), ServiceLoader
+  OK — descripteur vérifié (1 fournisseur).
+- **Dexage d8** (build-tools 34, min-api 26, pile chaude complète) :
+  **24 996 références de méthodes / 3 882 064 o (3,70 Mo)** — seuils étage
+  0 tenus (marges 7 772 méthodes / 312 Kio) ; **alerte E-K8 actualisée :
+  budget taille consommé à 93 %** (la vague ajoute 224 méthodes /
+  66 336 o).
+- **Banc JDK 17** (toolchain du module) : parse froid 220,7/26,8 ms, p50
+  6,1/24,4 ms, p95 36,3/49,4 ms — reparse p50 24,4 ms à 3 000 l. (< 50 ms,
+  latences S0 tenues), déterminisme **31 368 / 24 274 IDENTIQUE** (étage 0,
+  1c–2a), tolérance 101 troncatures / 0 lever, tas au repos 3 845 Kio
+  (+215 Kio vs §17 — le banc ne traverse pas la passe sémantique ; l'écart
+  est le bruit entre passes déjà consigné §12/§14/§16/§17).
+- **Provenance** : `verifier-provenance.sh` rc=0 (aucune reprise nouvelle —
+  la vague est du code NEUF intégral, zones `resolve/` écrites cahier en
+  main).
+
+### 5.4 Clôture de la vague 2a
+
+**CI VERTE 9/9 sur le commit de livraison `a07d381`** (run `41054215181`,
+tentative 2 — consulté le 30/10) : build et tests JDK 21, bancs
+noyau/qualité/parité T, gates Android, provenance (rc=0), et les trois jobs
+Kotlin — suite du module **152 tests VERTS sur la toolchain 17** (fiches
+010-013 + 049/042/041 + 002-005/008/009/034 + synthétiques R1/R2 +
+**017/022/006**), scan ART **6 × « AUCUNE »** sur la pile complète (moteur
+189 classes / 250 méthodes déclarées — ServiceLoader OK descripteur
+vérifié), dexage d8 **24 996 références de méthodes / 3 882 064 o (3,70
+Mo)** [mesurés par la CI — IDENTIQUES au bac à sable, seuils étage 0
+tenus], banc empreinte/latence sous JDK 17.
+
+**Écart d'exécution signalé (E-K6, miroir de la vague 1c)** : la tentative
+1 du run a échoué sur le test flottant CONNU du chantier Java
+(`socle/testing/…/IntegrationMoteurIndexTest.reouvertureChaudeSansReconstruction`
+— assertion de TEMPO sans tolérance, documenté ALERTES §4 E-K6 depuis la
+vague 1c) ; le diff de la vague ne touche QUE `lsp-kotlin/moteur/` et `docs/` (aucun
+lien avec le périmètre Java), la relance du job a rendu la tentative 2
+VERTE (9/9). La recommandation d'assouplissement au propriétaire
+(périmètre Java) DEMEURE.
+
+**LA VAGUE 2A EST CLOSE sur preuve mécanique** : le socle de résolution
+est livré — hiérarchie de portées, modèle de symboles projet (Kotlin ET
+Java), preuve d'absence `kt.unresolved` (noms nus et sélecteurs sur
+récepteurs projet typés), garde par déclaration, journal « explain »,
+`kt.missingReturn` (cas positif), germe de complétion membre ; 20/20
+comportements des fiches 017/022/006 verts. La vague 2b (familles
+sémantiques K4 — fiche 046, 39 comportements : typage borné, smart casts,
+lambdas par attente, `kt.typeMismatch`/`kt.argumentCount`/`kt.unsafeNullable`
+/`kt.unreachable`/`kt.valReassign`, gardes KP8/ADR 0203, `importsCandidats`,
+et la question de la vue JVM des membres du classpath) est la suivante.
+
+## 6. Vague 2b — les familles sémantiques K4 (30/10, fiche 046)
+
+### 6.1 Périmètre exécuté
+
+| # | Item | État | Détail |
+|---|---|---|---|
+| 1 | Vue JVM des membres du classpath | **Fait** | `resolve/VueJvm.kt` : lecteur MAISON des class-files (pool de constantes avec indirection des constantes Class, champs et méthodes déclarés — synthétiques et ponts écartés, `java.lang.Object` terminal connu) + `VueJvmMembres` (jeu COMPLET par marche bornée de la chaîne de supertypes — profondeur 24, cycles coupés ; propriétés DÉRIVÉES des accesseurs `get`/`is` ADR 0219 ; `fqcnParNomSimple` pour les quick-fixes d'import) — PILOTÉE PAR LES ENTRÉES (miroir de la discipline de l'index 1d : jamais la ressource du runtime, jamais la vue de l'hôte), paresseuse et tolérante (D3), lecture synchronisée (requêtes parallèles ADR 0117), portée par le snapshot publié (`SnapshotClasspath.vueJvm` — même garde de couverture que l'index) |
+| 2 | Typage borné étendu | **Fait** | `resolve/TypageBorne.kt` : `TypeValeur` (Projet \| Jvm), `typeDeLexpression` (littéraux par famille, types écrits via la résolution projet → import → catalogue KP8 `NOMS_FQCN_DEFAUT`, chaînes qualifiées par le retour écrit des membres), `raffinementAuPoint` (smart casts POSITIONNELS : branche THEN, garde `!is` à sortie PRÉCOCE — `estTerminal` déballant THEN/BLOCK, opérande droit d'un `&&`, corps d'entrée de `when` sans sujet ; l'OMBRE par une locale postérieure coupe — recherche dans le THEN ; `||` ANNULE tout), `attenteLambdaAuPoint` (fonction projet par INDEX d'argument, méthode unique d'une interface projet — SAM, type de fonction ÉCRIT d'une propriété), `familleLitteral` |
+| 3 | Liaison POSITIONNELLE | **Fait** | `MarcheTypee.Liaison` refondue : les candidats d'un nom (paramètres, locales, propriétés du document) sont collectés en ordre de SOURCE et la consultation À POSITION rend le DERNIER déclaré avant l'usage — la locale ombreuse gagne (P13, fiche 046) ; la nullabilité écrite est CONSERVÉE (`String?` — c'est elle qui prouve `kt.unsafeNullable`) |
+| 4 | Modèle étendu | **Fait** | `ModeleProjet` : `ParametreProjet` (nom, type écrit, type FONCTIONNEL écrit, défaut, `vararg`) sur les appelables et les méthodes, `parametresPrimaire` sur les types (témoins d'arité des constructeurs), `uri` sur les appelables (propreté des témoins du document courant), `typeFonctionEcritDe` partagé (modèle + attentes) |
+| 5 | `kt.typeMismatch` | **Fait** | `DiagnosticsTypage.verifierTypeMismatch` : famille du LITTÉRAL vs famille du type ÉCRIT (chaîne/numérique/booléen/caractère) ; conversions numériques legitimes et nullabilité muettes ; plage sur le littéral |
+| 6 | `kt.argumentCount` | **Fait** | `verifierArite` : appels NUS aux fonctions de premier niveau et constructeurs primaires du PROJET ; les témoins du document courant vérifient leur PROPRETÉ (fiche 017 — surcharge en frappe écartée) ; défauts, `vararg`, arguments NOMMÉS et sélecteurs qualifiés muets ; lambda en position comptée |
+| 7 | `kt.unsafeNullable` | **Fait** | `verifierAccesNonSur` : point (jamais `?.`) sur récepteur NOMINAL au type écrit NULLABLE sans raffinement de non-nullité en position (gardes `!= null`, gardes précoces `== null`) |
+| 8 | `kt.unreachable` | **Fait** | `verifierInatteignable` : la PREMIÈRE déclaration suivant un `return`/`throw` FRÈRE (un `return` imbriqué n'est pas un terminal — sous-rapport), AVERTISSEMENT |
+| 9 | `kt.valReassign` | **Fait** | `verifierValReaffectation` : affectation `=` à cible NOMINALE liée à un `val` (locale, paramètre, propriété — `var` quelconque l'emporte, conservateur) ; cibles qualifiées et introuvables muettes |
+| 10 | Sélecteurs sur récepteurs CLASSPATH | **Fait** | `UniversPreuves.verifierSelecteur` étendu à `TypeValeur` : le jeu JVM complet décide (résolu/absence prouvée) ; les types MAPPÉS numériques/booléens restent MUETS (`MAPPES_NON_FIABLES` — leurs membres Kotlin ne vivent pas dans le bytecode des classes encadrantes : jamais un faux positif) ; les gardes d'extensions (génériques, `Any`, récepteurs non résolus) et le régime dégradé tiennent |
+| 11 | Complétion membre classpath | **Fait** | `propositionsMembres` étendu : jeu JVM + implicites + EXTENSIONS de l'index sur le FQCN Kotlin (une chaîne illisible rend la complétion VIDE d'entrées — les extensions se proposent encore, D3) ; `CompletionMembres` câblé sur le typage étendu (smart casts, attentes, littéraux) |
+| 12 | `importsCandidats` | **Fait** | SPI `SessionLangageKotlin.importsCandidats(uri, deplacement)` : FQCN des ENTRÉES portant EXACTEMENT le nom simple (internes `$` et fichiers spéciaux écartés, tri déterministe) ; déjà importé (exact) ou couvert (joker) → vide ; document inconnu / guichet muet → vide honnête |
+| 13 | Correctif de la vague 2a | **Fait** | ÉCART DÉCOUVERT et corrigé par les fixtures 046 : la marche des références re-marchait la RÉFÉRENCE d'un `USER_TYPE` en NOM NU après `verifierNomType` — émission DOUBLÉE d'un `kt.unresolved` sur un type introuvable (jamais exposé par les fiches 017/022/006, latente depuis 2a) ; la référence ne re-marche plus (position de TYPE, jamais un usage) |
+
+### 6.2 Décisions d'exécution consignées (pas dans le plan initial)
+
+1. **La vue JVM des membres est un LECTEUR MAISON** (Q-K1 tranchée À
+   MINIMA) : un fichier (`resolve/VueJvm.kt`), aucune dépendance neuve,
+   aucun lien inter-modules (`:kotlin` reste autonome pour le pack langue
+   Android, ADR 0101), le budget dex E-K8 est épargné (+17 méthodes
+   déclarées seulement) ; l'ARBITRAGE COMPLET du propriétaire (CIDX vs
+   index dédié, action §4.2) DEMEURE OUVERT — la vue 2b ne le préjuge
+   pas, elle couvre le besoin minimal des preuves ADR 0223.
+2. **La vue est PILOTÉE PAR LES ENTRÉES** : un type absent des entrées
+   (le `java.lang.String` d'un android.jar de STUB Maven — le jar de test
+   4.1.1.4 n'embarque pas `java.*` ; le `kotlin.String` mappé d'un stdlib
+   seul) rend un jeu `null` — le récepteur reste TYPABLE (complétion par
+   les EXTENSIONS de l'index, sélecteur muet). La ressource du RUNTIME
+   n'est jamais lue (déterminisme bac à sable = CI = appareil — la
+   production pose un android.jar de SDK COMPLET qui porte `java.lang.*`,
+   le stub de test honnêtement non).
+3. **Les types MAPPÉS numériques/booléens ne sont pas absence-fiables** :
+   `1.inv()`, `flag.not()` — ces membres Kotlin de `kotlin.Int`/`Boolean`
+   ne vivent dans AUCUN class-file lisible (la boîte `java.lang.Integer`
+   ne les porte pas) ; les muet (sous-rapport documenté, banc 2g) au
+   lieu d'exposer un faux positif. `kotlin.String` et `kotlin.Any`
+   restent absence-fiables (le `get` de String vit dans les méthodes
+   lues ; Object est terminal connu).
+4. **Les smart casts sont POSITIONNELS, jamais structurels** : la marche
+   des ANCÊTRES couvrant la position applique THEN/garde précoce/`&&`/
+   `when` SANS SUJET ; l'ombre par une locale postérieure coupe (recherche
+   dans le THEN, la garde `P13` de la fiche 046) ; `||` annule (bornologie
+   de l'ADR 0107 conservée TELLE QUELLE — parité avant extension) ; les
+   ELSE, boucles et sujets de `when` restent au mode profond K2.
+5. **Les témoins d'arité sont PROPRETÉ-VÉRIFIÉS pour le document
+   courant** : la surcharge en cours de frappe (fiche 017) est écartée en
+   cherchant la déclaration du nom dans l'arbre FRAIS ; les témoins du
+   SCAN sont acceptés tels quels (un fichier non édité n'est pas en
+   frappe). La propreté est vérifiée PAR NOM (une surcharge propre
+   homonyme légitime le témoin — conservateur dans la direction sûre).
+6. **`importsCandidats` exclut les classes INTERNES (`$`)** : l'import
+   pointé d'une classe interne (`a.b.C.D`) est une raffinement possible
+   mais pas un faux candidat — l'exclusion sous-rapporte (quick-fix moins
+   riche, jamais faux).
+7. **La double passe (références puis K4) par région propre** : la marche
+   des familles K4 (`DiagnosticsTypage`) court APRÈS la marche des
+   références sur la MÊME région propre (garde par déclaration fiche 017
+   — « arbre en édition : tout le sémantique écarté » tient PAR
+   CONSTRUCTION sur la déclaration brisée) ; le coût est un second passage
+   par région, hors chemin de frappe du parseur (banc inchangé en
+   latences).
+
+### 6.3 Mesures de la vague 2b (bac à sable — JVM de bureau conteneurisée, toolchain 17)
+
+- **Suite du module : 191 tests VERTS** (152 + 39) sous la toolchain 17 —
+  fiche 046 (39/39), l'intégralité des vagues précédentes inchangée
+  (010-013, 049/042/041, 002-005/008/009/034, synthétiques, garde JDK 17,
+  017/022/006).
+- **Baseline de parité re-signée** : corpus 335 → **340 fichiers**
+  (+3 main : `VueJvm.kt`, `TypageBorne.kt`, `DiagnosticsTypage.kt` ;
+  +1 test : fiche 046 ; +1 document de spécification recompté) —
+  procédure documentée `-Dparite.majBase=true --rerun-tasks`.
+- **Jar moteur : 565 228 o** (+65 498 vs vague 2a) — la vue JVM, le typage
+  borné et les cinq familles.
+- **Scan ART pile complète** (mêmes commandes que la CI) : **6 × AUCUNE
+  référence sensible** — moteur **208 classes / 267 méthodes déclarées**
+  (+19 classes / +17 méthodes vs vague 2a), class-file 61:208 intégral,
+  ServiceLoader OK — descripteur vérifié (1 fournisseur).
+- **Dexage d8** (build-tools 34, min-api 26, pile chaude complète) :
+  **25 152 références de méthodes / 3 936 216 o (3,75 Mo)** — seuils étage
+  0 tenus (marges 7 616 méthodes / 252 Kio) ; **alerte E-K8 actualisée :
+  budget taille consommé à 94 %** (la vague ajoute 156 méthodes / 54 152 o).
+- **Banc JDK 17** (toolchain du module) : parse froid 227,7/24,5 ms, p50
+  4,4/25,8 ms, p95 40,2/50,4 ms — reparse p50 25,8 ms à 3 000 l. (< 50 ms,
+  latences S0 tenues), déterminisme **31 368 / 24 274 IDENTIQUE** (étage 0,
+  1c–2b), marqueurs d'erreur 0, tas au repos 3 700 Kio (−145 Kio vs §5.3 —
+  le bruit entre passes déjà consigné §12/§14/§16/§17/§5.3).
+- **Provenance** : `verifier-provenance.sh` rc=0 (aucune reprise nouvelle —
+  la vague est du code NEUF intégral, `resolve/VueJvm.kt` est un lecteur
+  maison écrit cahier en main).
+
+### 6.4 Clôture de la vague 2b
+
+**CI VERTE 9/9 sur le commit de livraison `20fd00b`** (run `41081927798`,
+consulté le 30/10 — PREMIÈRE TENTATIVE, aucun écart d'exécution) : build
+et tests JDK 21, bancs noyau/qualité/parité T, gates Android, provenance
+(rc=0), et les trois jobs Kotlin — suite du module **191 tests VERTS sur
+la toolchain 17** (fiches 010-013 + 049/042/041 + 002-005/008/009/034 +
+synthétiques R1/R2 + 017/022/006 + **046**), scan ART **6 × « AUCUNE »**
+sur la pile complète (moteur 208 classes / 267 méthodes déclarées —
+ServiceLoader OK descripteur vérifié), dexage d8 **25 152 références de
+méthodes / 3 936 216 o (3,75 Mo)** [mesurés par la CI — IDENTIQUES au bac
+à sable, seuils étage 0 tenus, E-K8 à 94 %], banc empreinte/latence sous
+JDK 17 (froid 126,6/17,4 ms, p50 5,3/12,0 ms, p95 15,1/18,3 ms,
+productions 5 448/31 368 et jetons 4 210/24 274 — déterminisme IDENTIQUE,
+marqueurs d'erreur 0, tas 2 008 Kio sur le runner).
+
+**LA VAGUE 2B EST CLOSE sur preuve mécanique** : les familles sémantiques
+K4 sont livrées — la vue JVM des membres du classpath (lecteur maison
+piloté par les entrées, décision Q-K1 à minima), les smart casts
+positionnels, les lambdas par attente, la liaison positionnelle, les cinq
+codes `kt.typeMismatch`/`kt.argumentCount`/`kt.unsafeNullable`/
+`kt.unreachable`/`kt.valReassign`, les sélecteurs sur récepteurs de
+bibliothèque (ADR 0223) et le quick-fix `importsCandidats` ; 39/39
+comportements de la fiche 046 verts, 59/204 au critère §2. La vague 2c
+(membres hérités : clôture des supertypes, chaîne profondeur 7 du monde
+Views, frère projet ouvert vivant — fiches 044/028/032/040/029, 44
+comportements) est la suivante.
+
+## 7. Vague 2c — les membres hérités (30/10, fiches 044/028/032/040/029)
+
+### 7.1 Périmètre exécuté
+
+Code NEUF intégral (zones `resolve/` et `diagnostics/` anciennes jamais
+consultées R9.1 ; tests sources des cinq fiches consultés R9.1/R9.5 pour
+les FIXTURES, jamais copiés — les supertypes binaires vivent sur des JARS
+DE FIXTURE : des class-files minimaux mais RÉELS, descripteurs compris,
+posés comme ENTRÉES du classpath, AUCUNE vue factice) :
+
+- **CLÔTURE DES SUPERTYPES** (`resolve/ClotureHeritage.kt` — la voie 2-ter
+  d'ADR 0216, fiches 044/028) : la fermeture transitive d'un type du
+  projet — ses membres DÉCLARÉS puis chaque clause ÉCRITE résolue par le
+  MODÈLE (package courant, nom unique), les IMPORTS EXACTS (un type projet
+  y prime) et le catalogue KP8 ; les maillons PROJET se relisent
+  récursivement (garde de cycle, borne 24 — le frère FERMÉ du scan comme
+  le frère OUVERT VIVANT), les maillons CLASSPATH par le JEU JVM de la
+  chaîne binaire + leurs IMBRIQUÉES `$` (`Resultats` nu hérité de
+  `Base$Resultats`). AUCUNE résolution devinée par nom simple du classpath
+  (ADR 0223) : un maillon introuvable, un enum, un marqueur `Enum`/`Record`
+  Java ou un maillon illisible laisse l'univers OUVERT — `verifierSelecteur`
+  prouve désormais l'absence sur un récepteur à clause écrite quand la
+  chaîne SE FERME, muet sinon (jamais un faux positif) ;
+- **LA PILE DES THIS** (fiches 028/040) : chaque classe nommée et chaque
+  OBJET ANONYME empile sa COUCHE (type interne + clôture) dans la marche
+  sémantique — la consultation va du PROFOND vers l'externe (`filtrer()` du
+  this anonyme, `soumettre()` du this externe) ; la lambda traînante d'un
+  `apply`/`also`/`run` sur récepteur TYPÉ porte le récepteur en this
+  implicite (`Peinture().apply { style = 1 }` — le setter synthétique
+  résout) ; `this` TYPE (`this.` propose `layoutInflater`) ; `Couches.
+  aPosition` reconstruit la pile au CARET pour la complétion, le survol et
+  le quick-fix d'import (miroir de la marche) ;
+- **LES ZONES DE CONSTRUCTION** (fiche 028) : les paramètres NUS du
+  primaire (sans `val`/`var`) ne vivent que dans les initialisateurs, les
+  `init` et la clause du super — dans un CORPS DE MÉTHODE ils sont
+  SIGNALÉS (miroir kotlinc — la garde documentaire P1 les exclut, la
+  liaison ne les lie plus) ; `field` et le paramètre des accesseurs custom
+  sont en portée ;
+- **LES CHEMINS FQN** (fiches 044 E4/E4bis, 028/029) : `cheminClasse`
+  résout un chemin de segments — FQCN absolu du projet, premier segment au
+  MODÈLE puis marches IMBRIQUÉES pointées (`Aquarium.Bac.Couloir`),
+  premier segment par IMPORT puis marches `$` classpath
+  (`Conteneur.Fabrique` → `exo.conteneur.Conteneur$Fabrique`), chemin
+  complet en CLASSE CLASSPATH (`android.os.Bundle`) ; en TYPE, le chemin
+  résolu rend tous les segments muets, sinon UN SEUL faillible — le
+  DERNIER ; en EXPRESSION, un chemin à racine non valeur résolu rend tout
+  muet (`exo.paq.ClassePublique()` sans import), introuvable signale la
+  RACINE et (chemin de classe ≥ 3 segments, feuille appelée) la FEUILLE —
+  le MILIEU (paquet) toujours muet ;
+- **TYPES IMBRIQUÉS DES SOURCES** (fiche 029) : niveau 2 et 3 extraits en
+  récursif borné — FQCN pointé `paquet.Conteneur.Imbriquee` (correctif du
+  séparateur oublié du lecteur Java, bug LATENT 2a jamais exposé : les
+  imbriquées Java lisaient `paquet.ConteneurImbriquee`), chaque imbriquée
+  AUSSI membre TYPE_IMBRIQUE de son conteneur (le sélecteur `Bac` sur
+  `Aquarium` résout, le typage rend l'imbriquée) ; les types de membres
+  Java (retours/champs, primitifs mappés) nourrissent le typage
+  (`bac.capacite` type `Int`) ;
+- **VUE JVM ÉTENDUE** (fiches 032/040/028) : les DESCRIPTEURS sont lus
+  (`DescripteursJvm` — primitifs → FQCN Kotlin, tableaux muets D3), la
+  dérivation ADR 0219 devient CONSCIENTE des signatures (un getter à
+  PARAMÈTRE ne synthétise RIEN — `getDrawable(I)` n'est pas `drawable` ;
+  setter à un paramètre → propriété VAR), `java.lang.Enum` est un TERMINAL
+  CONNU (la superclasse binaire de tout enum vit dans le JDK, jamais dans
+  les entrées — socle conservateur : la chaîne d'un enum SE FERME,
+  `entries`/`values`/`valueOf` muets, un membre réellement absent SIGNALÉ),
+  les IMBRIQUÉES `$` se consultent (`Peinture.Capitaine.ROND` traverse
+  `Peinture$Capitaine`), `membreChaine` rend le PROPRIÉTAIRE déclarant et
+  les signatures dépouillées, `typeDuMembre` tape les retours (les
+  surcharges divergentes restent muettes) ;
+- **SURVOL ET COMPLÉTION DES MEMBRES HÉRITÉS** (fiche 040) : le survol
+  IMPLICITE (`layoutInflater`) et QUALIFIÉ (`this.layoutInflater`) rendent
+  `val layoutInflater: LayoutInflater (android.app.Activity)` — dépouillé
+  du descripteur, propriétaire déclarant compris (miroir Android Studio) ;
+  `fun getString(Int): String (android.content.Context)` ; la complétion
+  membre étendue à la CLÔTURE (`this.` propose `layoutInflater` et
+  `packageName` du maillon profond, les imbriquées comprises) ; le TYPAGE
+  enchaîne (`layoutInflater.inflate(…)` type le récepteur par le RETOUR du
+  getter) ;
+- **LE FRÈRE OUVERT VIVANT** (fiche 044) : `contributionsAuConsult` fait
+  primer les documents OUVERTS sur leurs doublons du scan (l'arbre VIF,
+  jamais le disque périmé — miroir de la décision 2a pour le document
+  courant) ; `importsCandidats` consulte le MÊME prédicat que le
+  diagnostic (un membre hérité ne propose AUCUN import).
+
+### 7.2 Décisions d'exécution consignées (pas dans le plan initial)
+
+1. **La racine FQN et la zone de construction** : la voie FQN
+   (`marcherCheminFqn`) consulte `resoudreNomNu` SANS la zone — un
+   paramètre nu du primaire (`contexte.toString()` dans le `init`) y est
+   maintenant explicitement écarté (retour à la marche standard par
+   sélecteur), sinon la racine eût été signalée deux fois.
+2. **La feuille FQN n'est faillible qu'en forme de CLASSE qualifiée** : un
+   chemin à feuille appelée n'émète la feuille que pour ≥ 3 segments
+   (`exo.paq.Introuvable()` — miroir kotlinc du cahier) ; un sélecteur de
+   MÉTHODE sur récepteur inconnu à 2 segments (`zz.methode()`) reste au
+   récepteur seul — direction conservatrice, l'oracle 2g mesurera.
+3. **`super` porte un REFERENCE_EXPRESSION** (découverte E4) : le parseur
+   enveloppe le mot-clé d'une référence — la marche l'écarte désormais
+   explicitement (jamais un nom nu).
+4. **`java.lang.Enum` terminal connu** : la superclasse binaire des enums
+   vit dans le JDK, jamais dans les entrées — sans ce terminal, TOUT enum
+   classpath eût eu une chaîne ouverte (muet, sûr mais sourd) ; ses membres
+   implicits (`name`, `ordinal`, `compareTo`…) y sont sur-approximés
+   (conservateur).
+5. **Les marqueurs `Enum`/`Record` du lecteur Java ouvrent la clôture**
+   (fiche 029 : `CouleurJava.ROUGE` muet) — leurs membres implicites ne
+   vivent dans AUCUNE source ; le correctif du SÉPARATEUR d'englobants du
+   lecteur Java (`paquet.Conteneur.Imbriquee`, bug latent 2a jamais exposé
+   par les fiches précédentes) a été découvert par la fixture 029.
+6. **`apply`/`also`/`run` par leur NOM** (heuristique documentée —
+   classement cahier « heuristique ») : la couche ne fait qu'AJOUTER du
+   muet (sur-résolution sûre), jamais une émission ; `let`/`with` (scopes
+   à paramètre) restent 2d/2f.
+7. **Le survol JVM passe par l'univers** : `session.survol` construit
+   l'univers HORS verrou de lecture (miroir de la passe de diagnostics) —
+   la chaîne conservatrice S2 (document → ouverts → scan) reste PREMIÈRE,
+   la résolution des membres hérités n'intervient qu'à DÉFAUT.
+
+### 7.3 Mesures de la vague 2c (bac à sable — JVM de bureau conteneurisée, toolchain 17)
+
+- **Suite du module : 235 tests VERTS** (191 + 44) sous la toolchain 17 —
+  fiches 044 (13/13), 028 (12/12), 032 (3/3), 040 (11/11), 029 (5/5),
+  l'intégralité des vagues précédentes inchangée (010-013, 049/042/041,
+  002-005/008/009/034, synthétiques, garde JDK 17, 017/022/006, 046).
+- **Baseline de parité re-signée** : corpus 340 → **346 fichiers**
+  (+1 main : `ClotureHeritage.kt` ; +5 tests : les cinq fiches) —
+  procédure documentée `-Dparite.majBase=true --rerun-tasks`.
+- **Jar moteur : 620 562 o** (+55 334 vs vague 2b) — la clôture, la pile
+  des this, les descripteurs et les cinq fiches.
+- **Scan ART pile complète** (mêmes commandes que la CI) : **6 × AUCUNE
+  référence sensible** — moteur **224 classes / 273 méthodes déclarées**
+  (+16 classes / +6 méthodes vs vague 2b), class-file 61:224 intégral,
+  ServiceLoader OK — descripteur vérifié (1 fournisseur).
+- **Dexage d8** (build-tools 34, min-api 26, pile chaude complète) :
+  **25 273 références de méthodes / 3 980 148 o (3,80 Mo)** — seuils étage
+  0 tenus (marges 7 495 méthodes / 209 Kio) ; **alerte E-K8 actualisée :
+  budget taille consommé à 95 %** (la vague ajoute 121 méthodes /
+  43 932 o — l'arbitrage Q-K1 du propriétaire devient PRESSANT avant les
+  vagues 2d-2g).
+- **Banc JDK 17** (toolchain du module) : parse froid 210,5/22,2 ms, p50
+  6,9/22,7 ms, p95 30,8/49,9 ms — reparse p50 22,7 ms à 3 000 l. (< 50 ms,
+  latences S0 tenues), déterminisme **31 368 / 24 274 et 5 448 / 4 210
+  IDENTIQUES** (étage 0, 1c–2c), marqueurs d'erreur 0, tas au repos
+  3 701 Kio.
+- **Provenance** : `verifier-provenance.sh` rc=0 (aucune reprise nouvelle —
+  la vague est du code NEUF intégral, `resolve/ClotureHeritage.kt` est
+  écrit cahier en main).
+
+### 7.4 Clôture de la vague 2c
+
+**CI VERTE 9/9 sur le commit de livraison `c0062d6`** (run `41095116471`,
+consulté le 30/10 — PREMIÈRE TENTATIVE, aucun écart d'exécution) : build
+et tests JDK 21, bancs noyau/qualité/parité T, gates Android, provenance,
+et les trois jobs Kotlin — suite du module **235 tests VERTS sur la
+toolchain 17** (fiches 010-013 + 049/042/041 + 002-005/008/009/034 +
+synthétiques R1/R2 + 017/022/006 + 046 + **044/028/032/040/029**), scan
+ART **6 × « AUCUNE »** sur la pile complète (moteur 224 classes / 273
+méthodes déclarées — ServiceLoader OK descripteur vérifié), dexage d8
+**25 273 références de méthodes / 3 980 148 o (3,80 Mo)** — IDENTIQUES au
+bac à sable, seuils étage 0 tenus [marges 7 495 méthodes / 209 Kio,
+ALERTE E-K8 actualisée : 95 % du budget taille], banc empreinte/latence
+sous JDK 17 (froid 381,8/37,4 ms, p50 9,8/19,9 ms, p95 28,0/30,3 ms,
+productions 5 448/31 368 et jetons 4 210/24 274 — déterminisme
+IDENTIQUE, marqueurs d'erreur 0, tas 2 010 Kio sur le runner).
+
+**LA VAGUE 2C EST CLOSE sur preuve mécanique** : les membres hérités sont
+livrés — la clôture mixte des supertypes (voie 2-ter ADR 0216), la pile
+des this (objets anonymes et `apply`), la chaîne profondeur 7+ du monde
+Views, les imbriquées projet et classpath, les chemins FQN, les zones de
+construction, la dérivation ADR 0219 consciente des descripteurs, le
+survol et la complétion des membres hérités ; 44/44 comportements des
+fiches 044/028/032/040/029 verts, **103/204** au critère §2. La vague 2d
+(classpath côté Kotlin : compagnons, objets `INSTANCE`, typealias de
+bibliothèque, extensions à récepteur paramètre de type, appelables
+builtin — fiches 023/024/026/033/037, 25 comportements) est la suivante.
+
+## 8. Vague 2d — le classpath côté Kotlin (31/10, fiches 023/024/026/033/037)
+
+### 8.1 Périmètre exécuté
+
+| # | Item | État | Détail |
+|---|---|---|---|
+| 1 | Compagnons PROJET (fiche 024) | **Fait** | `ModeleProjet` : le `companion object` du corps (nommé ou anonyme — `KtTokens.COMPANION_MODIFIER`) porte ses membres FUN/PROPERTY dans `membresCompagnon` du CONTENEUR (portée STATIQUE — `Boite.creer()`), le nom en `nomCompagnon` (`"Companion"` effectif pour l'anonyme) ; le compagnon NOMMÉ reste un type imbriqué du modèle (`Boite.Fabrique.creer()` par la marche existante) ; `verifierSelecteurProjet` consulte la portée statique APRÈS la clôture (jamais dans le jeu d'INSTANCE — `instance.creer()` reste signalé, miroir kotlinc) ; `propositionsMembres` propose les membres du compagnon ; le `this` implicite du corps passe par la PILE DES THIS (couche nommée du modèle / couche anonyme existantes) |
+| 2 | Compagnons CLASSPATH (fiche 024) | **Fait** | `VueJvmMembres.compagnonDe(fqcn)` : l'entrée `fqcn$Companion.class` des ENTRÉES posées — TROIS états (ABSENTE : rien ne change ; PRÉSENTE LISIBLE : ses noms — membres + dérivées — la classe est close et énumérable, l'absence d'un AUTRE nom reste PROUVÉE ; PRÉSENTE ILLISIBLE : muet, D3) ; `verifierSelecteur` (classpath) la consulte après le jeu complet ; `propositionsMembres` l'offre ; `SurvolDocuments` survole par `fqcn$Companion` en repli — preuves sur le stdlib réel : `Regex.escape` (méthode d'instance de `kotlin.text.Regex$Companion` — vérifiée au bytecode par sonde), `UInt.MAX_VALUE` (champ STATIQUE `I` porté par la classe encadrante — la sonde écarte le compagnon vide) |
+| 3 | Extensions à récepteur paramètre de type (fiche 026) | **Fait** | La garde 2a « extensions GÉNÉRIQUES » (présence dans l'index SANS récepteur de classe → MUET) couvre `let`/`also`/`apply`/`run`/`takeIf`/`takeUnless` sur récepteur classpath LISIBLE (android.jar + stdlib réels) ; le contrôle négatif (membre réellement absent du même récepteur) reste SIGNALÉ — la preuve s'exerce VRAIMENT |
+| 4 | Objets du classpath `INSTANCE` (fiche 033) | **Fait** | Le jar de fixture calque la structure RÉELLE d'un objet compilé (champ STATIQUE `INSTANCE` du type propre + membres d'INSTANCE, accès 0x0009) : `MaterialTheme.typography`/`.colorant` (propriétés), `Arrangement.spacedBy(8)` (fonction membre), membre inexistant SIGNALÉ, SURVOL du membre (signature typée + propriétaire déclarant) ; `objectimporte` : le membre inexistant d'un object du PROJET reste signalé |
+| 5 | Coroutines réelles (fiche 033) | **Fait** | `kotlinx-coroutines-core-jvm:1.9.0` en dépendance de TEST (ancre de classe `kotlinx.coroutines.flow.Flow` — AUCUN impact dex, test seul) : `flux.collect { }` (extension suspend sur le récepteur EXACT `Flow`) et `m.etat?.collect { }` sur `SharedFlow`/`StateFlow` (le MAILLON DISTANCIÉ) — `VueJvmMembres.chainesDe(fqcn)` rend la fermeture des supertypes lue des entrées (terminaux connus exclus), `recepteursExtension` consulte chaque maillon (nom JVM + MIROIR KOTLIN des types mappés `MAPPES_JVM_INVERSE`) : l'extension déclarée sur un SUPERTYPE du récepteur résout — l'import du membre peut vivre ailleurs, la résolution par le RÉCEPTEUR n'en dépend pas |
+| 6 | Intrinsèques réputées (fiche 023) | **Fait** | CONSTAT sonde : `arrayOf`/`intArrayOf` vivent dans la RESSOURCE `kotlin/kotlin.kotlin_builtins` (29 399 o du stdlib 2.2.10 — aucun miroir de facade `*Kt`, le décodeur @Metadata ne les verra JAMAIS par conception D4) alors que `listOf`/`println`/`emptyArray` résolvent par la voie 6 ; **voie 6-bis** : `BUILTINS_REPUTES_MUETS` (les onze constructeurs de tableaux du module par défaut, scannés de la ressource) — plancher documenté des APPELABLES, miroir du catalogue KP8 des types (SPECIFICATION P7/A21) |
+| 7 | Typealias de bibliothèque (fiche 037) | **Fait** | `cheminClasse` voie **d-bis** : le chemin complet consulte `estTypeAliasConnu` (l'index porte les alias publics des facades — kotlinx-datetime 0.6.1 réel : `kotlinx.datetime.DayOfWeek` qualifié reste MUET alors qu'AUCUN class-file ne le porte) ; type nu importé (voie imports), type nu derrière joker (univers ouvert existant), classes réelles du corpus (`Clock`, `Instant`) muettes en import ET en qualifié, nom inconnu qualifié SIGNALÉ |
+| 8 | Type des CHAMPS de bibliothèque (fiche 033 — discovered) | **Fait** | CORRECTIF découvert par la fixture : un descripteur de CHAMP est le TYPE NU (`Lexo/theme/Typography;`), pas une forme `(params)retour` — `DescripteursJvm.typeNu` + `MembreJvm.retour` adaptés (le survol de `MaterialTheme.typography` rend `var typography: Typography (exo.theme.MaterialTheme)`, le typage des champs s'en nourrit ; les TABLEAUX restent muets, D3) |
+| 9 | Fixture builder étendu | **Fait** | `OutilsJarFixture` : membres STATIQUES (accès 0x0009 — champ `INSTANCE`, `const`, compagnon `@JvmStatic`) à côté des membres d'instance 0x0001 — les fixtures 2c restent inchangées par défaut |
+| 10 | Tests neufs | **Fait** | 25 comportements aux noms exacts du cahier : fiche 023 (2) + 024 (7) + 026 (2) + 033 (9) + 037 (5) — jars RÉELS (stdlib, android.jar AOSP, kotlinx-coroutines 1.9.0, kotlinx-datetime 0.6.1) et fixture Compose-like autoconteue ; câblage par le chemin de production D6 |
+
+### 8.2 Décisions d'exécution consignées (pas dans le plan initial)
+
+1. **Le compagnon classpath est une PORTE À TROIS ÉTATS, pas un membre** :
+   l'entrée `fqcn$Companion.class` ABSENTE ne change rien (la classe n'a
+   pas de compagnon — l'absence se prouve sur le seul jeu d'instance),
+   PRÉSENTE et LISIBLE elle rend ses NOMS (close et énumérable — la garde
+   D3 de la fiche 024 s'exerce : un membre introuvable du compagnon reste
+   signalé), PRÉSENTE mais ILLISIBLE elle MUET la preuve (univers ouvert).
+   La sonde bytecode a établi la structure réelle : les méthodes du
+   compagnon sont des méthodes d'INSTANCE de `fqcn$Companion`
+   (`Regex.escape`), les `const` des champs STATIQUES de la classe
+   ENCLOSANTE (`UInt.MAX_VALUE`) — le lecteur ne distingue pas (il lit
+   tout, filtre SYNTHETIC/BRIDGE seulement), la consultation des DEUX
+   côtés couvre la famille sans faux positif.
+2. **Les extensions se consultent sur la CHAÎNE, pas le récepteur seul** :
+   `collect` sur `SharedFlow` vit sur `Flow` — la preuve par l'extension
+   exige la fermeture des supertypes du récepteur (`chainesDe`, terminaux
+   connus exclus — jamais des clés d'extension). Les maillons lus du
+   bytecode portent des noms JVM, les clés de l'index des noms KOTLIN :
+   le MIROIR INVERSE des types mappés est consulté sur chaque maillon.
+   Décision de périmètre : la complétion n'offre PAS encore les extensions
+   des maillons distanciés (sélecteur seulement — l'étage 3 classera).
+3. **La voie 6-bis est un PLANCHER DOCUMENTÉ, pas un index** : les
+   intrinsèques réputées sont scannées de la ressource
+   `kotlin.kotlin_builtins` du stdlib ÉPINGLÉ (onze noms, liste close) —
+   une lecture de la ressource en production resterait possible (Q-K1)
+   mais le plancher borne le silence au MINIMUM documenté : tout autre
+   appelable absent de l'index RESTE signalé.
+4. **Le stdlib réel ne ferme pas toutes les chaînes** : `Regex` implémente
+   `java.io.Serializable`, `UInt` implémente `java.lang.Comparable` — des
+   maillons absents du stdlib ET du android.jar Maven 4.1.1.4 (SANS
+   classes java.*). La garde D3 de la fiche 024 s'exerce donc sur un
+   compagnon de FIXTURE autocontenu (chaîne fermée sur le terminal
+   Object) — la preuve est VRAIE, le harnais ne valide pas un « tout
+   muet » ; la garde `UInt.PAS_UN_CHAMP` sur stdlib seul resterait muette
+   (chaîne ouverte, D3 honnête).
+
+### 8.3 Preuves du bac à sable (avant poussée)
+
+- **Suite** : 260 tests VERTS sur la toolchain 17 (235 + 25 — fiches
+  023/024/026/033/037 vertes 25/25), baseline de parité RE-SIGNÉE
+  346 → 351 fichiers (les 5 fichiers de test neufs, procédure documentée
+  `-Dparite.majBase=true --rerun-tasks`).
+- **Jar moteur** : 625 131 o (+4 569 vs 2c).
+- **Scan ART pile complète** : 6 × « AUCUNE » (moteur 225 classes / 276
+  méthodes déclarées — +1/+3, class-file 61:225, ServiceLoader OK
+  descripteur vérifié), rc=0.
+- **Dexage d8** (build-tools 34 local, min-api 26) : **25 287 références
+  de méthodes / 3 985 408 o (3,80 Mo)** — +14 méthodes / +5 260 o vs 2c ;
+  seuils tenus : méthodes 77 % du plafond 32 768, taille **63 % du
+  NOUVEAU budget 6 Mo** (ÉLEVÉ par le propriétaire le 31/10 — E-K8,
+  ALERTES §4 ; l'ancien budget 4 Mo eût été à 95 %).
+- **Banc JDK 17** (bac à sable, 2 cœurs) : froid 210,7/23,1 ms,
+  p50 7,1/21,8 ms, p95 38,8/50,5 ms, productions 5 448/31 368 et jetons
+  4 210/24 274 — déterminisme IDENTIQUE, marqueurs d'erreur 0,
+  tas 3 845 Kio.
+- **Provenance** : `verifier-provenance.sh` rc=0 (aucune reprise nouvelle
+  — code NEUF intégral ; kotlinx-coroutines en dépendance de TEST seule,
+  jamais dans la pile chaude).
+
+### 8.4 Clôture de la vague 2d
+
+**CI VERTE 9/9 sur le commit de livraison `df77e91`** (run `41102336444`,
+consulté le 31/10 — PREMIÈRE TENTATIVE, aucun écart d'exécution) : build
+et tests JDK 21, bancs noyau/qualité/parité T, gates Android, provenance,
+et les trois jobs Kotlin — suite du module **260 tests VERTS sur la
+toolchain 17** (fiches 010-013 + 049/042/041 + 002-005/008/009/034 +
+synthétiques R1/R2 + 017/022/006 + 046 + 044/028/032/040/029 +
+**023/024/026/033/037**), scan ART **6 × « AUCUNE »** sur la pile complète
+(moteur 225 classes / 276 méthodes déclarées — ServiceLoader OK
+descripteur vérifié), dexage d8 **25 287 références de méthodes /
+3 985 408 o (3,80 Mo)** — IDENTIQUES au bac à sable, seuils étage 0 tenus
+**sous le NOUVEAU budget** (≤ 32 768 méthodes, ≤ 6 Mo — budget T1 élevé
+par le propriétaire le 31/10, E-K8 : 63 % du budget taille), banc
+empreinte/latence sous JDK 17 (froid 337,1/39,9 ms, p50 10,7/32,8 ms,
+p95 24,6/43,3 ms, productions 5 448/31 368 et jetons 4 210/24 274 —
+déterminisme IDENTIQUE, marqueurs d'erreur 0, tas 2 009 Kio sur le
+runner).
+
+**LA VAGUE 2D EST CLOSE sur preuve mécanique** : le classpath côté Kotlin
+est livré — les compagnons (projet et classpath, la porte à trois états),
+les objets `INSTANCE` (survol typé et propriétaire déclarant), les
+extensions sur les maillons distanciés (coroutines réelles), les
+intrinsèques réputées (voie 6-bis), les typealias de bibliothèque en
+chemin qualifié (voie d-bis) et le type des champs de bibliothèque ;
+25/25 comportements des fiches 023/024/026/033/037 verts, **128/204** au
+critère §2. La vague 2e (KMP expect/actual deux racines, sources générées
+`build/generated`, troncation du scan réfléchie dans l'univers, motifs
+Compose stdlib réel, scripts `.gradle.kts` muets sans modèle Gradle —
+fiches 030/031/035/036/025/027, 32 comportements) est la suivante.
+
+## 9. Vague 2e — KMP, sources générées, troncation, Compose, scripts (31/10, fiches 030/031/035/036/025/027)
+
+### 9.1 Périmètre exécuté
+
+| # | Item | État | Détail |
+|---|---|---|---|
+| 1 | KMP deux racines (fiches 031/030) | **Fait** | Le scan multi-racines nourrit le MÊME modèle des DEUX côtés (commonMain `expect` / androidMain `actual`, le paquet y vit deux fois) : les usages de chaque côté ne voient AUCUN faux positif — expect val/object/typealias, membres d'expect object (survol, complétion `Fabrique.`), génériques sur un type expect, typage du retour `Boite.ouvrir()` par la chaîne du modèle |
+| 2 | Go-to-definition vers l'expect (fiche 031) | **Fait** | NOUVEAU CONTRAT SPI `definition(uri, deplacement): List<EmplacementKotlin>` + `NavigationDocuments` : la chaîne conservatrice du survol (document courant — site désigné puis même nom —, autres documents ouverts, SCAN des racines avec URI de fichier + PLAGE du nom portée par `DeclarationExterne.plageNom`) ; `symboles(uri)` (le plan du fichier, genres neutres CLASSE/INTERFACE/ENUM/OBJET/FONCTION/PROPRIETE/TYPEALIAS, liste plate en ordre du document) et `occurrences(uri, deplacement)` (le site de déclaration puis chaque référence du même nom, périmètre document) partagent la matière |
+| 3 | Sources générées (fiche 035) | **Fait** | La MARCHE du scan EXCLUT le dossier `build` (exclusions ADR 0212 — `estEligible` remonte les parents) ; les CONVENTIONS de noms générés (`Hilt_` préfixé, `_Impl`/`BindingImpl` suffixés — liste CLOSE et documentée) ne sont JAMAIS prouvées absentes (voie 6-ter de `resoudreNomNu` ET `resoudreNomType`) : leurs sources vivent dans `build/generated`, invisibles PAR CONCEPTION ; le contrôle (classe d'une racine scannée) reste muet par PREUVE de présence |
+| 4 | Troncation du scan (fiche 036) | **Fait** | La borne de collecte `BORN_FICHIERS` (2 000) devient la COUTURE de test `bornFichiersScan` du constructeur de session (production inchangée) : au-delà de la borne le fichier est COMPTÉ (`StatsPassage.total` réel — `statsDernierPassageScan()` interne), la passe rend un snapshot PARTIEL (`etatScanAuConsult()` — miroir `estUniversConna` ancien) et la référence au type du fichier non scanné est MUETTE (absence non prouvable) ; sans troncation le frère scanné RÉSOUT (le harnais ne valide pas un « tout muet ») |
+| 5 | Motifs Compose (fiche 025) | **Fait** | Lambda finale/imbriquée à paramètres nommés (attente 2b), annotation qualifiée (chemin de classe), `by lazy` (facade `LazyKt` du stdlib — voie 6), import alias/joker/fonction : AUCUN faux positif sur le stdlib réel ; CORRECTIF : le CHEMIN DE PACKAGE (`kotlin.io.println(…)`) — quand le préfixe est un package CONNU de l'index (`VueAppelables.paquetConnu`, construit à la définition), la racine et le milieu (paquets) ne sont JAMAIS signalés, la feuille seule est faillible comme appelable du package (voie A24) — la racine `kotlin` n'est plus un faux positif |
+| 6 | Sondages Compose (fiche 025) | **Fait** | SURVOL d'un appelable top-level du classpath (`println` — signature dépouillée de l'index + package déclarant, chaîne 3-bis du survol) ; SYMBOLES de document (`symboles` SPI) ; RÉFÉRENCES d'une fonction projet (`occurrences` SPI — 1 déclaration + 2 usages en ordre) ; COMPLÉTION DE NOM dans un corps (germe 2e : noms déclarés → types du projet → catalogue KP8 → index par préfixe, filtrés par le préfixe frappé — `nomsAuPoint`) |
+| 7 | Scripts `.gradle.kts` (fiche 027) | **Fait** | CORRECTIF DÉCOUVERT PAR LES FIXTURES : en mode script l'arbre porte les instructions sous `SCRIPT → BLOCK` — la passe sémantique ne les voyait JAMAIS (tout script était trivialement muet, la frontière « instructions ≠ déclarations » de la facade étage 1 avait fui dans la passe) ; `declarationsHautNiveau` (passe) et `declarationsRecursives` (survol/symboles/définition/scan) desservent désormais le bloc du script : le Kotlin STANDARD d'un `.gradle.kts` résout (locales par la garde, stdlib par la voie 6, survol rendu), la garde D3 s'y EXERCE (le segment QUALIFIÉ inconnu en type reste SIGNALÉ), les récepteurs implicites du DSL restent muets (miroir IntelliJ sans modèle Gradle) — les templates build.gradle.kts et settings.gradle.kts du « Empty Views Activity » sans AUCUN faux positif |
+| 8 | Tests neufs | **Fait** | 32 comportements aux noms exacts du cahier : fiche 030 (5) + 031 (5) + 035 (2) + 036 (3) + 025 (12) + 027 (5) — racines KMP réelles posées au disque, couture de borne pour la troncation, stdlib réel pour les motifs Compose |
+
+### 9.2 Décisions d'exécution consignées (pas dans le plan initial)
+
+1. **La frontière « instructions ≠ déclarations » de la facade étage 1
+   reste, la passe sémantique la TRAVERSE** : `KtFichier.declarations()`
+   documente (fiche 013) que les instructions d'un script ne sont pas des
+   déclarations DOCUMENTAIRES — la vague 2e ajoute
+   `declarationsHautNiveau` (SCRIPT → BLOCK) POUR LA PASSE SÉMANTIQUE
+   et `declarationsRecursives` traverse pareillement : le bug latent
+   (scripts jamais marchés sémantiquement depuis la vague 2a) est
+   découvert par la fixture `garde-D3` de la fiche 027 — l'émission
+   attendue n'arrivait pas.
+2. **Le go-to-definition externe exige la PLAGE du nom dans le scan** :
+   `DeclarationExterne` porte `plageNom` (nullable — un fichier tronqué
+   sans nom rend `null`, la définition ne se propose pas, D3). Les
+   SEGMENTS du disque ne sont jamais re-parsés : la plage est portée par
+   la passe du scan qui a déjà lu l'arbre (aucun coût nouveau).
+3. **`paquetConnu` est une CARDINALITÉ minimale** : l'index expose les
+   packages qui portent AU MOINS un appelable/alias public (construit à
+   la définition, pas une nouvelle lecture) — un package SANS appelable
+   public n'est pas « connu » : la racine d'un chemin qui le préfixe
+   reste faillible (conservateur, jamais un faux muet).
+4. **La complétion de nom est un GERME ordonné, pas un classement** :
+   déclarés du document → types du projet (scan + document) → catalogue
+   KP8 → index par préfixe (limite 24, déterministe). Le contexte
+   (position membre vs nom, imports auto-éditables) relève de l'étage 3
+   (ADR 0113) — le germe ne devine jamais.
+
+### 9.3 Preuves du bac à sable (avant poussée)
+
+- **Suite** : 292 tests VERTS sur la toolchain 17 (260 + 32 — fiches
+  030/031/035/036/025/027 vertes 32/32), baseline de parité RE-SIGNÉE
+  351 → 357 fichiers (les 6 fichiers de test neufs).
+- **Jar moteur** : 642 701 o (+17 570 vs 2d — les trois contrats SPI de
+  navigation et la passe script).
+- **Scan ART pile complète** : 6 × « AUCUNE » (moteur 230 classes / 281
+  méthodes déclarées — +5/+5, ServiceLoader OK), rc=0.
+- **Dexage d8** (build-tools 34 local, min-api 26) : **25 343 références
+  de méthodes / 4 000 812 o (3,82 Mo)** — +56 méthodes / +15 404 o vs 2d ;
+  seuils tenus : méthodes 77 % du plafond 32 768, taille **64 % du budget
+  6 Mo** (E-K8 surveillance).
+- **Banc JDK 17** (bac à sable, 2 cœurs) : froid 204,2/22,7 ms,
+  p50 6,2/23,1 ms, p95 31,0/48,6 ms, productions 5 448/31 368 et jetons
+  4 210/24 274 — déterminisme IDENTIQUE, marqueurs d'erreur 0,
+  tas 3 701 Kio.
+- **Provenance** : `verifier-provenance.sh` rc=0 (aucune reprise nouvelle
+  — code NEUF intégral).
+
+## 10. Vague 2f — correctifs texte, membres manquants, synthétiques, multi-langue, `with` (31/10, fiches 016/020/047)
+
+### 10.1 Périmètre exécuté
+
+| # | Item | État | Détail |
+|---|---|---|---|
+| 1 | Correctifs texte — accès non sûr (fiche 016) | **Fait** | NOUVEAU CONTRAT SPI `correctifsTexte(uri): List<CorrectifTexteKotlin>` + `session/CorrectifsTexte.kt` : les MÊMES prédicats que la passe typée (liaison de RÉGION — l'outermost fonction/propriété englobante, miroir de la passe), trois formes — « Accès sûr » (le POINT du segment devient `?.`), « Assertion non nulle » (`!!` inséré après le récepteur), « Entourer » (l'INSTRUCTION entière remplacée par `if (x != null) { … }` — MULTI-LIGNE par défaut, EN LIGNE quand l'instruction PARTAGE sa ligne, JAMAIS au premier niveau sans bloc, D3) ; l'alignement correctif ⟺ diagnostic tient PAR CONSTRUCTION (le moteur re-prouve — un diagnostic périmé rend vide) |
+| 2 | Correctifs texte — conversions (fiche 016) | **Fait** | « Changer le type » (le type écrit devient la famille du littéral) + « Convertir » (la matrice FERMÉE par famille : `toInt`/`toLong`/`toDouble`/`toString` — cible PRIMITIVE seule) ; cible non primitive = changement de type seul, type nullable ou conversion numérique légitime = RIEN (D3) |
+| 3 | Membres manquants P1-C (fiche 020) | **Fait** | NOUVEAU CONTRAT SPI `membresManquants(uri, deplacement)` + `session/MembresManquants.kt` : les membres ABSTRAITS des supertypes (PROJET — `MembreProjet.estAbstrait`, un `fun` SANS corps ni expression, une propriété SANS initialiseur ; CLASSPATH — ACC_ABSTRACT du bytecode, `MembreJvm.estAbstrait`), les paramètres de TYPE SUBSTITUÉS par la clause écrite (`TypeProjet.parametresType` ; clause NUE sur générique = muet, D3), getters/setters APPARIÉS en `var` (getter seul en `val`), l'insertion après le DERNIER MEMBRE, le corps CRÉÉ en fin d'en-tête, le corps VIDE REMPLACÉ ; cible interface/abstraite = RIEN (D3) |
+| 4 | Synthétiques + fusion AVEC COUPURE (fiche 047) | **Fait** | La couture `NourrissageMoteur.groupesSynthetiques()` (l'implémentation interne du moteur délègue) et la FUSION dans `contributionsAuConsult` : chaque groupe (R avec ses familles en types imbriqués pointés, ViewBinding/DataBinding avec champs des ids + inflate/bind + variables, BuildConfig) entre au modèle de preuves TANT qu'aucune classe RÉELLE du même FQCN (document ouvert ou scan) ne l'EFFACE — la coupure est testée (un `R.java` réel vide le groupe) ; `BuildConfig` porte `membresSousRapportes` (le type résout, ses champs jamais prouvés absents, D3) |
+| 5 | Multi-langue Java↔Kotlin (fiche 047) | **Fait** | Le lecteur Java (2a) nourrissait déjà le modèle : la classe Java est PROPOSÉE en complétion de nom et RÉSOLUE, ses membres (méthodes, STATIQUES, propriété synthétique du getter ADR 0219) résolus et proposés, le TYPE du getter type la chaîne continue, l'ARITÉ du constructeur Java n'est JAMAIS contrôlée (le lecteur ne porte pas les constructeurs — sous-rapport honnête) ; la DÉFINITION d'une référence Kotlin OUVRE le `.java` (les types externes du modèle portent leur URI — quatrième maillon de `NavigationDocuments.definition`, partagé avec le layout des bindings) |
+| 6 | Récepteurs implicites `with` (fiche 047) | **Fait** | La lambda traînante d'un `with(récepteur) { … }` porte le PREMIER ARGUMENT en this implicite — les trois chemins alignés : la passe sémantique (`pileImpliciteWith`), la pile au caret (`Couches.aPosition` — branche CALL_EXPRESSION) et la complétion de nom (`PileThis.membresDesCouches` : les membres du récepteur se proposent SANS sélecteur) ; le récepteur TRAVERSE les littéraux emboîtés |
+| 7 | SAM classpath (fiche 047) | **Fait** | `TypageBorne.attenteSelecteurClasspath` : la lambda d'un sélecteur sur récepteur CLASSPATH typé (`vue.setOnClickListener { v -> … }`) est typée par l'attente SAM — le paramètre du membre lu dans la vue JVM, l'interface SAM relue, sa méthode UNIQUE rend le type du paramètre (`v` type `View`) ; la liaison et la pile descendent désormais dans `attenteLambdaAuPoint` |
+| 8 | Correctif de régression découvert par la suite | **Fait** | La branche CALL_EXPRESSION re-marchait la CALLEE (émission DOUBLÉE des noms nus signalés — 4 tests 006/044 rouges) : la callee ne re-marche plus, les 336 tests repassent |
+| 9 | Tests neufs | **Fait** | 44 comportements aux noms exacts du cahier : fiche 016 (13) + 020 (10) + 047 (21) — projet Android factice sur disque (manifeste + res/layout + values + drawable + source Java), jars réels, fixture d'interface binaire ACC_ABSTRACT |
+
+### 10.2 Décisions d'exécution consignées (pas dans le plan initial)
+
+1. **L'alignement correctif ⟺ diagnostic tient par CONSTRUCTION, pas par
+   cache** : `correctifsTexte` re-dérive les correctifs des MÊMES
+   prédicats que la passe typée sur l'arbre COURANT — jamais un
+   diagnostic sérialisé n'est réutilisé (un document évolué rend
+   exactement ses correctifs présents, le test « périmé » le prouve).
+2. **La région de la passe est l'OUTERMOST fonction/propriété** : la
+   liaison d'une fonction couvre ses propriétés locales (les paramètres
+   y vivent) — le correctif suit la MÊME règle (première découverte en
+   descente), pas la région la plus profonde.
+3. **`BuildConfig` est sous-reporté par NATURE** : le groupe ne
+   synthétise que la CLASSE (les champs réels vivent dans la génération
+   AGP) — le drapeau `membresSousRapportes` coupe la preuve d'absence
+   des sélecteurs (muet, D3) quand R reste absence-fiable (ses familles
+   et entrées sont ÉNUMÉRÉES des ressources).
+4. **La définition externe partage UN maillon modèle** : le `.java` du
+   scan et le `.xml` de layout d'un binding entrent par la même liste
+   (nom simple → URI portée par la contribution) — jamais re-parsés, la
+   plage est nulle (l'ouverture suffit, l'étage 3 précisera).
+
+### 10.3 Preuves du bac à sable (avant poussée)
+
+- **Suite** : 336 tests VERTS sur la toolchain 17 (292 + 44 — fiches
+  016/020/047 vertes 44/44), baseline de parité RE-SIGNÉE 357 → 360
+  fichiers (les 3 fichiers de test neufs).
+- **Jar moteur** : 675 906 o (+33 205 vs 2e — les deux contrats SPI de
+  correctifs, la fusion synthétique et le SAM classpath).
+- **Scan ART pile complète** : 6 × « AUCUNE » (moteur 236 classes / 287
+  méthodes déclarées — +6/+6, ServiceLoader OK), rc=0.
+- **Dexage d8** (build-tools 34 local, min-api 26) : **25 420 références
+  de méthodes / 4 030 652 o (3,84 Mo)** — +77 méthodes / +29 840 o vs
+  2e ; seuils tenus : méthodes 78 % du plafond 32 768, taille **64 % du
+  budget 6 Mo** (E-K8 surveillance).
+- **Banc JDK 17** (bac à sable, 2 cœurs) : froid 202,1/24,6 ms,
+  p50 6,2/26,8 ms, p95 30,6/55,4 ms, productions 5 448/31 368 et jetons
+  4 210/24 274 — déterminisme IDENTIQUE, marqueurs d'erreur 0,
+  tas 3 699 Kio.
+- **Provenance** : `verifier-provenance.sh` rc=0 (aucune reprise nouvelle
+  — code NEUF intégral).
+
+### 10.4 Clôture de la vague 2f
+
+**CI VERTE 9/9 sur le commit de livraison `31f4e1b`** (run `41107801655`,
+PREMIÈRE TENTATIVE — un seul run pour le head_sha, consulté le 31/10 via
+l'API GitHub Actions) : build et tests JDK 21, bancs noyau/qualité/parité
+T, gates Android, provenance, et les trois jobs Kotlin — suite du module
+**BUILD SUCCESSFUL sur la toolchain 17** (336 tests, §10.3), scan ART
+**6 × « AUCUNE »** sur la pile complète, dexage d8 **25 420 références de
+méthodes / 4 030 652 o (3,84 Mo)** — IDENTIQUES au bac à sable, seuils
+tenus (78 % du plafond méthodes, 64 % du budget 6 Mo — E-K8), banc JDK 17
+déterminisme **IDENTIQUE** (productions 5 448/31 368, jetons 4 210/24 274,
+marqueurs d'erreur 0, tas 2 008 Kio).
+
+Deux écarts de rédaction de la livraison sont consignés et corrigés par la
+présente clôture (discipline R5 — les chiffres du journal font foi) :
+
+1. **Le message du commit `31f4e1b` annonçait « journal §10 + en-tête +
+   critère §2 204/204 »** — seul §10 était rédigé : les blocs d'en-tête de
+   la vague 2f, l'attestation §2 et la marque §3 sont posés par le présent
+   commit de clôture (aucune perte de substance : les preuves §10.3 étaient
+   consignées, seuls les blocs récapitulatifs manquaient).
+2. **§10.3 consignait « baseline de parité re-signée 357 → 360 »** — le
+   compte réel est **359 → 365** : l'énoncé avait compté les 3 fichiers de
+   TEST neufs en oubliant les 3 fichiers MAIN nouveaux
+   (`api/CorrectifsKotlin.kt`, `session/CorrectifsTexte.kt`,
+   `session/MembresManquants.kt`), qui font partie du corpus de parité
+   (re-mesuré : `git show 53da2ef:…digeste-corpus.txt` = 359 lignes,
+   `git show 31f4e1b:…` = 365).
+
+**LA VAGUE 2F EST CLOSE** — et avec elle le critère §2 n° 1 : **204/204
+comportements diagnostics verts** (23 fiches du domaine, vagues 2a→2f).
+Restent ouverts les deux critères de clôture de l'étage : zéro faux
+positif corpus quatre mondes, banc de fidélité baseline signée — la vague
+2g (§11) les porte.
+
+## 11. Vague 2g — la clôture : banc de fidélité K2, zéro faux positif, recalage (31/10)
+
+### 11.1 Périmètre exécuté
+
+| # | Item | État | Détail |
+|---|---|---|---|
+| 1 | **Banc de fidélité K2 oracle** (ADR 0119 option 1 — critère §4) | **Fait** | `session/BancFideliteK2Test.kt` : l'oracle est le compilateur K2 VÉRITABLE (`org.jetbrains.kotlin.cli.jvm.K2JVMCompiler`, artefact `kotlin-compiler-embeddable` 2.2.10 — **dépendance de TEST seule, AUCUN impact dex**) lancé en SOUS-PROCESSUS sur le CORPUS FIXE VERSIONNÉ (`src/test/resources/fidelite/`) : les QUATRE MONDES (Views sur android-4.1.1.4 réel, Compose sur fixture statique, Coroutines sur kotlinx-coroutines 1.9.0 réel, stdlib sur kotlin-stdlib 2.2.10 réel) + un TÉMOIN POSITIF (références vraiment inconnues) ; oracle et moteur comparés en PAIRES (ligne, nom) — FP = moteur − oracle, FN = oracle − moteur |
+| 2 | **Correctif moteur découvert PAR le banc** | **Fait** | Première passe : **6 faux positifs**, dont 5 × `@Suppress` signalé sur les mondes sains (l'oracle résout, le moteur signale) — les ANNOTATIONS STANDARD des paquets par défaut (`kotlin.Suppress`/`DslMarker`/`Throws`, `kotlin.jvm.JvmStatic`/`JvmField`/`JvmOverloads`/`JvmName`/`Volatile`/`Transient`) entrent au CATALOGUE KP8 (règle **A31** de `SPECIFICATION-RESOLUTION.md`) : une classe d'annotation n'est NI un appelable de l'index NI un type du projet, la voie catalogue seule la couvre — corrigé, la passe repasse à FP = 0 (le banc a prouvé son utilité au premier tour) |
+| 3 | **Baseline signée** (compte + empreinte) | **Fait** | `fidelite/baseline-fidelite.txt` : le compte de faux négatifs ET l'EMPREINTE SHA-256 du détail complet (par monde : oracle/moteur/fp/fn + listes FP/FN triées) sont comparés — TOUTE variation, en hausse comme en baisse, est une divergence à EXPLIQUER avant re-signature (miroir de la suite de parité fiche 010 ; re-signature : `-Dfidelite.majBase=true --rerun-tasks`, propriété câblée dans `tasks.test`, écrit dans l'ARBRE SOURCE) |
+| 4 | **Passe zéro faux positif corpus quatre mondes** | **Fait** | Les quatre mondes sains : moteur **0** et oracle **0** (muets des deux côtés) — FP = 0 ; le témoin : oracle 3 (lignes 8/9/10), moteur 2 (8/9) — l'accord s'exerce, le harnais ne valide pas un « tout muet » |
+| 5 | **Faux négatifs basés** | **Fait** | **1 FN mesuré et signé** : `zzMembreInconnu` sur récepteur `Int` (témoin, ligne 10) — la preuve d'absence des sélecteurs n'est PAS couverte sur les récepteurs typés BUILTIN (l'univers `kotlin_builtins` n'est pas indexé, D3 muet) : dette MESURÉE, documentée par la baseline, pas masquée |
+| 6 | **Recalage de l'effort** | **Fait** | §11.4 (premier recalage Kotlin — celui promis « fin étage 1 » par la synthèse §4 n'avait pas été tenu à sa porte : l'écart est consigné) |
+
+### 11.2 Décisions d'exécution consignées (pas dans le plan initial)
+
+1. **L'oracle reçoit `-no-stdlib` et le jar kotlin-stdlib TOUJOURS au
+   classpath cible** : le compilateur embarqué CHERCHE un kotlin-home et
+   n'en trouve pas hors installation (sans le drapeau il émet des
+   « cannot access built-in declaration » en cascade qui faussent la
+   comparaison) ; aucun projet Kotlin ne compile sans stdlib — l'oracle
+   doit voir le MÊME univers que le moteur (voie 6). La forme de sortie
+   K2 2.2 est `<chemin>:<ligne>:<colonne>: error: unresolved reference
+   '<nom>'.` — minuscules, apostrophes, point final : VÉRIFIÉE sur le bac
+   à sable avant d'écrire le regex (la forme « Unresolved reference: »
+   du K1 ne sort plus).
+2. **Le monde Compose passe par des STATIQUES Java** (champs et méthode
+   statiques dans la fixture) : un membre STATIQUE d'une classe Java se
+   lit par le NOM DE CLASSE (interop légale), une Java-class sans
+   `@Metadata` n'est JAMAIS un objet Kotlin — les membres d'instance via
+   le nom de classe seraient des non-résolus POUR L'ORACLE. La porte
+   INSTANCE du moteur (2d, fiche 033) reste couverte par les fiches du
+   cahier : le banc mesure la COUVERTURE (ce que le moteur prouve là où
+   K2 prouve), pas les divergences délibérées du modèle CodeIDE.
+3. **Le monde Coroutines importe `kotlinx.coroutines.flow.collect` et la
+   démo est `suspend`** : l'extension terminal `collect` exige l'import
+   écrit (K2) et l'appel un contexte suspend — sinon le corpus n'est pas
+   K2-compilable. Corpus intégral K2-compilable : la propriété
+   synthétique getter/setter (`titre.text = …`, monde Views) y reste
+   LÉGALE — c'est une règle d'interop du COMPILATEUR, pas une divergence
+   IDE (vérifié : K2 accepte, RC=0).
+4. **La re-signature écrit dans l'ARBRE SOURCE** : le chargeur de classes
+   sert la COPIE de build (`build/resources/test/`) — écrire via
+   `getResource()` perdait la signature (constaté et corrigé : la
+   première signature s'était perdue dans la copie) ; on remonte depuis
+   `user.dir` jusqu'aux ressources sources, miroir de la fiche 010.
+5. **Le FN du témoin est laissé EN L'ÉTAT** : couvrir la preuve d'absence
+   des sélecteurs sur récepteurs builtin exigerait d'indexer l'univers
+   `kotlin_builtins` (un chantier à part entière) — la baseline le
+   documente comme dette mesurée ; le corriger par un adoucissement du
+   harnais aurait été l'inverse de la mission.
+
+### 11.3 Preuves du bac à sable (avant poussée)
+
+- **Suite** : **337 tests VERTS** sur la toolchain 17 (336 + 1 — le banc
+  de fidélité), baseline de parité RE-SIGNÉE **365 → 371 fichiers** (les
+  6 neufs : 5 corpus `fidelite/` + le test ; + 1 digeste mis à jour —
+  `ResolutionReferences.kt` édité par le correctif A31).
+- **Jar moteur** : 676 072 o (+166 vs 2f — les neuf chaînes du catalogue
+  KP8, aucune méthode nouvelle).
+- **Scan ART pile complète** : 6 × « AUCUNE » (moteur 236 classes / 287
+  méthodes déclarées — IDENTIQUE à 2f, le correctif n'ajoute que des
+  constantes ; ServiceLoader OK), rc=0.
+- **Dexage d8** (build-tools 34 local, min-api 26) : **25 420 références
+  de méthodes / 4 030 800 o (3,84 Mo)** — +148 o vs 2f ; seuils tenus :
+  78 % du plafond 32 768, **64 % du budget 6 Mo** (E-K8 inchangée).
+- **Banc JDK 17** (bac à sable, 2 cœurs) : froid 237,8/25,4 ms,
+  p50 6,0/22,0 ms, p95 38,3/45,9 ms, productions 5 448/31 368 et jetons
+  4 210/24 274 — déterminisme IDENTIQUE, marqueurs d'erreur 0,
+  tas 3 072 Kio.
+- **Sortie du banc de fidélité** [mesuré] : FP = 0 (invariant §4) ;
+  FN = 1 basé signé — empreinte
+  `62b21b7f0009b90dad304a5cb20ea57bae731031cf223d5c26b5008075b7459c`.
+- **Provenance** : `verifier-provenance.sh` rc=0 (aucune reprise nouvelle
+  — code NEUF intégral).
+
+### 11.4 Clôture de la vague 2g, de l'ÉTAGE 2 — et premier recalage d'effort
+
+**CI VERTE 9/9 sur le commit de livraison `f9a5a5f`** (run `41112383347`,
+PREMIÈRE TENTATIVE — un seul run pour le head_sha, consulté le 31/10 via
+l'API GitHub Actions) : build et tests JDK 21, bancs noyau/qualité/parité
+T, gates Android, provenance, et les trois jobs Kotlin — suite du module
+**BUILD SUCCESSFUL sur la toolchain 17 (337 tests, LE BANC DE FIDÉLITÉ
+COMPRIS : l'oracle K2 s'exécute en CI, ~20 s de sous-processus — ADR 0119
+R2 tenu)**, scan ART **6 × « AUCUNE »**, dexage d8 **25 420 références de
+méthodes / 4 030 800 o (3,84 Mo)** — IDENTIQUES au bac à sable, seuils
+tenus, banc JDK 17 déterminisme **IDENTIQUE** (productions 5 448/31 368,
+jetons 4 210/24 274, marqueurs d'erreur 0, tas 2 008 Kio).
+
+**LES TROIS CRITÈRES DE SORTIE DE L'ÉTAGE 2 (§2) SONT ATTESTÉS** :
+
+1. **204/204 comportements diagnostics verts** (23 fiches, vagues 2a→2f —
+   §10.4) ;
+2. **Zéro faux positif corpus quatre mondes** — le banc le prouve
+   MÉCANIQUEMENT à chaque build : moteur 0 / oracle 0 sur les quatre
+   mondes sains, FP = 0 (invariant §4) ; la première passe avait trouvé
+   6 FP (dont 5 × `@Suppress`) : corrigés par la règle A31, la
+   surveillance n'est plus déclarative ;
+3. **Banc fidélité baseline signée** — compte (`faux-negatifs=1`) ET
+   empreinte SHA-256 du détail complet comparés à chaque build ; toute
+   variation, en hausse comme en baisse, est une divergence à expliquer
+   avant re-signature (`-Dfidelite.majBase=true --rerun-tasks`).
+
+**L'ÉTAGE 2 EST CLOS sur preuve mécanique** : la résolution et les
+diagnostics du moteur Kotlin sont livrés — hiérarchie de portées
+complète (locales/membres/englobantes/paquet/imports/défauts, récepteurs
+implicites `with`/`apply`, membres hérités par clôture mixte), catalogue
+`kt.*` conservateur de 7 familles, garde par déclaration, journal
+« explain », tableau de spécification A1–A31, correctifs texte et membres
+manquants — et la fidélité au compilateur est désormais une DONNÉE
+CHIFFRÉE comparée à chaque build. L'étage 3 (complétion + classement —
+44 fiches, banc commun Java ADR 0113/0119) est le suivant.
+
+#### Le recalage de l'effort (premier recalage Kotlin)
+
+Écart de gouvernance consigné d'abord : la synthèse §4 promettait un
+affinage « cahier en main à la fin de l'étage 1 (méthode des recalages
+Java) » — ce recalage n° 1 n'a pas été exécuté à sa porte (l'étage 2 a
+été ouvert directement sur le « Go » du propriétaire) ; il s'exécute
+ici, à la première porte de clôture qui l'exigeait (§3, ligne 2g).
+
+**Ce que l'étage 2 a coûté** [mesuré — commandes :
+`git diff --shortstat cf9a29c..f9a5a5f`, `git rev-list --count`, compte
+des tests des journaux §5–§11] :
+
+| Grandeur | Valeur | Détail |
+|---|---:|---|
+| Commits de l'étage | 12 | 2a→2g : livraisons + clôtures (borne : clôture étage 1 `cf9a29c`) |
+| Fichiers touchés | 65 | +17 373 / −95 lignes |
+| `lsp-kotlin/moteur/` main | 27 fichiers, +8 645 / −63 | résolution, diagnostics, correctifs, membres manquants |
+| `lsp-kotlin/moteur/` test | 32 fichiers, +7 490 / −10 | fiches 2a→2f + banc de fidélité + corpus |
+| Tests du module | 132 → **337** | +205 pour 204 comportements et 1 banc (≈ 1 test/comportement) |
+| Tableau de spécification | A1 → **A31** | rempli vague par vague (item §1 n° 1) |
+| Tempo [mesuré-agent] | 30/10 12:17 → 31/10 (UTC+8) | 7 vagues en ~2 jours calendaires de séances |
+
+**Comparaison à l'estimation** : la fourchette de l'étage 2 était
+**38–60 j-h [estimé]** (synthèse §4, abaque socle + marginal). Le rythme
+agent n'est PAS transposable au jour-homme humain (miroir
+`RECALAGE-1.md` §3.4) : l'étage a été couvert en séances continues sur
+~2 jours calendaires [mesuré-agent], à ≈ 85 lignes livrées par
+comportement (17 373 l. / 204 comport. — main ET tests ET journal
+compris). La donnée utile pour l'abaque : le coût marginal par
+comportement est resté STABLE sur les sept vagues (aucune refonte, aucun
+retour arrière — la CI des SEPT commits de livraison est passée en
+PREMIÈRE TENTATIVE sur six d'entre eux ; la seule reprise était 2a, le
+test flottant E-K6 du chantier Java, sans lien avec le diff — §5.4).
+
+**Re-projection** [estimé] : les étages restants (3 complétion/classement,
+4 navigation/rename, 5 confort, 6 serveur LSP, T transverse) restent à
+l'abaque de la synthèse §4 — **98–156 j-h** cumulés. Aucune donnée ne
+permet de la réviser SÉRIEUSEMENT aujourd'hui : le classement (étage 3)
+et la navigation (étage 4) sont des dominantes différentes de la
+résolution, et la seule donnée transversale nouvelle (la stabilité du
+socle : 204 comportements sans refonte, zéro faux positif tenu
+mécaniquement) plaide pour la CONFIRMATION de l'abaque plutôt que pour
+sa révision. **Recommandation : recalage n° 2 à la clôture de l'étage 3**
+— la première donnée de CLASSEMENT (recall/top-1/MRR, banc commun Java)
+y sera mesurée, miroir de `RECALAGE-1.md` (§6 de sa méthode).

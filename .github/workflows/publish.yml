@@ -1,5 +1,5 @@
 # Publication Maven vers GitHub Packages — bascule §8.5 (décision signée le
-# 30/10/2026, voie PRODUCTION de docs/BASCULE-CODEIDE.md §3.2.1).
+# 30/10/2026, voie PRODUCTION de lsp-java/docs/BASCULE-CODEIDE.md §3.2.1).
 #
 # Déclenchement : push d'un TAG v* (la CI standard ci.yml ne couvre que les
 # branches — un tag ne la déclenche PAS). Publication APRÈS vérification
