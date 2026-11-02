@@ -1,12 +1,13 @@
 # CHANGELOG — moteur Kotlin LSP (`lspkotlin`)
 
-> Le moteur Kotlin n'a pas d'historique de versions publiées : le pack
-> langue n'est **pas publié** (demande d'interface Q-K4). Les versions
-> ci-dessous sont reconstituées depuis les journaux d'étages
+> Le pack langue est publié sur GitHub Packages à partir de la 1.13.0
+> (coordonnées `jo.codeide.lsp.kotlin:jo-codeide-lsp-kotlin`, Q-K4 tranché le
+> 03/11/2026 — mécanisme miroir `:java`). Les versions antérieures sont
+> reconstituées depuis les journaux d'étages
 > (`lsp-kotlin/docs/etudes/moteur-kotlin/`) et l'en-tête de version du module.
 > Format : **Ajouté / Modifié / Corrigé**.
 
-## 1.13.0 — version unifiée par la fusion (02/11/2026, NON PUBLIÉE)
+## 1.13.0 — version unifiée par la fusion + PREMIÈRE PUBLICATION (03/11/2026, PUBLIÉE v1.13.0)
 
 - **Modifié** : la version du dépôt est unifiée à **1.13.0** par la fusion
   des branches d'étude (la version vient du projet racine) — seul
@@ -14,6 +15,16 @@
   385/386 entrées identiques — preuve par CRC, mesure du 03/11/2026) ;
   aucun `1.0.0` codé en dur dans les tests, `minApp` du descripteur de
   pack indépendant.
+- **Ajouté** : **publication Maven du pack langue** (Q-K4 — ADR 0136,
+  GK-028) — coordonnées `jo.codeide.lsp.kotlin:jo-codeide-lsp-kotlin`,
+  dépôt `maven.pkg.github.com/jjoblab/code-lsp`, déclencheur tag `v*`
+  partagé avec le moteur Java (workflow `publish.yml`) ; l'artefact
+  embarque code neuf + grammaire vendorée (notices
+  `META-INF/vendor-kotlin`) + descripteur D6 généré (`id=jo-codeide-lsp-kotlin`,
+  `version=1.13.0`, `minApp=1.0.0`, `grammaire=v2.3.0` — vérifié dans le
+  jar `publishToMavenLocal` du 03/11/2026) + jar sources (descripteur
+  exclu) ; POM : syntax-api 0.3.340, kotlin-metadata-jvm 2.2.10 et
+  lsp4j 0.21.2 en scope runtime (le câble 0.22.0 reste porté par l'hôte).
 
 ## 1.0.0 — programme des étages 0–6 + transverse T (30–31/10/2026, NON PUBLIÉE)
 

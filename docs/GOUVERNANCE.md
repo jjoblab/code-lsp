@@ -55,8 +55,15 @@ passe réelle).
   `jo.codeide.lsp.java:jo-codeide-lsp-java-ecj-art` — **11 versions
   publiées** (1.0.0, 1.1.0–1.1.6, 1.12.0–1.12.2 ; dernière le 02/11/2026,
   run #12 id 41372554541, succès).
-- **Pack Kotlin** : **non publié** (demande d'interface Q-K4) — les
-  bloqueurs de licence P-K1/P-K2 sont levés depuis le 31/10/2026.
+- **Pack Kotlin** (Q-K4 tranché le 03/11/2026 — arbitrage propriétaire :
+  mécanisme miroir `:java`, façade unique) : coordonnées
+  `jo.codeide.lsp.kotlin:jo-codeide-lsp-kotlin` — même dépôt, même
+  déclencheur (tag `v*`), artefact = pack langue COMPLET (code neuf +
+  grammaire vendorée + notices `META-INF/vendor-kotlin` + descripteur D6) ;
+  les bloqueurs de licence P-K1/P-K2 étaient levés depuis le 31/10/2026.
+  Première publication : **1.13.0** (tag `v1.13.0`, 03/11/2026 — même run
+  que le moteur Java ; statut consigné dans
+  [`lsp-kotlin/docs/INTEGRATION-CODEIDE.md`](../lsp-kotlin/docs/INTEGRATION-CODEIDE.md)).
 - Les re-signatures de baselines signées passent par une **étape dédiée**
   avec preuve d'équivalence et accord du propriétaire (piège P-1 — cf.
   [`REORGANISATION-BILAN-PHASE2.md`](REORGANISATION-BILAN-PHASE2.md) §3).

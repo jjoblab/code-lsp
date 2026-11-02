@@ -28,6 +28,7 @@ import org.gradle.jvm.toolchain.JavaLanguageVersion
 // par la chaîne Android/ART d8 — convention dépôt).
 plugins {
     kotlin("jvm")
+    `maven-publish`
 }
 
 // ---------------------------------------------------------------------------
@@ -314,5 +315,114 @@ tasks.register<JavaExec>("benchQualite") {
     systemProperty("banc.baseline", rootProject.file("lsp-kotlin/bancs/baselines/completion-kotlin.json").absolutePath)
     if (project.hasProperty("resigner")) {
         args("--resigner")
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Publication Maven du pack langue Kotlin (Q-K4 — ADR 0136, GK-028 ;
+// miroir exact de :java, bascule §8.5 du 30/10/2026).
+// ---------------------------------------------------------------------------
+// Coordonnées FIXÉES ici (rien ne les épingle ailleurs) :
+//   jo.codeide.lsp.kotlin:jo-codeide-lsp-kotlin:<version du dépôt>
+//   → https://maven.pkg.github.com/jjoblab/code-lsp (workflow publish.yml,
+//     déclenché sur tag v*).
+// L'artefact est le pack langue COMPLET (ADR 0101) : code neuf + grammaire
+// vendorée (jar `tasks.jar` ci-dessus, notices META-INF/vendor-kotlin) +
+// descripteur `version.properties` GÉNÉRÉ (contrat D6 — id
+// `jo-codeide-lsp-kotlin`, version du projet, minApp, grammaire ; le
+// serverInfo « lspkotlin » du serveur porte la version RÉELLE du
+// descripteur, fiche 001).
+// Jetons : propriétés Gradle `githubPackagesUtilisateur` /
+// `githubPackagesJeton`, sinon variables d'environnement GITHUB_ACTOR /
+// GITHUB_TOKEN (fournies par Actions au publish) — JAMAIS codées en dur.
+// publishToMavenLocal fonctionne sans jeton (dépôt local, aucun contact
+// réseau) : c'est le chemin de test documenté (I2 de la bascule,
+// miroir BASCULE-CODEIDE §3.2 du :java).
+// Dépendances du POM (scope runtime) : syntax-api 0.3.340 (Apache-2.0,
+// alerte P-K2 LEVÉE le 31/10/2026), kotlin-metadata-jvm 2.2.10 (Apache-2.0)
+// et lsp4j 0.21.2 (EPL-2.0 — PORTÉE PAR L'HÔTE en service : le câble
+// cel-lsp impose 0.22.0, le moteur est binaire sous 0.22.0, même recette
+// que :java et que le vendored ; filet AlignementLsp4jTest côté hôte).
+val depotGithubPackages = uri("https://maven.pkg.github.com/jjoblab/code-lsp")
+val utilisateurPackages = providers.gradleProperty("githubPackagesUtilisateur")
+    .orElse(providers.environmentVariable("GITHUB_ACTOR"))
+val jetonPackages = providers.gradleProperty("githubPackagesJeton")
+    .orElse(providers.environmentVariable("GITHUB_TOKEN"))
+
+java {
+    // Sources publiées avec l'artefact (navigation IDE du consommateur —
+    // la KDoc française du moteur y est lisible ; miroir :java).
+    withSourcesJar()
+}
+
+// Le jar sources voit le répertoire GENERE version-pack (srcDir de
+// resources du source set main) : dépendance explicite pour l'ordre
+// (validation Gradle des sorties implicites) + exclusion de la ressource
+// générée — le descripteur de pack est un artefact de construction
+// (contrat D6 « NE PAS ÉDITER »), pas une source (miroir :java).
+tasks.named<Jar>("sourcesJar") {
+    dependsOn(genererDescripteurPack)
+    exclude("**/version.properties")
+}
+
+// Invariants vérifiés par la publication elle-même (miroir :java) :
+//  - le descripteur `version.properties` du pack (id/version/minApp/
+//    grammaire) est dans le jar : la ressource générée passe par
+//    processResources, donc par la sortie du jar publié — jamais de
+//    version fantôme ;
+//  - la grammaire vendorée et ses notices voyagent DANS l'artefact
+//    (pack UN et indivisible, ADR 0101/0120) ;
+//  - lsp4j 0.21.2 est en scope runtime dans le POM (l'hôte fournit le
+//    câble 0.22.0 — consommation binaire sous 0.22.0 prouvée par le
+//    harnais BoucleLocale du cahier, étage 6e).
+publishing {
+    repositories {
+        maven {
+            name = "GitHubPackages"
+            url = depotGithubPackages
+            credentials {
+                username = utilisateurPackages.orNull ?: ""
+                password = jetonPackages.orNull ?: ""
+            }
+        }
+    }
+    publications {
+        create<MavenPublication>("moteur") {
+            from(components["java"])
+            groupId = "jo.codeide.lsp.kotlin"
+            artifactId = "jo-codeide-lsp-kotlin"
+            version = project.version.toString()
+
+            pom {
+                name.set("Moteur Kotlin LSP de CodeIDE (pack langue)")
+                description.set(
+                    "Moteur d'analyse Kotlin LSP de CodeIDE — pack langue (voie C " +
+                        "hybride, ADR 0100) : code neuf clean-room + grammaire KMP " +
+                        "vendorée (notices META-INF/vendor-kotlin). Façades publiques : " +
+                        "jo.codeide.lsp.kotlin.protocole.ServeurLangageKotlin (serveur " +
+                        "LSP4J in-process) et jo.codeide.lsp.kotlin.api.ServiceMoteurLangageKotlin " +
+                        "(SPI du pack, contrat D6 — chargement ServiceLoader). Bytecode 17 " +
+                        "(chaîne Android/ART d8).",
+                )
+                url.set("https://github.com/jjoblab/code-lsp")
+                licenses {
+                    license {
+                        name.set("Apache License 2.0")
+                        url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
+                    }
+                }
+                developers {
+                    developer {
+                        id.set("jjoblab")
+                        name.set("jjoblab")
+                    }
+                }
+                scm {
+                    connection.set("scm:git:https://github.com/jjoblab/code-lsp.git")
+                    developerConnection.set("scm:git:https://github.com/jjoblab/code-lsp.git")
+                    url.set("https://github.com/jjoblab/code-lsp")
+                }
+            }
+        }
     }
 }

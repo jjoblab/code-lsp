@@ -96,7 +96,11 @@ Deux modes, miroir du serveur Java (N8) :
 2. **Pack langue** : le **descripteur de pack** (fiche 001) porte la
    version réelle et le drapeau pack ; le chargement passe par le
    `ChargeurMoteurKotlin` (fiche 001 — 3 comportements verrouillés par le
-   cahier). Le pack n'est **pas encore publié** (Q-K4).
+   cahier). Le pack est **publié** à partir de la version 1.13.0 (tag
+   `v1.13.0`, 03/11/2026) : coordonnées
+   `jo.codeide.lsp.kotlin:jo-codeide-lsp-kotlin` sur
+   `maven.pkg.github.com/jjoblab/code-lsp` (Q-K4 tranché le 03/11/2026 —
+   mécanisme miroir `:java`, dépôt et déclencheur partagés).
 
 Configuration serveur : le comportement est piloté par le descripteur de
 pack ; aucune propriété système n'est requise en service.

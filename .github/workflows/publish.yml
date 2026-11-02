@@ -1,18 +1,22 @@
 # Publication Maven vers GitHub Packages — bascule §8.5 (décision signée le
-# 30/10/2026, voie PRODUCTION de lsp-java/docs/BASCULE-CODEIDE.md §3.2.1).
+# 30/10/2026, voie PRODUCTION de lsp-java/docs/BASCULE-CODEIDE.md §3.2.1) ;
+# étendue au pack langue Kotlin le 03/11/2026 (Q-K4 — ADR 0136, GK-028 ;
+# arbitrage propriétaire : mécanisme miroir :java, façade unique).
 #
 # Déclenchement : push d'un TAG v* (la CI standard ci.yml ne couvre que les
 # branches — un tag ne la déclenche PAS). Publication APRÈS vérification
-# complète : build + 625 tests du moteur (jamais de publication non testée —
-# même exigence que les jobs CI, R5).
+# complète : build + tests de TOUS les modules (jamais de publication non
+# testée — même exigence que les jobs CI, R5).
 #
 # Artefacts publiés (coordonnées fixées dans les build.gradle.kts) :
 #   jo.codeide.lsp.java:jo-codeide-lsp-java:<version>        (moteur, :java)
 #   jo.codeide.lsp.java:jo-codeide-lsp-java-ecj-art:<version> (compagnon ecj
 #   patché, :ecj-art — runtime compileOnly du moteur, EPL-2.0)
+#   jo.codeide.lsp.kotlin:jo-codeide-lsp-kotlin:<version>    (pack langue,
+#   :kotlin — code neuf + grammaire vendorée + descripteur D6, Apache-2.0)
 # Le tag porte la version du dépôt (ex. v1.0.0) ; la version PUBLIÉE reste
 # celle de build.gradle.kts (allprojects) — serverInfo.version et dépôt
-# synchronisés par construction (fiche 059 I7).
+# synchronisés par construction (fiche 059 I7 ; descripteur D6 côté Kotlin).
 #
 # Jetons : GITHUB_ACTOR + GITHUB_TOKEN automatiques d'Actions — permissions
 # packages:write ci-dessous (le jeton de workflow par défaut suffit, AUCUN
