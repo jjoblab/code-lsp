@@ -169,5 +169,5 @@ d'AGP par module + classes Kotlin built_in_kotlinc zippées par module.
   minimal 29.0.14206865 (compilation Java seule, documenté).
 
   Commande de rejouabilité :
-    CORPUS_ANDROID=bancs/corpus-android ./gradlew :java:test \
+    CORPUS_ANDROID=lsp-java/bancs/corpus-android ./gradlew :java:test \
       --tests 'jo.codeide.lsp.java.coherence.*' --rerun-tasks

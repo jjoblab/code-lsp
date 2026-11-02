@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
 # preparer-projet-android.sh — télécharge les bibliothèques RÉELLES du banc
-# projet Android (bancs/projet-android) : plateforme android.jar 34-ext12,
+# projet Android (lsp-java/bancs/projet-android) : plateforme android.jar 34-ext12,
 # AARs androidx/material et leurs classes.jar extraits.
 #
 # Usage : bash scripts/preparer-projet-android.sh
-# Cible : bancs/projet-android-libs/ (git-ignoré, R6.4 — jamais committé)
+# Cible : lsp-java/bancs/projet-android-libs/ (git-ignoré, R6.4 — jamais committé)
 #
 # Sources (mêmes URL que la CI, .github/workflows/ci.yml) :
 #   - plateforme : dl.google.com/android/repository/platform-34-ext12_r01.zip
 #   - AARs/jars  : maven.google.com (coordonnées Gradle de
-#                  bancs/projet-android/gradle/libs.versions.toml)
+#                  lsp-java/bancs/projet-android/gradle/libs.versions.toml)
 set -euo pipefail
 
 REPO=$(cd "$(dirname "$0")/.." && pwd)
-LIBS="$REPO/bancs/projet-android-libs"
+LIBS="$REPO/lsp-java/bancs/projet-android-libs"
 mkdir -p "$LIBS"
 cd "$LIBS"
 

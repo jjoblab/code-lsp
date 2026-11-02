@@ -13,7 +13,7 @@ import org.junit.jupiter.api.Test
  * Dérivateur disque + lecteur XML tolérant + référentiel de ressources
  * (vague V-B1 — ADR 0020, décision D2) : le moteur connaît le projet
  * Android SANS Gradle. Cas dorés versionnés sur la fixture `mini`
- * (module complet miniature) et le banc réel `bancs/projet-android`.
+ * (module complet miniature) et le banc réel `lsp-java/bancs/projet-android`.
  *
  * Oracle des attentes : les règles AGP 8 documentées (référence §B10 pour
  * le contrat, §B8 pour le référentiel) et les fichiers de la fixture —
@@ -238,7 +238,7 @@ class ModeleAndroidDeriveTest {
         val contrat = ModeleAndroidDerive.deriver(listOf(MONIP))!!
         val referentiel = ReferentielRessources(contrat.dossiersRes)
 
-        // Oracle : bancs/projet-android-genere/com/example/monip/R.java —
+        // Oracle : lsp-java/bancs/projet-android-genere/com/example/monip/R.java —
         // le simulacre commis de la sortie AGP (layout + id, uniquement).
         assertEquals(setOf("activity_main"), referentiel.noms("layout"))
         assertEquals(setOf("text_titre"), referentiel.noms("id"))

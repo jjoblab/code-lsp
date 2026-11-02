@@ -22,7 +22,7 @@ import kotlin.test.assertTrue
  *  - **corpus réel** (gate) : les 5 projets Android du corpus (téléchargés par
  *    `scripts/telecharger-corpus-android.sh`, manifestes de préparation sous
  *    `<repertoire>/prepares/<projet>.manifeste` — format `racine:` / `classpath:`,
- *    voir `bancs/corpus-android/LISEZMOI.md`) — la métrique FP/1 000 lignes par
+ *    voir `lsp-java/bancs/corpus-android/LISEZMOI.md`) — la métrique FP/1 000 lignes par
  *    famille d'ID ecj est MESURÉE et imprimée (baseline d'écart — aucun seuil
  *    asserté avant la vague V-A).
  */

@@ -4,7 +4,7 @@
 # AnySoftKeyboard (V-A2, ADR 0030 — banc P1–P8 sur corpus réel).
 #
 # ENTRÉES (toutes locales, jamais committées) :
-#   1. bancs/corpus-android/anysoftkeyboard — clone épinglé
+#   1. lsp-java/bancs/corpus-android/anysoftkeyboard — clone épinglé
 #      (scripts/telecharger-corpus-android.sh anysoftkeyboard) APRÈS :
 #        ./gradlew exportClasspathAsk --init-script scripts/ask-export.init.gradle \
 #                  -PsortieAsk=<export>          (artefacts externes + racines)
@@ -14,7 +14,7 @@
 #   3. android.jar — première plateforme trouvée sous $ANDROID_SDK (défaut
 #      /home/z/my-project/android-sdk).
 #
-# SORTIE : bancs/corpus-android/prepares/anysoftkeyboard.manifeste
+# SORTIE : lsp-java/bancs/corpus-android/prepares/anysoftkeyboard.manifeste
 #          + prepares/ask-libs/<artefact>-classes.jar (AAR réduits)
 #
 # Format (consommé par jo.codeide.lsp.java.coherence.* via CORPUS_ANDROID) :
@@ -26,10 +26,10 @@
 set -euo pipefail
 
 REPO=$(cd "$(dirname "$0")/.." && pwd)
-ASK="$REPO/bancs/corpus-android/anysoftkeyboard"
+ASK="$REPO/lsp-java/bancs/corpus-android/anysoftkeyboard"
 EXPORT="${1:-/tmp/ask-export}"
 SDK="${ANDROID_SDK:-/home/z/my-project/android-sdk}"
-PREPARES="$REPO/bancs/corpus-android/prepares"
+PREPARES="$REPO/lsp-java/bancs/corpus-android/prepares"
 LIBS="$PREPARES/ask-libs"
 
 [ -d "$ASK" ] || { echo "ERREUR : clone ASK absent ($ASK)"; exit 1; }

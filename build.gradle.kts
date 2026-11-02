@@ -72,7 +72,7 @@ plugins {
 // (`__codeide_completion__()` dans l'inventaire à préfixe vide), identifiant
 // isolé en corps de méthode (SingleTypeReference de recovery ECJ → le
 // contexte NOM : la locale en tête, le popup Android Studio). Montage :
-// bancs/projet-android/ (réplique monip) + sources générées +
+// lsp-java/bancs/projet-android/ (réplique monip) + sources générées +
 // scripts/preparer-projet-android.sh (android.jar 34-ext12 + 16 AARs/jars
 // réels, fermeture transitive vérifiée classe par classe) +
 // BancProjetAndroidReelTest (20 tests : timeline appareil rejouée au

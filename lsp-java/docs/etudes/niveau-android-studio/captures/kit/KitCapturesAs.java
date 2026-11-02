@@ -7,7 +7,7 @@ package com.example.monip;
  * 06-protocole-captures-android-studio.md §2.
  *
  * MODE D'EMPLOI (copie locale, JAMAIS committée) :
- *  1. copier ce fichier vers bancs/projet-android/app/src/main/java/
+ *  1. copier ce fichier vers lsp-java/bancs/projet-android/app/src/main/java/
  *     com/example/monip/KitCapturesAs.java ;
  *  2. copier kit/res-values-strings.xml vers app/src/main/res/values/
  *     strings.xml (le projet du banc n'en contient aucune) ;

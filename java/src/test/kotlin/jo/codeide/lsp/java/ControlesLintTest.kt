@@ -33,7 +33,7 @@ class ControlesLintTest {
     private val libs: Path? = sequenceOf(
         System.getenv("BANC_ANDROID_LIBS")?.let { Path.of(it) },
         Path.of("../bancs/projet-android-libs"),
-        Path.of("bancs/projet-android-libs"),
+        Path.of("lsp-java/bancs/projet-android-libs"),
     ).firstOrNull { p -> p != null && Files.isRegularFile(p.resolve("android-34-ext12.jar")) }
 
     /** Vrai ssi la plateforme Android du banc est disponible. */

@@ -208,7 +208,7 @@ tasks.register<JavaExec>("bench") {
 
 // Banc de QUALITÉ de complétion (étage N2 — critère de sortie, ADR 0016) :
 // recall/top-1/MRR + p95 + zéro saut sur corpus versionné, comparés à la
-// baseline JSON signée (bancs/baselines/completion.json) — la tâche ÉCHOUE
+// baseline JSON signée (lsp-java/bancs/baselines/completion.json) — la tâche ÉCHOUE
 // sur régression (CI bloquante, ADR 0016 option 1). Re-signature : PR
 // dédiée avec -Presigner.
 tasks.register<JavaExec>("benchQualite") {
@@ -217,7 +217,7 @@ tasks.register<JavaExec>("benchQualite") {
     mainClass.set("jo.codeide.lsp.java.banc.BancQualiteCompletionKt")
     classpath = bancSourceSet.runtimeClasspath
     jvmArgs("-Xmx2g", "-XX:+UseSerialGC")
-    systemProperty("banc.baseline", rootProject.file("bancs/baselines/completion.json").absolutePath)
+    systemProperty("banc.baseline", rootProject.file("lsp-java/bancs/baselines/completion.json").absolutePath)
     if (project.hasProperty("resigner")) {
         args("--resigner")
     }
@@ -249,7 +249,7 @@ tasks.register<JavaExec>("benchRessources") {
 // Banc de PARITÉ CROISÉE (étage T — cœur historique, ADR 0016) : le même
 // corpus rejoué contre le vendored (oracle en boîte noire, sous-processus
 // JVM isolé piloté par DriverOracle) et le moteur neuf (in-process) ;
-// baselines JSON signées (bancs/baselines/parite-completion.json) ; la
+// baselines JSON signées (lsp-java/bancs/baselines/parite-completion.json) ; la
 // tâche ÉCHOUE sur régression (CI bloquante). Prérequis (gate, motif
 // ANDROID_JAR) : .oracle/ construit par scripts/preparer-oracle.sh —
 // absent localement = banc IGNORÉ (exit 0) ; la CI construit l'oracle
@@ -261,7 +261,7 @@ tasks.register<JavaExec>("benchParite") {
     mainClass.set("jo.codeide.lsp.java.banc.BancPariteCroiseKt")
     classpath = bancSourceSet.runtimeClasspath
     jvmArgs("-Xmx2g", "-XX:+UseSerialGC")
-    systemProperty("banc.baseline", rootProject.file("bancs/baselines/parite-completion.json").absolutePath)
+    systemProperty("banc.baseline", rootProject.file("lsp-java/bancs/baselines/parite-completion.json").absolutePath)
     systemProperty("banc.oracle", rootProject.file(".oracle").absolutePath)
     systemProperty(
         "banc.piloteClasses",

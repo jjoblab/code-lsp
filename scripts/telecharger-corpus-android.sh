@@ -19,11 +19,11 @@
 #   scripts/telecharger-corpus-android.sh            # tout le corpus
 #   scripts/telecharger-corpus-android.sh opentracks # un seul projet
 #
-# Sortie : bancs/corpus-android/<projet>/ (sources seules, profondeur 1).
+# Sortie : lsp-java/bancs/corpus-android/<projet>/ (sources seules, profondeur 1).
 # ============================================================================
 set -euo pipefail
 
-CIBLE="bancs/corpus-android"
+CIBLE="lsp-java/bancs/corpus-android"
 
 # <clé> <organisation/dépôt> <commit épinglé> [chemin du module utile]
 declare -A PROJETS=(
@@ -65,11 +65,11 @@ done
 cat <<'FIN'
 
 Corpus prêt. Prochaine étape (préparation du classpath réel, voir
-bancs/corpus-android/LISEZMOI.md) : produire un manifeste par projet sous
-bancs/corpus-android/prepares/<projet>.manifeste (lignes « racine:<chemin> »
+lsp-java/bancs/corpus-android/LISEZMOI.md) : produire un manifeste par projet sous
+lsp-java/bancs/corpus-android/prepares/<projet>.manifeste (lignes « racine:<chemin> »
 et « classpath:<chemin> »), puis :
 
-  CORPUS_ANDROID=bancs/corpus-android ./gradlew :java:test --tests 'jo.codeide.lsp.java.coherence.*'
+  CORPUS_ANDROID=lsp-java/bancs/corpus-android ./gradlew :java:test --tests 'jo.codeide.lsp.java.coherence.*'
 
 Les propriétés P3/P4/P7 sur corpus réel ne se jouent qu'en présence des
 manifestes ; sans corpus, les gates s'ignorent PROPREMENT (raison affichée).

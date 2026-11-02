@@ -63,7 +63,7 @@ private data class LignePosition(
 fun main(args: Array<String>) {
     val resigner = "--resigner" in args
     val cheminBaseline = System.getProperty("banc.baseline")
-        ?: "/home/z/my-project/bancs/baselines/completion.json"
+        ?: "/home/z/my-project/lsp-java/bancs/baselines/completion.json"
     val echecs = mutableListOf<String>()
 
     // --- Montage du projet corpus (racines sources réelles — Widget est

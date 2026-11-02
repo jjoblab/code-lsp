@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ============================================================================
 # preparer-manifestes-corpus.sh — V-A2 (ADR 0030) : prépare les manifestes de
-# classpath du corpus réel (procédure de bancs/corpus-android/LISEZMOI.md §2).
+# classpath du corpus réel (procédure de lsp-java/bancs/corpus-android/LISEZMOI.md §2).
 #
 # Pour chaque projet demandé :
 #   1. compile la variante DEBUG avec le Gradle ÉPINGLÉ du projet
@@ -9,7 +9,7 @@
 #   2. exporte le classpath réellement résolu (scripts/manifeste-corpus.init.gradle :
 #      artefacts EXTERNES de debugCompileClasspath, post-transformations AGP,
 #      dépendances de PROJET) ;
-#   3. écrit bancs/corpus-android/prepares/<projet>.manifeste (chemins ABSOLUS) :
+#   3. écrit lsp-java/bancs/corpus-android/prepares/<projet>.manifeste (chemins ABSOLUS) :
 #        racine:<répertoire de sources Java (main/debug du module app + des
 #                modules locaux dépendants + répertoires générés par le build)>
 #        racine-generee:<répertoire de sources GÉNÉRÉES (R, BuildConfig, binding…)>
@@ -35,7 +35,7 @@
 set -euo pipefail
 
 REPO=$(cd "$(dirname "$0")/.." && pwd)
-CORPUS="$REPO/bancs/corpus-android"
+CORPUS="$REPO/lsp-java/bancs/corpus-android"
 PREPARES="$CORPUS/prepares"
 INIT="$REPO/scripts/manifeste-corpus.init.gradle"
 
@@ -239,7 +239,7 @@ preparer_projet() {
   # Adaptation documentée (ALERTES AL10) : le miroir GitHub d'OpenTracks au
   # commit épinglé 3c23a9f5 n'a PAS de fichier settings — sans lui, Gradle
   # remonte l'arbre et résout le settings.gradle.kts de CODE-LSP (le corpus
-  # vit dans bancs/ du dépôt). Création d'un settings minimal : AUCUNE
+  # vit dans lsp-java/bancs/ du dépôt). Création d'un settings minimal : AUCUNE
   # source du corpus n'est touchée, l'adaptation est imprimée et consignée.
   if [[ ! -f "$repertoire/settings.gradle" && ! -f "$repertoire/settings.gradle.kts" ]]; then
     echo "  AVERTISSEMENT : aucun fichier settings dans $repertoire — création d'un settings.gradle minimal (adaptation documentée, aucune source touchée)"

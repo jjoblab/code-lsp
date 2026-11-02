@@ -32,7 +32,7 @@ import java.nio.file.Path
  * `scripts/telecharger-corpus-android.sh`) ; les propriétés P3/P4/P7 sur corpus
  * ne se jouent que si des manifestes de préparation existent
  * (`<repertoire>/prepares/<projet>.manifeste` — voir
- * `bancs/corpus-android/LISEZMOI.md`). Sans corpus, les tests de corpus sont
+ * `lsp-java/bancs/corpus-android/LISEZMOI.md`). Sans corpus, les tests de corpus sont
  * **ignorés avec la raison affichée** (jamais un vert silencieux).
  */
 internal object SocleCoherence {
@@ -199,7 +199,7 @@ internal object SocleCoherence {
 
     // =====================================================================
     // V-A2 — Corpus réel : montage des manifestes de préparation (ADR 0030,
-    // bancs/corpus-android/LISEZMOI.md §2). Format du manifeste (une entrée
+    // lsp-java/bancs/corpus-android/LISEZMOI.md §2). Format du manifeste (une entrée
     // par ligne, chemins ABSOLUS, `#` = commentaire ignoré) :
     //   racine:<répertoire de sources écrites à la main>       (noyau dur)
     //   racine-generee:<répertoire de sources générées>        (R, binding…)

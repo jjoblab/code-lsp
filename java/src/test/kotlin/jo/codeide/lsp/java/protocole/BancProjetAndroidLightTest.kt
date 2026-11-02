@@ -10,7 +10,7 @@ import jo.codeide.lsp.java.projetandroid.ModeleAndroidDerive
 
 /**
  * BANC PROJET ANDROID LIGHT (vague V-B — ADR 0021) : le montage RÉEL du
- * banc (`bancs/projet-android` — vraie plateforme android.jar 34-ext12,
+ * banc (`lsp-java/bancs/projet-android` — vraie plateforme android.jar 34-ext12,
  * vrais AARs androidx/material) SANS la racine des sources générées —
  * le régime « projet jamais buildé » du propriétaire (§0.1-2).
  *
@@ -38,7 +38,7 @@ class BancProjetAndroidLightTest {
 
     @Test
     fun `r et buildconfig resolus avant build - derivation disque sans sync ni gradle`() {
-        assumeTrue(libs != null && monip != null, "bancs/projet-android-libs absent — BANC_ANDROID_LIBS")
+        assumeTrue(libs != null && monip != null, "lsp-java/bancs/projet-android-libs absent — BANC_ANDROID_LIBS")
 
         // Le contrat vient UNIQUEMENT du disque (build.gradle.kts + res/).
         val contrat = ModeleAndroidDerive.deriver(listOf(monip!!))!!

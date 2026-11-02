@@ -100,13 +100,13 @@ jobs:
       - name: Bibliothèques réelles du banc projet Android (INTEGRATION-CODEIDE §13)
         run: bash scripts/preparer-projet-android.sh
       - name: Tests avec gates ouvertes (:java:test)
-        run: BANC_ANDROID_LIBS="$PWD/bancs/projet-android-libs" ./gradlew :java:test --no-daemon --stacktrace
+        run: BANC_ANDROID_LIBS="$PWD/lsp-java/bancs/projet-android-libs" ./gradlew :java:test --no-daemon --stacktrace
         env:
           BANC_COHERENCE_STRICT: "true"
 
   # Critère de sortie de l'étage N2 (PLAN-REECRITURE §4, ADR 0016 option 1) :
   # le banc de qualité de complétion compare recall/top-1/MRR + p95 + sauts
-  # de liste à la baseline SIGNÉE (bancs/baselines/completion.json) et fait
+  # de liste à la baseline SIGNÉE (lsp-java/bancs/baselines/completion.json) et fait
   # ÉCHOUER la CI en cas de régression ; re-signature par PR dédiée
   # (-Presigner). Corpus jrt seul : le job tourne sans SDK.
   banc-qualite:
@@ -130,7 +130,7 @@ jobs:
   # ÉTAGE T — banc de PARITÉ CROISÉE (ADR 0016, cœur historique de T) : le
   # même corpus rejoué contre le vendored (oracle en boîte noire, exécuté
   # depuis le dépôt codeide-lsp au COMMIT ÉPINGLÉ) et le moteur neuf ;
-  # baseline SIGNÉE (bancs/baselines/parite-completion.json) ; la CI ÉCHOUE
+  # baseline SIGNÉE (lsp-java/bancs/baselines/parite-completion.json) ; la CI ÉCHOUE
   # sur régression (couverture cahier, libellé perdu, dérive de l'oracle).
   # L'oracle est CONSTRUIT par scripts/preparer-oracle.sh (clone épinglé +
   # :lsp:java:jar du vendored, JVM pur — aucun SDK Android) ; dépôts publics

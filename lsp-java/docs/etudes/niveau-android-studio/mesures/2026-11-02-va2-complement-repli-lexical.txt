@@ -52,7 +52,7 @@ debugCompileClasspath (attributs AGP conservés). Sortie MESURÉE :
     fichiers, ime:app).
 
 Manifeste (scripts/preparer-manifeste-ask.sh) :
-bancs/corpus-android/prepares/anysoftkeyboard.manifeste — 96 racines
+lsp-java/bancs/corpus-android/prepares/anysoftkeyboard.manifeste — 96 racines
 (92 sources + 4 racines générées PORTANT LEUR ARBRE DE PAQUETS : la
 racine d'un source généré est le répertoire CONTENANT com/, remontée
 depuis la déclaration package du fichier) et 400 entrées de classpath

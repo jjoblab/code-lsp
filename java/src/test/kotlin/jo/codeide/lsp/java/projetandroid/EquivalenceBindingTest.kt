@@ -15,7 +15,7 @@ import jo.codeide.lsp.java.diagnostics.Severite
  * l'ADR 0021 : « 0 écart sur cas dorés ») : la classe `ActivityMainBinding`
  * fabriquée par la fabrique light sur le banc réel monip (layout `<layout>`
  * + variable) contre le SIMULACRE COMMIS de la sortie AGP
- * (`bancs/projet-android-genere/`).
+ * (`lsp-java/bancs/projet-android-genere/`).
  *
  * L'équivalence mesurée : les CHAMPS publics (noms + types) et les
  * MÉTHODES statiques (sélecteurs + descripteurs) — l'API que la

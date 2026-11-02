@@ -126,7 +126,7 @@ private data class LigneParite(
 fun main(args: Array<String>) {
     val resigner = "--resigner" in args
     val cheminBaseline = Path.of(
-        System.getProperty("banc.baseline") ?: "bancs/baselines/parite-completion.json",
+        System.getProperty("banc.baseline") ?: "lsp-java/bancs/baselines/parite-completion.json",
     )
     val dossierOracle = Path.of(System.getProperty("banc.oracle") ?: ".oracle")
     val classesPilote = System.getProperty("banc.piloteClasses")

@@ -35,11 +35,11 @@ import org.junit.jupiter.api.TestMethodOrder
  * VIVANT multi-racines — exactement le montage de production de CodeIDE
  * (SessionLsp → EnvironnementCompilation → ServeurLangageJava).
  *
- * Le projet de test (`bancs/projet-android/` + sources générées de
- * `bancs/projet-android-genere/`) est la réplique du projet utilisateur
+ * Le projet de test (`lsp-java/bancs/projet-android/` + sources générées de
+ * `lsp-java/bancs/projet-android-genere/`) est la réplique du projet utilisateur
  * « monip » (com.example.monip, AppCompatActivity, ActivityMainBinding,
  * Greeter) ; les bibliothèques réelles sont téléchargées par
- * `scripts/preparer-projet-android.sh` dans `bancs/projet-android-libs/`
+ * `scripts/preparer-projet-android.sh` dans `lsp-java/bancs/projet-android-libs/`
  * (R6.4 : jamais committées). Sans elles, la suite s'ignore avec un
  * message VISIBLE (gate environnementale, motif Fiche004).
  *
@@ -162,12 +162,12 @@ class BancProjetAndroidReelTest {
         // Gates VISIBLES (motif Fiche004) : bibliothèques + fixtures.
         assumeTrue(
             libs != null && androidJar() != null && jarsApplication().size >= 5,
-            "bibliothèques réelles absentes (bancs/projet-android-libs — " +
+            "bibliothèques réelles absentes (lsp-java/bancs/projet-android-libs — " +
                 "exécuter scripts/preparer-projet-android.sh) — banc ignoré (gate visible)",
         )
         assumeTrue(
             fixtures != null && generees != null,
-            "fixtures du projet absentes (bancs/projet-android{,-genere}) — banc ignoré (gate visible)",
+            "fixtures du projet absentes (lsp-java/bancs/projet-android{,-genere}) — banc ignoré (gate visible)",
         )
 
         // Le projet monté : copie du projet réel + des sources générées à

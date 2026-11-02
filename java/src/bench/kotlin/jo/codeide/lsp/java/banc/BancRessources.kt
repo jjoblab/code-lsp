@@ -12,8 +12,8 @@
 //
 // Cibles mesurées, de la plus légère à la plus lourde :
 //  1. la fixture mini (java/src/test/resources/projetandroid/mini) ;
-//  2. le banc réel monip (bancs/projet-android — si présent) ;
-//  3. les projets du corpus réel (bancs/corpus-android/<projet> — chaque
+//  2. le banc réel monip (lsp-java/bancs/projet-android — si présent) ;
+//  3. les projets du corpus réel (lsp-java/bancs/corpus-android/<projet> — chaque
 //     module :app trouvé par convention src/main/res, si le corpus est
 //     téléchargé ; absent = mesuré sur ce qui existe, raison affichée).
 //
