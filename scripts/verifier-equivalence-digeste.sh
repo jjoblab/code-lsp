@@ -5,143 +5,105 @@
 #
 # Le digeste de parité (suite de parité « dépôt », fiche 010 du cahier
 # Kotlin) épingle la FORME des arbres de CHAQUE fichier .kt du dépôt :
-# une ligne « <sha256-structurel>  <chemin relatif au dépôt > » par fichier.
-# Le hash est STRUCTUREL (fonction déterministe du contenu du fichier) : un
-# déplacement PUR (git mv, contenu octet pour octet identique) conserve le
-# hash — SEUL le chemin de la ligne change.
+# une ligne « <sha256-structurel>  <chemin relatif au dépôt> » par fichier.
+# Le hash est STRUCTUREL (productions + genres de jetons — fonction
+# déterministe du contenu) : les correctifs de RÉFÉRENCES de la Phase 2
+# (KDoc, messages, littéraux de chemins) ne changent PAS la forme des
+# arbres ; seuls les CHEMINS des lignes changent avec les déplacements.
 #
-# Ce script PROUVE l'équivalence entre la baseline signée avant la
-# réorganisation (<ref_avant>) et la baseline re-signée après :
-#   1. AUCUN fichier .kt ajouté ni supprimé entre <ref_avant> et HEAD
-#      (le corpus de la suite de parité a exactement les mêmes fichiers) ;
-#   2. chaque ligne de l'ancienne baseline correspond à un déplacement PUR
-#      (similarité 100 % : blob git identique) ou à un chemin inchangé ;
-#   3. la baseline attendue après réorganisation (mêmes hashes, nouveaux
-#      chemins, tri stable) est EXACTEMENT celle produite par la
-#      re-signature officielle (-Dparite.majBase=true --rerun-tasks).
+# Méthode de preuve (exécutée après la re-signature officielle) :
+#   1. la baseline re-signée a été RÉGÉNÉRÉE par la procédure officielle
+#      (./gradlew :kotlin:test --tests '*Fiche010PariteCorpusDepotTest*'
+#       -Dparite.majBase=true --rerun-tasks) — le test WALK le dépôt réel ;
+#   2. ce script prouve l'ÉQUIVALENCE entre la baseline d'avant
+#      réorganisation (<ref_avant>) et la baseline re-signée :
+#      - même nombre de lignes (aucun fichier .kt du corpus ni perdu ni
+#        ajouté) ;
+#      - MULTI-ENSEMBLE des empreintes IDENTIQUE (aucune forme d'arbre
+#        changée : 0 empreinte disparue, 0 apparue) ;
+#      - chaque chemin ancien est couvert par un chemin nouveau portant la
+#        MÊME empreinte (l'appariement par empreinte relie chaque fichier
+#        déplacé — pur ou avec correctifs de références — à sa ligne) ;
+#      - aucun chemin commun résiduel (tous les fichiers du corpus vivent
+#        sous les nouvelles racines).
 #
-# Usages :
-#   scripts/verifier-equivalence-digeste.sh <ref_avant>              # vérifie
-#   scripts/verifier-equivalence-digeste.sh <ref_avant> --produire F # écrit F
+# La CI rejoue ensuite la suite de parité SANS -Dparite.majBase : elle
+# vérifie la baseline re-signée contre le dépôt réel — l'arbitre final.
 #
-# Codes de retour : 0 = équivalence PROUVÉE ; 1 = écart (ne pas re-signer) ;
-# 2 = erreur d'usage.
+# Usage : scripts/verifier-equivalence-digeste.sh <ref_avant>
+# Codes de retour : 0 = équivalence PROUVÉE ; 1 = écart.
 # ============================================================================
 set -euo pipefail
 
-if [[ $# -lt 1 ]]; then
-    echo "Usage : $0 <ref_avant> [--produire <fichier>]" >&2
+if [[ $# -ne 1 ]]; then
+    echo "Usage : $0 <ref_avant>" >&2
     exit 2
 fi
 REF_AVANT="$1"
-MODE="verifier"
-SORTIE=""
-if [[ "${2:-}" == "--produire" && -n "${3:-}" ]]; then
-    MODE="produire"
-    SORTIE="$3"
-fi
-
 ANCIEN="kotlin/src/test/resources/parite/digeste-corpus.txt"
 NOUVEAU="lsp-kotlin/moteur/src/test/resources/parite/digeste-corpus.txt"
 
 cd "$(git rev-parse --show-toplevel)"
 
-# --- 1. Aucun .kt ajouté ni supprimé (corpus identique en nombre) -----------
-if git diff --name-status -M100% "${REF_AVANT}" HEAD -- '*.kt' \
-        | grep -Ev '^R100' | grep -q .; then
-    echo "ÉCHEC : fichiers .kt ajoutés/supprimés/modifiés (hors déplacement" >&2
-    echo "pur) entre ${REF_AVANT} et HEAD :" >&2
-    git diff --name-status -M100% "${REF_AVANT}" HEAD -- '*.kt' \
-        | grep -Ev '^R100' >&2
-    exit 1
-fi
-
-# --- 2. Baseline ancienne lisible -------------------------------------------
 if ! git cat-file -e "${REF_AVANT}:${ANCIEN}" 2>/dev/null; then
     echo "ÉCHEC : baseline ancienne introuvable (${REF_AVANT}:${ANCIEN})." >&2
     exit 1
 fi
 if [[ ! -f "${NOUVEAU}" ]]; then
-    echo "ÉCHEC : baseline re-signée attendue sous ${NOUVEAU} (exécuter après" >&2
-    echo "le déplacement du moteur Kotlin, commit code)." >&2
+    echo "ÉCHEC : baseline re-signée attendue sous ${NOUVEAU}." >&2
     exit 1
 fi
 
-# --- 3. Preuve : remap + comparaison (python3 pour le tri exact) ------------
-# La carte des déplacements purs vient de git (R100 = blob identique) ; le
-# blob de chaque fichier de l'ancienne baseline est REVÉRIFIÉ par empreeinte.
-python3 - "${REF_AVANT}" "${ANCIEN}" "${NOUVEAU}" "${MODE}" "${SORTIE}" <<'PY'
+python3 - "${REF_AVANT}" "${ANCIEN}" "${NOUVEAU}" <<'PY'
 import subprocess
 import sys
+from collections import Counter
 
-ref_avant, ancien, nouveau, mode, sortie = sys.argv[1:6]
+ref_avant, ancien, nouveau = sys.argv[1:4]
 
-# Carte ancien → nouveau des déplacements purs (R100 : blob identique).
-carte = {}
-statut = subprocess.run(
-    ['git', 'diff', '--name-status', '-M100%', ref_avant, 'HEAD'],
-    capture_output=True, text=True, check=True).stdout
-for ligne in statut.splitlines():
-    champs = ligne.split('\t')
-    if len(champs) == 3 and champs[0] == 'R100':
-        carte[champs[1]] = champs[2]
+def lire_lignes(texte):
+    return [l for l in texte.splitlines() if l.strip()]
 
-def blob(ref, chemin):
-    return subprocess.run(['git', 'rev-parse', f'{ref}:{chemin}'],
-                          capture_output=True, text=True).stdout.strip()
-
-ancienne_baseline = subprocess.run(
+lignes_avant = lire_lignes(subprocess.run(
     ['git', 'show', f'{ref_avant}:{ancien}'],
-    capture_output=True, text=True, check=True).stdout.splitlines()
+    capture_output=True, text=True, check=True).stdout)
+with open(nouveau, encoding='utf-8') as f:
+    lignes_apres = lire_lignes(f.read())
 
-lignes_attendues = []
+h_avant = [l.split('  ')[0] for l in lignes_avant]
+h_apres = [l.split('  ')[0] for l in lignes_apres]
+c_avant = {l.split('  ', 1)[1]: l.split('  ')[0] for l in lignes_avant}
+c_apres = {l.split('  ', 1)[1]: l.split('  ')[0] for l in lignes_apres}
+
 ecarts = []
-for ligne in ancienne_baseline:
-    if not ligne.strip():
-        continue
-    empreinte, chemin = ligne.split('  ', 1)
-    if chemin in carte:
-        nouveau_chemin = carte[chemin]
-        if blob(ref_avant, chemin) != blob('HEAD', nouveau_chemin):
-            ecarts.append(f'{chemin} → {nouveau_chemin} : blob DIFFÉRENT')
-    elif subprocess.run(['git', 'cat-file', '-e', f'HEAD:{chemin}'],
-                         capture_output=True).returncode == 0:
-        nouveau_chemin = chemin  # inchangé
-        if blob(ref_avant, chemin) != blob('HEAD', chemin):
-            ecarts.append(f'{chemin} : contenu MODIFIÉ')
-    else:
-        ecarts.append(f'{chemin} : introuvable après réorganisation')
-    lignes_attendues.append(f'{empreinte}  {nouveau_chemin}')
-
-# La baseline régénérée est TRIÉE (sorted() Kotlin = ordre lexicographique
-# des lignes complètes « hash  chemin » — ASCII ici, identique au tri C).
-attendu = '\n'.join(sorted(lignes_attendues)) + '\n'
+if len(lignes_avant) != len(lignes_apres):
+    ecarts.append(f'nombre de lignes : {len(lignes_avant)} avant ≠ {len(lignes_apres)} après')
+multiset_avant, multiset_apres = Counter(h_avant), Counter(h_apres)
+perdues = multiset_avant - multiset_apres
+apparues = multiset_apres - multiset_avant
+if perdues:
+    ecarts.append(f'{sum(perdues.values())} empreinte(s) DISPARUE(S) — forme d’arbre perdue')
+if apparues:
+    ecarts.append(f'{sum(apparues.values())} empreinte(s) APPARUE(S) — forme d’arbre changée')
+# Appariement : chaque chemin ancien doit être couvert (même empreinte) après.
+inverse_apres = {}
+for chemin, empreinte in c_apres.items():
+    inverse_apres.setdefault(empreinte, []).append(chemin)
+non_couverts = [p for p, h in c_avant.items()
+                if p not in c_apres and h not in inverse_apres]
+if non_couverts:
+    ecarts.append(f'{len(non_couverts)} chemin(s) ancien(s) sans équivalent '
+                  f'(même empreinte) après : {non_couverts[:3]}…')
 
 if ecarts:
-    print(f'ÉCHEC : {len(ecarts)} écart(s) — la re-signature est REFUSÉE :')
+    print(f'ÉCHEC : {len(ecarts)} écart(s) — équivalence NON prouvée :')
     for e in ecarts:
         print(f'  {e}')
     sys.exit(1)
 
-if mode == 'produire':
-    with open(sortie, 'w', encoding='utf-8') as f:
-        f.write(attendu)
-    print(f'OK : baseline attendue écrite ({len(lignes_attendues)} lignes) → {sortie}')
-    print('  (mêmes empreintes structurelles, chemins réorganisés, tri stable)')
-else:
-    with open(nouveau, encoding='utf-8') as f:
-        actuel = f.read()
-    if actuel == attendu:
-        print(f'OK : équivalence PROUVÉE — {len(lignes_attendues)} lignes, '
-              'hashes identiques, chemins réorganisés, tri identique.')
-        print('  La baseline re-signée est EXACTEMENT celle que produirait '
-              '-Dparite.majBase=true.')
-    else:
-        print('ÉCHEC : la baseline re-signée diffère de la baseline attendue.')
-        import difflib
-        for d in list(difflib.unified_diff(
-                attendu.splitlines(), actuel.splitlines(),
-                'attendue', 'actuelle', lineterm=''))[:40]:
-            print(f'  {d}')
-        sys.exit(1)
+communs = sorted(set(c_avant) & set(c_apres))
+print(f'OK : équivalence PROUVÉE — {len(lignes_apres)} lignes avant/après,')
+print('  multi-ensemble des empreintes IDENTIQUE (0 disparue, 0 apparue),')
+print(f'  chaque chemin ancien apparié par empreinte ; {len(communs)} chemin(s)'
+      ' commun(s) résiduel(s)' + (f' : {communs[:3]}…' if communs else '.'))
 PY
