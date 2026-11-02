@@ -145,7 +145,7 @@ class RetoursAppareilV116Test {
         // classification marquée y capturait le sélecteur de MÉTHODE en
         // cours (variante «() {}» — fiche 007 : CORPS_CLASSE) et le repli
         // TOP_NIVEAU ne s'y appliquait PAS : le mot-clé `extends` était
-        // MUET pendant sa frappe (l'ÉCART documenté docs/ECARTS-SERVEUR.md
+        // MUET pendant sa frappe (l'ÉCART documenté lsp-java/docs/ECARTS-SERVEUR.md
         // = G-024/M1). AMENDÉ PAR LA VAGUE V-C3 (décision D7) : la tête de
         // déclaration rend TOP_NIVEAU — les MOTS-CLÉS de clause proposés
         // PENDANT leur frappe, FUSIONNÉS aux stubs d'override de la

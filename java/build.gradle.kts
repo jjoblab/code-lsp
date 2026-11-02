@@ -1,9 +1,9 @@
 // Module :java — moteur Java LSP de CodeIDE (RÉÉCRITURE INTÉGRALE en Kotlin, ADR 0001).
-// Étage N1 — noyau compilateur & environnement (docs/PLAN-REECRITURE.md §4) :
+// Étage N1 — noyau compilateur & environnement (lsp-java/docs/PLAN-REECRITURE.md §4) :
 // pilotage d'ecj PATCHÉ via :ecj-art, routeur de classpaths, ordonnanceur et
 // annulation, diagnostics de base et repli syntaxe instantané, caches
 // parse/locate/présence, lecture zip/classpath. Les sources naissent du cahier
-// de spécifications (docs/cahier-specifications/) — jamais du vendored.
+// de spécifications (lsp-java/docs/cahier-specifications/) — jamais du vendored.
 //
 // Règles : Kotlin 100 %, KDoc français détaillé, explicitApi (AGENTS.md).
 // Bytecode 17 (consommable par la chaîne Android/ART d8 — convention dépôt).
@@ -14,7 +14,7 @@ plugins {
 
 // ---------------------------------------------------------------------------
 // Publication Maven — bascule §8.5 (décision signée le 30/10/2026), voie
-// PRODUCTION GitHub Packages (docs/BASCULE-CODEIDE.md §3.2.1). Coordonnées
+// PRODUCTION GitHub Packages (lsp-java/docs/BASCULE-CODEIDE.md §3.2.1). Coordonnées
 // FIXÉES ici (rien ne les épingle ailleurs) :
 //   jo.codeide.lsp.java:jo-codeide-lsp-java:<version du dépôt>
 //   → https://maven.pkg.github.com/jjoblab/code-lsp (workflow publish.yml,

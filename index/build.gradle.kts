@@ -4,7 +4,7 @@
 // IntelliJ sur les axes mobiles).
 //
 // REPRISE CONTRÔLÉE vague 1b (28/10/2026) depuis codeide-lsp:lsp/index @ cb809e14
-// — registre : docs/PROVENANCE-REPRISE.md §7 (R9.2). Fichiers de code repris
+// — registre : lsp-java/docs/PROVENANCE-REPRISE.md §7 (R9.2). Fichiers de code repris
 // TELS QUELS (aucune adaptation d'import — l'index ne touche pas au protocole).
 //
 // Principes portés tels quels (en-tête d'origine) : UN segment PAR JAR, clé =

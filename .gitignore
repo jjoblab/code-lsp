@@ -4,7 +4,7 @@ spike/build-v2/
 spike/build-v3/
 spike/build-scan/
 spike/build-sonde/
-# Jarres mesurées : jamais commitées (R6.4, docs/PROVENANCE-REPRISE.md)
+# Jarres mesurées : jamais commitées (R6.4, lsp-java/docs/PROVENANCE-REPRISE.md)
 *.jar
 *.zip
 # ... sauf le wrapper Gradle (chaîne de build officielle du dépôt)

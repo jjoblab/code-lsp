@@ -169,7 +169,7 @@ est LIVRÉE — la séquence V-A→V-G du plan 04 est BOUCLÉE.
   à l'annonce client → la version de x-codeide.completionRanking
   RESTE 2 (règle ADR 0015 R1 : la version monte sur évolution
   SÉMANTIQUE, pas additive). REGISTRE CLIENT K2 VIVANT :
-  docs/REGISTRE-CLIENT-K2.md — les capacités servies non consommées
+  lsp-java/docs/REGISTRE-CLIENT-K2.md — les capacités servies non consommées
   (l'héritage), les nouvelles par vague, l'ordre de consommation
   recommandé — prêt à devenir le prompt d'exécution
   cel-lsp/code-editor.
@@ -264,7 +264,7 @@ est LIVRÉE — la séquence V-A→V-G du plan 04 est BOUCLÉE.
   Accepté-livré (suivi d'exécution posé) ; plan 04 §V-F (suite)/§V-G
   LIVRÉES + table de synthèse ; matrice G-019/G-021/G-022/G-032/
   G-033 RÉSOLUS, G-023 résolu EN PARTIE (codeDescription.href
-  ouvert, P3) ; synthèse ; docs/REGISTRE-CLIENT-K2.md (nouveau,
+  ouvert, P3) ; synthèse ; lsp-java/docs/REGISTRE-CLIENT-K2.md (nouveau,
   document vivant).
   Reste ouvert (familles = PR unitaires, aucune vague entière) :
   ajout/réordonnancement de paramètres (catalogue refactorings),

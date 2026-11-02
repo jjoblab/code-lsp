@@ -3,7 +3,7 @@ package com.example.monip;
 /*
  * ============================================================================
  * KIT DE CAPTURES ANDROID STUDIO — lots A (complétion), B (diagnostics) et
- * point D4. Référence : docs/etudes/niveau-android-studio/
+ * point D4. Référence : lsp-java/docs/etudes/niveau-android-studio/
  * 06-protocole-captures-android-studio.md §2.
  *
  * MODE D'EMPLOI (copie locale, JAMAIS committée) :

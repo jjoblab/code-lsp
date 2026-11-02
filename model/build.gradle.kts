@@ -1,7 +1,7 @@
 // Module :model — modèle de projet LSP (snapshots immuables + empreintes W6).
 //
 // REPRISE CONTRÔLÉE vague 1b (28/10/2026) depuis codeide-lsp:lsp/model @ cb809e14
-// — registre : docs/PROVENANCE-REPRISE.md §7 (R9.2). Aucun fichier de code
+// — registre : lsp-java/docs/PROVENANCE-REPRISE.md §7 (R9.2). Aucun fichier de code
 // modifié hormis les imports du protocole (voir manifeste).
 //
 // La reprise était CONDITIONNÉE à l'action propriétaire P1 (LICENSE du dépôt

@@ -1,6 +1,6 @@
 # spike/ — Module de mesure isolé (Phase 2 du prompt de mission)
 
-> Étude « moteur Java PSI » pour CodeIDE sur Android/ART. **Module de mesure uniquement** : aucun code de production (§0 du prompt). Code neuf en Kotlin (règle R2 / ADR 0108 de l'ancien dépôt). Les jars mesurés sont **téléchargés, jamais commités** dans ce dépôt (R6.4, `docs/PROVENANCE-REPRISE.md`).
+> Étude « moteur Java PSI » pour CodeIDE sur Android/ART. **Module de mesure uniquement** : aucun code de production (§0 du prompt). Code neuf en Kotlin (règle R2 / ADR 0108 de l'ancien dépôt). Les jars mesurés sont **téléchargés, jamais commités** dans ce dépôt (R6.4, `lsp-java/docs/PROVENANCE-REPRISE.md`).
 
 ## Question de recherche (§6 du prompt)
 
@@ -12,7 +12,7 @@ PSI, ou la partie utile, tient-il sur ART avec une empreinte acceptable, et à q
 | **V2** | `com.jetbrains.intellij.{platform,java}:232.4652` ( pile minimale à 23 jars, cf. `resultats/v2-pile-minimale.txt` ) | PSI headless complet avec résolution native | 37,4 Mo (min.) / 75,4 Mo (testée) | 124 513 (min.) / 168 448 (testée) |
 | **V3** | `org.eclipse.jdt:ecj:3.40.0` | Référence : le moteur du statu quo ( **non patché ART** ) | 3,2 Mo | 11 990 |
 
-Résultats : `resultats/` — synthèse et limites : `../docs/etudes/moteur-java-psi/02-spike-mesures.md`.
+Résultats : `resultats/` — synthèse et limites : `lsp-java/docs/etudes/moteur-java-psi/02-spike-mesures.md`.
 
 ## Reproduction (R5)
 

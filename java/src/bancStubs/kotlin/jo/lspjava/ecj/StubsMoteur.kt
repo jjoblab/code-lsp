@@ -8,7 +8,7 @@
 // même surface que celle qu'utilisent les tests du vendored, source du
 // cahier). AUCUNE ligne d'implémentation n'est reprise (clean-room,
 // AGENTS.md — le vendored s'utilise en oracle boîte noire : on l'EXÉCUTE,
-// on ne le copie pas ; registre docs/PROVENANCE-REPRISE.md §6).
+// on ne le copie pas ; registre lsp-java/docs/PROVENANCE-REPRISE.md §6).
 //
 // SÉCURITÉ DE CLASSEMENT : le source set `bancStubs` n'est JAMAIS sur un
 // classpath d'EXÉCUTION. Au runtime, le pilote reçoit le JAR RÉEL du

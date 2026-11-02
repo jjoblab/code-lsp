@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ============================================================================
 # kit-mesure.sh — assemble le KIT DE MESURE APPAREIL « niveau Android
-# Studio » (vague 0 — gabarit docs/etudes/niveau-android-studio/
+# Studio » (vague 0 — gabarit lsp-java/docs/etudes/niveau-android-studio/
 # 07-gabarit-mesure-appareil.md, mesures à retourner par le propriétaire,
 # JAMAIS simulées — R5).
 #
@@ -14,7 +14,7 @@
 # Sur l'appareil (Termux) :
 #   unzip -o kit-mesure.zip -d mesure && cd mesure
 #   bash banc-mesure.sh > resultats-mesure.txt
-# Puis reporter les valeurs dans docs/etudes/niveau-android-studio/
+# Puis reporter les valeurs dans lsp-java/docs/etudes/niveau-android-studio/
 # 07-gabarit-mesure-appareil.md et joindre le transcript brut.
 #
 # Options appareil :
@@ -68,7 +68,7 @@ cat > "$KIT/banc-mesure.sh" <<'FIN'
 # Banc de mesure appareil « niveau Android Studio » — gabarit 07, R5 : mesure réelle.
 # Sortie : S2/S3 (froid + sonde import), F1/F3/F4/F5/F6 (latences moteur),
 # C1 (contention), Q3 (inter-fichiers), M1/M2 (tas) — 3 passes espacées de 30 s.
-# À reporter dans docs/etudes/niveau-android-studio/07-gabarit-mesure-appareil.md.
+# À reporter dans lsp-java/docs/etudes/niveau-android-studio/07-gabarit-mesure-appareil.md.
 set -uo pipefail
 cd "$(dirname "$0")"
 echo "=============================================================="

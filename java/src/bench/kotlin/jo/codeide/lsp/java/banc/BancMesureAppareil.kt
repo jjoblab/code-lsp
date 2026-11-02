@@ -1,5 +1,5 @@
 // CodeIDE — banc de MESURE APPAREIL « niveau Android Studio » (vague 0,
-// gabarit docs/etudes/niveau-android-studio/07-gabarit-mesure-appareil.md).
+// gabarit lsp-java/docs/etudes/niveau-android-studio/07-gabarit-mesure-appareil.md).
 //
 // RÔLE : mesure PURE pour l'appareil de référence (moto g06 / Termux,
 // OpenJDK 17 aarch64 — R5 : jamais simulée). Ce banc ne compare AUCUNE

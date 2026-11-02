@@ -3,7 +3,7 @@ Copyright 2026 jjoblab
 
 Ce produit inclut, ou inclura lors des vagues d'implémentation à venir, les
 composants logiciels tiers suivants. Le registre détaillé des provenances est
-maintenu dans docs/PROVENANCE-REPRISE.md (règle R9 du cahier des charges).
+maintenu dans lsp-java/docs/PROVENANCE-REPRISE.md (règle R9 du cahier des charges).
 
 1. Eclipse Compiler for Java (ecj)
    Artefact : org.eclipse.jdt:org.eclipse.jdt.core 3.40.0 (+ graphe de dépendances)

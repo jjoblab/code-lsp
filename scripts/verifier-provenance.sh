@@ -6,7 +6,7 @@
 #
 # Échoue si un fichier suivi par git sous index/ ou model/ n'est NI :
 #   - un fichier de squelette autorisé (build.gradle.kts du vague 0),
-#   - NI inscrit au manifeste de provenance docs/PROVENANCE-REPRISE.md
+#   - NI inscrit au manifeste de provenance lsp-java/docs/PROVENANCE-REPRISE.md
 #     (une reprise contrôlée R9.2 exige une inscription PRÉALABLE).
 #
 # En vague 0, les modules sont vides : le contrôle passe trivialement.
@@ -47,7 +47,7 @@ set -euo pipefail
 
 cd "$(git rev-parse --show-toplevel)"
 
-MANIFESTE="docs/PROVENANCE-REPRISE.md"
+MANIFESTE="lsp-java/docs/PROVENANCE-REPRISE.md"
 MANIFESTE_KOTLIN="docs/PROVENANCE-REPRISE-KOTLIN.md"
 SQUELETTE_AUTORISE="build.gradle.kts"
 CODE=0

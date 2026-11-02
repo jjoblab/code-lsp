@@ -146,7 +146,7 @@ def principal():
                 nb_jetons += 1
                 cible = jeton.rstrip('/')
                 # Glob tronqué (astérisque, points de suspension) : le préfixe
-                # réel doit exister (ex. `docs/adr/0007-*.md`).
+                # réel doit exister (ex. `lsp-java/docs/adr/0007-*.md`).
                 prefixe = re.split(r'[*…]', cible)[0].rstrip('/-')
                 if not (os.path.exists(jeton) or os.path.exists(cible)
                         or (prefixe and os.path.exists(prefixe))):

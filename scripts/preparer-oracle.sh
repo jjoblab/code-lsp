@@ -11,7 +11,7 @@
 #   .oracle/travail/          — checkouts épinglés (codeide-lsp + tooling)
 #   .oracle/ORACLE.sha256     — empreintes des trois jars (traçabilité locale)
 #
-# Épinglage (docs/PROVENANCE-REPRISE.md — anciens dépôts lecture seule) :
+# Épinglage (lsp-java/docs/PROVENANCE-REPRISE.md — anciens dépôts lecture seule) :
 #   codeide-lsp    @ cb809e1412fec429c9672da087244b3bd3176545 (v1.16.0)
 #   codeide-tooling @ b60f7f0 (build composite du dépôt frère)
 # Toute montée de version de l'oracle = PR dédiée de re-pin + re-signature

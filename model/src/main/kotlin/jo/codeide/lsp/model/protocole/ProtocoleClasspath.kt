@@ -9,7 +9,7 @@ package jo.codeide.lsp.model.protocole
  * Dans l'ancien dépôt, ces types provenaient de l'artefact
  * `com.github.jjoblab.codeide-tooling:protocol`, dont le dépôt source ne
  * comporte à ce jour **aucun fichier LICENSE** (action propriétaire P1, ADR
- * 0001/0017 ; registre `docs/PROVENANCE-REPRISE.md` §4). Tant que P1 n'est
+ * 0001/0017 ; registre `lsp-java/docs/PROVENANCE-REPRISE.md` §4). Tant que P1 n'est
  * pas résolu, l'alternative consignée §4 est appliquée : **réécrire localement
  * les types consommés**, pour que code-lsp reste autonome au build (R3) et
  * constructivement propre en licences (R9).

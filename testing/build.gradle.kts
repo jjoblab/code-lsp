@@ -1,5 +1,5 @@
 // Module :testing — suite d'intégration moteur ↔ index disque (ADR 0016,
-// étage N1 de docs/PLAN-REECRITURE.md §4 : « reprise contrôlée de :testing —
+// étage N1 de lsp-java/docs/PLAN-REECRITURE.md §4 : « reprise contrôlée de :testing —
 // elle éprouve le noyau »).
 //
 // L'ANCIENNE suite de codeide-lsp:lsp/testing (4 fichiers Java, couplés aux
@@ -7,7 +7,7 @@
 // Kotlin : les MÊMES buts d'intégration (parité avec/sans index, autorité
 // du localisateur à PRÊT, réouverture chaude, transition observée), sur
 // l'API PUBLIQUE du moteur neuf — décision consignée au registre de
-// provenance (docs/PROVENANCE-REPRISE.md). L'adaptateur vit AU-DESSUS des
+// provenance (lsp-java/docs/PROVENANCE-REPRISE.md). L'adaptateur vit AU-DESSUS des
 // deux modules qu'il relie (même schéma que le futur hôte :lsp:host).
 plugins {
     kotlin("jvm")

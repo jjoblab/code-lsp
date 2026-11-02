@@ -8,7 +8,7 @@
 # (vérifiés par `git ls-remote` le 31/10/2026 — jamais « de mémoire »).
 # Les projets sont des DONNÉES DE CORPUS (cibles de test), pas des références
 # de conception : leur inscription au registre de provenance se fait avec
-# leur rôle (docs/PROVENANCE-REPRISE.md §Corpus — liste blanche §1.3 d'
+# leur rôle (lsp-java/docs/PROVENANCE-REPRISE.md §Corpus — liste blanche §1.3 d'
 # AGENTS.md non concernée).
 #
 # Règles du dépôt respectées : AUCUN binaire committé (le répertoire cible

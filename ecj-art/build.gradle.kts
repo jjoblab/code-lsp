@@ -111,7 +111,7 @@ artifacts {
 
 // ---------------------------------------------------------------------------
 // Publication Maven du COMPAGNON RUNTIME (bascule §8.5 — voie PRODUCTION
-// GitHub Packages, docs/BASCULE-CODEIDE.md §3.2.1) :
+// GitHub Packages, lsp-java/docs/BASCULE-CODEIDE.md §3.2.1) :
 //   jo.codeide.lsp.java:jo-codeide-lsp-java-ecj-art:<version du dépôt>
 //   → https://maven.pkg.github.com/jjoblab/code-lsp (workflow publish.yml).
 // Le moteur (:java) déclare le jar ecj patché en compileOnly (« l'hôte
