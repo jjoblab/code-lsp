@@ -21,7 +21,7 @@ Environnement des mesures consignées : OpenJDK 21.0.12.1 (Debian 13, amd64), JV
 ### 1. Télécharger les piles
 
 ```bash
-bash spike/scripts/telecharger-piles.sh <repertoire-jars>   # ex. ../spike-jars
+bash lsp-java/spike/scripts/telecharger-piles.sh <repertoire-jars>   # ex. ../spike-jars
 ```
 
 Crée `v1/`, `v2/` et le compilateur Kotlin 2.2.20 (`kotlinc-dist/`). Les coordonnées des artefacts fastutil/trove4j/automaton/asm-all ( hébergés intellij-dependencies ) sont dans les `.pom` téléchargés à côté.

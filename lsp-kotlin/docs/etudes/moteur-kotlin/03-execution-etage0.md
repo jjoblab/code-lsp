@@ -13,13 +13,13 @@
 
 | # | Item | État | Détail |
 |---|---|---|---|
-| 1 | Module `:kotlin` squelette | **Fait** | `kotlin/build.gradle.kts` : toolchain 21, bytecode 17 (convention d8/ART), Kotlin 2.2.10 (chaîne racine) ; `settings.gradle.kts` : `include(":kotlin")` + dépôt intellij-dependencies activé (cache-redirector) |
-| 2 | Grammaire vendorée (ré-obtention amont) + suite de parité + VENDOR/NOTICE | **Fait** | Ré-obtention `git archive` @ tag v2.3.0 (`f95cb2f7…`) — identité octet pour octet vérifiée `diff -r` contre le vendoring du spike ; suite de parité fiches 010–012 (14 tests) ; notice `VENDOR.md` + LICENSE/COPYRIGHT embarqués au jar (META-INF/vendor-kotlin/) ; script de re-sync `scripts/vendor-grammaire-kotlin.sh` (ADR 0121) |
-| 3 | Extension `verifier-provenance.sh` au périmètre `kotlin/` | **Fait** | Trois régimes : vendoring (notices + inscription), zones de reprise voie C (inscription PRÉALABLE fichier par fichier), code neuf libre. Testé positif ET négatif (fichier de zone non inscrit → ÉCHEC) |
+| 1 | Module `:kotlin` squelette | **Fait** | `lsp-kotlin/moteur/build.gradle.kts` : toolchain 21, bytecode 17 (convention d8/ART), Kotlin 2.2.10 (chaîne racine) ; `settings.gradle.kts` : `include(":kotlin")` + dépôt intellij-dependencies activé (cache-redirector) |
+| 2 | Grammaire vendorée (ré-obtention amont) + suite de parité + VENDOR/NOTICE | **Fait** | Ré-obtention `git archive` @ tag v2.3.0 (`f95cb2f7…`) — identité octet pour octet vérifiée `diff -r` contre le vendoring du spike ; suite de parité fiches 010–012 (14 tests) ; notice `VENDOR.md` + LICENSE/COPYRIGHT embarqués au jar (META-INF/vendor-kotlin/) ; script de re-sync `lsp-kotlin/scripts/vendor-grammaire-kotlin.sh` (ADR 0121) |
+| 3 | Extension `verifier-provenance.sh` au périmètre `lsp-kotlin/moteur/` | **Fait** | Trois régimes : vendoring (notices + inscription), zones de reprise voie C (inscription PRÉALABLE fichier par fichier), code neuf libre. Testé positif ET négatif (fichier de zone non inscrit → ÉCHEC) |
 | 4 | Reprises contrôlées des modules C | **Fait (inscription + contrôle, copie différée)** | Contrôle R9.4 MENÉ sur les 9 fichiers (en-têtes/KDoc : aucun tiers, aucune mention GPL — réserve P-K1/D5 sur synthetics) ; inscriptions préalables R1–R9 au manifeste §3 ; **aucune copie à ce jour** — copie aux étages de câblage (1 : classpath/synthetics ; 5 : confort) |
 | 5 | CI : build + scan ART + dexage + seuils + bancs | **Fait** | 3 jobs neufs (`kotlin-parite`, `kotlin-art`, `kotlin-banc`) + job `provenance` étendu — 9 jobs au total. Scan : 0 motif sur la pile spécifique (tolérance documentée : 2 readAllBytes dans kotlin-stdlib, fondation partagée `:java`) ; dexage d8 build-tools 34 + seuils |
 | 6 | Actions propriétaire | **Tracées** | P-K2 (binaires intellij-dependencies), second manifeste, Q-K1–Q-K6, audit GPL — §5 ci-dessous ; aucune n'est bloquante pour l'étage 0, P-K2 bloque la PUBLICATION du pack |
-| 7 | Gabarit de mesure appareil | **Fait** | `spike-kotlin/appareil/{banc-appareil.sh, GABARIT-RESULTATS.md}` — déclinaison du patron Java ; aucune valeur pré-remplie (R5) |
+| 7 | Gabarit de mesure appareil | **Fait** | `lsp-kotlin/spike/appareil/{banc-appareil.sh, GABARIT-RESULTATS.md}` — déclinaison du patron Java ; aucune valeur pré-remplie (R5) |
 
 ## 2. Décisions d'exécution consignées (pas dans le plan initial)
 
@@ -122,7 +122,7 @@ Q-K1/Q-K2 (index CIDX) qui conditionnent le câblage classpath.
 | 2 | Audit de similarité d'expression (filiation documentaire GPL-3.0 des décisions anciennes D1/D2/D5/D8) — rôle DISTINCT des implémenteurs | P-K1, manifeste §5 | la copie de synthetics (R1/R2) si le doute n'est pas levé — recommandé AVANT l'étage 1 |
 | 3 | Arbitrage Q-K1 (CIDX étendu vs index dédié) et Q-K2 (décodage @Metadata dans :index ou :kotlin) | DEMANDES-INTERFACE, ADR 0108 | le câblage classpath de l'étage 1 (le développement peut démarrer sur l'hypothèse index dédié — ADR 0108) |
 | 4 | Lecture du second manifeste (propriétaire) | synthèse §6.4 | rien (action d'information) |
-| 5 | Passe appareil (Termux) : exécuter `spike-kotlin/appareil/banc-appareil.sh`, remplir le gabarit | GABARIT-RESULTATS.md | l'OUVERTURE de l'étage 1 (porte d'entrée) |
+| 5 | Passe appareil (Termux) : exécuter `lsp-kotlin/spike/appareil/banc-appareil.sh`, remplir le gabarit | GABARIT-RESULTATS.md | l'OUVERTURE de l'étage 1 (porte d'entrée) |
 
 ## 6. Prochaine étape — étage 1 (noyau parse/session/classpath, 30–52 j-h [estimé])
 

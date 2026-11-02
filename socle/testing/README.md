@@ -4,10 +4,10 @@
 > RÉÉCRITURE NEUVE — l'ancienne suite de `codeide-lsp:lsp/testing` (4
 > fichiers Java, couplés aux membres package-private du moteur vendored
 > `jo.lspjava.*`) est **mutée** faute de reprise possible ; décision
-> consignée au manifeste (`docs/PROVENANCE-REPRISE.md` §3/§6).
+> consignée au manifeste (`lsp-java/docs/PROVENANCE-REPRISE.md` §3/§6).
 
 Suite d'intégration du **branchement de l'index disque CIDX** sur le
-moteur Java réécrit (`:java`, étage N1 de `docs/PLAN-REECRITURE.md`) :
+moteur Java réécrit (`:java`, étage N1 de `lsp-java/docs/PLAN-REECRITURE.md`) :
 le moteur consomme l'index à travers le **port SPI `IndexNoms`**
 (`jo.codeide.lsp.java.IndexNoms`) dont l'implémentation de production
 sera reprise par le futur hôte `:lsp:host`.

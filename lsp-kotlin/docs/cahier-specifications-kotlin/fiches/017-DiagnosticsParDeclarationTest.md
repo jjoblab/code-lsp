@@ -1,6 +1,6 @@
 # Fiche 017 — DiagnosticsParDeclarationTest
 
-> **Source** : `codeide-lsp` @ `bc11253` — `lsp/kotlin/src/test/kotlin/jo/lspkotlin/session/DiagnosticsParDeclarationTest.kt` (8 tests, 190 l.).
+> **Source** : `codeide-lsp` @ `bc11253` — `lsp/lsp-kotlin/moteur/src/test/kotlin/jo/lspkotlin/session/DiagnosticsParDeclarationTest.kt` (8 tests, 190 l.).
 > **Domaine** : diagnostics
 > **Résumé** : Tests du chantier P1-A « diagnostics par déclaration » (garde d'édition du texte vivant) — un document portant des marqueurs d'erreur n'est plus écarté EN BLOC : seules les DÉCLARATIONS dont le sous-arbre parse proprement sont diagnostiquées, et `kt.unresolved` (preuve d'ABSENCE) porte des gardes dédiées : - un nom DÉCLARÉ n'importe où dans le document (déclaration en cours de frappe ou avalée par
 > **Convention** : chaque comportement porte le **nom exact du test source** (identifiant de traçabilité) ; l'attendu le reformule en français lisible, enrichi du contrat D3 quand le nom le porte. Le résumé ci-dessus décrit le contrat de la classe de test.

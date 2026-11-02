@@ -1,10 +1,10 @@
 # USAGE — Guide d'utilisation du serveur de langage Java `lspjava`
 
 > Ce guide décrit l'utilisation du serveur de langage Java de CodeIDE
-> livré par le programme de réécriture N1–N8 (`docs/PLAN-REECRITURE.md` §4).
+> livré par le programme de réécriture N1–N8 (`lsp-java/docs/PLAN-REECRITURE.md` §4).
 > Il complète le [`README.md`](README.md) (état du programme, décisions) et
 > les ADR (`docs/adr/`) — en cas de divergence, le code et le cahier de
-> spécifications (`docs/cahier-specifications/`) font foi.
+> spécifications (`lsp-java/docs/cahier-specifications/`) font foi.
 
 **Sommaire**
 
@@ -29,7 +29,7 @@
 `lspjava` est le serveur de langage Java de CodeIDE, réécrit intégralement
 en Kotlin (ADR 0001, option 2) à partir d'un cahier de spécifications
 extrait de 449 tests de l'ancien moteur (65 fiches, 449 comportements —
-`docs/cahier-specifications/`). Il pilote le compilateur **Eclipse ecj
+`lsp-java/docs/cahier-specifications/`). Il pilote le compilateur **Eclipse ecj
 3.40.0 patché** (module `:ecj-art`) pour servir un protocole LSP 3.17
 complet : complétion classée, survol riche, diagnostics, navigation,
 renommage sûr multi-fichiers, actions correctrices, formatage, pliage,
@@ -75,10 +75,10 @@ Caractéristiques saillantes, verrouillées par le cahier :
 ./gradlew :ecj-art:patcherEcj      # produit ecj-art/build/ecj-patche/ecj-3.40.0-art.jar
 ./gradlew :java:bench              # banc empreinte/latence du noyau (JVM séparée)
 ./gradlew :java:benchQualite       # banc qualité complétion — ÉCHOUE sur régression
-                                    #   vs baseline signée bancs/baselines/completion.json
+                                    #   vs baseline signée lsp-java/bancs/baselines/completion.json
 ./gradlew :java:benchUsages        # banc usages — rappel 1,000, p95 < 100 ms, CI-bloquant
 ./gradlew :java:benchParite        # banc de parité croisée T — oracle vendored vs moteur neuf
-                                    #   (prérequis : bash scripts/preparer-oracle.sh → .oracle/)
+                                    #   (prérequis : bash lsp-java/scripts/preparer-oracle.sh → .oracle/)
 ANDROID_JAR=… ./gradlew :java:test # ouvre les gates Android (fiches 033/004/036/043/044/050/053)
 ```
 
@@ -107,7 +107,7 @@ trois interfaces lsp4j `LanguageServer`, `TextDocumentService`,
 
 Le serveur n'impose pas de binaire autonome : le branchement de
 substitution dans CodeIDE (dépôt tiers) est coordonné côté propriétaire
-(plan §4, note N8) — **procédure préparée : `docs/BASCULE-CODEIDE.md`**
+(plan §4, note N8) — **procédure préparée : `lsp-java/docs/BASCULE-CODEIDE.md`**
 (décision de bascule §8.5 signée le 30/10/2026). L'intégrateur câble un
 lanceur lsp4j autour de
 `ServeurLangageJava` — sur stdio pour un processus séparé, sur tuyaux en
@@ -147,7 +147,7 @@ fun main() {
 ### 4.2 Serveur embarqué (tuyaux en mémoire)
 
 Le montage de référence est celui du harnais des fiches 054/056/058/059
-(`java/src/test/…/protocole/BoucleLocale.kt`) : deux `PipedInputStream` /
+(`lsp-java/moteur/src/test/…/protocole/BoucleLocale.kt`) : deux `PipedInputStream` /
 `PipedOutputStream` croisés, un lanceur par extrémité, le client espion
 branché par `serveur.connect(lanceur.remoteProxy)`. Les requêtes et
 publications traversent la sérialisation Gson et les en-têtes
@@ -1131,7 +1131,7 @@ minSdk. Livrés : **NewApi** (avec les échappatoires `@RequiresApi(n)` /
 `super.x();` suggéré dans le message), **SetTextI18n**. Suppression :
 `@SuppressLint("NewApi")` (valeurs scalaires ou tableaux). La base
 `api-versions.xml` du SDK (≈ 5,5 Mo, jamais committée) se prépare par
-`bash scripts/preparer-base-api.sh` et se pose via
+`bash lsp-java/scripts/preparer-base-api.sh` et se pose via
 `-Djo.codeide.lsp.java.lint.baseapi=<chemin>` ; **repli honnête** : sans
 base ou sans contrat Android (minSdk inconnu), les contrôles de niveau
 d'API restent MUETS — jamais un faux silence non plus : la présence de
@@ -1281,8 +1281,8 @@ ordinaire n'est jamais signalé) ; **CommitPrefEdits** : `edit()` sans
 
 **Segment compact de la base API** (ADR 0024) : `api-versions.xml` se
 compile en segment binaire **CLBA v1** (gzip) —
-`scripts/preparer-base-api.sh` appelle `OutilSegmentBaseApi` quand le jar
-du moteur est disponible (`java/build/libs/` ou `JAR_BASE_API`) ; le
+`lsp-java/scripts/preparer-base-api.sh` appelle `OutilSegmentBaseApi` quand le jar
+du moteur est disponible (`lsp-java/moteur/build/libs/` ou `JAR_BASE_API`) ; le
 chargeur lit `<base>.seg` **en priorité** sur le xml (ou la propriété
 désigne le `.seg` directement), un segment corrompu **retombe** sur le
 xml. Re-compilable **bit-à-bit** (empreintes SHA-256 consignées par
@@ -1570,7 +1570,7 @@ vol (balayage purement lexical). SANS l'annonce : la liste reste
 complète d'avant V-G, AUCUN changement. Le resolve d'un item sans FQCN
 différé le rend TEL QUEL (jamais d'édition fabriquée).
 
-**Registre client K2 (ADR 0031 (g))** : `docs/REGISTRE-CLIENT-K2.md` —
+**Registre client K2 (ADR 0031 (g))** : `lsp-java/docs/REGISTRE-CLIENT-K2.md` —
 le document VIVANT des capacités servies non consommées (l'héritage) et
 des nouvelles par vague ; prêt à devenir le prompt d'exécution
 `cel-lsp`/`code-editor`.
@@ -1638,7 +1638,7 @@ Latence liste mesurée : p95 = 410 µs (budget 30 ms). Validation :
 17 tests (cas dorés multi-fichiers re-diagnostiqués — 0 erreur ;
 oracles de motifs ; tampon XML en fait de foi ; client espion — aucun
 diagnostic Java publié ; href), cf.
-`docs/etudes/niveau-android-studio/mesures/2026-11-01-complement-catalogue.txt`.
+`lsp-java/docs/etudes/niveau-android-studio/mesures/2026-11-01-complement-catalogue.txt`.
 
 ### 7.28 V-A3 — robustesse des retours appareil : pré-chauffe du classpath, budget de complétion, chien de garde (v1.12.1)
 
@@ -1685,7 +1685,7 @@ ancre + diagnose concurrente + jar dupliqué ; génériques hérités
 propres — les faux positifs « I/O cannot be resolved » des logs
 viennent du FICHIER utilisateur qui copie la signature générique avec
 ses variables de type, javac dirait pareil), cf.
-`java/src/test/kotlin/jo/codeide/lsp/java/Repro*20261101*`.
+`lsp-java/moteur/src/test/kotlin/jo/codeide/lsp/java/Repro*20261101*`.
 
 ### 7.29 V-H — répartition priorisée des requêtes : la complétion pendant la tempête (v1.13.0)
 
@@ -1736,7 +1736,7 @@ Les verrous : 8 tests (5 sémantiques du répartiteur + 3 au protocole par
 boucle locale LSP4J authentique — la tempête du journal rejouée ne perd
 ni n'échoue aucune future, la complétion rend les membres d'une classe
 du projet PENDANT la tempête), cf.
-`docs/etudes/niveau-android-studio/mesures/2026-11-02-vh-repartition.txt`.
+`lsp-java/docs/etudes/niveau-android-studio/mesures/2026-11-02-vh-repartition.txt`.
 
 ## 8. Capability maison `x-codeide.completionRanking`
 
@@ -2023,16 +2023,16 @@ reconstruit » est devenu ASYNCHRONE.
 | Commande | Rôle |
 |---|---|
 | `./gradlew :java:bench` | banc empreinte/latence du noyau (JVM séparée) : diagnose complet p50 11,7 ms / p95 39,8 ms, **diagnose rapide p50 1,5 ms**, hover p50 0,12 ms, complétion membres p50 0,04 ms, tas au repos 16 Mo |
-| `./gradlew :java:benchQualite` | banc qualité complétion (ADR 0016/0030) — corpus versionné **v2 : 24 positions** (dont 6 V-C3 smart/typedef/chaîne/second appel, split **train/éval** déterministe), baseline signée `bancs/baselines/completion.json` : **recall 1,000 / top-1 1,000 / MRR 1,000**, sous-ensemble **ÉVAL : 1,000/1,000/1,000** (cibles V-C3 ≥ 0,95/≥ 0,80), naïf 0,917/0,458/0,611 (ÉVAL top-1 0,000 — la preuve de valeur de la vague), zéro saut de liste, p95 ~38 ms — **ÉCHOUE sur régression** |
+| `./gradlew :java:benchQualite` | banc qualité complétion (ADR 0016/0030) — corpus versionné **v2 : 24 positions** (dont 6 V-C3 smart/typedef/chaîne/second appel, split **train/éval** déterministe), baseline signée `lsp-java/bancs/baselines/completion.json` : **recall 1,000 / top-1 1,000 / MRR 1,000**, sous-ensemble **ÉVAL : 1,000/1,000/1,000** (cibles V-C3 ≥ 0,95/≥ 0,80), naïf 0,917/0,458/0,611 (ÉVAL top-1 0,000 — la preuve de valeur de la vague), zéro saut de liste, p95 ~38 ms — **ÉCHOUE sur régression** |
 | `./gradlew :java:benchUsages` | banc usages (ADR 0014) — rappel 1,000 (oracle), p95 ~62 ms < 100 ms, **CI-bloquant** |
-| `bash scripts/preparer-oracle.sh` | construit l'**oracle vendored** du banc croisé (clone `codeide-lsp` épinglé cb809e14 + `:lsp:java:jar`, JVM pur — aucun SDK Android) → `.oracle/` (jamais committé, R6.4) |
-| `bash scripts/preparer-projet-android.sh` | télécharge le **projet Android réel du banc** (android.jar 34-ext12 + 16 AARs/jars androidx/material, fermeture transitive vérifiée) → `bancs/projet-android-libs/` (jamais committé, R6.4) |
+| `bash lsp-java/scripts/preparer-oracle.sh` | construit l'**oracle vendored** du banc croisé (clone `codeide-lsp` épinglé cb809e14 + `:lsp:java:jar`, JVM pur — aucun SDK Android) → `.oracle/` (jamais committé, R6.4) |
+| `bash lsp-java/scripts/preparer-projet-android.sh` | télécharge le **projet Android réel du banc** (android.jar 34-ext12 + 16 AARs/jars androidx/material, fermeture transitive vérifiée) → `lsp-java/bancs/projet-android-libs/` (jamais committé, R6.4) |
 | `BANC_ANDROID_LIBS=… ./gradlew :java:test --tests jo.codeide.lsp.java.protocole.BancProjetAndroidReelTest` | **banc projet Android réel** (20 tests) : la timeline appareil rejouée au protocole (didOpen avant sync → sync → LIVE-REPUBLISH) puis CHAQUE famille de complétion (import, type + auto-import, membre, statique imbriqué, locale, stub, new, frappe continue, latences) contre les vraies bibliothèques — la sonde de parité Android Studio. Sans les bibliothèques, la suite s'ignore (gate visible) |
-| `./gradlew :java:benchParite` | **banc de parité croisée** (étage T, ADR 0016) — le même corpus (**v2 : 24 positions** + 4 frappes) rejoué contre le vendored (**boîte noire en sous-processus JVM isolé**, pilote compilé contre des stubs à alarme) et le moteur neuf (in-process) ; baseline signée `bancs/baselines/parite-completion.json` : couverture cahier **1,000**, **314 deltas bruts documentés** (re-signés V-C3 : accessibilité JLS 6.6 au 1er appel, positions smart, gabarits de l'oracle — arbitrage consigné dans la baseline) — **ÉCHOUE** sur couverture en baisse, libellé perdu ou dérive de l'oracle ; oracle absent = banc ignoré avec message (exit 0), la CI le construit d'abord (job `banc-parite` **bloquant**) |
-| `bash scripts/kit-bascule.sh` | assemble le **kit de passe bascule sur appareil** (§8.5) : classes du banc + du moteur, ecj patché, dépendances, `banc-bascule.sh` — protocole et tables dans `bancs/GABARIT-BASCULE-APPAREIL.md` (R5 : mesures réelles du propriétaire, jamais simulées) |
+| `./gradlew :java:benchParite` | **banc de parité croisée** (étage T, ADR 0016) — le même corpus (**v2 : 24 positions** + 4 frappes) rejoué contre le vendored (**boîte noire en sous-processus JVM isolé**, pilote compilé contre des stubs à alarme) et le moteur neuf (in-process) ; baseline signée `lsp-java/bancs/baselines/parite-completion.json` : couverture cahier **1,000**, **314 deltas bruts documentés** (re-signés V-C3 : accessibilité JLS 6.6 au 1er appel, positions smart, gabarits de l'oracle — arbitrage consigné dans la baseline) — **ÉCHOUE** sur couverture en baisse, libellé perdu ou dérive de l'oracle ; oracle absent = banc ignoré avec message (exit 0), la CI le construit d'abord (job `banc-parite` **bloquant**) |
+| `bash lsp-java/scripts/kit-bascule.sh` | assemble le **kit de passe bascule sur appareil** (§8.5) : classes du banc + du moteur, ecj patché, dépendances, `banc-bascule.sh` — protocole et tables dans `docs/GABARIT-BASCULE-APPAREIL.md` (R5 : mesures réelles du propriétaire, jamais simulées) |
 | `ANDROID_JAR=… ./gradlew :java:test` | ouvre les gates Android (fiches 033/004/036/043/044/050/053) — la CI télécharge android.jar API 34 (zip officiel) + AAR appcompat |
 | `./gradlew :java:test --tests jo.codeide.lsp.java.BancDoubleTamponTest` | **banc V-F1** (R5) : latence nominale vs PENDANT reconstruction tenue (p50/p95 µs, budget ADR « p95 ≤ 2× » imprimé), reconstruction réelle, coût du rejeu (2 passes) — la suite `DoubleTamponTest` (8 tests) verrouille les invariants : 0 figage, 0 réponse périmée, coupures fines, syncs rapides, repli, republication au swap |
-| `./gradlew :java:test --tests jo.codeide.lsp.java.VerrousPerimetreTest` | **banc V-F2** : la MÉTRIQUE CI `synchronized(` < 6 dans `java/src/main` (mesuré : 0) + les chemins sans ecj répondent pendant qu'un fil détient le verrou de compilation (et un chemin ecj BLOQUE — la sémantique une-résolution-à-la-fois est réelle) |
+| `./gradlew :java:test --tests jo.codeide.lsp.java.VerrousPerimetreTest` | **banc V-F2** : la MÉTRIQUE CI `synchronized(` < 6 dans `lsp-java/moteur/src/main` (mesuré : 0) + les chemins sans ecj répondent pendant qu'un fil détient le verrou de compilation (et un chemin ecj BLOQUE — la sémantique une-résolution-à-la-fois est réelle) |
 | `./gradlew :java:test --tests jo.codeide.lsp.java.ChaosConcurrenceTest` | **chaos test V-F2** (ADR 0010/0029) : 6 fils × 90 opérations mêlées (diagnoses, complétions, syncs/époques, XML, invalidations) — 0 interblocement (dump des piles en échec), 0 exception non attendue, verdict fiche 012 préservé |
 | `./gradlew :java:test --tests jo.codeide.lsp.java.ChargeConcurrenteTest` | **banc de charge V-F2** (critère ADR 0010) : complétion fichier A ∥ diagnose fichier B — p95 de chacun ≤ séquentiel + 10 % + 10 ms (l'ancien moniteur échouait : concurrent ≈ somme des deux) |
 | `./gradlew :java:test --tests 'jo.codeide.lsp.java.InspectionsTest'` | **banc V-C1** : 12 cas dorés des inspections (détection, non-détection, suppression, mutants P4, P3 zéro-erreur, P1 frappe confinée, dumb-aware) |
@@ -2089,9 +2089,9 @@ re-signature de `parite-completion.json` (les stubs de façade suivent).
   4 modificateurs, full sans delta, p95 mesuré 1 ms < 25 ms ;
   completionItem/resolve RÉEL G-021 — import différé négocié par
   resolveSupport, sans annonce la liste reste complète ; registre client
-  K2 vivant `docs/REGISTRE-CLIENT-K2.md` G-023 partiel — §7.25/§7.26/§9.5)** ;
+  K2 vivant `lsp-java/docs/REGISTRE-CLIENT-K2.md` G-023 partiel — §7.25/§7.26/§9.5)** ;
   - **Version 1.9.0 = vague V-D tranche 2 (refactorings lourds — ADR 0027 Accepté-tranche 2 : extract variable/constante/méthode sur SÉLECTION avec heuristiques §A5 — une sortie au plus, paramètres par première lecture, locales écrites-d'abord déclarées dedans, refus honnête des positions paresseuses et du contrôle de flux non local ; inline variable — réaffectations et effets multi-usages fermés — et inline constante mono-fichier ; safe delete par usages multi-fichiers exhaustifs avec oracle « 0 manqué » — refus motivés override/paramètre ; socle usages étendu aux sites new X(…) et références X::m, constructeurs identifiés au caret, égalité d'étendue de la fenêtre +120 corrigée ; kinds refactor.extract.*/inline.*/rewrite.delete annoncés ; cas dorés compilables par capacité, latence liste p95 mesurée 3 881 µs < 30 ms — §7.23)** ; - **Version 1.8.0 = vague V-D tranche 1 + V-C2 complément de catalogue (ADR 0027 Accepté-tranche 1 + ADR 0024 : organizeImports exposé M3/G-020 avec kinds source.*/refactor.* et codeAction/resolve DIFFÉRÉ ; génération de code — getter/setter/constructeur/equals+hashCode/toString/stubs d'outrepassement ; intentions sans diagnostic — ternaire, constante, référence de méthode, var↔explicite ; familles ecj étendues +7 IDs avec P5 étendu 0 violation ; latence liste p95 mesurée 255 µs < 30 ms ; lint Range/ResourceType/CommitPrefEdits/Recycle — catalogue 15 contrôles ; segment compact CLBA de la base api-versions, re-compilable bit-à-bit — §7.22)** ; - **Version 1.7.0 = vague V-C3 (complétion niveau Android Studio — ADR 0026 Accepté-livré : smart par bindings avec filtrage gradué jamais caché, typedef @IntDef/@StringDef en tête avec import statique, littéraux R.* par @…Res + référentiel, second appel — inaccessibles marqués + imports statiques — et 3ᵉ appel projet par CIDX, chaîne à deux sauts, statement completion lexicale moteur + RPC textDocument/statementCompletion, stats locales opt-in à fenêtre glissante, mémoïsation des membres binaires, mots-clés de tête de déclaration D7/G-024 avec fusion stubs ; capability completionRanking **v2** ; corpus qualité **v2 24 positions split train/éval** — ÉVAL 1,000/1,000 ; fiches 066 et 007 amendées, ECARTS-SERVEUR M1 résolu — §7.21/§8/§9.4)** ; **version 1.0.0 = bascule §8.5 SIGNÉE (30/10/2026)** ; **version 1.1.0 = intégration CodeIDE (§4.4 : régime vivant, option B arbitrée ; superDefinition aligné contrat vendord ; fiche 066)** ; **version 1.3.0 = vague V-E (références multi-fichiers D1, surbrillances composées typées, RPC usagesGroupes ; le 1.2.0 est SAUTÉ : valeur fantôme du vendord proscrite par la fiche 059 I7)** ; **version 1.4.0 = vague V-B (projet Android : modèle v11 + dérivateur disque, référentiel de ressources, classes light R/BuildConfig/Binding/BR, navigation ressource, interop Kotlin — décisions D2/D3/D6 ; `declasserDatabinding` RETIRÉ, rupture d'API consignée)** ; **version 1.5.0 = vague V-F1 (double-tampon + époques de l'environnement : 0 figage / 0 réponse périmée, rejeu des requêtes coupées, annulation fine complétion + usages, republication au swap d'époque, repli `jo.codeide.lsp.java.doubletampon.disabled` — ADR 0029 phase 1, §7.19/§11.1)** ; **version 1.6.0 = vagues V-F2 + V-C1/V-C2 (verrous par périmètre + chaos tests + banc de charge ADR 0010, comptage synchronized 99 → 0 ; inspections — contrat, profil, suppressions, 8 pilotes, provenance "inspection" ; lint Android — base api-versions en tâche de fond, NewApi/InlinedApi/ObsoleteSdkInt/MissingSuperCall/SetTextI18n, @SuppressLint, provenance "lint" — §7.20)** : checklist 6/6 du
-  gabarit `bancs/GABARIT-BASCULE-APPAREIL.md` (passe appareil moto g06 —
+  gabarit `docs/GABARIT-BASCULE-APPAREIL.md` (passe appareil moto g06 —
   18/18, 0 saut, p50/p95 GLOBAL 42,93/73,01 ms ; deltas 165 arbitrés
   103/62/0 — `ANALYSE-DELTAS-BASCULE.md`) ; `serverInfo.version` rend
   désormais **générée du dépôt** (fiche 059 I7 — la 1.0.0 était
@@ -2101,8 +2101,8 @@ re-signature de `parite-completion.json` (les stubs de façade suivent).
   jrt du JDK externe ininstanciable sur appareil (ServiceConfigurationError,
   un Error invisible à `catch (Exception)`), repli régime instantané au
   lieu de « Internal error. » sur toute requête, §10) ;
-  mise en œuvre client : `docs/BASCULE-CODEIDE.md` +
-  `docs/INTEGRATION-CODEIDE.md` ; suivi post-bascule borné au §6 du
+  mise en œuvre client : `lsp-java/docs/BASCULE-CODEIDE.md` +
+  `lsp-java/docs/INTEGRATION-CODEIDE.md` ; suivi post-bascule borné au §6 du
   gabarit.
 - **Organisation des imports** : exposée comme action
   `source.organizeImports` au fil LSP depuis la vague V-D tranche 1

@@ -1,6 +1,6 @@
 # Fiche 026 — EcjRenameEngineTest
 
-> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/java/src/test/java/jo/lspjava/ecj/EcjRenameEngineTest.java`.
+> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/lsp-java/moteur/src/test/java/jo/lspjava/ecj/EcjRenameEngineTest.java`.
 > **Domaine** : rename
 > **Résumé** : Tests du renommage sûr structurel (`EcjRenameEngine`) : identification de cible par bindings (méthode, champ, locale, type — avec clé structurelle `kind:paquet.Classe.membre`), collecte des références (déclaration + usages simples et qualifiés + imports + constructeurs pour un type), non-renommage des homonymes d'une autre classe, balayage multi-fichiers des racines sources, et court-circuit file-local pour les locales. Fixtures : classes `demo.Main`, `demo.Other`, `demo.Config`, et pour le multi-fichiers un projet `demo` avec `User` (champ `name`), `Printer` (usage qualifié `user.name`), `Order` (champ homonyme `name`) et `Unrelated`.
 

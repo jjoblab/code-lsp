@@ -13,7 +13,7 @@
 > les chemins consultés (vérifié par grep, aucun hit
 > « multiplatform-parsing », « analysis », « kotlinx-metadata »).
 > Consultation uniquement, aucun code copié (R6.4) — la grammaire du spike
-> est ré-obtenue amont au tag épinglé v2.3.0 (R9.2, `spike-kotlin/src/main/vendor/`).
+> est ré-obtenue amont au tag épinglé v2.3.0 (R9.2, `spike-lsp-kotlin/moteur/src/main/vendor/`).
 >
 > Chaque domaine K1–K12 tranche la question du prompt §6. Discipline R5 :
 > tailles **[mesurées]** sur le clone (find/wc), le reste étiqueté

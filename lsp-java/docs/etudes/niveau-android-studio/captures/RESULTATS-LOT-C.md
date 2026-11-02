@@ -1,7 +1,7 @@
 # Résultats — Lot C (performance perçue)
 
-> À remplir par le propriétaire. Corpus : `bash scripts/telecharger-corpus-android.sh`
-> sur le poste de bureau (5 projets épinglés, voir `bancs/corpus-android/LISEZMOI.md`).
+> À remplir par le propriétaire. Corpus : `bash lsp-java/scripts/telecharger-corpus-android.sh`
+> sur le poste de bureau (5 projets épinglés, voir `lsp-java/bancs/corpus-android/LISEZMOI.md`).
 > Vidéo ou chronométrage image par image conseillé ; préciser la méthode.
 
 - Machine (CPU / RAM / SSD / JVM AS) : ________

@@ -1,6 +1,6 @@
 # Fiche 056 — JavaS1RicheTest
 
-> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/java/src/test/java/jo/lspjava/lsp/JavaS1RicheTest.java`.
+> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/lsp-java/moteur/src/test/java/jo/lspjava/lsp/JavaS1RicheTest.java`.
 > **Domaine** : autre
 > **Résumé** : Lot S1 « parité utile JDT.LS » (plan de stabilisation §3.1), volontairement transversal : tags de diagnostics (S1-b — `Unnecessary` sur un import inutilisé), `workspace/symbol` (S1-c — recherche de types par préfixe sur les sources du projet, requête vide et moteur non prêt → liste vide), registre des serveurs vivants (S1-d — rappel d'arrêt à la façade) et événements de fichiers surveillés. Domaine « autre » car mixte (diagnostics / navigation de symboles / cycle de vie) — chaque comportement porte son périmètre. Montage : serveur réel + client espion (enregistre les `publishDiagnostics`), SANS classpath pour les cas « moteur non prêt ». Fixtures : classe avec import inutilisé (`T1.java`), affectation erronée (`T2.java`), `com/ex/MaVue.java`, `com/ex/Vue.java`.
 

@@ -1,6 +1,6 @@
 # Fiche 019 — EcjHierarchyDiagnosticsTest
 
-> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/java/src/test/java/jo/lspjava/ecj/EcjHierarchyDiagnosticsTest.java` (la classe interne se nomme `JdtHierarchyDiagnosticsTest` — portage de `HierarchyDiagnosticsTest.kt` du projet tiers de référence v3.20).
+> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/lsp-java/moteur/src/test/java/jo/lspjava/ecj/EcjHierarchyDiagnosticsTest.java` (la classe interne se nomme `JdtHierarchyDiagnosticsTest` — portage de `HierarchyDiagnosticsTest.kt` du projet tiers de référence v3.20).
 > **Domaine** : diagnostics
 > **Résumé** : Tests P5 (v1.4.0) : enrichissement du diagnostic « La hiérarchie du type X est incohérente ». L'erreur ecj native ne nomme que le sous-type cassé, jamais l'ancêtre réellement absent du classpath ; quand l'ancêtre manquant est le super d'un supertype BINAIRE (classe présente dans un jar dont la propre superclasse a été retirée), le moteur doit replier le FQN manquant et son exigeant : « … — absent du classpath : lib.A (requis par lib.B) ». Fixture : `lib.A` et `lib.B` (`B extends A`) compilés par le javac du JVM de test, puis seuls les `.class` choisis sont placés dans le jar du classpath ; le test se skippe proprement sur un JRE sans compilateur système.
 

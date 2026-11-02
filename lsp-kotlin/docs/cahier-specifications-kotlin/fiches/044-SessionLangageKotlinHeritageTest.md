@@ -1,6 +1,6 @@
 # Fiche 044 — SessionLangageKotlinHeritageTest
 
-> **Source** : `codeide-lsp` @ `bc11253` — `lsp/kotlin/src/test/kotlin/jo/lspkotlin/session/SessionLangageKotlinHeritageTest.kt` (13 tests, 526 l.).
+> **Source** : `codeide-lsp` @ `bc11253` — `lsp/lsp-kotlin/moteur/src/test/kotlin/jo/lspkotlin/session/SessionLangageKotlinHeritageTest.kt` (13 tests, 526 l.).
 > **Domaine** : diagnostics
 > **Résumé** : Tests ADR 0216 — la voie 2-ter « membres HÉRITÉS » de `ResolutionReferences.estResolu` (découverte E3 du rapport d'audit §14) : un appel NU à un membre d'un SUPERTYPE dans une classe du projet ne doit PLUS être un faux `kt.unresolved`. Cas du propriétaire : `setContentView(…)` dans un `class MainActivity : AppCompatActivity()` et `instantiate(…)` dans un `FragmentFactory` — le moteur lit la clause
 > **Convention** : chaque comportement porte le **nom exact du test source** (identifiant de traçabilité) ; l'attendu le reformule en français lisible, enrichi du contrat D3 quand le nom le porte. Le résumé ci-dessus décrit le contrat de la classe de test.

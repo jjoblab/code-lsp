@@ -1,6 +1,6 @@
 # Fiche 038 — RawZipReaderTest
 
-> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/java/src/test/java/jo/lspjava/ecj/RawZipReaderTest.java`.
+> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/lsp-java/moteur/src/test/java/jo/lspjava/ecj/RawZipReaderTest.java`.
 > **Domaine** : index-classpath
 > **Résumé** : Tests du lecteur ZIP minimaliste `RawZipReader`, chaque propriété étant vérifiée PAR RAPPORT à `java.util.zip.ZipFile` (vérité terrain JDK). Corpus : un zip de synthèse couvrant les cas réels des jars — entrée DEFLATED (`com/example/Alpha.class`), entrée imbriquée avec `$` (`com/example/R$string.class`, cas AndroidX), entrée STORED (`META-INF/MANIFEST.MF` avec CRC/taille), nom d'entrée UTF-8 accentué (`déjà/ClassÉ.class`) et grande entrée compressée au maximum (`big/Data.class`, 100 000 octets de motif périodique).
 

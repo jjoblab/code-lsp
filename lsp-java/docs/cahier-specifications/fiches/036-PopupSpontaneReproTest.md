@@ -1,6 +1,6 @@
 # Fiche 036 — PopupSpontaneReproTest
 
-> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/java/src/test/java/jo/lspjava/ecj/PopupSpontaneReproTest.java`.
+> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/lsp-java/moteur/src/test/java/jo/lspjava/ecj/PopupSpontaneReproTest.java`.
 > **Domaine** : completion
 > **Résumé** : Reproduction du retour propriétaire : popup de complétion spontané juste après une déclaration de variable / un retour à la ligne, avec des suggestions « R$style / R$id / R$string ». Banc de caractérisation : chaque test déclenche une complétion et IMPRIME les items (label, kind, detail, insertText, autoImportFqn) ainsi que la trace interne du moteur — **aucune assertion**. Fixture : un R.jar « réaliste » (aapt2-like) compilé au vol — `com.example.monip.R` + classes internes `R$style`, `R$id`, `R$string` — ajouté au classpath à côté d'android.jar (API 37.2 cherchée parmi des chemins candidats machine) ; moteur compliance « 17 ».
 

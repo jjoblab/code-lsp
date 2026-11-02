@@ -1,6 +1,6 @@
 # Fiche 048 — SessionLangageKotlinOccurrencesTest
 
-> **Source** : `codeide-lsp` @ `bc11253` — `lsp/kotlin/src/test/kotlin/jo/lspkotlin/session/SessionLangageKotlinOccurrencesTest.kt` (21 tests, 519 l.).
+> **Source** : `codeide-lsp` @ `bc11253` — `lsp/lsp-kotlin/moteur/src/test/kotlin/jo/lspkotlin/session/SessionLangageKotlinOccurrencesTest.kt` (21 tests, 519 l.).
 > **Domaine** : navigation
 > **Résumé** : Tests du contrat de session — OCCURRENCES (S2, plan de stabilisation LSP §3.2 : `references`, `documentHighlight`, rename borné miroir Java) — par le SPI (chemin de production D6), moteur RÉEL, projet multi-fichiers sur disque (racines sources du scan). Le cœur éprouvé : le conservatisme. Chaque référence NON prouvée (homonyme d'un autre paquet sans import, locale ombrageante, sélecteur qualifié s
 > **Convention** : chaque comportement porte le **nom exact du test source** (identifiant de traçabilité) ; l'attendu le reformule en français lisible, enrichi du contrat D3 quand le nom le porte. Le résumé ci-dessus décrit le contrat de la classe de test.

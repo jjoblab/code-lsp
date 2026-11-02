@@ -1,6 +1,6 @@
 # Fiche 042 — StringConcatFactoryReproTest
 
-> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/java/src/test/java/jo/lspjava/ecj/StringConcatFactoryReproTest.java`.
+> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/lsp-java/moteur/src/test/java/jo/lspjava/ecj/StringConcatFactoryReproTest.java`.
 > **Domaine** : diagnostics
 > **Résumé** : Repro du constat production v0.107.0 : « The type java.lang.invoke.StringConcatFactory cannot be resolved » (faux positif ERROR — la classe n'existe dans AUCUNE plateforme Android, vérifié API 31 et 36 ; D8 désugare toujours les concaténations invokedynamic). Le mécanisme est reproduit EXACTEMENT : un `.class` binaire de fixture (`batisse.Biblio`, fabriqué par ASM en bytecode Java 8) DÉCLARÉ `extends java.lang.invoke.StringConcatFactory`, référencé par la source éditée (`p.A extends batisse.Biblio`) — le binaire du classpath référence le type absent, d'où le message natif « indirectly referenced from required .class files ». Le correctif verrouillé : un stub EMBARQUÉ des intrinsèques du compilateur (StringConcatFactory, ObjectMethods, SwitchBootstraps), repli APRÈS sources/jars/jrt, uniquement pour ces FQCN — plateforme et jrt réels restent prioritaires.
 

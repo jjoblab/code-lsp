@@ -16,9 +16,9 @@
 ## §0 La vague V0 — MESURE (LIVRÉE par cette mission)
 
 **Périmètre livré** : banc de cohérence **P1–P9**
-(`kotlin/src/test/kotlin/jo/codeide/lsp/kotlin/coherence/`), corpus réel
-**6 projets Apache-2.0 épinglés** (`scripts/telecharger-corpus-kotlin.sh`
-+ `bancs/corpus-android-kotlin/LISEZMOI.md`), protocole de captures lot E
+(`lsp-kotlin/moteur/src/test/kotlin/jo/codeide/lsp/kotlin/coherence/`), corpus réel
+**6 projets Apache-2.0 épinglés** (`lsp-kotlin/scripts/telecharger-corpus-kotlin.sh`
++ `lsp-kotlin/bancs/corpus-android-kotlin/LISEZMOI.md`), protocole de captures lot E
 (`06-…` + kit), gabarit de mesure appareil (`07-…`), fiches de comportement
 KC-01…KC-12, et la **mesure inaugurale P1 auto-corpus** : 99 fichiers /
 34 934 l. / **980 FP = 28,05 FP/1 000 l.** / FN = 0 / 36 s (audit §4.3).

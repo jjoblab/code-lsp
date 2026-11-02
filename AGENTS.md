@@ -9,7 +9,7 @@ complètent les ADR (`docs/adr/`) — en cas de doute, l'ADR prime.
   des LSP pour CodeIDE une fois terminé** — un LSP Java « frais, plus solide,
   plus intelligent, plus robuste, plus propre et professionnel », grâce à
   l'architecture IntelliJ PSI (étudiée en profondeur dans
-  `docs/etudes/moteur-java-psi/`, embarquée nulle part, greffée partout où
+  `lsp-java/docs/etudes/moteur-java-psi/`, embarquée nulle part, greffée partout où
   elle prouve sa valeur — GO PARTIEL, ADR 0004).
 - Le moteur Java est une **réécriture intégrale en Kotlin** (ADR 0001,
   option 2) : aucun code du vendored de `codeide-lsp` n'est repris.
@@ -38,15 +38,15 @@ complètent les ADR (`docs/adr/`) — en cas de doute, l'ADR prime.
   `Ecj*Test` des fiches du cahier sont les identifiants historiques des tests
   vendored — ils ne préjugent pas du nom des classes neuves.
 - Clean-room strict pour le moteur : lecture **interdite** de
-  `lsp/java/src/main` de `codeide-lsp` (production vendored). Le vendored
+  `lsp/lsp-java/moteur/src/main` de `codeide-lsp` (production vendored). Le vendored
   s'utilise uniquement comme **oracle en boîte noire** (l'exécuter et
   comparer ses sorties). La base de spécification est le **cahier**
-  (`docs/cahier-specifications/`), extrait des tests uniquement.
+  (`lsp-java/docs/cahier-specifications/`), extrait des tests uniquement.
 
 ## Provenance (R9)
 
 - Toute reprise depuis un ancien dépôt doit être inscrite **au préalable**
-  dans `docs/PROVENANCE-REPRISE.md` (dépôt, chemin, commit, auteur, licence,
+  dans `lsp-java/docs/PROVENANCE-REPRISE.md` (dépôt, chemin, commit, auteur, licence,
   statut, décision, justification — jamais « en bloc »).
 - La CI refuse tout fichier hors registre (`scripts/verifier-provenance.sh`).
 
@@ -57,7 +57,7 @@ complètent les ADR (`docs/adr/`) — en cas de doute, l'ADR prime.
   Studio / plugin Android / Android Lint** (comme *références de comportement*
   — la cible de niveau demandée par le propriétaire), **ecj/JDT**, **lsp4j**,
   **java-syntax**, et les artefacts déjà inscrits au registre de provenance
-  (`docs/PROVENANCE-REPRISE.md`).
+  (`lsp-java/docs/PROVENANCE-REPRISE.md`).
 - **Aucun autre projet tiers ne doit être mentionné, nulle part** (code, KDoc,
   ADR, CHANGELOG, commits, rapports, noms de tests). Si un design s'inspire d'un
   projet hors liste, son nom ne s'écrit pas : le comportement et la décision de
@@ -65,7 +65,7 @@ complètent les ADR (`docs/adr/`) — en cas de doute, l'ADR prime.
 - **Aucune copie de code IntelliJ/Android Studio.** L'inspiration est celle des
   *designs et comportements* (même régime que l'étude D1–D12 : lecture seule,
   réécriture clean-room). Toute reprise littérale — même d'un fichier de test ou
-  de donnée de test — passe par `docs/PROVENANCE-REPRISE.md` + `NOTICE`
+  de donnée de test — passe par `lsp-java/docs/PROVENANCE-REPRISE.md` + `NOTICE`
   (Apache-2.0 : attribution et indication des modifications). Par défaut :
   **extraire des comportements** (fiches du cahier), pas copier des fichiers.
 - Les projets servant de **corpus de test** (cibles du banc P1–P8) sont des
@@ -101,13 +101,13 @@ complètent les ADR (`docs/adr/`) — en cas de doute, l'ADR prime.
 
 ## Lectures préalables avant de coder
 
-1. `docs/etudes/moteur-java-psi/00-synthese.md` — décision GO PARTIEL et
+1. `lsp-java/docs/etudes/moteur-java-psi/00-synthese.md` — décision GO PARTIEL et
    impact de l'ADR 0001 (réécriture intégrale).
-2. `docs/adr/0001` (réécriture, plan de migration), `0004` (stratégie),
+2. `lsp-java/docs/adr/0001` (réécriture, plan de migration), `0004` (stratégie),
    `0002` (périmètre et vision), `0005`–`0018` au fil des domaines.
-3. `docs/cahier-specifications/` — cahier des comportements attendus
+3. `lsp-java/docs/cahier-specifications/` — cahier des comportements attendus
    (extraction des 449 tests de l'ancien moteur) : c'est le contrat.
-4. `spike/README.md` — bancs de mesure et chiffres de référence.
+4. `lsp-java/spike/README.md` — bancs de mesure et chiffres de référence.
 5. `USAGE.md` — guide d'utilisation du serveur (`lspjava`) : surface LSP
    exacte (capabilities, extensions expérimentales), API in-process du
    moteur — la référence avant toute modification de comportement visible
@@ -127,8 +127,8 @@ complètent les ADR (`docs/adr/`) — en cas de doute, l'ADR prime.
 - **Corpus de mesure** (exception) : les dépôts inscrits au registre de
   provenance en qualité de **données de corpus** (cibles de test, jamais
   committées) sont nommables avec leur rôle — voir
-  `docs/PROVENANCE-REPRISE-KOTLIN.md` §Corpus et
-  `bancs/corpus-android-kotlin/LISEZMOI.md`.
+  `lsp-kotlin/docs/PROVENANCE-REPRISE-KOTLIN.md` §Corpus et
+  `lsp-kotlin/bancs/corpus-android-kotlin/LISEZMOI.md`.
 - **Aucune copie de code** d'IntelliJ/Android Studio/plugin Kotlin :
   comportements et designs seulement (lecture seule, réécriture
   clean-room) ; toute reprise littérale, même de `testData`, passe par le

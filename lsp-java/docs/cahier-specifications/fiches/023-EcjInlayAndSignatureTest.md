@@ -1,6 +1,6 @@
 # Fiche 023 — EcjInlayAndSignatureTest
 
-> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/java/src/test/java/jo/lspjava/ecj/EcjInlayAndSignatureTest.java` (la classe interne se nomme `JdtInlayAndSignatureTest`).
+> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/lsp-java/moteur/src/test/java/jo/lspjava/ecj/EcjInlayAndSignatureTest.java` (la classe interne se nomme `JdtInlayAndSignatureTest`).
 > **Domaine** : hover-inlay
 > **Résumé** : Tests des inlay hints de PARAMÈTRES (`EcjInlayHints`) et de l'aide de signature (`EcjSignatureHelp`) sur bindings ecj. Inlays : un hint par argument (« name: ») ancré avant l'argument, noms issus de la déclaration — même fichier ou autre fichier du projet, résolution d' surcharge, et silence total pour les méthodes binaires (jamais de faux noms). Signature help : énumération des surcharges (binaires comprises), paramètre actif compté, noms de paramètres source, et « niveau 4 » — le texte vivant CASSÉ (parenthèse ouverte, virgule de fin, argument à moitié tapé, chaîne non refermée, constructeur ouvert, booléen) est quand même servi via variantes réparées, tandis que hors appel la réponse reste null.
 

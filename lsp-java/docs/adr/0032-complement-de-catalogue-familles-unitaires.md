@@ -106,7 +106,7 @@ bornent le risque.
   les gardes des bancs se prouvent sur le TITRE (note de contrat posée
   dans RefactorisationsVd3Test).
 - Le client (K2) peut rendre le lien de documentation lint ; le registre
-  `docs/REGISTRE-CLIENT-K2.md` reste la liste de consommation.
+  `lsp-java/docs/REGISTRE-CLIENT-K2.md` reste la liste de consommation.
 - Coût liste mesuré : p95 410 µs (< 30 ms, ×73) — rien d'eager (ADR
   0027 (f)).
 

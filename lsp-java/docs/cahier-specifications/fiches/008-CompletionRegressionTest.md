@@ -1,6 +1,6 @@
 # Fiche 008 — CompletionRegressionTest
 
-> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/java/src/test/java/jo/lspjava/ecj/CompletionRegressionTest.java`.
+> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/lsp-java/moteur/src/test/java/jo/lspjava/ecj/CompletionRegressionTest.java`.
 > **Domaine** : completion
 > **Résumé** : Non-régression des six symptômes exacts du rapport device : (1) « dès que je tape un point "import android." plus aucune suggestion » — la complétion d'import après le point doit proposer les sous-paquets ; (2) « cela devrait être fluide incrémental » — chaque frappe affine avec les matches par préfixe dominants ; (3) « private String... rien du tout » — le marqueur en position de TYPE doit être accepté par le recovery ; (4) taper « imp » propose « import » ; (5) référence de paquet hors import (contexte PACKAGE_REFERENCE) ; (6) la tempête de retries du scan jrt ne doit pas revenir (cache négatif après un seul essai). Classpath = android.jar seul (pas de cache Gradle).
 

@@ -1,6 +1,6 @@
 # Fiche 004 — AndroidClasspathReproTest
 
-> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/java/src/test/java/jo/lspjava/ecj/AndroidClasspathReproTest.java`.
+> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/lsp-java/moteur/src/test/java/jo/lspjava/ecj/AndroidClasspathReproTest.java`.
 > **Domaine** : index-classpath
 > **Résumé** : Reproduit la condition mobile observée sur device (log device) : un `MainActivity` de 349 caractères, classpath = android.jar + classes.jar d'appcompat extrait d'un AAR (comme `AndroidProjectClasspathResolver`), PAS de R.jar (pas de build préalable). Test de diagnostic à vocation observationnelle : il imprime tout ce qu'il observe (stdout) et n'échoue que sur les invariants forts — index binaire rempli et résolvant `AppCompatActivity` et `Bundle`, plus une sonde de complétion sur 4 positions réalistes et un discriminateur sur 3 configurations de moteur.
 

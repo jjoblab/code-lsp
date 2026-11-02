@@ -24,7 +24,7 @@
 > seul, avec un modèle de symboles neuf minimal. Ce n'est **pas** la
 > grammaire d'un moteur de production (toute reprise serait conditionnée
 > à l'ADR 0100 et inscrite au manifeste
-> `docs/PROVENANCE-REPRISE-KOTLIN.md`).
+> `lsp-kotlin/docs/PROVENANCE-REPRISE-KOTLIN.md`).
 
 ## Dépendances amont (artefacts binaires, pas vendorées)
 

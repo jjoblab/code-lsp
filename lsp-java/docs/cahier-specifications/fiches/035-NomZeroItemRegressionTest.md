@@ -1,6 +1,6 @@
 # Fiche 035 — NomZeroItemRegressionTest
 
-> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/java/src/test/java/jo/lspjava/ecj/NomZeroItemRegressionTest.java`.
+> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/lsp-java/moteur/src/test/java/jo/lspjava/ecj/NomZeroItemRegressionTest.java`.
 > **Domaine** : completion
 > **Résumé** : Non-régression du symptôme « got 0 items » de la complétion NOM (étude §4.2/§4.3, lot F étape 3) : les contextes NON capturés par conception faisaient rendre `null` par `complete`, dont l'itération jetait une NPE avalée — le banc observait « 0 items ». Le contrat verrouillé : **jamais null** — ces positions rendent une liste VIDE honnête, tandis que les positions travaillées du même corpus continuent de rendre leurs items. Fixture : jar compilé au vol par `javax.tools` (aucune dépendance android.jar — les tests tournent partout) contenant `alpha.Alpha` (champ statique `COMPTEUR = 3` + champ d'instance), `alpha.AlphaVoisin`, `alpha.sous.Profond` et `beta.Beta` ; moteur compliance « 17 » avec racine `projet/exemple`.
 

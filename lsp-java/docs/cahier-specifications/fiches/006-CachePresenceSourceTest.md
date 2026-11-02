@@ -1,6 +1,6 @@
 # Fiche 006 — CachePresenceSourceTest
 
-> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/java/src/test/java/jo/lspjava/ecj/CachePresenceSourceTest.java`.
+> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/lsp-java/moteur/src/test/java/jo/lspjava/ecj/CachePresenceSourceTest.java`.
 > **Domaine** : caches-perf
 > **Résumé** : Cache négatif de présence source (v1.9.1) : la résolution ecj appelle `find(fqcn)` des CENTAINES de fois par passe, chaque appel sondant le disque (`Files.isRegularFile` par racine) — sur stockage FUSE Android, 0,5–5 ms par stat × centaines d'appels × 3–5 splices dominait la latence de complétion. Le négatif mémorise « ce FQCN n'est PAS une source du projet » pendant 30 s ; la création d'un `.java` via `didChangeWatchedFiles` (Created) invalide immédiatement. Deux comportements verrouillés : la fenêtre de masquage du négatif et la stabilité de lecture des sources existantes (positifs jamais cachés). Nécessite android.jar (plateformes android-37.2) sinon classe ignorée.
 

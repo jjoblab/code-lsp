@@ -1,6 +1,6 @@
 # Fiche 062 — TypeDefinitionFacadeTest
 
-> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/java/src/test/java/jo/lspjava/lsp/TypeDefinitionFacadeTest.java`.
+> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/lsp-java/moteur/src/test/java/jo/lspjava/lsp/TypeDefinitionFacadeTest.java`.
 > **Domaine** : navigation
 > **Résumé** : Tests E2E à travers la façade LSP réelle : `textDocument/typeDefinition` (le type du symbole au caret — entrée « GO TO » du menu contextuel unifié) et les offsets de `textDocument/definition` sur les gros fichiers réduits par SourceFocuser (> 2000 caractères) — les plages rendues doivent être en coordonnées de la source ORIGINALE, pas de la source réduite. Fixtures : `Holder` (classe interne `Item` et variable locale), `Box` (référence de type sur soi), `UsesString` (type binaire java.lang.String), `Counts` (type de base int), `BigFile` (générée : 120 lignes de remplissage dans `big()`, au-delà du seuil de réduction). Hypothèse visible dans `@BeforeAll` : `android.jar` présent, sinon classe ignorée ; environnement racine src/demo + android.jar, Java 17, façade construite directement.
 

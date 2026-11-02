@@ -1,6 +1,6 @@
 # Fiche 061 — RenameHonneteTest
 
-> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/java/src/test/java/jo/lspjava/lsp/RenameHonneteTest.java`.
+> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/lsp-java/moteur/src/test/java/jo/lspjava/lsp/RenameHonneteTest.java`.
 > **Domaine** : rename
 > **Résumé** : Lot S0-b « rename honnête » (I8, comportement clé documenté dans `docs/LSP_JAVA.md` §18.1) : `prepareRename` rend le placeholder EXACT et la plage EXACTE du jeton (caret au milieu du nom compris) ; `rename` sans cible → erreur TYPOÉE RequestFailed avec message FR et `data` structuré (jamais d'édition vide silencieuse) ; renommage nominal sous les DEUX formes négociées du WorkspaceEdit — `changes` (héritée) quand le client n'annonce pas `workspace.workspaceEdit.documentChanges`, `documentChanges` versionnée quand il l'annonce. Fixture unique : classe `Panier` (champ `total` affecté/retourné, méthodes `ajouter`/`somme`). Hypothèse visible dans `@BeforeAll` : `android.jar` présent, sinon classe ignorée ; le classpath est branché après coup via le remplacement d'environnement (même live-refresh que la production).
 

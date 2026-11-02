@@ -47,7 +47,7 @@ constats factuels E-K5 demeurent : aucune ligne copiée, code livré neuf,
   chargement paresseux, la pile classpath n'était jamais chargée sur son
   fil). Recommandation consignée (journal étage 1 §16 ; action n° 5 du
   journal 10 §4). Mécanique prête : gabarit de passe + kit assemblé côté
-  bureau (`scripts/kit-bascule.sh`), exécution sur Termux, valeurs
+  bureau (`lsp-java/scripts/kit-bascule.sh`), exécution sur Termux, valeurs
   reportées au gabarit + transcript brut joint (R5 : jamais prétendre une
   mesure appareil sans résultats réels).
 - **Ce que seul l'appareil prouve** (synthèse §5) : latences S0/S2 sous
@@ -85,7 +85,7 @@ constats factuels E-K5 demeurent : aucune ligne copiée, code livré neuf,
 - **Lecture du second manifeste** (synthèse §6.4) — action propriétaire,
   aucun bloqueur.
 - **Suivi post-bascule Java borné** (pour mémoire, périmètre Java —
-  `bancs/GABARIT-BASCULE-APPAREIL.md` §6) : filtrer les membres
+  `docs/GABARIT-BASCULE-APPAREIL.md` §6) : filtrer les membres
   package-private lus au bytecode (`valueOfCodePoint`, `coder`, `value`,
   `hash`, `hashIsZero`, `isLatin1`) ; (optionnel) étendre la collecte
   TYPE aux grades hump/sous-chaîne ; ouvrir les gates `model.json`

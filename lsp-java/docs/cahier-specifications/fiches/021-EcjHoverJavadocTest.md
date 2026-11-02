@@ -1,6 +1,6 @@
 # Fiche 021 — EcjHoverJavadocTest
 
-> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/java/src/test/java/jo/lspjava/ecj/EcjHoverJavadocTest.java`.
+> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/lsp-java/moteur/src/test/java/jo/lspjava/ecj/EcjHoverJavadocTest.java`.
 > **Domaine** : hover-inlay
 > **Résumé** : Tests du survol RICHE (lot S2-a) : le hover porte la signature du symbole au caret PLUS la javadoc de sa déclaration quand elle vit dans la MÊME unité (une référence vue avant ou après sa déclaration la retrouve via le registre des déclarations du scan). Les symboles binaires (classpath, jrt) n'ont pas de javadoc ici — documentation nulle, signature seule (périmètre « honnête »). Verrouille aussi le nettoyeur javadoc→markdown (`EcjJavadocMarkdown`) en unitaire. Fixture : `demo.Main` avec javadoc sur la classe (« Un compteur d'essais. »), le champ `total` (« Le total courant. ») et la méthode `somme(int, int)` (javadoc complète avec `@param`, `@return`, `{@code}`, `<p>`).
 

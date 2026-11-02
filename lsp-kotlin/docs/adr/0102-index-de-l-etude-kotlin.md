@@ -42,12 +42,12 @@ plage Kotlin).
   └─> 0121 Suivi des versions Kotlin & grammaire ── K1 + spike §5.1
 ```
 
-Documents de base : `docs/etudes/moteur-kotlin/00b-inventaire-existant.md`
+Documents de base : `lsp-kotlin/docs/etudes/moteur-kotlin/00b-inventaire-existant.md`
 (Phase 0) · `01-architectures-analyse-kotlin.md` (Phase 1, K1–K12) ·
 `02-spike-mesures.md` (Phase 2, S0–S3) · `00-synthese.md` (Phase 4) ·
 `ALERTES.md` · `DEMANDES-INTERFACE.md` · manifeste
-`docs/PROVENANCE-REPRISE-KOTLIN.md` · cahier
-`docs/cahier-specifications-kotlin/` (53 fiches, 469 comportements).
+`lsp-kotlin/docs/PROVENANCE-REPRISE-KOTLIN.md` · cahier
+`lsp-kotlin/docs/cahier-specifications-kotlin/` (53 fiches, 469 comportements).
 
 ## Conséquences
 

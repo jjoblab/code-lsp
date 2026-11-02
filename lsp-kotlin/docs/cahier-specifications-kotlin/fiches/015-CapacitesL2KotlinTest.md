@@ -1,6 +1,6 @@
 # Fiche 015 — CapacitesL2KotlinTest
 
-> **Source** : `codeide-lsp` @ `bc11253` — `lsp/kotlin/src/test/kotlin/jo/lspkotlin/session/CapacitesL2KotlinTest.kt` (12 tests, 380 l.).
+> **Source** : `codeide-lsp` @ `bc11253` — `lsp/lsp-kotlin/moteur/src/test/kotlin/jo/lspkotlin/session/CapacitesL2KotlinTest.kt` (12 tests, 380 l.).
 > **Domaine** : hover-inlay
 > **Résumé** : Tests des trois capacités L2 restantes — INDICES EN LIGNE (`textDocument/inlayHint`), SYMBOLES D'ESPACE (`workspace/symbol`) et CHAÎNES DE SÉLECTION (`textDocument/selectionRange`) — par le SPI (chemin de production D6), moteur RÉEL. Le cœur éprouvé : l'honnêteté D3. Un appel sans candidate prouvée ne rend AUCUN indice de paramètre ; une initialisation dont le type n'est pas certain (expression co
 > **Convention** : chaque comportement porte le **nom exact du test source** (identifiant de traçabilité) ; l'attendu le reformule en français lisible, enrichi du contrat D3 quand le nom le porte. Le résumé ci-dessus décrit le contrat de la classe de test.

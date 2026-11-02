@@ -1,6 +1,6 @@
 # Fiche 031 — ReproductionKmpTest
 
-> **Source** : `codeide-lsp` @ `bc11253` — `lsp/kotlin/src/test/kotlin/jo/lspkotlin/session/ReproductionKmpTest.kt` (5 tests, 226 l.).
+> **Source** : `codeide-lsp` @ `bc11253` — `lsp/lsp-kotlin/moteur/src/test/kotlin/jo/lspkotlin/session/ReproductionKmpTest.kt` (5 tests, 226 l.).
 > **Domaine** : diagnostics
 > **Résumé** : REPRODUCTION du template Kotlin Multiplatform (KMP) d'Android Studio au niveau MOTEUR — le module `shared` a DEUX racines sources (le paquet y vit DEUX fois : expect dans commonMain, actual dans androidMain) : shared/src/commonMain/kotlin/com/example/kmp/Platform.kt expect fun platformName(): String ; expect class Platform shared/src/commonMain/kotlin/com/example/kmp/Greeting.kt class Greeting { f
 > **Convention** : chaque comportement porte le **nom exact du test source** (identifiant de traçabilité) ; l'attendu le reformule en français lisible, enrichi du contrat D3 quand le nom le porte. Le résumé ci-dessus décrit le contrat de la classe de test.

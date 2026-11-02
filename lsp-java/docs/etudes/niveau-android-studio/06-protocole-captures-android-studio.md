@@ -6,7 +6,7 @@
 > suffit pas (points marqués NV dans `02-reference-android-studio.md`).
 >
 > **Matériel** : Android Studio courant (Ladybug ou plus récent), un projet Android
-> Java de test (utiliser `bancs/projet-android/` du dépôt, ou n'importe quel corpus
+> Java de test (utiliser `lsp-java/bancs/projet-android/` du dépôt, ou n'importe quel corpus
 > du §5 de l'audit), enregistrement d'écran ou captures d'écran + texte copié.
 
 ## 1. Protocole général
@@ -14,7 +14,7 @@
 Pour chaque capture : (a) fichier + position exacte (ligne:colonne), (b) geste
 (caret, frappe, Alt+Enter…), (c) **liste attendue top-10 copiée en texte** (pas
 seulement l'image — l'ordre compte), (d) temps perçu (immédiat / visible / lent).
-Ranger dans `docs/etudes/niveau-android-studio/captures/` (le propriétaire fournit,
+Ranger dans `lsp-java/docs/etudes/niveau-android-studio/captures/` (le propriétaire fournit,
 l'agent consigne).
 
 ## 2. Captures demandées (priorisées)

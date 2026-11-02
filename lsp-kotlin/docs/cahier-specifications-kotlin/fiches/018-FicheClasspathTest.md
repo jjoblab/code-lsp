@@ -1,6 +1,6 @@
 # Fiche 018 — FicheClasspathTest
 
-> **Source** : `codeide-lsp` @ `bc11253` — `lsp/kotlin/src/test/kotlin/jo/lspkotlin/session/FicheClasspathTest.kt` (11 tests, 459 l.).
+> **Source** : `codeide-lsp` @ `bc11253` — `lsp/lsp-kotlin/moteur/src/test/kotlin/jo/lspkotlin/session/FicheClasspathTest.kt` (11 tests, 459 l.).
 > **Domaine** : hover-inlay
 > **Résumé** : Tests du chantier P1-D « documentation du classpath au survol et à la signature » (ADR 0230, feuille de route du rapport d'analyse du 28/10/2026) — par le SPI (chemin de production D6) : - la FICHE STRUCTURELLE du survol d'un type du classpath (genre, héritage direct, interfaces, constantes d'enum, champs publics) prouvée par la lecture brute du `.class` — les OCTETS sont synthétiques (super et in
 > **Convention** : chaque comportement porte le **nom exact du test source** (identifiant de traçabilité) ; l'attendu le reformule en français lisible, enrichi du contrat D3 quand le nom le porte. Le résumé ci-dessus décrit le contrat de la classe de test.

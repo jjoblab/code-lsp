@@ -1,6 +1,6 @@
 # Fiche 009 — DecompiledSourceTest
 
-> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/java/src/test/java/jo/lspjava/ecj/DecompiledSourceTest.java`.
+> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/lsp-java/moteur/src/test/java/jo/lspjava/ecj/DecompiledSourceTest.java`.
 > **Domaine** : navigation
 > **Résumé** : Fonctionnalité « GO TO Definition sur cible binaire » côté source : `decompiledSource(fqcn)` renvoie soit la source attachée (src.zip du JDK), soit un stub décompilé (en-tête « Decompiled from … ») pour les types du JDK (`java.lang.String`, `java.util.HashMap`) ; `isBinaryType` identifie les types binaires. Défensif : null pour FQCN inexistant, null ou vide. La plupart des tests exigent un JDK avec `lib/src.zip` ou `lib/modules` (Temurin 17 en CI) — condition `@EnabledIf("hasTestJdk")`.
 

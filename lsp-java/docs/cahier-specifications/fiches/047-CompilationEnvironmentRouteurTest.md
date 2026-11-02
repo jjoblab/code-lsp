@@ -1,6 +1,6 @@
 # Fiche 047 — CompilationEnvironmentRouteurTest
 
-> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/java/src/test/java/jo/lspjava/engine/CompilationEnvironmentRouteurTest.java`.
+> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/lsp-java/moteur/src/test/java/jo/lspjava/engine/CompilationEnvironmentRouteurTest.java`.
 > **Domaine** : caches-perf
 > **Résumé** : Tests du ROUTAGE fichier → module (ADR 0215, découverte D6 du rapport d'audit §14) : le serveur LSP Java doit analyser un fichier avec le moteur de SON module, pas avec le contexte défaut — sans quoi un projet Android de deux fichiers du même paquet montrait « Greeter cannot be resolved to a type » (l'orchestrateur nourrissait bien les moteurs par module, mais TOUS les services consultaient le contexte défaut). Éprouve : le comportement historique sans routeur, l'association par routeur, sa relecture à CHAQUE requête (instantané courant du modèle, sans re-pose), le repli sur le défaut quand le routeur jette, l'isolation des moteurs par module, la garde paresseuse de construction, l'ordre des moteurs vivants (défaut d'abord) et l'invalidation de contexte limitée au seul module remplacé.
 

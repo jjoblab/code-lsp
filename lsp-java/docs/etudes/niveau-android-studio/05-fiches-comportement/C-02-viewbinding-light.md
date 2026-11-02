@@ -41,5 +41,5 @@
 ## Notes pour la réécriture
 - L'activation se dérive de la lecture texte des build.gradle (ADR 0020) — la
   référence la tient du modèle sync ; comportement identique, source différente.
-- Le banc `bancs/projet-android-genere/` devient l'oracle d'équivalence light ↔
+- Le banc `lsp-java/bancs/projet-android-genere/` devient l'oracle d'équivalence light ↔
   généré (cas dorés V1–V3).

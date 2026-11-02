@@ -3,8 +3,8 @@
 > Étude « moteur Kotlin » pour CodeIDE sur Android/ART. **Module de
 > mesure uniquement** : aucun code de production (§0 du prompt). Code
 > neuf en Kotlin (R2). Les jars mesurés sont **téléchargés hors dépôt,
-> jamais committés** (R6.4 — `docs/PROVENANCE-REPRISE-KOTLIN.md`).
-> Résultats et lecture : `../docs/etudes/moteur-kotlin/02-spike-mesures.md`.
+> jamais committés** (R6.4 — `lsp-kotlin/docs/PROVENANCE-REPRISE-KOTLIN.md`).
+> Résultats et lecture : `../lsp-kotlin/docs/etudes/moteur-kotlin/02-spike-mesures.md`.
 
 ## Question de recherche (§7 du prompt)
 
@@ -22,7 +22,7 @@ acceptable, et à quel prix d'intégration ? Variantes mesurées :
 
 ```bash
 # 1. Jars (répertoire hors dépôt ; GITHUB_TOKEN requis pour l'oracle S0) :
-GITHUB_TOKEN=<jeton> bash spike-kotlin/scripts/telecharger-jars.sh [cible]
+GITHUB_TOKEN=<jeton> bash lsp-kotlin/spike/scripts/telecharger-jars.sh [cible]
 #    (défaut : <dépôt>/../spike-jars ; surcharge : -PspikeJars=<chemin>)
 
 # 2. Bancs (module GARDÉ : sans -PspikeKotlin, toutes les tâches sont
@@ -30,7 +30,7 @@ GITHUB_TOKEN=<jeton> bash spike-kotlin/scripts/telecharger-jars.sh [cible]
 ./gradlew :spike-kotlin:test -PspikeKotlin
 
 # 3. Scan ART statique :
-python3 spike-kotlin/scripts/scan-art.py <jar>…    # → resultats/scan-art-*.txt
+python3 lsp-kotlin/spike/scripts/scan-art.py <jar>…    # → resultats/scan-art-*.txt
 ```
 
 Environnement des mesures consignées : `resultats/environnement.txt`
@@ -63,5 +63,5 @@ sur le gabarit du domaine Java.
 Le banc S0 n'utilise l'ancien moteur que comme **oracle en boîte
 noire** : l'artefact PUBLIÉ est chargé par ServiceLoader et conduit par
 sa surface publique (celle de tout consommateur) ; **aucune source de
-`lsp/kotlin/src/main` n'est lue** (la clean-room de l'étude tient —
+`lsp/lsp-kotlin/moteur/src/main` n'est lue** (la clean-room de l'étude tient —
 AGENTS.md). Le jar vit hors dépôt, jamais committé.

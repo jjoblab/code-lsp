@@ -1,6 +1,6 @@
 # Fiche 044 — SubpackageGoldenRulesTest
 
-> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/java/src/test/java/jo/lspjava/ecj/SubpackageGoldenRulesTest.java`.
+> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/lsp-java/moteur/src/test/java/jo/lspjava/ecj/SubpackageGoldenRulesTest.java`.
 > **Domaine** : completion
 > **Résumé** : Les SIX RÈGLES D'OR du filtre subpackage (portage de `CandidateCollector.packageChildren` du projet tiers de référence), vérifiées sur le contexte exact du bug device (`import android.`) : (1) enfants DIRECTS uniquement, (2) dédoublonnage par segment, (3) préfixe vide liste quand même les sous-paquets, (4) types DIRECTEMENT dans le paquet — ni plus ni moins — sans auto-import, (5) insertion du segment simple ; (6) exclusions module JVM (N/A : CodeIDE est exclusivement Android). Éprouve aussi le matching gradué (préfixe insensible à la casse) et l'application des mêmes règles au contexte PACKAGE_REFERENCE hors import. Fixture : android.jar (API 34/35), racine `src/com/example/e`, compliance « 17 ».
 

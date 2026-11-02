@@ -4,7 +4,7 @@
 > Kotlin mode K2 / plugin Android ; sources listées par fiche). Étude en
 > **lecture seule, clean-room** : aucune copie de code — les fragments Kotlin
 > des fiches sont écrits par l'étude, neutres. Format du cahier
-> (`docs/cahier-specifications-kotlin/`).
+> (`lsp-kotlin/docs/cahier-specifications-kotlin/`).
 >
 > Elles constituent la **vérité terrain qualitative « niveau Android
 > Studio » qui manque au cahier actuel (KH13)** : chaque fiche est

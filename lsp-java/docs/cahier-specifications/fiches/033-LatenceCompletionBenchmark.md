@@ -1,6 +1,6 @@
 # Fiche 033 — LatenceCompletionBenchmark
 
-> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/java/src/test/java/jo/lspjava/ecj/LatenceCompletionBenchmark.java`.
+> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/lsp-java/moteur/src/test/java/jo/lspjava/ecj/LatenceCompletionBenchmark.java`.
 > **Domaine** : caches-perf
 > **Résumé** : BANC de mesure (pas un test d'assertion) : latence de complétion À CHAUD dans le scénario du retour propriétaire « les suggestions de complétion sont devenues lentes ». Corpus réaliste de module : DEUX racines sources (`app/src/main/java` et `app/src/generated/java`, paquet `com.example.monip`), 12 classes `Helper0..11` (chacune `valeurN()`/`nomN()`), un record `Modele(String titre, int poids)`, une classe générée `ActivityMainBinding` (inflate + champ `TextView titre`), la classe focale `MainActivity`, et un classpath android.jar + R.jar (helper `PopupSpontaneReproTestHelper`). Trois scénarios mesurés : complétion de MEMBRE (`binding.titre.|`), complétion de TYPE (`TextVi|`) et le pire cas du popup spontané (préfixe VIDE après espace). Protocole : 1 échauffement (index/caches) puis 10 mesures à chaud en nanoTime, converties en millisecondes et imprimées ; AUCUN seuil n'est asserté — le banc produit des nombres à comparer entre versions.
 

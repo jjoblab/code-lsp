@@ -16,7 +16,7 @@ Le moteur actuel re-diagnostique le corps modifié à chaque frappe (`EcjFastDia
 ## Sources consultées
 
 - `JetBrains/intellij-community` @ `865067b0` (lecture seule, Apache-2.0) : `java/java-syntax` (parser Kotlin, `SyntaxBuilderUtil.kt:92-123`, `JavaElementType.java:337`), `platform/core-impl` `psi/impl/BlockSupportImpl.java`, `LazyParseableElement` ( `:274-323`, `:39-40` VarHandle ), `ChangedPsiRangeUtil` [hors sparse].
-- Artefact : `org.jetbrains:java-syntax 0.3.381` — mesuré `spike/resultats/v1-*.txt`.
+- Artefact : `org.jetbrains:java-syntax 0.3.381` — mesuré `lsp-java/spike/resultats/v1-*.txt`.
 - `jjoblab/codeide-lsp` @ `cb809e14` : `EcjFastDiagnose`, `EcjParseCache` (LRU 8), `docs/LSP_JAVA.md` §4.
 
 ## Options

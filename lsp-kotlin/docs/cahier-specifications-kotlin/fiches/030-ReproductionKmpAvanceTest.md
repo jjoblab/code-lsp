@@ -1,6 +1,6 @@
 # Fiche 030 — ReproductionKmpAvanceTest
 
-> **Source** : `codeide-lsp` @ `bc11253` — `lsp/kotlin/src/test/kotlin/jo/lspkotlin/session/ReproductionKmpAvanceTest.kt` (5 tests, 236 l.).
+> **Source** : `codeide-lsp` @ `bc11253` — `lsp/lsp-kotlin/moteur/src/test/kotlin/jo/lspkotlin/session/ReproductionKmpAvanceTest.kt` (5 tests, 236 l.).
 > **Domaine** : diagnostics
 > **Résumé** : REPRODUCTION KMP AVANCÉE — les formes qui dépassent la déclaration simple : `expect val`, `expect object` (le patron HttpClient/Database de toute lib KMP), `actual typealias`, membres d'expect object, génériques sur un type expect, usage depuis une EXTENSION.
 > **Convention** : chaque comportement porte le **nom exact du test source** (identifiant de traçabilité) ; l'attendu le reformule en français lisible, enrichi du contrat D3 quand le nom le porte. Le résumé ci-dessus décrit le contrat de la classe de test.

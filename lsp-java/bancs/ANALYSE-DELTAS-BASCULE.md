@@ -6,7 +6,7 @@
 > (commit `5edc10b`, signature du 29/10 — oracle vendored
 > `codeide-lsp@cb809e14` en boîte noire), préparée pour la **décision de
 > bascule** (critère 4 du gabarit
-> [`GABARIT-BASCULE-APPAREIL.md`](GABARIT-BASCULE-APPAREIL.md) §5). La
+> [`GABARIT-BASCULE-APPAREIL.md`](../../docs/GABARIT-BASCULE-APPAREIL.md) §5). La
 > classification ci-dessous est **proposée** ; l'arbitrage final appartient au
 > propriétaire. R5 : aucune valeur simulée — chaque libellé a été vérifié
 > contre l'image `jrt` du JDK 21 (existence, module, caractère public ou

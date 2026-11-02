@@ -119,7 +119,7 @@
 > banc `:kotlin:benchQualite` (chaîne LIVRÉE vs NAÏVE alphabétique sur le
 > MÊME corpus, métriques IDENTIQUES à `:java:benchQualite` : recall /
 > top-1 / MRR / p95 / sauts), la baseline SIGNÉE
-> `bancs/baselines/completion-kotlin.json` (livree 1.000/1.000/1.000,
+> `lsp-kotlin/bancs/baselines/completion-kotlin.json` (livree 1.000/1.000/1.000,
 > p95 7,53 ms ; naif 1.000/0.375/0.486 — **+62,5 pts top-1, +51,4 pts
 > MRR**, la gate +5 points d'ADR 0113 dépassée ×12), la CI BLOQUANTE
 > (job `kotlin-banc-qualite`, le 10e) — et le RECALAGE N° 2 de l'effort
@@ -136,14 +136,14 @@
 | 3 | **Chaîne de classement en naissance** (ADR 0113 option 1, miroir de l'ADR 0012 Java) : peseurs comparés dimension par dimension PARESSEUSEMENT (correspondance graduée EXACT/PREFIXE/…, nature DÉPENDANTE du contexte, longueur liftShorter, alphabétique déterministe, statistiques d'usage OPT-IN), arrangement (GEL des têtes — contrat « zéro saut de liste », trim honnête avec total réel), frontière RPC (poids entier transporté — patron d'intégration LSP ADR 0118) | ADR 0113 ; critère §4 |
 | 4 | **Récepteurs de portée** : le paramètre `content: RowScope.() -> Unit` prête RowScope comme this IMPLICITE — membre NU et MEMBRE-EXTENSION du scope, PILE des scopes emboîtés, `buildList` du classpath prête MutableList, DESTRUCTURATION (`(_, total) ->`), PROPRIÉTÉS BUILTINS de Map (`entries`/`keys`/`values`) — chaque famille avec son vrai positif (le silence n'est jamais de la complaisance) | fiche 038 (8 comportements) |
 | 5 | **ViewBinding K5** : la complétion membre d'une PROPRIÉTÉ TYPAÉE (`binding: ActivityMainBinding`) offre le groupe synthétique (`root`, `textView`, `inflate`, `bind`) | fiche 039 (1 comportement) |
-| 6 | **Banc commun Java** (ADR 0119 option 1) : corpus de positions de complétion VERSIONNÉ, métriques IDENTIQUES à `:java:benchQualite` (recall / top-1 / MRR / p95 / sauts), baseline par langue SIGNÉE (`bancs/baselines/`), CI BLOQUANTE ; comparaison « chaîne livrée » vs « naïf alphabétique » — le design doit le battre de ≥ 5 points top-1/MRR (miroir ADR 0012/0016) | ADR 0113 §Critères ; ADR 0119 ; Q-K6 |
+| 6 | **Banc commun Java** (ADR 0119 option 1) : corpus de positions de complétion VERSIONNÉ, métriques IDENTIQUES à `:java:benchQualite` (recall / top-1 / MRR / p95 / sauts), baseline par langue SIGNÉE (`lsp-java/bancs/baselines/`), CI BLOQUANTE ; comparaison « chaîne livrée » vs « naïf alphabétique » — le design doit le battre de ≥ 5 points top-1/MRR (miroir ADR 0012/0016) | ADR 0113 §Critères ; ADR 0119 ; Q-K6 |
 
 ## 2. Critères de sortie de l'étage 3 (synthèse §4 — suivi)
 
 | Critère | État | Preuve |
 |---|---|---|
 | 44 fiches vertes (fiches 038 + 039 + 043 + 045 du domaine complétion) | **44/44** (fiche 045 — §5 ; fiche 043 — §6 ; fiches 038/039 — §8) | `Fiche045SessionLangageKotlinK3Test` : 21 ; `Fiche043SessionLangageKotlinCompletionContextuelleTest` : 14 ; `Fiche038ReproductionVague5Test` : 8 ; `Fiche039ReproductionViewBindingTest` : 1 |
-| Banc : recall ≥ baseline | **ATTEINT** (3e, §9) — livrée 1.000 = baseline signée 1.000 (= naïf 1.000 : l'espace candidat est le même, seule la CHAÎNE diffère) | `:kotlin:benchQualite` vert ; `bancs/baselines/completion-kotlin.json` |
+| Banc : recall ≥ baseline | **ATTEINT** (3e, §9) — livrée 1.000 = baseline signée 1.000 (= naïf 1.000 : l'espace candidat est le même, seule la CHAÎNE diffère) | `:kotlin:benchQualite` vert ; `lsp-kotlin/bancs/baselines/completion-kotlin.json` |
 | Banc : top-1/MRR +5 pts vs naïf | **ATTEINT (DÉPASSÉ ×12)** (3e, §9) — livrée 1.000/1.000 vs naïf 0.375/0.486 : **+62,5 pts top-1, +51,4 pts MRR** | `:kotlin:benchQualite` vert ; 5 divergences désignées + 5 positions membre (espace non filtré, frontière RPC) |
 | Banc : p95 ≤ baseline (JVM = limite basse ; cible appareil < 100 ms) | **ATTEINT** (3e, §9) — 7,53 ms (première signature : borne absolue 50 ms, miroir Java ; marge ×6,6) | `:kotlin:benchQualite` vert (80 échantillons, 2 échauffements) |
 | Zéro saut de liste (contrat gel) | **ATTEINT** (3e, §9) — 0 saut sur la succession (gel 3c tenu) | `:kotlin:benchQualite` vert (succession 4 frappes, clé de gel partagée) |
@@ -430,7 +430,7 @@ section du présent journal + commit/push.
 |---|---|---|---|
 | 1 | Corpus VERSIONNÉ | **Fait** | `banc/CorpusQualiteCompletion.kt` : `completion-kotlin v1` — 16 positions étiquetées couvrant les 7 genres du pipeline (MEMBRE ×5 — extension stdlib réelle, accès sûr `?.`, héritage projet par le scan, fonction propre, divergence de nature ; NOM ×4 — locale dominante, propriété implicite, type classpath par préfixe, mot-clé témoin du repli ; IMPORT ×3 — sous-paquet, paquet-dominant à préfixe vide, liftShorter ; ARGUMENTS_NOMMES ; CONSTANTES_ENUM ×2 — préfixé et vide ; ATTRIBUTS_ANNOTATION), 5 divergences désignées ★ (la naïve les perd par le MÉCANISME isolé), succession de frappe à 4 frappes (clé de gel partagée délibérément) ; stdlib du runtime SEULE (ancre de classe `Intrinsics`, épinglée 2.2.10 par la chaîne d'outils — le banc tourne partout, CI comprise, sans SDK), projet corpus Widget/Outil sur DISQUE (résolu par le scan des racines, comme une vraie frappe) ; **UNE URI PAR POSITION** (la clé de gel document+genre+ancre ne peut JAMAIS être partagée entre positions de mesure) |
 | 2 | Banc de qualité | **Fait** | `banc/BancQualiteCompletion.kt` + tâche `:kotlin:benchQualite` : chaîne LIVRÉE (`MoteurLangageKotlinNoyau()` standard) vs NAÏVE (`ChaineClassementKotlin(listOf(PeseurAlphabetiqueKotlin()))`) sur le MÊME corpus, métriques IDENTIQUES à `:java:benchQualite` (recall / top-1 / MRR / p95 / sauts) ; montage par le CHEMIN DE PRODUCTION D6 (moteur nourricier par le constructeur public, session branchée, guichet attendu par sondage borné — l'association de compilations KGP `bench → main` donne au banc le sondeur `indexSiPret`, le miroir exact du monteur de la fiche 045 : JAMAIS un raccourci synchrone qui n'existerait pas côté hôte) ; p95 sur 2 échauffements + 5 passes mesurées (la mesure couvre l'ouverture ET l'arrangement — le coût d'une frappe) ; JVM bornée `-Xmx2g -XX:+UseSerialGC` sur la toolchain 17 (exigence appareil, miroir `:kotlin:bench`) |
-| 3 | Baseline SIGNÉE | **Fait** | `bancs/baselines/completion-kotlin.json` — `livree` recall 1.000 / top1 1.000 / mrr 1.000 / p95 7,53 ms ; `naif` 1.000 / 0.375 / 0.486 ; tolérance latence p95 ≤ max(50 ms, baseline × 1,5) ; re-signature par PR dédiée (`-Presigner`) ; le commit qui la porte est la signature |
+| 3 | Baseline SIGNÉE | **Fait** | `lsp-kotlin/bancs/baselines/completion-kotlin.json` — `livree` recall 1.000 / top1 1.000 / mrr 1.000 / p95 7,53 ms ; `naif` 1.000 / 0.375 / 0.486 ; tolérance latence p95 ≤ max(50 ms, baseline × 1,5) ; re-signature par PR dédiée (`-Presigner`) ; le commit qui la porte est la signature |
 | 4 | CI BLOQUANTE | **Fait** | Job `kotlin-banc-qualite` (le 10ᵉ de `ci.yml`, miroir de `banc-qualite` Java) : la tâche ÉCHOUE sur régression de baseline, sur gate de valeur (+5 pts), sur saut de liste, sur dépassement p95 et sur les contrôles de santé |
 | 5 | Contrôles de santé | **Fait** | (a) DÉTERMINISME des genres : les 16 verdicts doivent égaler les genres attendus (un verdict qui change d'un run à l'autre est un bug, pas une mesure) ; (b) **STABILITÉ SOUS GEL** (propre au Kotlin, motivée par la frontière RPC) : la chaîne livrée re-mesurée sur la MÊME session (gels constitués) doit rendre des rangs IDENTIQUES — un rang qui bouge dénonce une contamination de gel entre positions (clé d'ancre partagée) ; (c) preuve de valeur : livrée ≥ naïf sur recall, +5 pts top-1/MRR |
 | 6 | Recalage n° 2 de l'effort | **Fait** | §9.4 — la première donnée de CLASSEMENT y est mesurée (la dominante inconnue du recalage n° 1) |
@@ -502,7 +502,7 @@ section du présent journal + commit/push.
   borne 50 ms) ; **sauts 0** (succession 4 frappes) ; genres 16/16
   DÉTERMINISTES ; stabilité sous gel IDENTIQUE (re-mesure sur la même
   session : rangs égaux).
-- **Baseline signée** : `bancs/baselines/completion-kotlin.json`
+- **Baseline signée** : `lsp-kotlin/bancs/baselines/completion-kotlin.json`
   (corpus `completion-kotlin v1`, 16 positions ; le commit = signature).
 - **Suite** : **393 tests VERTS** sur la toolchain 17 — INCHANGÉS (la
   3e n'ajoute AUCUN test : le banc est une `JavaExec` de vérification,
@@ -581,9 +581,9 @@ des tests des journaux §5–§9] :
 |---|---:|---|
 | Commits de l'étage | 5 | 3a→3e : livraisons + clôture (borne : clôture étage 2 `8ff747c`) |
 | Fichiers touchés | 32 | +6 113 / −238 lignes (main, tests, banc, CI, journaux) |
-| `kotlin/` main | 19 fichiers, +2 742 / −223 | pipeline, contextuelle, classement, récepteurs |
-| `kotlin/` test | 6 fichiers, +1 817 / −13 | fiches 045/043/038/039 + 12 tests du mécanisme 3c |
-| `kotlin/` bench | 2 fichiers, +837 | corpus versionné (456 l.) + banc de qualité (381 l.) — la 3e |
+| `lsp-kotlin/moteur/` main | 19 fichiers, +2 742 / −223 | pipeline, contextuelle, classement, récepteurs |
+| `lsp-kotlin/moteur/` test | 6 fichiers, +1 817 / −13 | fiches 045/043/038/039 + 12 tests du mécanisme 3c |
+| `lsp-kotlin/moteur/` bench | 2 fichiers, +837 | corpus versionné (456 l.) + banc de qualité (381 l.) — la 3e |
 | Tests du module | 337 → **393** | +56 pour 44 comportements et 12 tests d'ingénierie (≈ 1,1 test/comportement — 21 + 14 + 9 fiches + 12 mécanisme) |
 | CI première tentative | **4/4** commits de livraison | runs `41127294348` / `41129037195` / `41130310022` / `41136152557` |
 | Tempo [mesuré-agent] | 31/10 03:11 → ~08:00 (UTC+8) | 5 vagues en ~5 h de séance continue |

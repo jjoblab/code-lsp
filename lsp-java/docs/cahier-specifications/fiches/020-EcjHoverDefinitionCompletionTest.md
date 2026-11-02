@@ -1,6 +1,6 @@
 # Fiche 020 — EcjHoverDefinitionCompletionTest
 
-> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/java/src/test/java/jo/lspjava/ecj/EcjHoverDefinitionCompletionTest.java` (la classe interne se nomme `JdtHoverDefinitionCompletionTest`).
+> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/lsp-java/moteur/src/test/java/jo/lspjava/ecj/EcjHoverDefinitionCompletionTest.java` (la classe interne se nomme `JdtHoverDefinitionCompletionTest`).
 > **Domaine** : completion (fiche mixte : hover, définitions et complétion sur les bindings ecj)
 > **Résumé** : Verrouille les trois fonctionnalités de base pilotées par bindings sur une unité isolée : hover (texte contenant nom + types), définition (plage de la DÉCLARATION visée par une référence) et complétion (membres sur instance, membres statiques sur type, locales et membres englobants, filtrage par préfixe, robustesse au code cassé). Le moteur est construit avec racines sources et classpath de jars VIDES, conformité « 17 » — la plateforme (java.lang, java.util…) vient de l'image jrt du JVM de test (chemin desktop). Fixture principale : `demo.Main` avec champ `counter`, méthodes `greet(String)`, `getCounter()`.
 

@@ -50,7 +50,7 @@ une séance continue unique comme en N1, et la fenêtre d'horloge est donc une
 ### 2.1 Volumétrie livrée [mesuré]
 
 Commandes : `git diff --stat 5c6bcf9 bc70055` ; `git diff --name-only
-5c6bcf9 bc70055 -- java/src/main | wc -l` ; comptage des lignes par arbre
+5c6bcf9 bc70055 -- lsp-java/moteur/src/main | wc -l` ; comptage des lignes par arbre
 (`find … -name '*.kt' -exec cat {} + | wc -l`) aux deux bornes.
 
 | Grandeur | Valeur | Détail |
@@ -149,7 +149,7 @@ chemins machine) : Fiche033 ×3 et Fiche004 **jouées, 0 ignoré**, fiches
 ### 2.5 Bancs — livraison vs rejeu [mesuré]
 
 `./gradlew :java:benchQualite` **VERT contre la baseline signée**
-(`bancs/baselines/completion.json`) :
+(`lsp-java/bancs/baselines/completion.json`) :
 
 | Métrique | Livraison (04:49) | Rejeu (recalage 2) |
 |---|---:|---:|
@@ -366,5 +366,5 @@ points :
 *Références : `PLAN-REECRITURE.md` (§5 fourchettes, §8.2 point 3 — présent
 recalage, §10 décisions) · `RECALAGE-1.md` (facteur N1, question laissée
 ouverte sur N2) · commits `5d3ca1a` + `bc70055` (livraison N2, messages
-détaillés) · `bancs/baselines/completion.json` (baseline signée) ·
+détaillés) · `lsp-java/bancs/baselines/completion.json` (baseline signée) ·
 `AGENTS.md` (règles de travail).*

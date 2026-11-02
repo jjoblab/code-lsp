@@ -1,6 +1,6 @@
 # Fiche 034 — ReproductionSegmentsPersistantsTest
 
-> **Source** : `codeide-lsp` @ `bc11253` — `lsp/kotlin/src/test/kotlin/jo/lspkotlin/session/ReproductionSegmentsPersistantsTest.kt` (3 tests, 193 l.).
+> **Source** : `codeide-lsp` @ `bc11253` — `lsp/lsp-kotlin/moteur/src/test/kotlin/jo/lspkotlin/session/ReproductionSegmentsPersistantsTest.kt` (3 tests, 193 l.).
 > **Domaine** : index-classpath
 > **Résumé** : REPRODUCTION H4 (mission fiabilisation, étape A.2 — hypothèse « segment d'index partiel / périmé » du prompt) : l'index des appelables persiste ses segments sous `dossierIndex` (`kotlin-appelables/<sha256>.kidx`), relus PAR EMPREINTE. Les scénarios suspectés — segment CORROMPU, segment de VERSION périmée (le format porte magie + version), jar DISPARU — sont mesurés ici en session complète. Comport
 > **Convention** : chaque comportement porte le **nom exact du test source** (identifiant de traçabilité) ; l'attendu le reformule en français lisible, enrichi du contrat D3 quand le nom le porte. Le résumé ci-dessus décrit le contrat de la classe de test.

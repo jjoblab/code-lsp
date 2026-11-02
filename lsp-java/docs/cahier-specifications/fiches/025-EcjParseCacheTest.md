@@ -1,6 +1,6 @@
 # Fiche 025 — EcjParseCacheTest
 
-> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/java/src/test/java/jo/lspjava/ecj/EcjParseCacheTest.java`.
+> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/lsp-java/moteur/src/test/java/jo/lspjava/ecj/EcjParseCacheTest.java`.
 > **Domaine** : caches-perf
 > **Résumé** : Tests du cache de parse de l'unité résolue (`resolveUnit(path, source, generateCode)`) : hit sur même (path, source), miss sur changement de source, invalidation ciblée et globale (dispose), cohabitation multi-entrées (W8 : l'entrée unique évinçait à chaque put), éviction LRU bornée par `MAX_ENTRIES`, partage entre diagnostics (generateCode=true) et hover (generateCode=false), et non-dégradation d'une entrée codegen. Sources témoins : petites classes `demo.A`/`demo.B`/`demo.Main` d'une ligne.
 

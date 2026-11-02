@@ -1,6 +1,6 @@
 # Fiche 002 — EcjChainedLambdaHintsTest
 
-> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/java/src/test/java/jo/lspjava/EcjChainedLambdaHintsTest.java`.
+> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/lsp-java/moteur/src/test/java/jo/lspjava/EcjChainedLambdaHintsTest.java`.
 > **Domaine** : hover-inlay
 > **Résumé** : Verrouille deux familles d'inlay hints (parité `JdtInlayHintService` du projet tiers de référence) : les **chaining hints** — sur un chaînage fluent multi-ligne, le type du récepteur (l'appel de la ligne précédente) est affiché à la fin de SA ligne, libellé = nom court sans deux-points, padding gauche ; aucun hint pour le premier maillon (récepteur = constructeur) ni sur une seule ligne — et les **hints de type des paramètres lambda implicites** — « : Type » collé à la fin du nom, sans padding ; rien pour un paramètre typé explicitement. Le test passe par le cycle LSP complet : `initialize`/`initialized` (garde lifecycle I2, v0.134.11) puis `didOpen`, et interroge `inlayHint` sur `file:///Demo.java`.
 

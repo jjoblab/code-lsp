@@ -1,6 +1,6 @@
 # Fiche 047 — SessionLangageKotlinK5Test
 
-> **Source** : `codeide-lsp` @ `bc11253` — `lsp/kotlin/src/test/kotlin/jo/lspkotlin/session/SessionLangageKotlinK5Test.kt` (21 tests, 781 l.).
+> **Source** : `codeide-lsp` @ `bc11253` — `lsp/lsp-kotlin/moteur/src/test/kotlin/jo/lspkotlin/session/SessionLangageKotlinK5Test.kt` (21 tests, 781 l.).
 > **Domaine** : diagnostics
 > **Résumé** : Tests du contrat de session K5 (LSP_KOTLIN.md §5, K5 « classes synthétiques R/ViewBinding/DataBinding, intégration éditeur complète — complétion multi-langue, bascule Java↔Kotlin ») — par le SPI (chemin de production D6), avec un PROJET ANDROID FACTICE sur disque (manifeste + res/layout + res/values + res/drawable) et la MÊME vue factice que la suite K4 (étendue : `setOnClickListener` et son SAM `
 > **Convention** : chaque comportement porte le **nom exact du test source** (identifiant de traçabilité) ; l'attendu le reformule en français lisible, enrichi du contrat D3 quand le nom le porte. Le résumé ci-dessus décrit le contrat de la classe de test.

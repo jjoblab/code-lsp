@@ -1,6 +1,6 @@
 # Fiche 046 — CancelTokenTest
 
-> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/java/src/test/java/jo/lspjava/engine/CancelTokenTest.java`.
+> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/lsp-java/moteur/src/test/java/jo/lspjava/engine/CancelTokenTest.java`.
 > **Domaine** : concurrence-annulation
 > **Résumé** : Tests du token d'annulation coopératif `CancelToken` : singleton `NEVER` jamais annulable, token manuel (annulation idempotente), token à échéance (timeout), interruption du thread attaché lors du `cancel`, et `close()` qui libère sans annuler. Toutes les variantes sont auto-fermables.
 

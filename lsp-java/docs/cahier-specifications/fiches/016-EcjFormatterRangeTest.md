@@ -1,6 +1,6 @@
 # Fiche 016 — EcjFormatterRangeTest
 
-> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/java/src/test/java/jo/lspjava/ecj/EcjFormatterRangeTest.java`.
+> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/lsp-java/moteur/src/test/java/jo/lspjava/ecj/EcjFormatterRangeTest.java`.
 > **Domaine** : formatage
 > **Résumé** : Verrouille les éditions de formatage de PLAGE (`editionsRange`), substrat du handler LSP `textDocument/rangeFormatting`. Sémantique imposée : les éditions ne touchent QUE la plage demandée (l'unité entière est néanmoins parsée pour le contexte) ; elles voyagent en ordre CROISSANT d'offset et sont disjointes ; source imparsable → null ou no-op ; plage vide → liste vide ; plage pleine page équivaut au formatage intégral. Fixture unique : une classe `Ex` à deux méthodes volontairement mal formatées (`int x=1;` / `int y=2;` indentés à raz).
 

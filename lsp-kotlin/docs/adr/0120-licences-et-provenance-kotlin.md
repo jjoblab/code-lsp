@@ -26,7 +26,7 @@ non vérifiable).
   `kotlin-compiler-embeddable:2.2.10` (mesures S1).
 - `Kotlin/kotlin-lsp` : Apache-2.0 [vérifié, API GitHub] — consulté
   (README) comme référence de design, aucun code.
-- Manifeste : `docs/PROVENANCE-REPRISE-KOTLIN.md` (registres).
+- Manifeste : `lsp-kotlin/docs/PROVENANCE-REPRISE-KOTLIN.md` (registres).
 - `code-lsp` : ADR 0017 Java (conditions artefacts JetBrains — alerte
   AL1 : aucun `META-INF/LICENSE` dans les jars intellij-dependencies).
 
@@ -80,7 +80,7 @@ compile-scope » + action propriétaire (conditions binaires).
 
 ## Tests de non-régression et critères de sortie
 
-- CI verte : aucun fichier hors registre sous `kotlin/` (extension du
+- CI verte : aucun fichier hors registre sous `lsp-kotlin/moteur/` (extension du
   script) ; aucune dépendance compile-scope au compilateur ;
   notices présentes au vendoring.
 

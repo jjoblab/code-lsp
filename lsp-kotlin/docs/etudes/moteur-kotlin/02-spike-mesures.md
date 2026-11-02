@@ -1,4 +1,4 @@
-# 02 — Spike de mesure (`spike-kotlin/`, Phase 2)
+# 02 — Spike de mesure (`lsp-kotlin/spike/`, Phase 2)
 
 > Étude « moteur Kotlin » pour CodeIDE sur Android/ART — mesures des
 > variantes S0–S3. **Question de recherche (prompt §7)** : quelle
@@ -27,19 +27,19 @@
 ```bash
 # 1. Télécharger les piles (jars HORS dépôt, jamais committés — R6.4) ;
 #    le jeton GitHub est requis pour l'oracle S0 :
-GITHUB_TOKEN=<jeton> bash spike-kotlin/scripts/telecharger-jars.sh [cible]
+GITHUB_TOKEN=<jeton> bash lsp-kotlin/spike/scripts/telecharger-jars.sh [cible]
 
 # 2. Lancer les bancs (module non publié, tâches gardées par -PspikeKotlin) :
 ./gradlew :spike-kotlin:test -PspikeKotlin
 #    (surcharge du répertoire des jars : -PspikeJars=<chemin>)
 
 # 3. Scan ART statique des piles :
-python3 spike-kotlin/scripts/scan-art.py <jar>…   # résultat : resultats/scan-art-*.txt
+python3 lsp-kotlin/spike/scripts/scan-art.py <jar>…   # résultat : resultats/scan-art-*.txt
 ```
 
 R4 respecté : seuls les tests de `:spike-kotlin` sont exécutés en local ;
 aucun build complet du dépôt ; la CI du domaine Java n'est pas affectée
-(garde `-PspikeKotlin`, voir `spike-kotlin/build.gradle.kts`).
+(garde `-PspikeKotlin`, voir `spike-lsp-kotlin/moteur/build.gradle.kts`).
 
 ## 3. Les piles mesurées
 
@@ -150,7 +150,7 @@ demi-seconde à 3 000 lignes sur JVM — à re-mesurer sur appareil.
 
 1. **ART** : aucune exécution sur appareil (E-K2) — le facteur 3–5× est
    [estimé] ; le point d'entrée appareil reste à produire (gabarit
-   `spike/appareil/` du domaine Java à décliner).
+   `lsp-java/spike/appareil/` du domaine Java à décliner).
 2. **Dexage réel** : d8 non disponible dans le bac à sable — comptage de
    méthodes déclaré (borne basse) et scan statique seulement ; la CI du
    domaine Java (scan ART + dexage + seuils) devra être étendue au module

@@ -1,6 +1,6 @@
 # Fiche 048 — EcjEngineSchedulerTest
 
-> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/java/src/test/java/jo/lspjava/engine/EcjEngineSchedulerTest.java`.
+> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/lsp-java/moteur/src/test/java/jo/lspjava/engine/EcjEngineSchedulerTest.java`.
 > **Domaine** : concurrence-annulation
 > **Résumé** : Tests unitaires du scheduler du moteur : un worker unique sérialise RÉELLEMENT les tâches interactives (aucun chevauchement) ; la supersession annule les tâches interactives obsolètes d'un même fichier (les analyse, elles, ne sont jamais superseded) ; shutdown idempotent. Éprouve les propriétés via compteurs d'exécution simultanée max, de complétions et de supersessions.
 

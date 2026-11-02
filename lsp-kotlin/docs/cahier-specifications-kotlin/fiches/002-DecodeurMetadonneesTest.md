@@ -1,6 +1,6 @@
 # Fiche 002 — DecodeurMetadonneesTest
 
-> **Source** : `codeide-lsp` @ `bc11253` — `lsp/kotlin/src/test/kotlin/jo/lspkotlin/classpath/DecodeurMetadonneesTest.kt` (3 tests, 49 l.).
+> **Source** : `codeide-lsp` @ `bc11253` — `lsp/lsp-kotlin/moteur/src/test/kotlin/jo/lspkotlin/classpath/DecodeurMetadonneesTest.kt` (3 tests, 49 l.).
 > **Domaine** : index-classpath
 > **Résumé** : Tests du décodeur de métadonnées (K3) sur des jars RÉELS du classpath de test : - kotlin-stdlib (Kotlin → appelables de premier niveau + extensions) ; - junit4 (Java → PORTE ABSENTE, zéro classe décodée — le saut de §4.2 est le contrat même du décodeur).
 > **Convention** : chaque comportement porte le **nom exact du test source** (identifiant de traçabilité) ; l'attendu le reformule en français lisible, enrichi du contrat D3 quand le nom le porte. Le résumé ci-dessus décrit le contrat de la classe de test.

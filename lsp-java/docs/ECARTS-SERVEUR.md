@@ -26,7 +26,7 @@
 
 > **Mise à jour du 31/10/2026 (mission « niveau Android Studio »)** : chaque
 > écart moteur ouvert est désormais **numéroté et priorisé** dans la matrice
-> `docs/etudes/niveau-android-studio/03-matrice-ecarts.md` (G-###), avec sa
+> `lsp-java/docs/etudes/niveau-android-studio/03-matrice-ecarts.md` (G-###), avec sa
 > preuve (`01-audit-moteur.md`) et l'ADR qui le résout (0019–0032). Le plan de
 > correction par vagues vit dans `04-plan-vagues.md` (V-A→V-G).
 

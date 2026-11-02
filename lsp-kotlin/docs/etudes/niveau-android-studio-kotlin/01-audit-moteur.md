@@ -6,7 +6,7 @@
 > **Branche** : `etude/moteur-kotlin` — état audité : commit `df3cf85`
 > (« attestation CI consignée au document 11 §4 »), CI **VERTE 10/10** sur le
 > run GitHub Actions `41170597847` [CONFIRMÉ, document
-> `docs/etudes/moteur-kotlin/11-decisions-proprio-post-cloture.md` §4].
+> `lsp-kotlin/docs/etudes/moteur-kotlin/11-decisions-proprio-post-cloture.md` §4].
 > **Date** : 2026-10-31. **Langue** : français (règle du dépôt).
 
 ## Convention R5 — honnêteté des preuves
@@ -38,22 +38,22 @@ disponible** (E-K2). Le build a été vérifié localement :
 [CONFIRMÉ, exécuté le 31/10/2026 dans l'environnement de la mission].
 
 **Ordre de lecture** (§2 du prompt) : `AGENTS.md`, `README.md`, `USAGE.md`,
-documents d'étude `00` à `11` de `docs/etudes/moteur-kotlin/`, ADR
-`0100`–`0121`, cahier `docs/cahier-specifications-kotlin/` (53 fiches /
-469 comportements), journaux `03`–`10`, `docs/INTEGRATION-CODEIDE.md`,
-`docs/BASCULE-CODEIDE.md`, `bancs/GABARIT-BASCULE-APPAREIL.md`, code du
-module `kotlin/` (lecture exhaustive des en-têtes + des fichiers porteurs,
+documents d'étude `00` à `11` de `lsp-kotlin/docs/etudes/moteur-kotlin/`, ADR
+`0100`–`0121`, cahier `lsp-kotlin/docs/cahier-specifications-kotlin/` (53 fiches /
+469 comportements), journaux `03`–`10`, `lsp-java/docs/INTEGRATION-CODEIDE.md`,
+`lsp-java/docs/BASCULE-CODEIDE.md`, `docs/GABARIT-BASCULE-APPAREIL.md`, code du
+module `lsp-kotlin/moteur/` (lecture exhaustive des en-têtes + des fichiers porteurs,
 `rg` systématique), mission jumelle Java (`etude/moteur-java` en worktree
 lecture seule : synthèse, ADR 0019–0031, banc P1–P8, kit de mesure, passe 1
 appareil moto g06).
 
 **Mesures exécutées pendant l'audit** :
 
-- statique : `rg` sur `kotlin/src/main` (diagnostics, genres, actions,
+- statique : `rg` sur `lsp-kotlin/moteur/src/main` (diagnostics, genres, actions,
   verrous, Gradle, `generated`, `onTrimMemory`, `x-codeide`) — preuves
   citées ci-dessous ;
 - dynamique locale : build + compilation des tests (ci-dessus), puis
-  **banc V0 P1–P9** (livré par cette mission, `kotlin/src/test/kotlin/jo/
+  **banc V0 P1–P9** (livré par cette mission, `lsp-kotlin/moteur/src/test/kotlin/jo/
   codeide/lsp/kotlin/coherence/`) : fidélité différentielle moteur vs oracle
   K2 sur l'auto-corpus (les sources du module lui-même, ~25 250 l. de vrai
   Kotlin compilable) — résultats au §4.3 ;
@@ -134,7 +134,7 @@ internal sealed class TypeValeur {
   hors preuve ») ; une locale postérieure ombrage le nom et coupe le cast
   (:347-364).
 - **« Frontière d'unification »** : le terme n'existe pas dans le code
-  (`rg 'unification' kotlin/src/main` → néant) ; le concept effectif est le
+  (`rg 'unification' lsp-kotlin/moteur/src/main` → néant) ; le concept effectif est le
   **rabattement documenté** ci-dessus (arguments dépouillés, nom de base).
 
 **Conséquence mesurable** : la couverture typée des expressions est le
@@ -184,13 +184,13 @@ mission (banc V0, §4.3).
   `monde-coroutines.kt` 15 l., `monde-stdlib.kt` 28 l., `monde-views.kt`
   20 l., `temoin-positif.kt` 11 l.) [CONFIRMÉ, `wc -l`].
 - Banc de complétion : **16 positions**, recall/top-1/MRR = 1,000/1,000/1,000
-  (baseline signée `bancs/baselines/completion-kotlin.json`, naïve 0,375/0,486)
+  (baseline signée `lsp-kotlin/bancs/baselines/completion-kotlin.json`, naïve 0,375/0,486)
   [CONFIRMÉ, journal 06 §banc commun] — un banc **saturé** ne distingue plus
   amélioration et régression (le même constat a été fait côté Java :
   alerte AL1 de la mission jumelle).
 - **Aucune mesure FP/FN n'existait sur du code Android Kotlin réel** avant
   cette mission. Le banc V0 (auto-corpus ~25 250 l. + corpus réel
-  `bancs/corpus-android-kotlin/`, 6 projets Apache-2.0 épinglés, §5) comble
+  `lsp-kotlin/bancs/corpus-android-kotlin/`, 6 projets Apache-2.0 épinglés, §5) comble
   ce trou ; les premières mesures sont au §4.3.
 
 ### 1.4 KH4 — Ni résolution de surcharges, ni inférence, ni récepteurs implicites de DSL — [CONFIRMÉ]
@@ -265,7 +265,7 @@ ABSENTS — le protocole sert `insertText` + `filterText` et une `data
   mapping `RAPIDE → QuickFix, sinon Source` (`ServeurLangageKotlin.kt:784`).
 - `source.*` : la branche existe (`GenreActionKotlin.SOURCE`,
   `api/ActionsKotlin.kt:19`) mais **AUCUN plan SOURCE n'est jamais produit**
-  (`rg 'GenreActionKotlin\.SOURCE' kotlin/src/main` → néant) ; pas de
+  (`rg 'GenreActionKotlin\.SOURCE' lsp-kotlin/moteur/src/main` → néant) ; pas de
   `organizeImports`. `refactor.*` : ABSENT (`rg 'refactor\.'` → néant).
 - Aucune intention sans diagnostic (expression-body ↔ block-body, `?.let`,
   `if`↔`when`, gabarit de chaîne, extraction, inline, change signature,
@@ -300,7 +300,7 @@ L'hypothèse est confirmée sur les deux branches qu'elle contient :
 
 ### 1.9 KH9 — Aucune intelligence Gradle Kotlin DSL — [CONFIRMÉ]
 
-`rg -i gradle kotlin/src/main` → **une seule occurrence** hors vendoring :
+`rg -i gradle lsp-kotlin/moteur/src/main` → **une seule occurrence** hors vendoring :
 un commentaire (« l'indicateur `viewBinding` du build.gradle n'est PAS
 lisible depuis les sources », `ClassesSynthetiques.kt:54`). Il n'existe
 AUCUN modèle du DSL : pas de lecture de `build.gradle.kts`, de
@@ -416,7 +416,7 @@ jetons sémantiques (semanticTokens — « dette D3 » : non fiables au
 parseur seul, requête tolérante `ServeurLangageKotlin.kt:710-715`),
 codeLens, hiérarchie d'appels, hiérarchie de types, documentColor,
 onTypeFormatting, linkedEditingRange. `x-codeide.completionRanking` :
-NON annoncée — `rg 'x-codeide|completionRanking' kotlin/src` → néant
+NON annoncée — `rg 'x-codeide|completionRanking' lsp-kotlin/moteur/src` → néant
 (faute de frontière RPC équivalente au `FrontiereRpc` Java, journal 09
 §7.1). Publication diagnostics : debounce 50 ms par URI, annule-et-remplace
 (`PublicateurDiagnostics.kt:109, :44-63`). Cycle de vie 5 états
@@ -427,7 +427,7 @@ NON annoncée — `rg 'x-codeide|completionRanking' kotlin/src` → néant
 
 - **Mesures appareil** : aucune pour le moteur Kotlin (E-K2) ; la passe
   étages 1–6 au kit enrichi est documentée comme OPTIONNELLE (doc 11 §2.2,
-  mécanique prête : `scripts/kit-bascule.sh` + exécution Termux). Le
+  mécanique prête : `lsp-java/scripts/kit-bascule.sh` + exécution Termux). Le
   facteur ART « 3–5× estimé » du prompt est remplacé, pour calibrer les
   budgets, par le facteur **observé ≈ 4× du moteur Java** (moto g06,
   passe 1 du 30/10 : démarrage à froid → 1re complétion ≈ 7,6 s ;
@@ -730,10 +730,10 @@ d'actions, 19/7 capacités.
 
 ### 4.3 Banc V0 (livré par cette mission) — mesures P1
 
-Le banc de cohérence P1–P9 (`kotlin/src/test/kotlin/jo/codeide/lsp/
+Le banc de cohérence P1–P9 (`lsp-kotlin/moteur/src/test/kotlin/jo/codeide/lsp/
 kotlin/coherence/`) étend la preuve du dépôt à l'échelle : **P1
 fidélité différentielle** moteur vs oracle K2 sur l'auto-corpus (les
-~99 fichiers `.kt` de `kotlin/src/main/kotlin` + grammaire vendorée —
+~99 fichiers `.kt` de `lsp-kotlin/moteur/src/main/kotlin` + grammaire vendorée —
 du vrai Kotlin compilable, ~35 500 lignes), avec l'oracle en
 sous-processus multi-fichiers en UNE invocation (leçon mesurée en bac
 à sable : des passes séparées fabriquent 462 « unresolved reference »
@@ -822,7 +822,7 @@ corpus ignorées avec raison affichée) [CONFIRMÉ] :
 - **Toute mesure appareil ART** (latences perçues, GC soft-références,
   démarrage à froid, thermique, dex en charge) — raison : pas d'appareil
   (E-K2) ; protocole : `07-gabarit-mesure-appareil.md` (kit
-  `scripts/kit-bascule.sh` existant + passe étages 1–6 documentée au
+  `lsp-java/scripts/kit-bascule.sh` existant + passe étages 1–6 documentée au
   doc 11 §2.2).
 - **Captures Android Studio** (comportements de la référence) — raison :
   Android Studio non exécutable ici (AL6 miroir Java) ; protocole :
@@ -830,14 +830,14 @@ corpus ignorées avec raison affichée) [CONFIRMÉ] :
   spécifiés + **lot E Kotlin** livré).
 - **P1(b)/P2 sur corpus réel avec classpath compilé** — raison : la
   préparation des manifestes exige un SDK Android/Gradle par projet ;
-  protocole : `bancs/corpus-android-kotlin/LISEZMOI.md` §2 (la gate
+  protocole : `lsp-kotlin/bancs/corpus-android-kotlin/LISEZMOI.md` §2 (la gate
   s'ignore avec raison, jamais un vert silencieux).
 
 ---
 
-## 5. Corpus réel (livré — `bancs/corpus-android-kotlin/`)
+## 5. Corpus réel (livré — `lsp-kotlin/bancs/corpus-android-kotlin/`)
 
-Corpus **versionné par script** (`scripts/telecharger-corpus-kotlin.sh`,
+Corpus **versionné par script** (`lsp-kotlin/scripts/telecharger-corpus-kotlin.sh`,
 miroir du corpus Java), jamais de binaire committé (`.gitignore`),
 **6 projets Apache-2.0 épinglés par `git ls-remote` le 31/10/2026**
 [CONFIRMÉ] — rôles couvrant les exigences du prompt §4.4 :
@@ -860,7 +860,7 @@ au 31/10), `gh4a` (0 fichier `.kt` au commit épinglé),
 « licence permissive » du corpus ; **candidat secours si le
 propriétaire arbitre MPL-2.0 acceptable**). Les projets sont des
 **données de corpus** (cibles de mesure) : inscrits au registre de
-provenance avec leur rôle (`docs/PROVENANCE-REPRISE-KOTLIN.md`
+provenance avec leur rôle (`lsp-kotlin/docs/PROVENANCE-REPRISE-KOTLIN.md`
 §Corpus), hors liste blanche des références de conception (§1.3).
 
 ---

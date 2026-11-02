@@ -12,8 +12,8 @@
 ## 0. Méthode et périmètre
 
 - **Terrain** : le dépôt lui-même, à l'état livré (module `:java` : 19 répertoires,
-  22 649 lignes Kotlin main — comptage `rg --files java/src/main | xargs wc -l`, 28/10…31/10).
-- **Lectures** : ordre du prompt §2 (AGENTS.md, README.md, `docs/ECARTS-SERVEUR.md`,
+  22 649 lignes Kotlin main — comptage `rg --files lsp-java/moteur/src/main | xargs wc -l`, 28/10…31/10).
+- **Lectures** : ordre du prompt §2 (AGENTS.md, README.md, `lsp-java/docs/ECARTS-SERVEUR.md`,
   étude PSI D1–D12, ADR 0001–0018, cahier 65 fiches, USAGE.md, INTEGRATION-CODEIDE.md,
   PLAN-REECRITURE.md, RECALAGE-1/2.md), puis le code dans l'ordre recommandé.
 - **Mesures dynamiques** : la CI GitHub (plus de RAM) porte la vérification complète
@@ -56,14 +56,14 @@ Résumé ; détail et preuves dans les sections suivantes.
   42–56). Exposé par `MoteurJava.kt:890` (`declasserDatabinding`).
 - **Aucune synthèse** de `R`, `BuildConfig`, `ViewBinding`/`DataBinding`, Safe Args :
   recherche `rg -ni 'BuildConfig|ViewBinding|DataBinding|SafeArgs|R\.layout'` sur
-  `java/src/main` → uniquement `DeclassementDatabinding.kt` et son appelant (aucun
+  `lsp-java/moteur/src/main` → uniquement `DeclassementDatabinding.kt` et son appelant (aucun
   référentiel de ressources, aucune classe synthétique).
-- Le banc « projet Android réel » **simule** la sortie d'AGP : `bancs/projet-android-genere/`
+- Le banc « projet Android réel » **simule** la sortie d'AGP : `lsp-java/bancs/projet-android-genere/`
   (arborescence versionnée de sources générées).
 - Conséquence mesurée côté appareil : faux « cannot be resolved » sur `R.*` et binding
   avant build (E1–E4 de `INTEGRATION-CODEIDE.md` ; H1 hôte « classpath réel à t+123,9 s »).
 - **Écart Android Studio** : référentiel de ressources + classes light
-  (`docs/etudes/niveau-android-studio/02-reference-android-studio.md` §B8–B9).
+  (`lsp-java/docs/etudes/niveau-android-studio/02-reference-android-studio.md` §B8–B9).
 
 ### 1.2 H2 — Seules les sources `.java` `[CONFIRMÉ]`
 
@@ -80,7 +80,7 @@ Résumé ; détail et preuves dans les sections suivantes.
 
 ### 1.3 H3 — Modèle de projet trop pauvre `[CONFIRMÉ]`
 
-`model/src/main/kotlin/jo/codeide/lsp/model/ProjetLsp.kt:66–79` — `ModuleLsp` porte
+`socle/model/src/main/kotlin/jo/codeide/lsp/model/ProjetLsp.kt:66–79` — `ModuleLsp` porte
 exactement : `nom`, `type`, `variante`, `sources` (principal/test/générés, l. 93–96),
 `classpath`, `dependancesModules`, `androidJar`, `ignore`, `raisonIgnore`,
 `avertsements`, `compatibiliteSource`, `compatibiliteCible`, `empreinte`.
@@ -116,7 +116,7 @@ aucune activation conditionnelle du binding, aucune navigation ressource.
   posées ; annotations `androidx.annotation`/`org.jetbrains.annotations` ignorées),
   pas d'analyse de **code mort/redondant**, pas d'inspections maison : l'option 1b
   « contrat d'inspection » de l'ADR 0013 est restée à l'état de proposition
-  (l'ADR 0013 est toujours « Proposé », `docs/adr/0013` en-tête).
+  (l'ADR 0013 est toujours « Proposé », `lsp-java/docs/adr/0013` en-tête).
 - Le `diagnostics/Diagnostic` moteur (`diagnostics/TypesDiagnostics.kt:66–72`) porte :
   sévérité, message, plage, code, arguments — pas de `relatedInformation`,
   pas de `codeDescription`, pas de source (« ecj » vs « inspection »).
@@ -148,7 +148,7 @@ aucune activation conditionnelle du binding, aucune navigation ressource.
 - `protocole/CapacitesServeur.kt:229` : `optionsActions.codeActionKinds =
   listOf(CodeActionKind.QuickFix)` — pas de `source.*` ni `refactor.*`.
   `organizeImports` existe en API moteur (`MoteurJava.kt:1145`) mais n'est pas exposé au
-  fil LSP (écart M3 confirmé, `docs/ECARTS-SERVEUR.md` §2).
+  fil LSP (écart M3 confirmé, `lsp-java/docs/ECARTS-SERVEUR.md` §2).
 - Absents (vérifié `actionscode/` : 8 fichiers) : génération de code
   (getters/setters/constructeur/equals/hashCode/toString/override), extraction
   (méthode/variable/constante/paramètre), inline, change signature, conversions
@@ -199,7 +199,7 @@ Découverte importante de l'audit : **le moteur sait déjà faire du multi-fichi
 - Le marqueur et l'échelle comparent favorablement au mécanisme de la référence
   (copie du fichier + identifiant factice — même invention, `ADR 0012` ;
   `02-reference…` §A2) mais restent **textuels** : le risque M6 (lambda dans la queue)
-  est documenté (`docs/ECARTS-SERVEUR.md` §2 M6).
+  est documenté (`lsp-java/docs/ECARTS-SERVEUR.md` §2 M6).
 - `[NON VÉRIFIÉ]` : taux d'échec de classification sur frappe réelle → propriété P6 +
   protocole de captures (06-protocole-captures-android-studio.md).
 
@@ -238,14 +238,14 @@ sont **au niveau** ; c'est la **couverture des contextes** qui est en retrait
 
 ### 1.11 H11 — Les bancs mesurent la parité, pas la qualité AS `[CONFIRMÉ]`
 
-- `bancs/baselines/completion.json` : corpus « completion-n2 v1 (**18 positions**) »,
+- `lsp-java/bancs/baselines/completion.json` : corpus « completion-n2 v1 (**18 positions**) »,
   d8 recall/top-1/MRR = **1,000/1,000/1,000** — un corpus minuscule donne des métriques
   saturées ; le risque n°5 de la synthèse PSI (sur-apprentissage) est **avéré par
   construction** (aucun split train/éval dans la baseline, lue intégralement).
-- `bancs/baselines/parite-completion.json` : l'oracle de parité croisée est le
+- `lsp-java/bancs/baselines/parite-completion.json` : l'oracle de parité croisée est le
   **vendored** (165 deltas arbitrés) — les défauts de l'ancien moteur (fiche 054,
   `references` mono-doc) sont reproduits en parité stricte (§10.4).
-- Le cahier (`docs/cahier-specifications/`, 65 fiches / 449 comportements) est extrait
+- Le cahier (`lsp-java/docs/cahier-specifications/`, 65 fiches / 449 comportements) est extrait
   des tests de l'ancien moteur : c'est le **contrat de réécriture**, pas une vérité
   terrain « niveau Android Studio ». **Il manque** : corpus réel, métriques FP/FN,
   positions de complétion réelles étiquetées → c'est l'objet de l'ADR « Qualité mesurée »
@@ -253,9 +253,9 @@ sont **au niveau** ; c'est la **couverture des contextes** qui est en retrait
 
 ### 1.12 H12 — Incohérences par propriétés `[CONFIRMÉ — banc livré ET exécuté]`
 
-Aucun test de propriété/métamorphique n'existait (audit de `java/src/test` : tests de
+Aucun test de propriété/métamorphique n'existait (audit de `lsp-java/moteur/src/test` : tests de
 parité cahier uniquement). Le banc P1–P8 est **livré** en vague 0
-(`java/src/test/kotlin/jo/codeide/lsp/java/coherence/`) et a été **exécuté** (JVM
+(`lsp-java/moteur/src/test/kotlin/jo/codeide/lsp/java/coherence/`) et a été **exécuté** (JVM
 de bureau, 23 tests / 0 échec / 1 gate ignorée — corpus réel absent en local,
 raison affichée). **Baseline d'écart mesurée** (violations classées par cause
 racine, imprimées dans les logs de test) :
@@ -285,7 +285,7 @@ racine, imprimées dans les logs de test) :
 
 ### 1.13 H13 — Verrou global + worker unique `[CONFIRMÉ]`
 
-- **82 occurrences** de `synchronized` dans `java/src/main` (comptage `rg -o
+- **82 occurrences** de `synchronized` dans `lsp-java/moteur/src/main` (comptage `rg -o
   'synchronized' --no-filename | wc -l`), dont **46** dans `MoteurJava.kt` seul :
   chaque API publique (`MoteurJava.kt:248` à `:1466`) est `synchronized(this)` — un
   **moniteur d'instance** par moteur.
@@ -499,8 +499,8 @@ relatives annoncées par l'étude PSI (D9 : fidélité compilateur = atout diff�
 
 Cinq projets Android **Java**, licences permissives, épingle par `git ls-remote`
 (exécuté le 31/10/2026 — SHA réels) ; rôles et licence inscrits au registre
-(`docs/PROVENANCE-REPRISE.md` §Corpus) ; téléchargement par script
-(`scripts/telecharger-corpus-android.sh`), **jamais de binaire commité** :
+(`lsp-java/docs/PROVENANCE-REPRISE.md` §Corpus) ; téléchargement par script
+(`lsp-java/scripts/telecharger-corpus-android.sh`), **jamais de binaire commité** :
 
 | Projet | Licence | Rôle corpus | Commit épinglé |
 |---|---|---|---|

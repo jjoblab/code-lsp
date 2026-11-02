@@ -1,6 +1,6 @@
 # Fiche 041 — SourceFocuserTest
 
-> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/java/src/test/java/jo/lspjava/ecj/SourceFocuserTest.java`.
+> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/lsp-java/moteur/src/test/java/jo/lspjava/ecj/SourceFocuserTest.java`.
 > **Domaine** : caches-perf
 > **Résumé** : Valide `SourceFocuser` (technique de focalisation du source, à la java-language-server) : réduire un gros source en effaçant les CORPS des méthodes hors du caret (remplacés par un bloc vide `{}`) pour accélérer les opérations de binding, tout en préservant intégralement la méthode contenant l'offset et les SIGNATURES de toutes les méthodes (résolution de surcharges/héritage). Éprouve aussi la robustesse de l'appariement d'accolades face aux strings/commentaires, le non-focal hors méthode, et la traduction inverse `mapBack` (positions réduites → originales), y compris à l'intérieur des jetons insérés. Fixtures : classes de 3 méthodes de 200–400 lignes générées (sources > 2 000 caractères).
 

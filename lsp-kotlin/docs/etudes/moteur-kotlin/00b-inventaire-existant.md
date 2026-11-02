@@ -6,7 +6,7 @@
 > — script `scripts/metriques-kotlin.sh` du bac à sable, rejouable) ;
 > le rôle des zones provient des **documents publics** de l'ancien dépôt
 > (`docs/LSP_KOTLIN.md`, ADR, rapports) et des **tests** (autorisés R9.1) ;
-> aucun fichier de `lsp/kotlin/src/main` n'a été ouvert pour la rédaction
+> aucun fichier de `lsp/lsp-kotlin/moteur/src/main` n'a été ouvert pour la rédaction
 > de ce document.
 >
 > Discipline R5 : chaque chiffre est étiqueté **[mesuré]** (commande
@@ -25,11 +25,11 @@
   `docs/INTEGRATION-CODEIDE-LSP-KOTLIN.md` (123 l.),
   `docs/LSP_MATRICE_CAPACITES.md` (114 l.), ADR 0094/0115/0119/0202/0203/
   0205/0210/0213/0216/0221/0228 (et ADR citées par renvoi : 0211/0212/0214/
-  0217–0220/0222/0223/0226/0227/0229–0232/0233), `lsp/kotlin/src/test/**`
-  (53 fichiers, lecture intégrale autorisée), `lsp/kotlin/build.gradle.kts`,
-  `lsp/kotlin/src/main/vendor/VENDOR.md` (notice de vendoring — document,
+  0217–0220/0222/0223/0226/0227/0229–0232/0233), `lsp/lsp-kotlin/moteur/src/test/**`
+  (53 fichiers, lecture intégrale autorisée), `lsp/lsp-kotlin/moteur/build.gradle.kts`,
+  `lsp/lsp-kotlin/moteur/src/main/vendor/VENDOR.md` (notice de vendoring — document,
   pas du code), `docs/THIRD_PARTY_NOTICES.md`.
-- **Interdits respectés** : `lsp/kotlin/src/main` (hors `VENDOR.md` et
+- **Interdits respectés** : `lsp/lsp-kotlin/moteur/src/main` (hors `VENDOR.md` et
   métriques `wc`) — aucune ligne de code de production lue ; aucun projet
   GPL/AGPL consulté (R6.2) ; le « projet tiers de référence » GPL-3.0 cité
   par `LSP_KOTLIN.md` §2 n'a **pas** été consulté (R9.4).
@@ -71,7 +71,7 @@ fichiers non-Kotlin exclus du comptage).
 
 | Mesure | Valeur | Commande |
 |---|---|---|
-| Fichiers de test | **53** | `find lsp/kotlin/src/test -name '*Test.kt' \| wc -l` |
+| Fichiers de test | **53** | `find lsp/lsp-kotlin/moteur/src/test -name '*Test.kt' \| wc -l` |
 | Lignes de test | **15 853** | `find … -exec cat {} + \| wc -l` |
 | Méthodes `@Test` | **469** | `rg -t kotlin --count-matches '@Test\b'` |
 | `@Disabled`/`@Ignore` déclarés | 0 (annotation) | scan — tests « ignorés » via hypothèses/environnement (`REPRO_COMPOSE_DIR`…), cf. rapports |
@@ -94,12 +94,12 @@ l'historique de correction vit dans les tests), `classpath/` 4,
   (1 724 l.), `KDocFlexLexer.kt` (1 052 l.)… [mesuré]
 - **Zéro modification locale** (ADR 0115 : « octet pour octet ») ; le
   re-sync est un remplacement scripté
-  (`scripts/vendor-grammaire-kotlin.sh` de l'ancien dépôt).
+  (`lsp-kotlin/scripts/vendor-grammaire-kotlin.sh` de l'ancien dépôt).
 - Dépendances binaires amont : `org.jetbrains:syntax-api:0.3.340` +
   `org.jetbrains:annotations:26.0.2` (intellij-dependencies, Apache-2.0)
   [notice tierce de l'ancien dépôt].
 
-### 1.4 Dépendances du module [mesuré — `lsp/kotlin/build.gradle.kts`]
+### 1.4 Dépendances du module [mesuré — `lsp/lsp-kotlin/moteur/build.gradle.kts`]
 
 | Artefact | Portée | Licence | Rôle |
 |---|---|---|---|
@@ -264,7 +264,7 @@ vérifier la matrice : ligne « Super-définition ✅ ⚠ Java / ❌ Kotlin » �
 
 ## 4. Cahier de spécifications (renvoi)
 
-Extrait **des tests uniquement** (R9.5) : `docs/cahier-specifications-kotlin/`
+Extrait **des tests uniquement** (R9.5) : `lsp-kotlin/docs/cahier-specifications-kotlin/`
 — 53 fiches (une par classe de test), 469 comportements, chacun classé
 **conforme à la spécification Kotlin / heuristique / contradictoire**.
 C'est le contrat de toute voie A (réécriture) ou C (hybride).
@@ -300,9 +300,9 @@ parité mesurable face à K2) — pas dans la correction de défauts massifs
 ## 6. Demandes d'interface (renvoi)
 
 Toute évolution nécessaire de `:model`/`:index` (partagés avec Java) est
-consignée dans `docs/etudes/moteur-kotlin/DEMANDES-INTERFACE.md` —
+consignée dans `lsp-kotlin/docs/etudes/moteur-kotlin/DEMANDES-INTERFACE.md` —
 arbitrage propriétaire (R3).
 
 ## 7. Alertes (renvoi)
 
-Écarts entre le prompt et la réalité vérifiée : `docs/etudes/moteur-kotlin/ALERTES.md`.
+Écarts entre le prompt et la réalité vérifiée : `lsp-kotlin/docs/etudes/moteur-kotlin/ALERTES.md`.

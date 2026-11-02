@@ -1,6 +1,6 @@
 # Fiche 054 — JavaL4BoutEnBoutTest
 
-> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/java/src/test/java/jo/lspjava/lsp/JavaL4BoutEnBoutTest.java`.
+> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/lsp-java/moteur/src/test/java/jo/lspjava/lsp/JavaL4BoutEnBoutTest.java`.
 > **Domaine** : autre
 > **Résumé** : Suite E2E multi-capacités du « lot L4 » (colonne « preuve E2E » de la matrice de capacités) : aller-retours LSP4J réels sur des capacités non couvertes par les suites existantes — formatage du document ENTIER, références, symboles de document, prepareRename+rename, surlignage d'occurrences, superDefinition et decompiledSource (méthodes expérimentales). Domaine « autre » car volontairement transversal (formatage, navigation, rename, sources binaires) — chaque comportement porte son propre périmètre. Fixtures : classe `T` mal indentée (`int x=1; total+=x;`), `Base`/`Derivee` (redéfinition), `T`+`U` (appel inter-fichiers), `java.lang.String` (binaire JDK). Montage : serveur réel sur un dossier `@TempDir`, classpath remplacé après initialize par `android.jar` réel — hypothèse visible : sans `android.jar`, tests ignorés.
 

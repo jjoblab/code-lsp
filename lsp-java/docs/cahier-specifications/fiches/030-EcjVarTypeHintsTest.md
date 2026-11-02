@@ -1,6 +1,6 @@
 # Fiche 030 — EcjVarTypeHintsTest
 
-> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/java/src/test/java/jo/lspjava/ecj/EcjVarTypeHintsTest.java` (la classe interne se nomme `JdtVarTypeHintsTest`).
+> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/lsp-java/moteur/src/test/java/jo/lspjava/ecj/EcjVarTypeHintsTest.java` (la classe interne se nomme `JdtVarTypeHintsTest`).
 > **Domaine** : hover-inlay
 > **Résumé** : Tests des inlay hints de TYPE des déclarations `var` (`typeHintsFor`) : le type RÉEL de l'initialiseur (appel de méthode, référence générique, enhanced-for) est affiché et ancré juste après le NOM de la déclaration, avant le « = ». Les déclarations typées explicitement ne sont pas annotées, et un « var » dans une chaîne littérale n'est pas une déclaration. Corpus : classe `demo.Main` dont le corps est injecté (avec `import java.util.List`).
 

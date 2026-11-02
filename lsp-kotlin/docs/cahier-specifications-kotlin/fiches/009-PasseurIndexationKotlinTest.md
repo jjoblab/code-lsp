@@ -1,6 +1,6 @@
 # Fiche 009 — PasseurIndexationKotlinTest
 
-> **Source** : `codeide-lsp` @ `bc11253` — `lsp/kotlin/src/test/kotlin/jo/lspkotlin/index/PasseurIndexationKotlinTest.kt` (6 tests, 324 l.).
+> **Source** : `codeide-lsp` @ `bc11253` — `lsp/lsp-kotlin/moteur/src/test/kotlin/jo/lspkotlin/index/PasseurIndexationKotlinTest.kt` (6 tests, 324 l.).
 > **Domaine** : index-classpath
 > **Résumé** : Tests du PILOTE de passages d'indexation Kotlin (ADR 0211/0213/0214 — demandes D1/D3/D4/D5 de CodeIDE) : SÉQUENCE d'événements (bibliothèques puis sources puis PRET/PARTIEL), ANNULATION coopérative (PARTIEL « annulé par l'utilisateur », l'acquis est publié), REPRISE ciblée (les entrées saines deviennent REPRIS du cache, seuls les échecs sont re-payés) et no-op chaud des syncs redondantes. Le stdli
 > **Convention** : chaque comportement porte le **nom exact du test source** (identifiant de traçabilité) ; l'attendu le reformule en français lisible, enrichi du contrat D3 quand le nom le porte. Le résumé ci-dessus décrit le contrat de la classe de test.

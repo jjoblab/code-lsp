@@ -1,6 +1,6 @@
 # Fiche 050 — SessionLangageKotlinPreviewsTest
 
-> **Source** : `codeide-lsp` @ `bc11253` — `lsp/kotlin/src/test/kotlin/jo/lspkotlin/session/SessionLangageKotlinPreviewsTest.kt` (16 tests, 527 l.).
+> **Source** : `codeide-lsp` @ `bc11253` — `lsp/lsp-kotlin/moteur/src/test/kotlin/jo/lspkotlin/session/SessionLangageKotlinPreviewsTest.kt` (16 tests, 527 l.).
 > **Domaine** : autre
 > **Résumé** : Tests du contrat de session C1 (preview Compose — `previews(uri)`, PREVIEW.md §4.4) — par le SPI (chemin de production D6) : la preuve FQCN des annotations PAR LES IMPORTS, les paramètres `@Preview` tranchés dans la source, la réduction du corps en ARBRE D'APPELS (littéraux distingués, lambda final = contenu, expressions honnêtes), l'INLINING des composables du projet (cycles, budgets, paramétrés,
 > **Convention** : chaque comportement porte le **nom exact du test source** (identifiant de traçabilité) ; l'attendu le reformule en français lisible, enrichi du contrat D3 quand le nom le porte. Le résumé ci-dessus décrit le contrat de la classe de test.

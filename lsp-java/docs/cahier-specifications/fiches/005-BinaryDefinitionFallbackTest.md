@@ -1,6 +1,6 @@
 # Fiche 005 — BinaryDefinitionFallbackTest
 
-> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/java/src/test/java/jo/lspjava/ecj/BinaryDefinitionFallbackTest.java`.
+> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/lsp-java/moteur/src/test/java/jo/lspjava/ecj/BinaryDefinitionFallbackTest.java`.
 > **Domaine** : navigation
 > **Résumé** : Câblage LSP du fallback « GO TO definition / type definition sur cible binaire » : résolution du FQN au caret (`fqcnAt` : type déclarant pour `targetType=false` / definition, type du symbole pour `targetType=true` / typeDefinition) et identification binaire (`isBinaryType`) pour des références à des types du JDK (`java.util.HashMap`, `java.lang.String`, `java.lang.Thread`) — le serveur renvoie alors une Location `jdt://decompiled/...`. La plupart des tests ne tournent que si le JDK home contient `lib/src.zip` ou `lib/modules` (Temurin 17 en CI) — condition `@EnabledIf("hasTestJdk")`.
 

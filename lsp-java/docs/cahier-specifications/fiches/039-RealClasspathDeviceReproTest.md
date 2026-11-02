@@ -1,6 +1,6 @@
 # Fiche 039 — RealClasspathDeviceReproTest
 
-> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/java/src/test/java/jo/lspjava/ecj/RealClasspathDeviceReproTest.java`.
+> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/lsp-java/moteur/src/test/java/jo/lspjava/ecj/RealClasspathDeviceReproTest.java`.
 > **Domaine** : diagnostics
 > **Résumé** : Variante HAUTE FIDÉLITÉ du repro device : le VRAI classpath complet (export `model.json` réel du projet CodeIDE — 91 jars + boot + sourceSets) avec les conditions EXACTES du device, dont l'ordre des racines sources (racine projet EN PREMIER, puis `app/src/main/java`). Verrouille la régression off-by-one d'indexation (un type du android.jar du boot, placé en fin de liste après 2 jars écartés, doit résoudre) et l'effondrement du bruit diagnostique : un MainActivity propre avec classpath complet ne doit plus produire de mur de ~31 diagnostics. Fixture : source `MainActivity` (paquet `com.example.r`, `extends AppCompatActivity`, `setContentView(R.layout.activity_main)`) ; parsing ad hoc du model.json (regex sur `compileClasspath`, `bootClasspath`, `javaDirs`) car org.json indisponible.
 

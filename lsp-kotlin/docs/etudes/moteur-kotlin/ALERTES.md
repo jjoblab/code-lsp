@@ -107,14 +107,14 @@
   passes constatée par l'étude Java — AL6 Java).
 - **E-K5 — Écart de procédure R9.1 pendant la vague 1c (30/10/2026)** :
   en cadrant la vague 1c (scan projet paresseux), l’implémenteur a lu par
-  erreur `codeide-lsp:lsp/kotlin/src/main/kotlin/jo/lspkotlin/session/
+  erreur `codeide-lsp:lsp/lsp-kotlin/moteur/src/main/kotlin/jo/lspkotlin/session/
   ScanProjet.kt` (implémentation source) — zone NOYAU en **lecture
   interdite** (R9.1 maintenu par l’ADR 0100 : le noyau se réécrit du
   cahier, en boîte noire). Le test source `ScanProjetTest.kt` était, lui,
   en consultation LÉGITIME (base du cahier, R9.5). Faits : (a) la lecture a
   porté sur l’implémentation complète (~550 l.) avant que l’interdit ne
   soit relevé ; (b) aucune ligne n’est copiée — le code livré
-  (`kotlin/src/main/kotlin/jo/codeide/lsp/kotlin/session/
+  (`lsp-kotlin/moteur/src/main/kotlin/jo/codeide/lsp/kotlin/session/
   ScanProjetParesseux.kt`) est écrit neuf, dans les conventions du module,
   et l’écart est tracé dans son en-tête ; (c) la CONVERGENCE inévitable de
   certains mécanismes (vol unique, cache mtime, marche avant parse) tient
@@ -131,7 +131,7 @@
   DÉTERMINISTE sur une assertion de TEMPO sans tolérance
   (`chaudMs <= froidMs` — réouverture chaude pas plus lente que la
   construction à froid). Constats : échec sur la tentative 1 du run CI
-  `41004282232` (commit `6df996c`, dont le diff ne touche QUE `kotlin/` et
+  `41004282232` (commit `6df996c`, dont le diff ne touche QUE `lsp-kotlin/moteur/` et
   `docs/`) ; reproduit localement sur code inchangé (1 échec sur 4 passes
   `:testing:test --rerun-tasks`) ; le fichier est intact depuis l'étage N1
   Java (commit `ce291dc`). La relance du job a rendu la tentative 2 VERTE

@@ -1,6 +1,6 @@
 # Fiche 045 — CompatShimsTest
 
-> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/java/src/test/java/jo/lspjava/ecj/compat/CompatShimsTest.java`.
+> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/lsp-java/moteur/src/test/java/jo/lspjava/ecj/compat/CompatShimsTest.java`.
 > **Domaine** : shims-art
 > **Résumé** : Filet de non-régression des shims ART (`ArtCompatVersion`, `ArtCompatInputStream`, `ArtCompatStackWalker`) — cibles des réécritures bytecode du jar ecJ (`:lsp:ecj-art`, traitement D3 lot 1, ADR 0110 §5.3), réécrits depuis la spécification JDK. Valide : l'ordre des versions (avec la divergence assumée « 1.8 » < « 9 » par rapport à `Runtime.Version.parse` qui normaliserait 1.8→8), le `toString` brut, le rejet des formats malformés, les sémantiques `readAllBytes`/`readNBytes` (y compris flux plus grand que le tampon interne) et `getCallerClass` (saute le shim puis la méthode invoquante).
 

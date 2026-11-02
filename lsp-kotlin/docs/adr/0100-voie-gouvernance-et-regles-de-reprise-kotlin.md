@@ -22,8 +22,8 @@ meilleur rapport coût/risque/valeur. Comparaison à armes égales :
 
 ## Sources consultées
 
-- `jjoblab/codeide-lsp` @ `bc11253` (lecture seule) : `docs/LSP_KOTLIN.md`, rapports d'audit et faux positifs, ADR 0094–0233, `lsp/kotlin/src/test/**` (53 fichiers — base du cahier), métriques d'outil (`00b-inventaire-existant.md` §1).
-- `jjoblab/code-lsp` @ `etude/moteur-kotlin` : cahier `docs/cahier-specifications-kotlin/` (53 fiches, 469 comportements), étude amont `01-architectures-analyse-kotlin.md`, spike `02-spike-mesures.md`, manifeste `docs/PROVENANCE-REPRISE-KOTLIN.md`.
+- `jjoblab/codeide-lsp` @ `bc11253` (lecture seule) : `docs/LSP_KOTLIN.md`, rapports d'audit et faux positifs, ADR 0094–0233, `lsp/lsp-kotlin/moteur/src/test/**` (53 fichiers — base du cahier), métriques d'outil (`00b-inventaire-existant.md` §1).
+- `jjoblab/code-lsp` @ `etude/moteur-kotlin` : cahier `lsp-kotlin/docs/cahier-specifications-kotlin/` (53 fiches, 469 comportements), étude amont `01-architectures-analyse-kotlin.md`, spike `02-spike-mesures.md`, manifeste `lsp-kotlin/docs/PROVENANCE-REPRISE-KOTLIN.md`.
 - `JetBrains/kotlin` @ `e3806c8f` (lecture seule, Apache-2.0) : tailles et conception (§0 de l'étude).
 - Précédent Java : ADR 0001/0002/0004 du dépôt (réécriture intégrale, 160–270 j-h, `PLAN-REECRITURE.md`).
 
@@ -94,7 +94,7 @@ et exécutable (les livrables sont neutres : cahier, manifeste, spike).
 
 - Si C : deux régimes de provenance — le manifeste Kotlin devient le
   document d'audit central ; la CI anti-fichier-hors-registre devra être
-  étendue à `kotlin/` (vague 0).
+  étendue à `lsp-kotlin/moteur/` (vague 0).
 - Le cahier (469 comportements) est le contrat des voies A et C ;
   l'oracle boîte noire (artefact 1.22.1) reste la référence de parité
   pour toutes les voies.

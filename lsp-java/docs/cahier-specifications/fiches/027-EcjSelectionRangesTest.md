@@ -1,6 +1,6 @@
 # Fiche 027 — EcjSelectionRangesTest
 
-> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/java/src/test/java/jo/lspjava/ecj/EcjSelectionRangesTest.java`.
+> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/lsp-java/moteur/src/test/java/jo/lspjava/ecj/EcjSelectionRangesTest.java`.
 > **Domaine** : navigation (fiche mixte : chaîne de sélection + cible de formatage à la frappe)
 > **Résumé** : Tests du lot S2-b (moteur) : la chaîne de sélection (`selectionRange`) et la cible de formatage à la frappe (`onTypeFormatting`). La chaîne doit être STRICTEMENT croissante en longueur (chaque niveau contient strictement le précédent — contrat LSP 3.17 pour `parent`) et couvrir l'escalade complète jeton → expression → instruction → bloc → déclaration → type → unité. La cible de formatage doit tomber sur la construction qui SE TERMINE au caractère tapé (`}` → bloc/méthode, `;` → instruction). Fixture : `demo.Main` avec champ `total`, méthode `somme(int, int)` et méthode `malIndente()` au corps mal indenté.
 

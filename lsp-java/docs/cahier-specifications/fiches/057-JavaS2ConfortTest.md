@@ -1,6 +1,6 @@
 # Fiche 057 — JavaS2ConfortTest
 
-> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/java/src/test/java/jo/lspjava/lsp/JavaS2ConfortTest.java`.
+> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/lsp-java/moteur/src/test/java/jo/lspjava/lsp/JavaS2ConfortTest.java`.
 > **Domaine** : formatage
 > **Résumé** : Lot S2-a « confort structurel » : formatage de SÉLECTION (`rangeFormatting` — capacité déclarée, éditions bornées à la plage demandée, code hors plage jamais touché, garde lifecycle) et survol riche (`hover` — signature seule → PLAINTEXT ; signature + javadoc → MARKDOWN ; la forme MarkedString-string dépréciée est proscrite). Domaine formatage car majoritaire (3 tests sur 5) ; les 2 tests de survol relèvent de hover-inlay. Fixtures : classe `T` à deux méthodes mal indentées (`a()` hors sélection, `b()` ciblée) et classe `H` avec javadoc (`somme` documentée, `doubleSomme` qui l'appelle, `sansDoc` sans doc). Serveur réel SANS classpath — aucun android.jar requis.
 

@@ -1,6 +1,6 @@
 # Fiche 031 — ExternalJrtTest
 
-> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/java/src/test/java/jo/lspjava/ecj/ExternalJrtTest.java`.
+> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/lsp-java/moteur/src/test/java/jo/lspjava/ecj/ExternalJrtTest.java`.
 > **Domaine** : index-classpath
 > **Résumé** : Tests du jrt EXTERNE : résolution des classes java.* depuis un JDK autre que le runtime courant (typiquement Java 21 système pendant que le build tourne sous Java 17), via son `lib/jrt-fs.jar` — le chemin réel sur Android/ART où le JDK Termux est externe à l'app. Le chargement passe par URLClassLoader + ServiceLoader du fournisseur jrt. Deux tests sont conditionnés par la présence du JDK externe à chemin fixe (`/usr/lib/jvm/java-21-openjdk-amd64`, détecté par `lib/modules` présent) ; le troisième vérifie le repli vers le jrt du runtime courant.
 

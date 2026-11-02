@@ -21,7 +21,7 @@ avéré par construction, risque n°5 de la synthèse PSI) : ils ne disent rien 
 qualité « niveau Android Studio » (H11). Il manque : un corpus **réel**, des
 métriques de **faux positifs/faux négatifs**, des positions de complétion étiquetées,
 et des **propriétés d'incohérence** (P1–P8) exécutables en CI. La vague 0 de cette
-mission livre déjà : le banc P1–P8 (`java/src/test/…/coherence/`), le corpus 5 projets
+mission livre déjà : le banc P1–P8 (`lsp-java/moteur/src/test/…/coherence/`), le corpus 5 projets
 (commit épinglés, script de téléchargement), le protocole de captures Android Studio
 (06), le gabarit de mesure appareil (07). Cet ADR en fixe le **cadre permanent**.
 
@@ -32,7 +32,7 @@ mission livre déjà : le banc P1–P8 (`java/src/test/…/coherence/`), le corp
 - `02-reference-android-studio.md` §A2 (métriques de la référence : +10 % sélection
   ML — le genre de chiffre que nos bancs doivent pouvoir trancher), §A7 (divergences
   documentées de la référence — notre P3 mesure les nôtres).
-- `docs/RECALAGE-1/2.md` (méthode de mesure honnête, variabilité p95 — ±×1,5,
+- `lsp-java/docs/RECALAGE-1.md et RECALAGE-2.md` (méthode de mesure honnête, variabilité p95 — ±×1,5,
   passes communes exigées).
 - ADR 0025 (P1/P2/P8 deviennent gates), ADR 0026 (banc qualité étendu).
 

@@ -3,7 +3,7 @@
 > **Base de spécification pour la décision ADR 0100** (voie A réécriture
 > intégrale ou voie C hybride — le cahier est « en main » dans les deux cas).
 > Méthode : R9.5 du prompt de mission — extraction **des tests uniquement**,
-> miroir de la méthode du cahier Java (`docs/cahier-specifications/`,
+> miroir de la méthode du cahier Java (`lsp-java/docs/cahier-specifications/`,
 > 65 fiches / 449 comportements, exécutée avec succès en vague 1a Java).
 
 ## 1. Règle clean-room (ABSOLUE)
@@ -11,7 +11,7 @@
 Les fiches sont rédigées **exclusivement** à partir de :
 
 - ✅ les **fichiers de test** listés dans `INVENTAIRE.md`
-  (`lsp/kotlin/src/test/**` de `codeide-lsp` @ `bc11253`, lecture seule —
+  (`lsp/lsp-kotlin/moteur/src/test/**` de `codeide-lsp` @ `bc11253`, lecture seule —
   KDoc de classe + noms des méthodes `@Test`, extraits par script) ;
 - ✅ la **documentation publique** de l'ancien dépôt : `docs/LSP_KOTLIN.md`,
   ADR 0094/0115/0119/0202–0233, `docs/RAPPORT-AUDIT-KOTLIN-LSP.md`,
@@ -22,7 +22,7 @@ Les fiches sont rédigées **exclusivement** à partir de :
 
 Interdit pendant la rédaction des fiches :
 
-- ❌ lire `lsp/kotlin/src/main/kotlin` (code de production — R9.1) ;
+- ❌ lire `lsp/lsp-kotlin/moteur/src/main/kotlin` (code de production — R9.1) ;
 - ❌ consulter le moteur en boîte noire pour « compléter » une fiche : la
   fiche reflète **le test**, pas le comportement implémenté au-delà des
   tests (l'oracle boîte noire intervient plus tard, au banc de parité,

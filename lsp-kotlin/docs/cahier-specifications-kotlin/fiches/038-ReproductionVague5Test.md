@@ -1,6 +1,6 @@
 # Fiche 038 — ReproductionVague5Test
 
-> **Source** : `codeide-lsp` @ `bc11253` — `lsp/kotlin/src/test/kotlin/jo/lspkotlin/session/ReproductionVague5Test.kt` (8 tests, 511 l.).
+> **Source** : `codeide-lsp` @ `bc11253` — `lsp/lsp-kotlin/moteur/src/test/kotlin/jo/lspkotlin/session/ReproductionVague5Test.kt` (8 tests, 511 l.).
 > **Domaine** : completion
 > **Résumé** : REPRODUCTION des familles de la VAGUE 5 (retour utilisateurs 25/10/2026 — backlog RETOURS §4, items 1 et 2) : 1. RÉCEPTEURS DE PORTÉE des lambdas de scope — le paramètre `content: RowScope.() -> Unit` de Compose `Row { … }` prête RowScope comme this IMPLICITE (U1 « weight »/« align ») : membre NU et MEMBRE-EXTENSION (`Modifier.weight(1f)` — weight vit DANS RowScope, le récepteur d'extension est le
 > **Convention** : chaque comportement porte le **nom exact du test source** (identifiant de traçabilité) ; l'attendu le reformule en français lisible, enrichi du contrat D3 quand le nom le porte. Le résumé ci-dessus décrit le contrat de la classe de test.

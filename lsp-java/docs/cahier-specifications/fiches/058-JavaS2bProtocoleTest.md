@@ -1,6 +1,6 @@
 # Fiche 058 — JavaS2bProtocoleTest
 
-> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/java/src/test/java/jo/lspjava/lsp/JavaS2bProtocoleTest.java`.
+> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/lsp-java/moteur/src/test/java/jo/lspjava/lsp/JavaS2bProtocoleTest.java`.
 > **Domaine** : cycle-vie-lsp
 > **Résumé** : Lot S2-b « confort structurel restant » : protocole bout-en-bout à travers le serveur réel — `selectionRange` (chaîne strictement croissante), `onTypeFormatting` (« } » reformate le bloc fermé seul), `codeLens` (une lens par déclaration + `resolve` avec comptage de références), hiérarchies de types et d'appels (`prepareTypeHierarchy`/supertypes/subtypes, `prepareCallHierarchy`/incoming/outgoing, localisation SOURCE), `filterText` de complétion (I12) et garde lifecycle I2 (rejets avant initialize) — c'est cette exécution via le cycle de vie réel du serveur qui motive le domaine. Fixtures : classe `T` mal indentée, `Base`/`Appelant` (`b.utilise(3)`), `Base2`/`Enfant2` (héritage). Montage SANS classpath (fichiers sources écrits sur disque avant création du serveur) — aucun android.jar requis.
 

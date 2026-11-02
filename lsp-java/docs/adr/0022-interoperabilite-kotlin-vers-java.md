@@ -20,7 +20,7 @@ ses index de stubs ; côté ecj, un `.kt` compilé se lit par ses métadonnées 
 ## Sources consultées
 
 - `01-audit-moteur.md` §1.2 (preuves des filtres `.java`), §3.5 (usages).
-- `docs/ECARTS-SERVEUR.md` §5 D3 (périmètre : habitat Java seulement, instruction du
+- `lsp-java/docs/ECARTS-SERVEUR.md` §5 D3 (périmètre : habitat Java seulement, instruction du
   30/10/2026).
 - ADR 0008 (index de stubs disque CIDX), ADR 0002 (périmètre moteur Java).
 - Documentation publique du format `kotlin.Metadata` (spécification Kotlin) —

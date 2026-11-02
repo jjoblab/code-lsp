@@ -25,7 +25,7 @@ est déjà tombée : **980 FP / 34 934 l. = 28,05 FP/1 000 lignes, FN = 0**
 - ADR Java 0030 (option 1 : corpus épinglé + split train/éval + P1–P8 en
   gates + baselines signées ; seuils D5 : FP/1 000 < 0,5, top-1 ≥ 0,80,
   P6 ≥ 99 % — approuvés 31/10, arbitré par la passe 1).
-- `bancs/corpus-android-kotlin/LISEZMOI.md` (protocole des manifestes).
+- `lsp-kotlin/bancs/corpus-android-kotlin/LISEZMOI.md` (protocole des manifestes).
 
 ## Options
 

@@ -1,6 +1,6 @@
 # Fiche 053 — ImportCompletionIntegrationTest
 
-> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/java/src/test/java/jo/lspjava/lsp/ImportCompletionIntegrationTest.java`.
+> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/lsp-java/moteur/src/test/java/jo/lspjava/lsp/ImportCompletionIntegrationTest.java`.
 > **Domaine** : completion
 > **Résumé** : Test d'intégration in-process de la complétion dans un contexte d'import (repro utilisateur : après « import android. », le serveur proposait des mots-clés au lieu de la continuité du package). Vérifie la composition didChange → completion : le serveur doit détecter le contexte d'import sur le texte à jour et rendre les sous-paquets directs + les types directs, jamais des mots-clés. Montage : serveur réel initialisé avec `android.jar` seul (Java 17) sur une racine `app/src/main/java/com/example/e` (rootUri + workspaceFolders), didOpen/didChange full-sync puis requête completion. Hypothèse visible dans `@BeforeAll` : `android.jar` du SDK local présent (candidats android-34/35, `ANDROID_HOME`), sinon toute la classe est ignorée à l'exécution.
 

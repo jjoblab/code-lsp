@@ -32,7 +32,7 @@
 ## Contexte
 
 État mesuré de l'audit (H13/H14) : **82 occurrences** `synchronized` dans
-`java/src/main`, dont 46 dans `MoteurJava.kt` — un **moniteur d'instance** par moteur ;
+`lsp-java/moteur/src/main`, dont 46 dans `MoteurJava.kt` — un **moniteur d'instance** par moteur ;
 ordonnanceur à **worker unique** (`OrdonnanceurMoteur.kt:12–60`) : une complétion
 peut attendre un diagnose, les lectures de fichiers distincts ne sont pas parallèles.
 Chaque frappe re-résout l'unité réduite (`SourceFocuser` 2 000 caractères — amorti,
@@ -49,8 +49,8 @@ et l'ADR 0011 (budgets octets, onTrimMemory) sont **toujours Proposés** — non
   ADR 0006 (incrémentalité, ADR 0017 conditions), ADR 0015 (régimes).
 - `02-reference-android-studio.md` §A1 (annulation/rejeu, passes priorisées),
   §C (coûts de la référence — nos cibles de dépassement).
-- `spike/appareil/GABARIT-RESULTATS.md` (facteur ART 3–5× — borne d'estimation) ;
-  `bancs/GABARIT-BASCULE-APPAREIL.md` (modèle de gabarit).
+- `lsp-java/spike/appareil/GABARIT-RESULTATS.md` (facteur ART 3–5× — borne d'estimation) ;
+  `docs/GABARIT-BASCULE-APPAREIL.md` (modèle de gabarit).
 - Chiffres hérités des bancs signés (bornes basses JVM) : diagnose complet
   p50 11,7 ms / p95 39,8 ms ; rapide p50 1,5 ms ; S17 chaud ≈ 119 ms.
 

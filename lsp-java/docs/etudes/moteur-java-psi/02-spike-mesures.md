@@ -1,13 +1,13 @@
 # 02 — Spike de mesure (Phase 2) : PSI tient-il sur ART, et à quel prix ?
 
 > Étude « moteur Java PSI » — branche `etude/moteur-java` du dépôt `jjoblab/code-lsp`.
-> Module de mesure isolé `spike/` (aucune implémentation de production, §0 du prompt). Code neuf en Kotlin (R2). Mesures du **2026-10-28**, reproductibles via `spike/README.md`.
+> Module de mesure isolé `lsp-java/spike/` (aucune implémentation de production, §0 du prompt). Code neuf en Kotlin (R2). Mesures du **2026-10-28**, reproductibles via `lsp-java/spike/README.md`.
 
 ## 1. Question et protocole
 
 **Question (§6 du prompt)** : PSI, ou la partie utile, tient-il sur ART avec une empreinte acceptable, et à quel prix d'intégration ?
 
-**Sans appareil Android disponible**, le protocole appliqué est celui que le prompt autorise explicitement (§6) : (a) analyse statique de compatibilité ART des jars candidats (scanner maison sur les constant pools, §6), (b) mesures sur **JVM de bureau** présentées comme **limites basses**, (c) point d'entrée de benchmark appareil livré au propriétaire (`spike/appareil/`). **Aucune mesure appareil n'est prétendue.**
+**Sans appareil Android disponible**, le protocole appliqué est celui que le prompt autorise explicitement (§6) : (a) analyse statique de compatibilité ART des jars candidats (scanner maison sur les constant pools, §6), (b) mesures sur **JVM de bureau** présentées comme **limites basses**, (c) point d'entrée de benchmark appareil livré au propriétaire (`lsp-java/spike/appareil/`). **Aucune mesure appareil n'est prétendue.**
 
 **Variantes mesurées** :
 
@@ -24,7 +24,7 @@
   - `corpus/Fichier500.java` — synthétique déterministe (générateur `scripts/GenerateurCorpus.kt`, graine 42) : 498 lignes, 16 258 caractères, 5 653 jetons, 26 méthodes, 1 classe ;
   - `PsiMethodReferenceExpressionImpl.java` (494 l., 18 701 car., 4 264 jetons) et `FileUtil.java` (1 564 l., 57 793 car., 14 513 jetons), extraits du terrain d'étude `intellij-community` @ `865067b0`.
 - **Corpus de jars (20/73/250 de `LSP_JAVA.md` §4)** : non rejoués dans ce spike — ils mesurent le **moteur assemblé** (complétion, index) ; le spike mesure les briques élémentaires (parse/résolution). Les chiffres moteur font référence dans `LSP_JAVA.md` §4 (bureau : p50/p95 de frappe 30/64 ms à 20 jars → 128/150 ms à 250 jars). **À re-mesurer sur appareil** (§9).
-- **Commandes exactes** : toutes dans `spike/README.md` (téléchargement des piles, génération du corpus, compilation, exécution) ; sorties brutes consignées dans `spike/resultats/`.
+- **Commandes exactes** : toutes dans `lsp-java/spike/README.md` (téléchargement des piles, génération du corpus, compilation, exécution) ; sorties brutes consignées dans `lsp-java/spike/resultats/`.
 
 ## 3. V1 — parseur `java-syntax` seul
 
@@ -141,11 +141,11 @@ Sur fichiers réels (pile complète, `resultats/v2-reels.txt`) : parse p50 3,7 m
 3. La complétion (membres/types) et le tas « après indexation » ne sont pas mesurables dans ce spike (V1 sans sémantique, V2 sans index) — renvoi aux mesures moteur existantes + à re-mesurer sur appareil avec les corpus 20/73/250 jars ( `LSP_JAVA.md` §4 ).
 4. **Dexage D8 + comptage de méthodes dex + APK réel : en CI** (§6.a), pas en local.
 5. GC ART ( éviction des `SoftReference`, coût des `ReferenceQueue` — D12 ) : **à mesurer sur appareil**.
-6. Le point d'entrée appareil ( `spike/appareil/banc-appareil.sh` + `GABARIT-RESULTATS.md` ) fournit la procédure et le gabarit ; **aucun résultat appareil n'existe à ce jour**.
+6. Le point d'entrée appareil ( `lsp-java/spike/appareil/banc-appareil.sh` + `GABARIT-RESULTATS.md` ) fournit la procédure et le gabarit ; **aucun résultat appareil n'existe à ce jour**.
 7. La mesure d'arbre V1 ( delta de tas, 100 arbres ) est une approximation documentée ( R5 ) : ±10–20 % attendus.
 
 ## 10. Mesuré / Estimé / Non vérifié
 
-- **Mesuré** (commandes dans `spike/README.md`, sorties brutes dans `spike/resultats/`) : tous les tableaux des §3–§8 ( V1/V2/V3 : froids, p50/p95, tas, arbres ; scans ART : classes, méthodes, motifs ; tailles de piles ; taxe d'assemblage V2 : les 2 échecs et leurs correctifs ; sonde jrt-fs : 5 configurations ).
+- **Mesuré** (commandes dans `lsp-java/spike/README.md`, sorties brutes dans `lsp-java/spike/resultats/`) : tous les tableaux des §3–§8 ( V1/V2/V3 : froids, p50/p95, tas, arbres ; scans ART : classes, méthodes, motifs ; tailles de piles ; taxe d'assemblage V2 : les 2 échecs et leurs correctifs ; sonde jrt-fs : 5 configurations ).
 - **Estimé** : projections ART ( ×3–5 ) ; « ~centaine de shims » pour V2 ( comptage de motifs, réflexion invisible ) ; méthodes dex ( borne basse = déclarées ).
 - **Non vérifié / à faire sur appareil ou en CI** : dexage D8 et APK réel ; comportement GC ART ; latences V1/V2/V3 sur ART ; complétion et tas après indexation avec les corpus 20/73/250 ; conditions exactes de publication des artefacts `com.jetbrains.intellij.platform` ( ADR 0017 ) ; statut de la passe `StackWalker` du patcheur à ecj 3.40 ( ALERTES ).

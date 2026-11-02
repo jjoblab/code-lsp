@@ -1,6 +1,6 @@
 # Fiche 034 — MoteurParModuleTest
 
-> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/java/src/test/java/jo/lspjava/ecj/MoteurParModuleTest.java`.
+> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/lsp-java/moteur/src/test/java/jo/lspjava/ecj/MoteurParModuleTest.java`.
 > **Domaine** : caches-perf
 > **Résumé** : Classe du LOT E (v0.97.0, docs/LSP_JAVA.md §15.7) verrouillant le moteur **par module** de `CompilationEnvironment` : chaque module (clé = chemin Gradle) dérive son propre moteur — SON verrou, SES caches. Éprouve l'isolation des verrous (le monitor du module A tenu ne bloque plus le diagnostic du module B), l'invalidation de périmètre module (une sync Gradle de A vide le cache de parse de A SEUL), les sémantiques « replaceAll » par module (no-op + zéro notification sur sync redondant, invalidation + notification unique sur remplacement effectif), la compliance Java par projet, l'invalidation globale par champ partagé (index disque), `dispose()` global, la redirection des clés vides/null vers le contexte défaut et la concurrence bi-module. Fixtures : `MAIN_OK` (zéro erreur) et `MAIN_ERR` (`String s = 42`, au moins 1 erreur), sources multi-niveaux `var`+record (Java 8/21) et record+switch à motifs (Java 21), plus un `FauxIndexNomsVide` (index jamais prêt, aucune entrée, observateur jamais notifié).
 

@@ -28,7 +28,7 @@ a arbitré (D2) : **un seul** modèle, produit par l'hôte, dérivable du disque
   points d'extension IDE).
 - ADR Java 0020 (modèle + référentiel + dérivateur disque), 0021 (classes
   light, priorité généré réel), 0022 (segment CIDX).
-- `docs/PROVENANCE-REPRISE-KOTLIN.md` (les synthétiques repris R1/R2).
+- `lsp-kotlin/docs/PROVENANCE-REPRISE-KOTLIN.md` (les synthétiques repris R1/R2).
 
 ## Options
 

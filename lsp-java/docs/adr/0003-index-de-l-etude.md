@@ -7,11 +7,11 @@
 
 Le nouveau dépôt démarre avec sa propre numérotation (0001+) ; les ADR sont **ordonnés par dépendance** (§7 du prompt) et renvoient à trois rapports d'étude et deux registres :
 
-- `docs/etudes/moteur-java-psi/01-architecture-psi.md` — étude des domaines D1–D12 (+ annexes `annexes/exp-{D7D8,D9D10,D11D12}.md`) ;
-- `docs/etudes/moteur-java-psi/02-spike-mesures.md` — mesures V1/V2/V3 et compatibilité ART ;
-- `docs/etudes/moteur-java-psi/00b-inventaire-reprise.md` — inventaire Phase 0 ;
-- `docs/PROVENANCE-REPRISE.md` — manifeste de reprise (R9) ;
-- `docs/etudes/moteur-java-psi/00-synthese.md` — recommandation go/no-go et plan par vagues.
+- `lsp-java/docs/etudes/moteur-java-psi/01-architecture-psi.md` — étude des domaines D1–D12 (+ annexes `annexes/exp-{D7D8,D9D10,D11D12}.md`) ;
+- `lsp-java/docs/etudes/moteur-java-psi/02-spike-mesures.md` — mesures V1/V2/V3 et compatibilité ART ;
+- `lsp-java/docs/etudes/moteur-java-psi/00b-inventaire-reprise.md` — inventaire Phase 0 ;
+- `lsp-java/docs/PROVENANCE-REPRISE.md` — manifeste de reprise (R9) ;
+- `lsp-java/docs/etudes/moteur-java-psi/00-synthese.md` — recommandation go/no-go et plan par vagues.
 
 ## Sources consultées
 

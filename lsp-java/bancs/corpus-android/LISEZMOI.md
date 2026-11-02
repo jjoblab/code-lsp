@@ -1,9 +1,9 @@
 # Corpus réel Android Java (banc P1–P8, vague 0 — ADR 0030)
 
-> Répertoire **jamais committé** (`.gitignore` : `bancs/corpus-android/`) — le
-> contenu arrive par `scripts/telecharger-corpus-android.sh`, épinglé commit par
+> Répertoire **jamais committé** (`.gitignore` : `lsp-java/bancs/corpus-android/`) — le
+> contenu arrive par `lsp-java/scripts/telecharger-corpus-android.sh`, épinglé commit par
 > commit. Les projets sont des **données de corpus** (cibles de test) inscrites au
-> registre `docs/PROVENANCE-REPRISE.md` §Corpus avec leur rôle.
+> registre `lsp-java/docs/PROVENANCE-REPRISE.md` §Corpus avec leur rôle.
 
 ## 1. Les 5 projets (épinglés le 31/10/2026 par `git ls-remote`)
 
@@ -27,7 +27,7 @@ projet (sinon les `cannot be resolved` sur `androidx.*` seraient des faux positi
 de montage, pas du moteur). La préparation produit UN manifeste par projet :
 
 ```
-bancs/corpus-android/prepares/<projet>.manifeste
+lsp-java/bancs/corpus-android/prepares/<projet>.manifeste
 racine:<chemin absolu d'une racine de sources écrites à la main>
 racine-generee:<chemin absolu du PARENT DU PAQUET des sources générées>
 classpath:<chemin absolu d'un jar (plateforme, artefact, R.jar, classes Kotlin)>
@@ -35,9 +35,9 @@ classpath:<chemin absolu d'un jar (plateforme, artefact, R.jar, classes Kotlin)>
 
 **Procédure** — tout est outillé (V-A2, 01/11/2026) :
 
-1. `scripts/telecharger-corpus-android.sh` (sources épinglées).
+1. `lsp-java/scripts/telecharger-corpus-android.sh` (sources épinglées).
 2. `ANDROID_HOME=<sdk> JAVA21_HOME=<jdk> [JAVA17_HOME=<jdk>] bash
-   scripts/preparer-manifestes-corpus.sh [projet…]` — pour chaque projet :
+   lsp-java/scripts/preparer-manifestes-corpus.sh [projet…]` — pour chaque projet :
    compile la variante mesurée avec le Gradle ÉPINGLÉ du projet
    (`compile<Variante>JavaWithJavac` : génère R, BuildConfig, binding, safeargs,
    Room ET les classes Kotlin `built_in_kotlinc`), exporte le classpath RÉELLEMENT
@@ -48,12 +48,12 @@ classpath:<chemin absolu d'un jar (plateforme, artefact, R.jar, classes Kotlin)>
    PAQUET). Un projet dont la résolution est incomplète (replis
    `ARTIFACT-ERREUR`/`ARTIFACT-ABSENT`) ne produit PAS de manifeste : rejouer le
    script reprend sur le cache Gradle (429 Maven Central : cf. ALERTES AL4).
-3. `CORPUS_ANDROID=bancs/corpus-android ./gradlew :java:test --tests 'jo.codeide.lsp.java.coherence.*'`
+3. `CORPUS_ANDROID=lsp-java/bancs/corpus-android ./gradlew :java:test --tests 'jo.codeide.lsp.java.coherence.*'`
    — le tas du JVM de test passe alors de 640 Mio à 2 048 Mio (conditionné à
-   `CORPUS_ANDROID`, `java/build.gradle.kts`).
+   `CORPUS_ANDROID`, `lsp-java/moteur/build.gradle.kts`).
 
 > **Passe complémentaire SANS build (02/11) — diagnostic du repli lexical
-> avant build** : `scripts/ask-export.init.gradle` (tâche `exportClasspathAsk
+> avant build** : `lsp-java/scripts/ask-export.init.gradle` (tâche `exportClasspathAsk
 > -PsortieAsk=<dir>`, générique) résout la copie `debugCompileClasspath` de
 > chaque module avec les dépendances projet SUBSTITUÉES par un module « void »
 > local — AUCUN build de projet (ni javac ni CMake), donc AUCUNE classe
@@ -61,7 +61,7 @@ classpath:<chemin absolu d'un jar (plateforme, artefact, R.jar, classes Kotlin)>
 > via les `racine:`, et le REPLI lexical Kotlin (ADR 0022) est exercé TEL QUEL
 > — c'est cette passe qui a exposé la `open class` synthétisée finale
 > (correctif v1.12.2), invisible du montage canonique qui fournit les classes
-> compilées. `scripts/preparer-manifeste-ask.sh` (déclinaison AnySoftKeyboard)
+> compilées. `lsp-java/scripts/preparer-manifeste-ask.sh` (déclinaison AnySoftKeyboard)
 > assemble le manifeste : android.jar, R.jar debug (`generateDebugRFile` +
 > `:ime:app:processDebugResources`, plus `:ime:app:generateDebugBuildConfig`
 > après coup), AAR réduits à leur classes.jar sous `prepares/ask-libs/`, et
@@ -74,7 +74,7 @@ classpath:<chemin absolu d'un jar (plateforme, artefact, R.jar, classes Kotlin)>
 > affichée** (`assumeTrue`) — jamais un vert silencieux. La métrique FP/1 000 lignes
 > produite ensuite est la **baseline d'écart** de l'écart G-034 (ADR 0030). Les
 > leçons de montage (R.jar, jetifier, classes Kotlin, parents de paquet) sont
-> consignées dans `docs/etudes/niveau-android-studio/08-rapport-divergences-ecj-javac.md` §3.
+> consignées dans `lsp-java/docs/etudes/niveau-android-studio/08-rapport-divergences-ecj-javac.md` §3.
 
 ## 3. Ce que le corpus mesure
 

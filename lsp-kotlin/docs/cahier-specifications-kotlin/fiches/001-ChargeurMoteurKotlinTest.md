@@ -1,6 +1,6 @@
 # Fiche 001 — ChargeurMoteurKotlinTest
 
-> **Source** : `codeide-lsp` @ `bc11253` — `lsp/kotlin/src/test/kotlin/jo/lspkotlin/api/ChargeurMoteurKotlinTest.kt` (3 tests, 44 l.).
+> **Source** : `codeide-lsp` @ `bc11253` — `lsp/lsp-kotlin/moteur/src/test/kotlin/jo/lspkotlin/api/ChargeurMoteurKotlinTest.kt` (3 tests, 44 l.).
 > **Domaine** : cycle-vie-lsp
 > **Résumé** : Tests du SPI : résolution ServiceLoader du moteur (le contrat de pack LSP_KOTLIN §6 doit être vérifié MÉCANIQUEMENT, pas seulement revu) et intégrité du descripteur de pack.
 > **Convention** : chaque comportement porte le **nom exact du test source** (identifiant de traçabilité) ; l'attendu le reformule en français lisible, enrichi du contrat D3 quand le nom le porte. Le résumé ci-dessus décrit le contrat de la classe de test.

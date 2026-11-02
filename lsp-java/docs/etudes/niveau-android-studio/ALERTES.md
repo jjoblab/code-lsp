@@ -1,6 +1,6 @@
 # ALERTES — mission « niveau Android Studio » (études/niveau-android-studio)
 
-> Document vivant (style `docs/etudes/moteur-java-psi/ALERTES.md`) : anomalies,
+> Document vivant (style `lsp-java/docs/etudes/moteur-java-psi/ALERTES.md`) : anomalies,
 > découvertes et écarts avec le prompt de mission, signalés factuellement (R6.2 :
 > sans corriger ni minimiser). Ajoutés au fil de la mission ; à trier par le
 > propriétaire.
@@ -18,7 +18,7 @@
 
 ## 2. Découvertes à caractère d'alerte
 
-- **AL1 — La baseline qualité est saturée** : `bancs/baselines/completion.json`
+- **AL1 — La baseline qualité est saturée** : `lsp-java/bancs/baselines/completion.json`
   (18 positions, d8 1,000/1,000/1,000) ne peut plus **distinguer** une amélioration
   d'une régression sur le recall/top-1 — tout plafonne. Conséquence : la moindre
   métrique « niveau AS » exige le corpus réel (livré) avant toute décision de

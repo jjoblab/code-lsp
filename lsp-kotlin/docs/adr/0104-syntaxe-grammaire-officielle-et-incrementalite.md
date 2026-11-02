@@ -19,7 +19,7 @@ ré-obtenue de l'amont et compilée telle quel avec la chaîne du dépôt
   exception sur ce chemin [vérifié]), tests amont `NewTestParser.kt`
   (patron d'assemblage, crédité).
 - Spike : `02-spike-mesures.md` §5.1 (S2 : 1,8 ms p50, 0 lever sur
-  troncatures), `spike-kotlin/src/main/vendor/VENDOR.md`.
+  troncatures), `spike-lsp-kotlin/moteur/src/main/vendor/VENDOR.md`.
 - `codeide-lsp` : ADR 0115 (vendoring), ADR 0119 (renonciation
   `languageVersion`), suite de parité (digeste, tolérance).
 

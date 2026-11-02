@@ -1,6 +1,6 @@
 # Fiche 032 — ReproductionMembresClasspathTest
 
-> **Source** : `codeide-lsp` @ `bc11253` — `lsp/kotlin/src/test/kotlin/jo/lspkotlin/session/ReproductionMembresClasspathTest.kt` (3 tests, 211 l.).
+> **Source** : `codeide-lsp` @ `bc11253` — `lsp/lsp-kotlin/moteur/src/test/kotlin/jo/lspkotlin/session/ReproductionMembresClasspathTest.kt` (3 tests, 211 l.).
 > **Domaine** : diagnostics
 > **Résumé** : REPRODUCTION H5 (mission fiabilisation, étape A.2 — hypothèses « entrées d'enum (`entries`, `values()`), membres statiques de bibliothèques » du prompt) : le moteur résout les sélecteurs d'un récepteur CLASSPATH via la vue JVM (champs + méthodes du bytecode, [VueClasspathKotlin.membres]). La vue factice modélise le contenu RÉEL d'un `.class` d'enum Kotlin 1.9+ (miroir de `kotlin.io.FileWalkDirecti
 > **Convention** : chaque comportement porte le **nom exact du test source** (identifiant de traçabilité) ; l'attendu le reformule en français lisible, enrichi du contrat D3 quand le nom le porte. Le résumé ci-dessus décrit le contrat de la classe de test.

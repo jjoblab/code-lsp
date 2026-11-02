@@ -27,7 +27,7 @@ Binaires JetBrains restent à confirmer (ADR 0017, action propriétaire).
 - `01-audit-moteur.md` §1.9, §3.1 (état exact de l'échelle, ADR 0006 non livré).
 - ADR 0006 (parsing et incrémentalité), ADR 0012 (complétion — le splice conservé),
   ADR 0017 (conditions artefacts JetBrains — contrainte explicite du prompt §7.1).
-- Banc livré : propriétés P6/P2 (`java/src/test/…/coherence/`).
+- Banc livré : propriétés P6/P2 (`lsp-java/moteur/src/test/…/coherence/`).
 
 ## Options
 

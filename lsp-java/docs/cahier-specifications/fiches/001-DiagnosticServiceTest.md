@@ -1,6 +1,6 @@
 # Fiche 001 — DiagnosticServiceTest
 
-> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/java/src/test/java/jo/lspjava/DiagnosticServiceTest.java`.
+> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/lsp-java/moteur/src/test/java/jo/lspjava/DiagnosticServiceTest.java`.
 > **Domaine** : diagnostics
 > **Résumé** : Couche la plus ancienne du service de diagnostics (API interne `Diagnostic`/`Severity`/`Range` exprimée en offsets absolus). Verrouille les invariants structurels de la liste retournée par `diagnose(nomFichier, source)` : liste non nulle, sévérité/message/range renseignés, offsets cohérents, tolérance aux erreurs de syntaxe graves. Fixtures minimales : classe `Test` avec variable non définie, syntaxe cassée, `return` en méthode `void`.
 

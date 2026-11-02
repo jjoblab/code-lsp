@@ -15,7 +15,7 @@
 > `RECALAGE-2.md`** (N2 livré aux commits `5d3ca1a`+`bc70055` ; confiance
 > N3–N8 re-évaluée sur les deux étages extrêmes de l'abaque, décision de
 > suite soumise).
-> **Date** : 28/10/2026. **Base** : cahier de spécifications (`docs/cahier-specifications/`
+> **Date** : 28/10/2026. **Base** : cahier de spécifications (`lsp-java/docs/cahier-specifications/`
 > — 65 fiches, 449 comportements), étude PSI D1–D12, ADR 0001–0018.
 > **Discipline R5** (étude, §méthode) : chaque chiffre de ce document est
 > étiqueté **[mesuré]** (rejouable par script/commande), **[estimé]** (modèle
@@ -370,7 +370,7 @@ ADR 0004 amendement).
 - les latences cibles des fiches sont atteignables sur ART avec ecj (les
   mesures du spike V3 le suggèrent sur JVM — `02-spike-mesures.md` §8 — mais
   **la mesure sur appareil reste à faire** [non vérifié], gabarit
-  `spike/appareil/`).
+  `lsp-java/spike/appareil/`).
 
 ## 8. Gouvernance et points de recalage (risque R4)
 
@@ -398,7 +398,7 @@ Le risque R4 (« sous-estimation ») se pilote par bornage, pas par promesse :
 | Risque | Effet sur la fourchette | Mitigation |
 |---|---|---|
 | Comportements non testés du vendored (durcissement implicite) découverts au banc croisé | +0–40 j-h | banc croisé dès N1 (T) ; historique git de l'ancien dépôt consulté (lecture seule) pour les incidents documentés |
-| Latences ART non tenues avec ecj (mesure appareil absente [non vérifié]) | ré-architecture partielle du repli syntaxe : +10–30 j-h | gabarit appareil fourni (`spike/appareil/`) — mesure propriétaire AVANT N1 |
+| Latences ART non tenues avec ecj (mesure appareil absente [non vérifié]) | ré-architecture partielle du repli syntaxe : +10–30 j-h | gabarit appareil fourni (`lsp-java/spike/appareil/`) — mesure propriétaire AVANT N1 |
 | Tests conditionnels des fiches (hypothèses android.jar/JDK/model.json) traduits en gates trop faibles | sous-estimation douce | chaque fiche conditionnelle requalifiée en gate explicite à l'implémentation |
 | Régression de santé `:index`/`:model` (base reprise) | +5–15 j-h | 122 tests repris verts = filet existant ; CI déjà en place |
 | Parallélisation effective insuffisante (1 dev au lieu de 2) | délai ×2, coût stable | séquencement N1 → (N2,N3,N7) → (N4,N5,N6) → N8 documenté |
@@ -419,13 +419,13 @@ Le risque R4 (« sous-estimation ») se pilote par bornage, pas par promesse :
    remplace les postulats d'abaque. Planifier sur l'enveloppe, s'engager
    étage par étage : les deux options offertes ne s'excluaient pas.
 
-2. *Lancer la mesure sur appareil (gabarit `spike/appareil/`) AVANT N1 —
+2. *Lancer la mesure sur appareil (gabarit `lsp-java/spike/appareil/`) AVANT N1 —
    c'est la seule donnée [non vérifiée] qui puisse bouger la structure du
    plan (§7 postulat, §9 risque 2) ?*
 
    **TRANCHÉ : OUI — porte d'entrée bloquante de N1.** Le propriétaire
-   exécute `spike/appareil/banc-appareil.sh` (Termux ou AndroidIDE) et
-   retourne `spike/appareil/GABARIT-RESULTATS.md` rempli ; les valeurs sont
+   exécute `lsp-java/spike/appareil/banc-appareil.sh` (Termux ou AndroidIDE) et
+   retourne `lsp-java/spike/appareil/GABARIT-RESULTATS.md` rempli ; les valeurs sont
    consignées telles quelles (R5 — aucune extrapolation automatique, §6 du
    gabarit). **Aucune implémentation de N1 ne démarre avant le retour du
    gabarit.** Si les latences ART ne sont pas tenues avec ecj, la
@@ -470,5 +470,5 @@ Le risque R4 (« sous-estimation ») se pilote par bornage, pas par promesse :
 (périmètre) · ADR 0004 (stratégie GO PARTIEL, amendement option 2) · ADR
 0012/0013/0014 (classement, code actions, rename) · ADR 0016 (bancs de
 qualité) · ADR 0018 (liste de shims versionnée) · `00-synthese.md` §4 (plan
-par vagues caduc) · cahier `docs/cahier-specifications/` (contrat) ·
+par vagues caduc) · cahier `lsp-java/docs/cahier-specifications/` (contrat) ·
 `02-spike-mesures.md` (chiffres V3).*

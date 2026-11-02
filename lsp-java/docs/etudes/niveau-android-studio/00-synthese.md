@@ -106,7 +106,7 @@ conditionne — elle peut s'exécuter dès maintenant.**
 3. **Exécution du banc sur corpus réel** → le banc P1–P8 a été **joué en local**
    (23 tests / 0 échec / 1 gate ignorée ; 26 violations mesurées — audit §1.12) ;
    la **gate corpus réel** (P3/P4/P7 sur les 5 projets) exige la préparation des
-   manifestes de classpath (`bancs/corpus-android/LISEZMOI.md`) puis
+   manifestes de classpath (`lsp-java/bancs/corpus-android/LISEZMOI.md`) puis
    `CORPUS_ANDROID=… :java:test` — à jouer en CI.
 4. **Profil d'inspections par défaut d'Android Studio** (non documenté
    publiquement) → capture D5 du protocole 06.
@@ -233,7 +233,7 @@ didRenameFiles invalide), `semanticTokens` (**G-019 RÉSOLU** — légende
 8 types + 4 modificateurs, full sans delta, p95 MESURÉ 1 ms < 25 ms),
 `completionItem/resolve` RÉEL (**G-021 RÉSOLU** — import différé négocié
 par resolveSupport, sans annonce la liste reste complète), registre
-client K2 VIVANT (`docs/REGISTRE-CLIENT-K2.md` — ADR 0031 (g)) ; 23 cas
+client K2 VIVANT (`lsp-java/docs/REGISTRE-CLIENT-K2.md` — ADR 0031 (g)) ; 23 cas
 V-F3/V-F4/V-G verts, latence semanticTokens p95 mesurée 1 ms — cf.
 `04-plan-vagues.md` §V-F (suite)/§V-G et
 `mesures/2026-11-01-vf-finale-vg-protocole.txt` ; **V-H livrée le

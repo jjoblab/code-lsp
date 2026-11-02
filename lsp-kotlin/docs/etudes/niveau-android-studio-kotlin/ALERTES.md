@@ -32,13 +32,13 @@
 
 - **E-K9 — Re-signature de la baseline de parité structurale (fiche 010)** :
   l'ajout des fichiers du banc V0 (10 fichiers `.kt` sous
-  `kotlin/src/test/…/coherence/`) déplace le digeste de parité qui couvre
+  `lsp-kotlin/moteur/src/test/…/coherence/`) déplace le digeste de parité qui couvre
   TOUT `.kt` du dépôt (422 → 432 lignes). La re-signature a été exécutée
   par la COMMANDE OFFICIELLE documentée dans la fiche 010
   (`-Dparite.majBase=true --rerun-tasks`) et le diff ne contient QUE des
   ajouts. **Ce geste contredit la lettre du §1.5 du prompt (« ne re-signe
   aucune baseline dans cette mission d'étude ») mais les livrables §9
-  exigent le banc DANS `kotlin/src/test`** — écart tracé ici, chaque
+  exigent le banc DANS `lsp-kotlin/moteur/src/test`** — écart tracé ici, chaque
   justification dans le commit dédié, validation propriétaire demandée.
   Aucune baseline de QUALITÉ (fidélité, complétion) n'a été touchée.
 
@@ -76,7 +76,7 @@
 
 - Captures Android Studio lot E (protocole `06-…`, gabarits
   `captures/RESULTATS-LOT-E.md`) — propriétaire.
-- Passe appareil gabarit 07 (kit existant `scripts/kit-bascule.sh`,
+- Passe appareil gabarit 07 (kit existant `lsp-java/scripts/kit-bascule.sh`,
   enrichissement kotlin-metadata-jvm documenté doc 11 §2.2) — propriétaire.
 - Manifestes du corpus externe (P1(b)/P2/P3/P7) — CI ou poste avec SDK
   Android (LISEZMOI du corpus §2).

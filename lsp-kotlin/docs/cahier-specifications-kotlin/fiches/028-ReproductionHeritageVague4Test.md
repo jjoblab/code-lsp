@@ -1,6 +1,6 @@
 # Fiche 028 — ReproductionHeritageVague4Test
 
-> **Source** : `codeide-lsp` @ `bc11253` — `lsp/kotlin/src/test/kotlin/jo/lspkotlin/session/ReproductionHeritageVague4Test.kt` (12 tests, 605 l.).
+> **Source** : `codeide-lsp` @ `bc11253` — `lsp/lsp-kotlin/moteur/src/test/kotlin/jo/lspkotlin/session/ReproductionHeritageVague4Test.kt` (12 tests, 605 l.).
 > **Domaine** : diagnostics
 > **Résumé** : REPRODUCTION des familles de la VAGUE 4 (retour utilisateurs 25/10/2026 — backlog RETOURS §4, items 1 à 4) : 1. MEMBRES HÉRITÉS du classpath par le RÉCEPTEUR IMPLICITE — `soumettre(…)`/`compte` nus dans une classe projet qui hérite d'une superclasse BINAIRE (le chaînon projet→classpath), Y COMPRIS depuis un OBJET ANONYME (la pile des this : l'objet d'abord, puis les classes englobantes — `submitLi
 > **Convention** : chaque comportement porte le **nom exact du test source** (identifiant de traçabilité) ; l'attendu le reformule en français lisible, enrichi du contrat D3 quand le nom le porte. Le résumé ci-dessus décrit le contrat de la classe de test.

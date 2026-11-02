@@ -1,6 +1,6 @@
 # Fiche 049 — AuditNavigationJavaTest
 
-> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/java/src/test/java/jo/lspjava/lsp/AuditNavigationJavaTest.java`.
+> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/lsp-java/moteur/src/test/java/jo/lspjava/lsp/AuditNavigationJavaTest.java`.
 > **Domaine** : navigation
 > **Résumé** : Audit du panneau GO TO du LSP Java (ADR 0209) — caractérisation BOUT-EN-BOUT à travers la façade réelle `JavaTextDocumentService` : `definition` et `typeDefinition` CROSS-FICHIERS (chemin intra-fichier → PROJET → binaire décompilé), `superDefinition` (garde de parité), discipline des trois chemins et vide honnête sur document inconnu. Une cible PROJET n'atterrit JAMAIS dans le stub décompilé `jdt://decompiled/…` ; une cible BINAIRE n'atterrit jamais dans les sources. Corpus : classes du paquet `demo` — `Base` (champ `compteur`, `run()`, `doubler(int)`, statique `creer()`), `ImplA extends Base` (champ `tag`, `@Override run()`), `Consommateur` (usages croisés), `Utilitaire` + import statique `triple`, `PorteurUn`/`PorteurDeux` (méthodes homonymes `run()`/`run(int)`), `AppeleurDeuxRun`, usages binaires `HashMap`.
 

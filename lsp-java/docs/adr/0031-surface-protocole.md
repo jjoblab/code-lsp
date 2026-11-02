@@ -30,7 +30,7 @@ capacités servies existent déjà que le client ne consomme pas (K2).
 - Spécification LSP 3.17 (textDocument/semanticTokens, workDoneProgress,
   willRenameFiles, codeAction/resolve, Diagnostic.relatedInformation/codeDescription/
   data) — comportements décrits pour eux-mêmes.
-- `docs/ECARTS-SERVEUR.md` §4 (K1–K3 client), `USAGE.md` §7.16/§13 (état actuel des
+- `lsp-java/docs/ECARTS-SERVEUR.md` §4 (K1–K3 client), `USAGE.md` §7.16/§13 (état actuel des
   conventions d'honnêteté).
 
 ## Options
@@ -153,7 +153,7 @@ suppression de capability existante (ajouts uniquement).
   `x-codeide.plageVisible` **v1** posée à la livraison (V-F4) ; les clés
   V-G de `data` complétion sont ADDITIVES et conditionnées à l'annonce
   client → la version de `x-codeide.completionRanking` RESTE 2 (règle
-  R1 : additive ≠ sémantique) ; `docs/REGISTRE-CLIENT-K2.md` posé — le
+  R1 : additive ≠ sémantique) ; `lsp-java/docs/REGISTRE-CLIENT-K2.md` posé — le
   document VIVANT des capacités non consommées (l'héritage) et des
   nouvelles par vague, prêt à devenir le prompt `cel-lsp`/
   `code-editor`. Validation (R5) : 9 tests V-G (progression annoncée/

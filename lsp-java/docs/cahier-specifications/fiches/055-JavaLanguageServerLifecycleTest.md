@@ -1,6 +1,6 @@
 # Fiche 055 — JavaLanguageServerLifecycleTest
 
-> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/java/src/test/java/jo/lspjava/lsp/JavaLanguageServerLifecycleTest.java`.
+> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/lsp-java/moteur/src/test/java/jo/lspjava/lsp/JavaLanguageServerLifecycleTest.java`.
 > **Domaine** : cycle-vie-lsp
 > **Résumé** : Valide la machine à états du cycle de vie LSP du serveur (UNINITIALIZED → INITIALIZING → INITIALIZED → SHUTDOWN → EXITED) et le contenu de la réponse `initialize` (capabilities, serverInfo). Serveur in-process construit sans environnement de compilation : protocole pur, aucune dépendance à android.jar ou au JDK du projet. Corpus minimal : paramètres d'initialize avec rootUri `file:///test` et processId 12345.
 

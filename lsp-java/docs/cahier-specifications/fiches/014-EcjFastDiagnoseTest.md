@@ -1,6 +1,6 @@
 # Fiche 014 — EcjFastDiagnoseTest
 
-> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/java/src/test/java/jo/lspjava/ecj/EcjFastDiagnoseTest.java`.
+> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/lsp-java/moteur/src/test/java/jo/lspjava/ecj/EcjFastDiagnoseTest.java`.
 > **Domaine** : caches-perf
 > **Résumé** : Diagnostics incrémentaux par corps de méthode (P6, v1.5.0 — portage du commit 4b9b880 du projet tiers de référence « skip the file parse entirely when a keystroke stays inside one body », adapté ecj : re-diagnostic du SEUL corps édité, autres corps remplacés par un synthétique isomorphe, problèmes portés du diagnostic précédent). Oracle d'équivalence stricte : chaque tour de frappe est joué sur le moteur sous test ET sur un moteur témoin NEUF (mémo vide) — les listes de diagnostics doivent être STRICTEMENT identiques (taille, offsets début/fin, sévérité, message, code) : le fast-path ne peut que gagner du temps, jamais perdre ni inventer un diagnostic. Fixture riche (classe `Main` du package `app`, marqueur « ⌂ » pour les frappes) : corps vide, corps court, méthode non-void avec return, corps édité, corps utilisant List+champ, corps avec erreur, signature cassée.
 

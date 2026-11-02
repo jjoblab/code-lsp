@@ -1,6 +1,6 @@
 # Fiche 051 — SessionLangageKotlinSignatureTest
 
-> **Source** : `codeide-lsp` @ `bc11253` — `lsp/kotlin/src/test/kotlin/jo/lspkotlin/session/SessionLangageKotlinSignatureTest.kt` (12 tests, 297 l.).
+> **Source** : `codeide-lsp` @ `bc11253` — `lsp/lsp-kotlin/moteur/src/test/kotlin/jo/lspkotlin/session/SessionLangageKotlinSignatureTest.kt` (12 tests, 297 l.).
 > **Domaine** : hover-inlay
 > **Résumé** : Tests du contrat de session — AIDE À LA SIGNATURE (S1, plan de stabilisation LSP §3.2) : par le SPI (chemin de production D6), moteur RÉEL, candidates du PROJET (fonctions, constructeurs, membres vifs), candidates du CLASSPATH (index Kotlin — jar stdlib RÉEL ; vue factice — méthode JVM du récepteur, même montage que le survol qualifié K3).
 > **Convention** : chaque comportement porte le **nom exact du test source** (identifiant de traçabilité) ; l'attendu le reformule en français lisible, enrichi du contrat D3 quand le nom le porte. Le résumé ci-dessus décrit le contrat de la classe de test.

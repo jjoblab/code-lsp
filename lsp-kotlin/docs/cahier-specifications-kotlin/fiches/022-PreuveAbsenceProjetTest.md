@@ -1,6 +1,6 @@
 # Fiche 022 — PreuveAbsenceProjetTest
 
-> **Source** : `codeide-lsp` @ `bc11253` — `lsp/kotlin/src/test/kotlin/jo/lspkotlin/session/PreuveAbsenceProjetTest.kt` (8 tests, 388 l.).
+> **Source** : `codeide-lsp` @ `bc11253` — `lsp/lsp-kotlin/moteur/src/test/kotlin/jo/lspkotlin/session/PreuveAbsenceProjetTest.kt` (8 tests, 388 l.).
 > **Domaine** : diagnostics
 > **Résumé** : PREUVE D'ABSENCE SUR LES TYPES DU PROJET (retour utilisateurs 25/10/2026, vague 3 — familles E U1 « collect » et faux négatifs U3 « CalculatriceBudget.consulterInconnu ») : un sélecteur dont le récepteur est un type DU PROJET sans héritage écrit porte un jeu de membres COMPLET — les DÉCLARÉS du scan + les IMPLICITES de Any/Object. L'absence y est PROUVÉE (miroir kotlinc : « Unresolved reference »
 > **Convention** : chaque comportement porte le **nom exact du test source** (identifiant de traçabilité) ; l'attendu le reformule en français lisible, enrichi du contrat D3 quand le nom le porte. Le résumé ci-dessus décrit le contrat de la classe de test.

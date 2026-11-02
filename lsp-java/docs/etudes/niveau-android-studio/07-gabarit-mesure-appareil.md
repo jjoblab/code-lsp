@@ -1,6 +1,6 @@
 # 07 — Gabarit de mesure sur appareil (moteur « niveau Android Studio »)
 
-> Style `bancs/GABARIT-BASCULE-APPAREIL.md` (R5 : **valeurs réelles, jamais
+> Style `docs/GABARIT-BASCULE-APPAREIL.md` (R5 : **valeurs réelles, jamais
 > simulées** — le gabarit est rempli par le propriétaire sur l'appareil de
 > référence). Appareil de référence : **moto g06, Android 15, OpenJDK 17 aarch64 /
 > ART** (même appareil que la bascule §8.5).
@@ -30,7 +30,7 @@
 > ≥ 30 s, mode avion (§11), aucune autre application active.
 >
 > **Kit d'exécution (vague 0, livré)** : sur le poste de bureau,
-> `bash scripts/kit-mesure.sh` produit `build/kit-mesure.zip` (jamais
+> `bash lsp-java/scripts/kit-mesure.sh` produit `build/kit-mesure.zip` (jamais
 > committé). Le transférer sur l'appareil (Termux, OpenJDK 17) puis :
 >
 > ```bash
@@ -49,12 +49,12 @@
 
 - [x] Appareil : **moto g06, Android 15, aarch64** — RAM libre au repos :
       non mesurée (le banc ne sonde pas la mémoire hôte)
-- [x] Version du moteur : kit `scripts/kit-mesure.sh` — commit de référence
+- [x] Version du moteur : kit `lsp-java/scripts/kit-mesure.sh` — commit de référence
       **`2baa9be`** (moteur + ecj 3.40.0-art patché ; le transcript correspond
       au banc livré à ce commit)
 - [x] Version hôte CodeIDE : **sans objet** — banc moteur in-process, aucun hôte
 - [x] Corpus : corpus de sonde du banc (`Main`/`Widget`/`Grand.java` générés en
-      temporaire, textes du dépôt) — pas `bancs/projet-android/` ni corpus 5
+      temporaire, textes du dépôt) — pas `lsp-java/bancs/projet-android/` ni corpus 5
       (banc autonome sans hôte ; Q1/Q2 relèvent de la CI corpus)
 - [x] Charge : 3 passes espacées de 30 s (imposées par le script) ; repos
       exclusif et mode avion **non vérifiables** par le banc — non contrôlés

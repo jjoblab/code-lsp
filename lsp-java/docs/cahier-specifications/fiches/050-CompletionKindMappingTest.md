@@ -1,6 +1,6 @@
 # Fiche 050 — CompletionKindMappingTest
 
-> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/java/src/test/java/jo/lspjava/lsp/CompletionKindMappingTest.java`.
+> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/lsp-java/moteur/src/test/java/jo/lspjava/lsp/CompletionKindMappingTest.java`.
 > **Domaine** : completion
 > **Résumé** : Vérification BOUT-EN-BOUT des kinds LSP côté serveur : la chaîne complète `EcjCompletionEngine` → `api.CompletionItem.Kind` → `CompletionItemKind` LSP4J (+ champ `data` pour les annotations) — c'est ce que le badge de type du popup consomme côté client. Quatre contextes : membre (méthode/champ), paquet (import), annotation et type. Fixture : service réel `JavaTextDocumentService` sur un `CompilationEnvironment` (racine source + android.jar, compliance « 17 ») ; chaque document est ouvert par `didOpen` puis complété à un offset converti en line/character.
 

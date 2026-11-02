@@ -1,6 +1,6 @@
 # Fiche 004 — LecteurClassBrutTest
 
-> **Source** : `codeide-lsp` @ `bc11253` — `lsp/kotlin/src/test/kotlin/jo/lspkotlin/classpath/LecteurClassBrutTest.kt` (5 tests, 135 l.).
+> **Source** : `codeide-lsp` @ `bc11253` — `lsp/lsp-kotlin/moteur/src/test/kotlin/jo/lspkotlin/classpath/LecteurClassBrutTest.kt` (5 tests, 135 l.).
 > **Domaine** : index-classpath
 > **Résumé** : Tests du lecteur de class-files BRUT (K3) — deux vérités : - une classe SYNTHÉTIQUE fabriquée octet par octet (contrôle total du format : super, interfaces, absence de @Metadata) ; - une classe RÉELLE du kotlin-stdlib du classpath de test (`kotlin.jvm.internal.Intrinsics` — facade Kotlin avec @Metadata, kind FileFacade).
 > **Convention** : chaque comportement porte le **nom exact du test source** (identifiant de traçabilité) ; l'attendu le reformule en français lisible, enrichi du contrat D3 quand le nom le porte. Le résumé ci-dessus décrit le contrat de la classe de test.

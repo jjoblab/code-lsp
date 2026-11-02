@@ -5,7 +5,7 @@
 > Support : [`kit/KitCapturesAs.java`](kit/KitCapturesAs.java).
 
 - Version Android Studio : ________
-- Projet : bancs/projet-android (kit posé le __/__/____) / autre : ________
+- Projet : lsp-java/bancs/projet-android (kit posé le __/__/____) / autre : ________
 - Indexation terminée avant captures : oui / non
 - Paramètres de complétion par défaut modifiés ? non / préciser : ________
 

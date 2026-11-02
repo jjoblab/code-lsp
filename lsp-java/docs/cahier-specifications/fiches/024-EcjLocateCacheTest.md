@@ -1,6 +1,6 @@
 # Fiche 024 — EcjLocateCacheTest
 
-> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/java/src/test/java/jo/lspjava/ecj/EcjLocateCacheTest.java`.
+> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/lsp-java/moteur/src/test/java/jo/lspjava/ecj/EcjLocateCacheTest.java`.
 > **Domaine** : caches-perf
 > **Résumé** : Tests du cache de localisation fqcn → jar (P1 v1.3.0, portage de `locateCache` de `JdtEnvironmentCache.kt`, projet tiers de référence v3.20) intégré à la recherche binaire de l'environnement de compilation : positif mémorisé (deux `find` successifs d'un FQCN présent dans un jar répondent tous deux), négatif mémorisé (un FQCN absent ne re-sonde pas les jars à chaque appel — lookup O(1), gain dominant sur les gros classpaths), types imbriqués via le chemin `$` sans exception, et invalidation par `dispose()`. Le jar de test est fabriqué à partir d'un vrai `.class` copié depuis les sorties de compilation du module (entrée ZIP valide pour la lecture de fichier de classe). Le test accède aux membres package-private `find`/`dispose` par RÉFLEXION.
 

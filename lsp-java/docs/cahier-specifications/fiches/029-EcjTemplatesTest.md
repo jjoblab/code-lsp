@@ -1,6 +1,6 @@
 # Fiche 029 — EcjTemplatesTest
 
-> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/java/src/test/java/jo/lspjava/ecj/EcjTemplatesTest.java` (la classe interne se nomme `JdtTemplatesTest` — portage de Live/PostfixTemplates.kt du projet tiers de référence v3.20).
+> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/lsp-java/moteur/src/test/java/jo/lspjava/ecj/EcjTemplatesTest.java` (la classe interne se nomme `JdtTemplatesTest` — portage de Live/PostfixTemplates.kt du projet tiers de référence v3.20).
 > **Domaine** : templates
 > **Résumé** : Tests des templates de complétion v1.3.0 : live templates (`sout`, `soutv`, `fori`, `try`…), templates postfixes (`expr.var`, `.sout`, `.opt`, `.if`, `.cast`…) et leur intégration dans le pipeline de complétion. Trois niveaux : unitaire (tiering de pertinence, scan du récepteur, prédicats sans binding = conscience de type), intégration moteur (item SNIPPET avec éditions additionnelles en offsets de la source originale), et API (isSnippet, insertText, relevance). Le moteur d'intégration tourne avec classpath VIDE (jrt seul) — les récepteurs `String` résolvent via l'image modules du JDK de test, aucun android.jar requis. Sémantique clé : les live templates sortent en position d'INSTRUCTION et jamais en position d'expression ; les postfixes respectent le type résolu du récepteur.
 

@@ -1,6 +1,6 @@
 # Fiche 024 — ReproductionCompanionTest
 
-> **Source** : `codeide-lsp` @ `bc11253` — `lsp/kotlin/src/test/kotlin/jo/lspkotlin/session/ReproductionCompanionTest.kt` (7 tests, 348 l.).
+> **Source** : `codeide-lsp` @ `bc11253` — `lsp/lsp-kotlin/moteur/src/test/kotlin/jo/lspkotlin/session/ReproductionCompanionTest.kt` (7 tests, 348 l.).
 > **Domaine** : diagnostics
 > **Résumé** : REPRODUCTION des COMPANION OBJECTS (ADR 0222) — le quatrième monde Kotlin pour la parité Android Studio : `Boite.creer()` (membres du compagnon accessibles par le NOM de la classe), compagnons ANONYMES (« Companion » effectif — le repli générique nomJeton() lisait le PREMIER MEMBRE : le compagnon était enregistré sous « creer » et ses membres sous « pkg.Boite.creer »), compagnons NOMMÉS, this impl
 > **Convention** : chaque comportement porte le **nom exact du test source** (identifiant de traçabilité) ; l'attendu le reformule en français lisible, enrichi du contrat D3 quand le nom le porte. Le résumé ci-dessus décrit le contrat de la classe de test.

@@ -1,6 +1,6 @@
 # Fiche 019 — FormateurKotlinTest
 
-> **Source** : `codeide-lsp` @ `bc11253` — `lsp/kotlin/src/test/kotlin/jo/lspkotlin/session/FormateurKotlinTest.kt` (9 tests, 211 l.).
+> **Source** : `codeide-lsp` @ `bc11253` — `lsp/lsp-kotlin/moteur/src/test/kotlin/jo/lspkotlin/session/FormateurKotlinTest.kt` (9 tests, 211 l.).
 > **Domaine** : formatage
 > **Résumé** : Tests du FORMATEUR BORNÉ Kotlin (L2 — plan 1.3.0, `textDocument formatting` et `rangeFormatting`) — par le SPI (chemin de production D6), moteur RÉEL. Le contrat éprouvé est celui de l'honnêteté D3 : ré-indentation canonique SEULE (le contenu des lignes n'est jamais réécrit), intouchables préservés (jeton multi-ligne : chaîne brute, commentaire de bloc, KDoc), refus sur arbre en erreur, idempotenc
 > **Convention** : chaque comportement porte le **nom exact du test source** (identifiant de traçabilité) ; l'attendu le reformule en français lisible, enrichi du contrat D3 quand le nom le porte. Le résumé ci-dessus décrit le contrat de la classe de test.

@@ -1,6 +1,6 @@
 # Fiche 011 — EcjCodeFolderTest
 
-> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/java/src/test/java/jo/lspjava/ecj/EcjCodeFolderTest.java`.
+> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/lsp-java/moteur/src/test/java/jo/lspjava/ecj/EcjCodeFolderTest.java`.
 > **Domaine** : folding
 > **Résumé** : Calcul des régions de folding (`EcjCodeFolder.foldsFor(chemin, source)`) — parité `EcjCodeFolder` du projet tiers de référence : groupe d'imports replié par défaut, régions couvrant l'INTÉRIEUR des accolades (les `{}`/`()` restent visibles), commentaires de bloc et javadoc multi-lignes, RIEN pour les paires sur une seule ligne ni pour les accolades dans chaînes/commentaires/text-blocks ; blocs de contrôle et corps de lambda pliables. Moteur construit vide (aucune racine, aucun classpath) — le folding ne dépend d'aucune résolution de type.
 

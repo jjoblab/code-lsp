@@ -1,6 +1,6 @@
 # Fiche 063 — CodeActionServiceTest
 
-> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/java/src/test/java/jo/lspjava/services/CodeActionServiceTest.java`.
+> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/lsp-java/moteur/src/test/java/jo/lspjava/services/CodeActionServiceTest.java`.
 > **Domaine** : diagnostics
 > **Résumé** : Quick-fixes à ÉDITS RÉELS (CodeActionService) — portages des quick-fixes du projet tiers de référence (JavaActions.kt / JavaCompilerFixes.kt) : suppression d'import inutilisé (ligne entière), insertion du point-virgule manquant, suppression prudente des déclarations inutilisées, « Entourer avec try-catch » / « Déclarer throws » sur exception non gérée, « Insérer un cast » vers le type attendu, et « Importer X (fqn) » depuis l'index. Deux montages : service TEXTE pur (sans environnement — fixes sans index) et service AVEC INDEX réel (jrt du JDK + android.jar — fixes d'import) ; hypothèse visible dans `@BeforeAll` : android.jar présent, sinon TOUTE la classe est ignorée (y compris les tests textuels). Diagnostics synthétiques : plage + sévérité ERROR + code « ecj:<ID> » + arguments structurés.
 

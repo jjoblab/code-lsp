@@ -1,6 +1,6 @@
 # Fiche 015 — EcjFastFeaturesTest
 
-> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/java/src/test/java/jo/lspjava/ecj/EcjFastFeaturesTest.java`.
+> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/lsp-java/moteur/src/test/java/jo/lspjava/ecj/EcjFastFeaturesTest.java`.
 > **Domaine** : caches-perf
 > **Résumé** : Extension du fast-path P6 aux features par-frappe (v1.6.0) : **hover** et **signature help** servis sans re-parse depuis l'arbre focalisé que le diagnose rapide a déjà résolu — chaîne à 3 niveaux : arbre focalisé retenu → arbre réel du parseCache → réduction SourceFocuser (v1.5). Oracle d'équivalence stricte contre un moteur témoin NEUF (aucun mémo, aucun arbre retenu) : le fast-path ne peut que gagner du temps, jamais changer une réponse (y compris null). Compteurs : `fastResolveHits` prouve le service par l'arbre focalisé, `cachedResolveHits` par l'arbre réel du parseCache. Fixture `Main` (package `app`, marqueur « ⌂ ») avec méthodes `add`/`join`/`edite`/`autre`/`bourre` ; variante ≥ 2000 caractères (70 lignes de bourrage) activant la réduction SourceFocuser côté témoin. Le kill-switch P6 coupe aussi `resolveUnitFast`.
 

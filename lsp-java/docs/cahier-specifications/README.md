@@ -11,15 +11,15 @@
 Les fiches sont rédigées **exclusivement** à partir de :
 
 - ✅ les **fichiers de test** listés dans `INVENTAIRE.md`
-  (`lsp/java/src/test/**` de `codeide-lsp` @ `cb809e14`, lecture seule) ;
+  (`lsp/lsp-java/moteur/src/test/**` de `codeide-lsp` @ `cb809e14`, lecture seule) ;
 - ✅ la **documentation publique** de l'ancien dépôt :
-  `docs/LSP_JAVA.md`, `docs/adr/0110*`/`0111*`, `README.md`,
+  `docs/LSP_JAVA.md`, `lsp-kotlin/docs/adr/0110*`/`0111*`, `README.md`,
   `docs/LSP_MATRICE_CAPACITES.md` ;
 - ✅ les données et golden files référencés par ces tests.
 
 Interdit pendant la rédaction des fiches :
 
-- ❌ lire `lsp/java/src/main` (code de production vendored) — ou tout autre
+- ❌ lire `lsp/lsp-java/moteur/src/main` (code de production vendored) — ou tout autre
   code de production des anciens dépôts ;
 - ❌ consulter le moteur en boîte noire pour « compléter » une fiche : la
   fiche reflète **le test**, pas le comportement implémenté au-delà des

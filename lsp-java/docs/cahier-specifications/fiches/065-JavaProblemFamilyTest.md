@@ -1,6 +1,6 @@
 # Fiche 065 — JavaProblemFamilyTest
 
-> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/java/src/test/java/jo/lspjava/services/JavaProblemFamilyTest.java`.
+> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/lsp-java/moteur/src/test/java/jo/lspjava/services/JavaProblemFamilyTest.java`.
 > **Domaine** : diagnostics
 > **Résumé** : Mapping ID ecj → famille sémantique (JavaProblemFamily) : verrouille le dispatch ID-FIRST — chaque ID ecj testé mappe vers la même famille, indépendamment de la Locale de l'utilisateur (condition pour que les quick-fixes soient fiables sur une VM française/espagnole/etc.). Test unitaire pur (aucun moteur, aucun android.jar, toujours exécutable) : couvre `fromId` et `fromCode` (format « ecj:<ID> » utilisé par Diagnostic.code(), ID numérique brut, entrées invalides).
 

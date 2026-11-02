@@ -24,8 +24,8 @@ cassé (§0.1-2).
   exhaustifs), §B9 (anti-doublon light/générés) — code public du plugin Android et
   documentation developer.android.com.
 - `01-audit-moteur.md` §1.3 (champs réels de `ModuleLsp`), §3.9 (intégration Android).
-- `docs/ECARTS-SERVEUR.md` §3 (contraintes hôte : sync tardive, H1/H2).
-- `docs/INTEGRATION-CODEIDE.md` (modèle riche produit par l'hôte — contrat à étendre).
+- `lsp-java/docs/ECARTS-SERVEUR.md` §3 (contraintes hôte : sync tardive, H1/H2).
+- `lsp-java/docs/INTEGRATION-CODEIDE.md` (modèle riche produit par l'hôte — contrat à étendre).
 
 ## Options
 

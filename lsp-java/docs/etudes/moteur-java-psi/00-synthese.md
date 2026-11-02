@@ -1,7 +1,7 @@
 # 00 — Synthèse et décision (Phase 4)
 
 > Étude « moteur Java PSI » pour CodeIDE sur Android/ART — synthèse finale de la mission (§8 du prompt).
-> Documents de base : `01-architecture-psi.md` (étude D1–D12 + annexes), `02-spike-mesures.md` (mesures V1/V2/V3 + compatibilité ART), `00b-inventaire-reprise.md` + `docs/PROVENANCE-REPRISE.md` (Phase 0), `docs/adr/0001–0018` (décisions proposées).
+> Documents de base : `01-architecture-psi.md` (étude D1–D12 + annexes), `02-spike-mesures.md` (mesures V1/V2/V3 + compatibilité ART), `00b-inventaire-reprise.md` + `lsp-java/docs/PROVENANCE-REPRISE.md` (Phase 0), `docs/adr/0001–0018` (décisions proposées).
 > **La mission s'arrête ici** : aucune implémentation n'est démarrée ; tout attend la décision du propriétaire (§8 STOP).
 > **Décision reçue le 2026-10-28 : GO PARTIEL ACCEPTÉ** ( point 1 du §6 tranché par le propriétaire — ADR 0004 → statut Accepté ).
 > **Décision reçue le 2026-10-28 : ADR 0001 ACCEPTÉ MODIFIÉ — option 2, réécriture intégrale du moteur** ( point 2 du §6 ; l'exclusion du vendored devient définitive ; l'ADR 0001 a été réécrit à la décision ).
@@ -62,11 +62,11 @@ Détail complet (mesures brutes, commandes, incertitudes) : `02-spike-mesures.md
 
 **Total GO PARTIEL ( vagues 0–4 ) : 75–130 j-h** ( estimation à affiner par vague avant lancement ; la vague 5 et 6 s'ajoutent selon conditions/déclencheurs ).
 
-> **Note d'impact de la décision ADR 0001 ( 28/10, option 2 — réécriture intégrale du moteur )** : l'item « reprise du moteur ( manifeste ) » de la vague 1 est remplacé par « cahier de spécifications ( 449 fiches ) + réécriture Kotlin du noyau » ; le total « 75–130 j-h » est **caduc** ( il supposait le moteur vendored repris comme substrat — R5 : pas de chiffre de remplacement sans données ). Les vagues 2–4 restent valables comme **spécification des couches de design du code neuf** ( intégrées en naissance, chiffres à ré-affiner ). **Ré-estimation produite le 28/10/2026, cahier en main : `docs/PLAN-REECRITURE.md`** ( fourchette 160–270 j-h, médiane 213, étages N1–N8+T, recalages prévus fin N1/fin N2 — soumise au propriétaire ). **Décisions tranchées le 28/10/2026 en séance ( §10 du plan ) : enveloppe 160–270 j-h approuvée ( engagement borné N1 + banc croisé, suite au recalage fin N1 ) ; mesure sur appareil = porte d'entrée de N1 ; séquence confirmée ; écart fiche 054 en parité stricte ( correction consignée post-bascule ).**
+> **Note d'impact de la décision ADR 0001 ( 28/10, option 2 — réécriture intégrale du moteur )** : l'item « reprise du moteur ( manifeste ) » de la vague 1 est remplacé par « cahier de spécifications ( 449 fiches ) + réécriture Kotlin du noyau » ; le total « 75–130 j-h » est **caduc** ( il supposait le moteur vendored repris comme substrat — R5 : pas de chiffre de remplacement sans données ). Les vagues 2–4 restent valables comme **spécification des couches de design du code neuf** ( intégrées en naissance, chiffres à ré-affiner ). **Ré-estimation produite le 28/10/2026, cahier en main : `lsp-java/docs/PLAN-REECRITURE.md`** ( fourchette 160–270 j-h, médiane 213, étages N1–N8+T, recalages prévus fin N1/fin N2 — soumise au propriétaire ). **Décisions tranchées le 28/10/2026 en séance ( §10 du plan ) : enveloppe 160–270 j-h approuvée ( engagement borné N1 + banc croisé, suite au recalage fin N1 ) ; mesure sur appareil = porte d'entrée de N1 ; séquence confirmée ; écart fiche 054 en parité stricte ( correction consignée post-bascule ).**
 
 ## 5. Ce qui reste à mesurer sur appareil (rien n'est prétendu sans retour réel)
 
-1. **Latences V1/V2/V3 sur ART** ( parse, résolution, frappe ) — point d'entrée : `spike/appareil/banc-appareil.sh` + gabarit `GABARIT-RESULTATS.md` ; le facteur 3–5× reste une estimation tant que le gabarit n'est pas rempli.
+1. **Latences V1/V2/V3 sur ART** ( parse, résolution, frappe ) — point d'entrée : `lsp-java/spike/appareil/banc-appareil.sh` + gabarit `GABARIT-RESULTATS.md` ; le facteur 3–5× reste une estimation tant que le gabarit n'est pas rempli.
 2. **GC ART** : éviction des `SoftReference`, coût des `ReferenceQueue` ( D12/ADR 0011 ) — protocole au gabarit §5.
 3. **Dexage réel** ( d8 en CI, conformément au prompt §6.a ) : méthodes dex et taille d'APK des piles candidates ( borne basse = méthodes déclarées, spike §7 ).
 4. **Latences du moteur assemblé** avec les corpus 20/73/250 jars de `LSP_JAVA.md` §4, avant/après chaque vague ( banc ADR 0016 + appareil ).

@@ -3,9 +3,9 @@
 > Moteur Kotlin LSP de CodeIDE sur Android/ART. **Voie C — hybride** (ADR
 > 0100, acceptée par le propriétaire le 2026-10-30) : noyau (parse,
 > résolution, session, diagnostics, complétion) **réécrit depuis le cahier**
-> `docs/cahier-specifications-kotlin/` (53 fiches, 469 comportements) ;
+> `lsp-kotlin/docs/cahier-specifications-kotlin/` (53 fiches, 469 comportements) ;
 > modules différenciants sains **repris après contrôle R9.4** (registre
-> `docs/PROVENANCE-REPRISE-KOTLIN.md`) ; grammaire officielle **vendorée
+> `lsp-kotlin/docs/PROVENANCE-REPRISE-KOTLIN.md`) ; grammaire officielle **vendorée
 > par ré-obtention amont** (jamais depuis `codeide-lsp` — R9.2).
 > Stratégie sémantique : **voie (i)** parseur officiel + modèle de symboles
 > conservateur (ADR 0103, acceptée) — **aucun compilateur sur le chemin
@@ -15,20 +15,20 @@
 
 | Élément | État |
 |---|---|
-| Grammaire vendorée `src/main/vendor/` | tag amont v2.3.0 (`f95cb2f7…`), Apache-2.0, octet pour octet — notice `VENDOR.md`, re-sync par `scripts/vendor-grammaire-kotlin.sh` (ADR 0121) |
+| Grammaire vendorée `src/main/vendor/` | tag amont v2.3.0 (`f95cb2f7…`), Apache-2.0, octet pour octet — notice `VENDOR.md`, re-sync par `lsp-kotlin/scripts/vendor-grammaire-kotlin.sh` (ADR 0121) |
 | Harnais `ParseurKotlin` | minimal (fiches 010–012) : genre racine, marqueurs d'erreur, jetons non blancs, digeste structurel — la façade `Kt*` (fiche 013) est l'étage 1 |
 | Suite de parité | fiches 010 (corpus du dépôt + digeste baseline), 011 (tolérance aux fautes), 012 (fixtures) — `./gradlew :kotlin:test` |
 | Descripteur de pack | `version.properties` généré (contrat D6 : id/version/minApp/grammaire) |
 | Banc | `./gradlew :kotlin:bench` — empreinte/latence, nombres seuls (miroir `:java:bench`) |
-| CI | jobs `kotlin-parite`, `kotlin-art` (scan ART + dexage d8 + seuils), `kotlin-banc` + `provenance` étendu au périmètre `kotlin/` |
+| CI | jobs `kotlin-parite`, `kotlin-art` (scan ART + dexage d8 + seuils), `kotlin-banc` + `provenance` étendu au périmètre `lsp-kotlin/moteur/` |
 
 Critères de sortie de l'étage 0 : **build vert ; parité grammaire verte ;
 zéro fichier hors registre ; 0 motif ART** (rapport :
-`docs/etudes/moteur-kotlin/03-execution-etage0.md`).
+`lsp-kotlin/docs/etudes/moteur-kotlin/03-execution-etage0.md`).
 
 ## Règles propres au module
 
-- **Clean-room pour le noyau** : le code de `codeide-lsp:lsp/kotlin/src/main`
+- **Clean-room pour le noyau** : le code de `codeide-lsp:lsp/lsp-kotlin/moteur/src/main`
   n'est pas consulté pour les zones réécrites (parse, resolve, diagnostics,
   completion, session, api) — le cahier est le contrat. Les zones de
   reprise (voie C) sont ouvertes fichier par fichier, APRÈS inscription au
@@ -46,7 +46,7 @@ zéro fichier hors registre ; 0 motif ART** (rapport :
 - **Garde de compatibilité JDK 17** : `CompatibiliteJdk17Test` (pool de
   constantes du code compilé — famille SequencedCollection sur
   `java.util.List`), motif corrélé dans `scan-art.py` (CI) et garde
-  d'expédition dans `spike-kotlin/scripts/assembler-kit.sh` (kit appareil).
+  d'expédition dans `lsp-kotlin/spike/scripts/assembler-kit.sh` (kit appareil).
 - La baseline digeste (`src/test/resources/parite/digeste-corpus.txt`) se
   re-signe DÉLIBÉRÉMENT : `-Dparite.majBase=true --rerun-tasks` (le diff
   fait partie de la revue — cf. KDoc de `Fiche010PariteCorpusDepotTest`).
@@ -74,6 +74,6 @@ zéro fichier hors registre ; 0 motif ART** (rapport :
 | Jar moteur | 312,6 Kio / 122 classes (56 code neuf) — descripteur `META-INF/services` + notices vendor embarqués, **aucune référence JDK 21+** (garde) |
 | Passe appareil (porte d'entrée étage 1) | **EN COURS** : première passe 30/10 échouée (kit v1 — bug JDK 21 corrigé, §14) ; kit v2 livré (sha256 `1352072e…`), retour du gabarit attendu |
 
-Journal d'exécution de l'étage : `docs/etudes/moteur-kotlin/04-execution-etage1.md`
+Journal d'exécution de l'étage : `lsp-kotlin/docs/etudes/moteur-kotlin/04-execution-etage1.md`
 (vague suivante : 1d classpath + index
 appelables — fiches 002–005/008/009/034, reprises R4/R5).

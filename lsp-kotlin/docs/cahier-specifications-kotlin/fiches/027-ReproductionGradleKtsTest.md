@@ -1,6 +1,6 @@
 # Fiche 027 — ReproductionGradleKtsTest
 
-> **Source** : `codeide-lsp` @ `bc11253` — `lsp/kotlin/src/test/kotlin/jo/lspkotlin/session/ReproductionGradleKtsTest.kt` (5 tests, 236 l.).
+> **Source** : `codeide-lsp` @ `bc11253` — `lsp/lsp-kotlin/moteur/src/test/kotlin/jo/lspkotlin/session/ReproductionGradleKtsTest.kt` (5 tests, 236 l.).
 > **Domaine** : diagnostics
 > **Résumé** : REPRODUCTION des fichiers GRADLE KOTLIN DSL (.gradle.kts) — le build.gradle.kts et settings.gradle.kts du template « Empty Views Activity » d'Android Studio (version-catalog `libs`, blocs plugins/android/dependencies, receivers implicites injectés par le DSL Gradle). Miroir Android Studio : le DSL Gradle est INJECTÉ par le modèle Gradle — sans lui (pas de classpath Gradle), IntelliJ ne signale PAS
 > **Convention** : chaque comportement porte le **nom exact du test source** (identifiant de traçabilité) ; l'attendu le reformule en français lisible, enrichi du contrat D3 quand le nom le porte. Le résumé ci-dessus décrit le contrat de la classe de test.

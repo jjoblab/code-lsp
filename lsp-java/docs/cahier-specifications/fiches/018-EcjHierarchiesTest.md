@@ -1,6 +1,6 @@
 # Fiche 018 — EcjHierarchiesTest
 
-> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/java/src/test/java/jo/lspjava/ecj/EcjHierarchiesTest.java`.
+> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/lsp-java/moteur/src/test/java/jo/lspjava/ecj/EcjHierarchiesTest.java`.
 > **Domaine** : hierarchies
 > **Résumé** : Tests du lot S2-b (moteur) : hiérarchies de TYPES et d'APPELS sur un projet multi-fichiers réel écrit dans un répertoire temporaire. Fixture : `demo.Base` (méthodes `utilise(int)`, `log(int)`, `fournis()`), `demo.Contrat` (interface `fournis()`), `demo.Enfant extends Base implements Contrat`, `demo.Appelant` (appelle `b.utilise(3)` et `b.utilise(4)` depuis `declenche()`). Invariants verrouillés : les éléments sont localisés dans les SOURCES du projet (jamais d'URI factice pour un type binaire — règle D3), les appels entrants sont groupés par méthode appelante, les appels sortants sont résolus vers des déclarations source (cibles binaires écartées).
 

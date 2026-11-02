@@ -15,7 +15,7 @@
 ## 1. Déjà spécifié côté Java — ne pas rejouer
 
 Le protocole des lots A-D existe et couvre des positions **JAVA** :
-**branche etude/moteur-java, docs/etudes/niveau-android-studio/
+**branche etude/moteur-java, lsp-java/docs/etudes/niveau-android-studio/
 06-protocole-captures-android-studio.md** (lisible dans le worktree
 `/home/z/my-project/code-lsp-java`). En résumé :
 

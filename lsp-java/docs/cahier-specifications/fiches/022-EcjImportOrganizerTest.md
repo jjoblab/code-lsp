@@ -1,6 +1,6 @@
 # Fiche 022 — EcjImportOrganizerTest
 
-> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/java/src/test/java/jo/lspjava/ecj/EcjImportOrganizerTest.java`.
+> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/lsp-java/moteur/src/test/java/jo/lspjava/ecj/EcjImportOrganizerTest.java`.
 > **Domaine** : imports
 > **Résumé** : Tests de l'organisateur d'imports (`EcjImportOrganizer`) : identification des FQN à importer depuis les bindings (types qualifiés utilisés, superclasse), règles d'exemption (java.lang, même paquet, on-demand existant), remplacement du bloc d'imports existant par un bloc trié, insertion après le `package` quand il n'y a pas d'imports, et robustesse au code cassé (aucun faux import). L'organisateur est construit sur un moteur à racines/classpath vides (« 17 ») — les types java.* résolvent via le jrt de test.
 

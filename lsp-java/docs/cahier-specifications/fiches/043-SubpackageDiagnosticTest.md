@@ -1,6 +1,6 @@
 # Fiche 043 — SubpackageDiagnosticTest
 
-> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/java/src/test/java/jo/lspjava/ecj/SubpackageDiagnosticTest.java`.
+> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/lsp-java/moteur/src/test/java/jo/lspjava/ecj/SubpackageDiagnosticTest.java`.
 > **Domaine** : completion
 > **Résumé** : Diagnostic (caractérisation) du filtre subpackage « ni plus ni moins » : dump EXACT de ce que propose le moteur pour des contextes import typés — `import android.`, `import android.c`, `import j`, `import java.util.f`, `import java.util.` — afin de comparer aux règles d'or de `packageChildren` (projet tiers de référence) : enfants directs uniquement, dédoublonnés par segment, préfixe vide liste quand même, types directs sans auto-import, insertion du segment simple. **Aucune assertion** : chaque test imprime les items (kind, label, insertText, detail, relevance, autoImportFqn). Fixture : android.jar (API 34/35 selon disponibilité), racine `src/com/example/e`, compliance « 17 ».
 

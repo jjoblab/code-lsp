@@ -1,6 +1,6 @@
 # Fiche 012 — ParseurKotlinTest
 
-> **Source** : `codeide-lsp` @ `bc11253` — `lsp/kotlin/src/test/kotlin/jo/lspkotlin/parse/ParseurKotlinTest.kt` (9 tests, 128 l.).
+> **Source** : `codeide-lsp` @ `bc11253` — `lsp/lsp-kotlin/moteur/src/test/kotlin/jo/lspkotlin/parse/ParseurKotlinTest.kt` (9 tests, 128 l.).
 > **Domaine** : parse
 > **Résumé** : Tests du parseur sur des sources représentatives (l'autre moitié de la suite de parité K1 : le corpus balaye le dépôt entier, ces fixtures épinglent des formes précises, jeton par jeton).
 > **Convention** : chaque comportement porte le **nom exact du test source** (identifiant de traçabilité) ; l'attendu le reformule en français lisible, enrichi du contrat D3 quand le nom le porte. Le résumé ci-dessus décrit le contrat de la classe de test.

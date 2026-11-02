@@ -1,6 +1,6 @@
 # 07 — Gabarit de mesure sur appareil (moteur Kotlin « niveau Android Studio »)
 
-> Style `bancs/GABARIT-BASCULE-APPAREIL.md` (R5 : **valeurs réelles, jamais
+> Style `docs/GABARIT-BASCULE-APPAREIL.md` (R5 : **valeurs réelles, jamais
 > simulées** — le gabarit est rempli par le propriétaire sur l'appareil de
 > référence). Appareil de référence : **moto g06, Android 15, OpenJDK 17
 > aarch64 / ART sous Termux** — même appareil que la passe de bascule et que
@@ -14,22 +14,22 @@
 
 ## 1. Rails existants (à réutiliser tels quels)
 
-- [`bancs/GABARIT-BASCULE-APPAREIL.md`](../../../bancs/GABARIT-BASCULE-APPAREIL.md) —
+- [`docs/GABARIT-BASCULE-APPAREIL.md`](../../../../docs/GABARIT-BASCULE-APPAREIL.md) —
   gabarit de passe appareil déjà éprouvé (passe du 29/10 consignée,
   décision de bascule signée le 30/10) : déclaration d'environnement,
   transcript brut joint, aucune valeur pré-remplie
   [CONFIRMÉ — dépôt, branche etude/moteur-kotlin].
-- [`scripts/kit-bascule.sh`](../../../scripts/kit-bascule.sh) — la MÉCANIQUE
+- [`lsp-java/scripts/kit-bascule.sh`](../../../../lsp-java/scripts/kit-bascule.sh) — la MÉCANIQUE
   d'assemblage : côté bureau, produit `build/kit-bascule.zip` (jamais
   committé) ; sur l'appareil (Termux, OpenJDK 17 — 17.0.19 constaté au
-  29/10 [CONFIRMÉ — bancs/GABARIT-BASCULE-APPAREIL.md §1]) :
+  29/10 [CONFIRMÉ — docs/GABARIT-BASCULE-APPAREIL.md §1]) :
   `unzip -o kit-bascule.zip -d bascule && cd bascule && bash banc-bascule.sh > resultats-bascule.txt`.
 - **Écart à couvrir pour la présente passe** : le kit actuel assemble la
   passe bascule du MOTEUR JAVA (`:java:benchClasses`) ; la passe Kotlin
   exige le **kit enrichi** du document 11 §2.2 — le moteur `:kotlin` et sa
   pile complète, `kotlin-metadata-jvm` comprise (recommandation consignée,
   mécanique prête) [CONFIRMÉ —
-  docs/etudes/moteur-kotlin/11-decisions-proprio-post-cloture.md §2.2].
+  lsp-kotlin/docs/etudes/moteur-kotlin/11-decisions-proprio-post-cloture.md §2.2].
   Les sections ci-dessous en constituent le cahier des charges de mesure ;
   le présent document n'exige AUCUN changement de code pour exister.
 
@@ -50,7 +50,7 @@
       **1 803 lignes, 150 fonctions**, reproductible à l'octet près, miroir
       du `Grand.java` (1 356 l. — gabarit 07 de la mission Java, cf. §5)
       [CONFIRMÉ —
-      `kotlin/src/test/kotlin/jo/codeide/lsp/kotlin/session/Fiche021MesuresPerfDiagnosticsTest.kt`
+      `lsp-kotlin/moteur/src/test/kotlin/jo/codeide/lsp/kotlin/session/Fiche021MesuresPerfDiagnosticsTest.kt`
       + document 11 §2.2] ; texte muté à chaque itération (sinon diagnose
       mémoïsé = no-op) ; + corpus de sonde du banc pour F1-F4.
 - [ ] Transcript brut joint (jamais retouché) + commit du moteur testé
@@ -135,7 +135,7 @@
 
 **Moteur JAVA, moto g06, passe 1 du kit de mesure (jouée le 30/10/2026 au
 soir, consignée le 31/10)** [CONFIRMÉ — mission Java, worktree
-`code-lsp-java`, branche etude/moteur-java, docs/etudes/niveau-android-studio/
+`code-lsp-java`, branche etude/moteur-java, lsp-java/docs/etudes/niveau-android-studio/
 07-gabarit-mesure-appareil.md] :
 
 - démarrage à froid → première complétion utile : **≈ 7,6 s** (passe 1) ;
@@ -147,8 +147,8 @@ soir, consignée le 31/10)** [CONFIRMÉ — mission Java, worktree
 
 **Repères JVM du MOTEUR KOTLIN (fiche 021 — bac à sable, document
 déterministe de 1 803 l.)** [CONFIRMÉ —
-docs/cahier-specifications-kotlin/fiches/021-MesuresPerfDiagnosticsTest.md +
-docs/etudes/moteur-kotlin/11-decisions-proprio-post-cloture.md §2.2] :
+lsp-kotlin/docs/cahier-specifications-kotlin/fiches/021-MesuresPerfDiagnosticsTest.md +
+lsp-kotlin/docs/etudes/moteur-kotlin/11-decisions-proprio-post-cloture.md §2.2] :
 
 - reparse complet du document 1 803 l. : **29 ms** échauffé ;
 - diagnostics complets : **135-176 ms** à froid / **20-26 ms** à chaud.

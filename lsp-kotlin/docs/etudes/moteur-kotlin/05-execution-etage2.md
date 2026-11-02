@@ -328,9 +328,9 @@ tenus], banc empreinte/latence sous JDK 17.
 
 **Écart d'exécution signalé (E-K6, miroir de la vague 1c)** : la tentative
 1 du run a échoué sur le test flottant CONNU du chantier Java
-(`testing/…/IntegrationMoteurIndexTest.reouvertureChaudeSansReconstruction`
+(`socle/testing/…/IntegrationMoteurIndexTest.reouvertureChaudeSansReconstruction`
 — assertion de TEMPO sans tolérance, documenté ALERTES §4 E-K6 depuis la
-vague 1c) ; le diff de la vague ne touche QUE `kotlin/` et `docs/` (aucun
+vague 1c) ; le diff de la vague ne touche QUE `lsp-kotlin/moteur/` et `docs/` (aucun
 lien avec le périmètre Java), la relance du job a rendu la tentative 2
 VERTE (9/9). La recommandation d'assouplissement au propriétaire
 (périmètre Java) DEMEURE.
@@ -1037,8 +1037,8 @@ des tests des journaux §5–§11] :
 |---|---:|---|
 | Commits de l'étage | 12 | 2a→2g : livraisons + clôtures (borne : clôture étage 1 `cf9a29c`) |
 | Fichiers touchés | 65 | +17 373 / −95 lignes |
-| `kotlin/` main | 27 fichiers, +8 645 / −63 | résolution, diagnostics, correctifs, membres manquants |
-| `kotlin/` test | 32 fichiers, +7 490 / −10 | fiches 2a→2f + banc de fidélité + corpus |
+| `lsp-kotlin/moteur/` main | 27 fichiers, +8 645 / −63 | résolution, diagnostics, correctifs, membres manquants |
+| `lsp-kotlin/moteur/` test | 32 fichiers, +7 490 / −10 | fiches 2a→2f + banc de fidélité + corpus |
 | Tests du module | 132 → **337** | +205 pour 204 comportements et 1 banc (≈ 1 test/comportement) |
 | Tableau de spécification | A1 → **A31** | rempli vague par vague (item §1 n° 1) |
 | Tempo [mesuré-agent] | 30/10 12:17 → 31/10 (UTC+8) | 7 vagues en ~2 jours calendaires de séances |

@@ -13,7 +13,7 @@ Le prompt exige d'instruire trois options avec des chiffres avant de
 recommander. Fait porteur : l'**oracle K2 tourne déjà en sous-processus dans
 la CI du dépôt** (`BancFideliteK2Test`, `kotlin-compiler-embeddable` en
 testImplementation) et le kit appareil exécute déjà une JVM dans Termux sur
-moto g06 (`scripts/kit-bascule.sh`) — la voie « processus déporté » a donc un
+moto g06 (`lsp-java/scripts/kit-bascule.sh`) — la voie « processus déporté » a donc un
 précédent mécanique chez nous.
 
 ## Sources consultées

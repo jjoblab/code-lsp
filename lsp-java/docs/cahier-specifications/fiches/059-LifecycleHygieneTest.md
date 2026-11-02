@@ -1,6 +1,6 @@
 # Fiche 059 — LifecycleHygieneTest
 
-> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/java/src/test/java/jo/lspjava/lsp/LifecycleHygieneTest.java`.
+> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/lsp-java/moteur/src/test/java/jo/lspjava/lsp/LifecycleHygieneTest.java`.
 > **Domaine** : cycle-vie-lsp
 > **Résumé** : Lot S0-a « hygiène protocolaire » (audit §6.3) : garde lifecycle I2 (requête avant `initialized` rejetée ServerNotInitialized, après `shutdown` rejetée InvalidRequest ; notifications ignorées hors fenêtre), initialize réentrant I3 (InvalidRequest), didSave sans `includeText` I5 (republication depuis le buffer vivant), serverInfo.version I7 (version du dépôt lue de la ressource `jo/lspjava/pack/version.properties`), convention null/vide I9 et erreur typée rename I8. Tous les tests tournent SANS classpath Android (protocole verrouillé, pas l'analyse) ; client espion pour les publications de diagnostics.
 

@@ -43,7 +43,7 @@ par le message de livraison — leur accord mutuel est en soi un résultat
 
 ### 2.1 Volumétrie livrée [mesuré]
 
-Commandes : `git show ce291dc --stat` ; `find java/src/main -name '*.kt' |
+Commandes : `git show ce291dc --stat` ; `find lsp-java/moteur/src/main -name '*.kt' |
 wc -l` (et analogue pour chaque arbre) ; comptage des `TEST-*.xml`.
 
 | Grandeur | Valeur | Détail |
@@ -76,7 +76,7 @@ commit intermédiaire — cette fenêtre contient l'intégralité du travail N1 
 lecture des 25 fiches, écriture des 22 fichiers de production, des 128 tests,
 du banc, l'inscription au manifeste de provenance et la mise à jour du README.
 Aucun travail N1 n'a été produit hors de cette fenêtre (aucun commit antérieur
-ne touche `java/`). C'est la mesure centrale du recalage, et elle porte une
+ne touche `lsp-java/moteur/`). C'est la mesure centrale du recalage, et elle porte une
 limite de validité essentielle : elle mesure le **rythme d'un agent** sur un
 cahier exécutable mécaniquement — pas la productivité d'un développeur
 humain, dont aucun point de mesure n'existe dans ce dépôt (§3.4).
@@ -321,6 +321,6 @@ propriétaire au recalage 1 »), deux points :
 ---
 *Références : `PLAN-REECRITURE.md` (§3.3 ancrages, §5 fourchettes, §8.2
 présent recalage, §8.3 recalage 2, §10 décisions) · commit `ce291dc`
-(livraison N1, message détaillé) · `spike/appareil/GABARIT-RESULTATS.md`
+(livraison N1, message détaillé) · `lsp-java/spike/appareil/GABARIT-RESULTATS.md`
 (porte d'entrée appareil, 28/10) · `PROVENANCE-REPRISE.md` (mutation
 `:testing`) · `AGENTS.md` (règles de travail).*

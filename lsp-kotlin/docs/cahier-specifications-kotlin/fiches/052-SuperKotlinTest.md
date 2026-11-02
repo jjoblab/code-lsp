@@ -1,6 +1,6 @@
 # Fiche 052 — SuperKotlinTest
 
-> **Source** : `codeide-lsp` @ `bc11253` — `lsp/kotlin/src/test/kotlin/jo/lspkotlin/session/SuperKotlinTest.kt` (10 tests, 357 l.).
+> **Source** : `codeide-lsp` @ `bc11253` — `lsp/lsp-kotlin/moteur/src/test/kotlin/jo/lspkotlin/session/SuperKotlinTest.kt` (10 tests, 357 l.).
 > **Domaine** : navigation
 > **Résumé** : Tests du GO TO « Super » Kotlin (ADR 0210 — `textDocument superDefinition`, miroir des scénarios `NavigationFacadeTest` du LSP Java) — par le SPI (chemin de production D6), moteur RÉEL, projet multi-fichiers sur disque (racines sources du scan, même montage que [TypesKotlinTest]). Le cœur éprouvé : les DEUX chemins du picker Super — (1) MEMBRE au caret (déclaration outrepassante, ou usage RÉSOLU p
 > **Convention** : chaque comportement porte le **nom exact du test source** (identifiant de traçabilité) ; l'attendu le reformule en français lisible, enrichi du contrat D3 quand le nom le porte. Le résumé ci-dessus décrit le contrat de la classe de test.

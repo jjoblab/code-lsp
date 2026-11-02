@@ -1,6 +1,6 @@
 # Fiche 049 — SessionLangageKotlinParseTest
 
-> **Source** : `codeide-lsp` @ `bc11253` — `lsp/kotlin/src/test/kotlin/jo/lspkotlin/session/SessionLangageKotlinParseTest.kt` (26 tests, 381 l.).
+> **Source** : `codeide-lsp` @ `bc11253` — `lsp/lsp-kotlin/moteur/src/test/kotlin/jo/lspkotlin/session/SessionLangageKotlinParseTest.kt` (26 tests, 381 l.).
 > **Domaine** : cycle-vie-lsp
 > **Résumé** : Tests du contrat de session K2 (LSP_KOTLIN.md §5, K2 « session LSP minimale ») — par le SPI ([ServiceMoteurLangageKotlin.unique]), PAS par le type concret : c'est le chemin de production de l'hôte (D6 : le pack futur se branche là, et uniquement là). Comportements éprouvés (fixtures calibrées sur le comportement RÉEL de la grammaire vendorée, sondé avant écriture) : - tolérance : aucun texte ne lè
 > **Convention** : chaque comportement porte le **nom exact du test source** (identifiant de traçabilité) ; l'attendu le reformule en français lisible, enrichi du contrat D3 quand le nom le porte. Le résumé ci-dessus décrit le contrat de la classe de test.

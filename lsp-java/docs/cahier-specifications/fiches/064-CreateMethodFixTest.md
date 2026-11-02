@@ -1,6 +1,6 @@
 # Fiche 064 — CreateMethodFixTest
 
-> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/java/src/test/java/jo/lspjava/services/CreateMethodFixTest.java`.
+> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/lsp-java/moteur/src/test/java/jo/lspjava/services/CreateMethodFixTest.java`.
 > **Domaine** : diagnostics
 > **Résumé** : Quick-fix « Créer la méthode » (famille UNDEFINED_METHOD) — portage du CreateMethodFromUsage du projet tiers de référence : stub `private [static]` inséré APRÈS la méthode englobante, types des paramètres déduits des arguments STRUCTURÉS du diagnostic ecj, retour `void` (appel-instruction) ou `Object` (appel-expression), corps en `UnsupportedOperationException`. Particularité forte : les diagnostics viennent du VRAI moteur ecj (diagnose) — plage et arguments réels, pas synthétiques ; le test 1 re-diagnostique le texte corrigé et exige la disparition de l'erreur. Hypothèse visible dans `@BeforeAll` : `android.jar` présent, sinon classe ignorée.
 

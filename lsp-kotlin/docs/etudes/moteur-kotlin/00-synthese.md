@@ -5,8 +5,8 @@
 > `00b-inventaire-existant.md` (Phase 0) ·
 > `01-architectures-analyse-kotlin.md` (Phase 1, K1–K12) ·
 > `02-spike-mesures.md` (Phase 2, S0–S3) · cahier
-> `docs/cahier-specifications-kotlin/` (53 fiches, 469 comportements) ·
-> manifeste `docs/PROVENANCE-REPRISE-KOTLIN.md` · ADR `0100–0121`
+> `lsp-kotlin/docs/cahier-specifications-kotlin/` (53 fiches, 469 comportements) ·
+> manifeste `lsp-kotlin/docs/PROVENANCE-REPRISE-KOTLIN.md` · ADR `0100–0121`
 > (**0100 et 0103 Acceptés** le 2026-10-30 — les autres restent Proposées
 > jusqu'à leur étage, R7).
 > **Décision du propriétaire reçue le 2026-10-30** (« commencer les
@@ -123,7 +123,7 @@ l'étage LSP complets) ; à affiner cahier en main à la fin de l'étage 1
 **Vague 0 (amorçage) — détaillée :**
 1. module `:kotlin` (squelette Gradle, conventions du dépôt, toolchain) ;
 2. grammaire vendorée par ré-obtention amont + suite de parité + VENDOR/NOTICE ;
-3. extension de `scripts/verifier-provenance.sh` au périmètre `kotlin/`
+3. extension de `scripts/verifier-provenance.sh` au périmètre `lsp-kotlin/moteur/`
    (registre Kotlin comme manifeste de contrôle — proposition, le
    script n'est pas modifié pendant l'étude, R3) ;
 4. reprises contrôlées des modules C (inscription PRÉALABLE au
@@ -132,7 +132,7 @@ l'étage LSP complets) ; à affiner cahier en main à la fin de l'étage 1
    (extension des workflows Java) ;
 6. actions propriétaire : conditions artefacts intellij-dependencies
    (P-K2) ; lecture du second manifeste ;
-7. gabarit de mesure appareil (déclinaison de `spike/appareil/` Java).
+7. gabarit de mesure appareil (déclinaison de `lsp-java/spike/appareil/` Java).
 
 ## 5. Ce qui reste à mesurer sur appareil (rien n'est prétendu sans retour réel)
 

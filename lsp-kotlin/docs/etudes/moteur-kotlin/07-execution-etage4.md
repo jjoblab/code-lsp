@@ -411,8 +411,8 @@ actions — 20–32 j-h [estimé]) est le suivant.
 |---|---:|---|
 | Commits de l'étage | 3 | 4a (livraison poussée `9f95bf7`), 4b+4c (livraison conjointe — les deux vagues prêtes ensemble), 4d (clôture) — borne : clôture alertes étage 3 `782abd8` |
 | Fichiers touchés | 12 | +4 271 / −6 lignes (main, tests, journaux, digeste) |
-| `kotlin/` main | 6 fichiers, +2 602 / −3 | `OccurrencesProuvees.kt` (1 298 l.), `NavigationSuper.kt` (515 l.), `NavigationTypes.kt` (378 l.), SPI (`NavigationKotlin` +70, `SessionLangageKotlin` +169) et session (+172) |
-| `kotlin/` test | 3 fichiers, +1 222 | fiches 048/052/053 (553 + 378 + 291 l. — 21 + 10 + 7 tests) |
+| `lsp-kotlin/moteur/` main | 6 fichiers, +2 602 / −3 | `OccurrencesProuvees.kt` (1 298 l.), `NavigationSuper.kt` (515 l.), `NavigationTypes.kt` (378 l.), SPI (`NavigationKotlin` +70, `SessionLangageKotlin` +169) et session (+172) |
+| `lsp-kotlin/moteur/` test | 3 fichiers, +1 222 | fiches 048/052/053 (553 + 378 + 291 l. — 21 + 10 + 7 tests) |
 | Tests du module | 393 → **431** | +38 pour 38 comportements — EXACTEMENT 1 test/comportement |
 | Tempo [mesuré-agent] | 31/10 ~00:00 → ~00:40 (UTC+8) | 4 vagues en ~40 min de séance continue (l'étage 3 : ~5 h — la navigation est une dominante DOCUMENTÉE plus légère) |
 

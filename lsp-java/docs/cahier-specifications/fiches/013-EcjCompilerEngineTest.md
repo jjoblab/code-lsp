@@ -1,6 +1,6 @@
 # Fiche 013 — EcjCompilerEngineTest
 
-> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/java/src/test/java/jo/lspjava/ecj/EcjCompilerEngineTest.java`.
+> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/lsp-java/moteur/src/test/java/jo/lspjava/ecj/EcjCompilerEngineTest.java`.
 > **Domaine** : diagnostics
 > **Résumé** : Tests du moteur ecj in-process sur JVM desktop : ces tests consomment le jar ecj PATCHÉ (tâche `patchEcjForArt`) et valident donc indirectement que les shims (`RuntimeVersion`, `InputStreamCompat`) satisfont les références réécrites — le Parser ecj passe par `InputStream.readAllBytes` (réécrit vers le shim) dès le premier resolve ; la plateforme (`java.lang.Object`, `String`…) vient de l'image jrt du JDK courant. Verrouille : utilisabilité desktop, 0 erreur sur code valide, erreurs typiques (variable non définie, mismatch de type, return en void), diagnostics localisés sur code cassé, résolution inter-fichiers depuis une racine source SANS build, résolution binaire depuis un jar du classpath.
 

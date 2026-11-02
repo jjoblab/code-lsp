@@ -1,6 +1,6 @@
 # Fiche 060 — NavigationFacadeTest
 
-> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/java/src/test/java/jo/lspjava/lsp/NavigationFacadeTest.java`.
+> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/lsp-java/moteur/src/test/java/jo/lspjava/lsp/NavigationFacadeTest.java`.
 > **Domaine** : navigation
 > **Résumé** : Tests E2E à travers la façade LSP réelle : `textDocument/implementation` (GO TO « Implementations » — les héritiers DIRECTS du type en contexte, multi-fichiers par balayage des racines sources) et `textDocument/superDefinition` (GO TO « Super » — le membre outrepassé dans chaque supertype, sinon les supertypes DIRECTS du type en contexte). Fixtures multi-fichiers sous `tmp/src` : `Base`/`ImplA`/`ImplB` (héritage de classe), `Greeter`/`EnGreeter` (implémentation d'interface), `Nest` (sous-classe imbriquée dans le même fichier), `Solo` (sans descendance), `MyThread` (supertype BINAIRE java.lang.Thread — aucune source navigable). Hypothèse visible dans `@BeforeAll` : `android.jar` présent (ANDROID_HOME/ANDROID_SDK_ROOT/`/home/z/tools/android-sdk`), sinon toute la classe est ignorée ; environnement racine src + android.jar, Java 17, façade construite directement.
 

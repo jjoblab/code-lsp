@@ -55,7 +55,7 @@ Proposition (à trancher par le propriétaire en ADR 0002) :
 - **Cœur** : `model` + `index` + `testing` (reprise après ADR 0001) + le moteur Java selon la voie tranchée (reprise conditionnelle du vendored, ou réécriture) — soit le **domaine moteur Java**, autonome vis-à-vis de l'UI.
 - **Non inclus** : `host` (reste dans codeide-lsp pour orchestrer les trois langues ; le nouveau dépôt expose la façade), `kotlin`, `xml` (R8), tout code CodeIDE/code-editor (intégration par artefacts).
 - **Dépendances d'artefacts** : protocole tooling (licence à clarifier), ecj + lsp4j (EPL-2.0) si la voie statu quo/hybride est retenue, java-syntax JetBrains (Apache-2.0) si la voie V1/V2 du spike est retenue.
-- Le nouveau dépôt ne dépend d'aucun ancien dépôt **au build ni à l'exécution** (R3) : les reprises sont des copies contrôlées, listées dans `docs/PROVENANCE-REPRISE.md`.
+- Le nouveau dépôt ne dépend d'aucun ancien dépôt **au build ni à l'exécution** (R3) : les reprises sont des copies contrôlées, listées dans `lsp-java/docs/PROVENANCE-REPRISE.md`.
 
 ## 6. Actions demandées au propriétaire (verrouillent la suite)
 

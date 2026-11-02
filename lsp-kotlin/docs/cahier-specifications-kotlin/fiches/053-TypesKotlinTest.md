@@ -1,6 +1,6 @@
 # Fiche 053 — TypesKotlinTest
 
-> **Source** : `codeide-lsp` @ `bc11253` — `lsp/kotlin/src/test/kotlin/jo/lspkotlin/session/TypesKotlinTest.kt` (7 tests, 278 l.).
+> **Source** : `codeide-lsp` @ `bc11253` — `lsp/lsp-kotlin/moteur/src/test/kotlin/jo/lspkotlin/session/TypesKotlinTest.kt` (7 tests, 278 l.).
 > **Domaine** : navigation
 > **Résumé** : Tests de la NAVIGATION DE TYPES Kotlin (L2 — plan 1.3.0, `textDocument/typeDefinition` et `textDocument/implementation`) — par le SPI (chemin de production D6), moteur RÉEL, projet multi-fichiers sur disque (racines sources du scan, même montage que les occurrences S2). Le cœur éprouvé : la PREUVE PAR FQCN. Une cible est servie seulement si son nom résout par les IMPORTS du fichier du curseur (ou
 > **Convention** : chaque comportement porte le **nom exact du test source** (identifiant de traçabilité) ; l'attendu le reformule en français lisible, enrichi du contrat D3 quand le nom le porte. Le résumé ci-dessus décrit le contrat de la classe de test.

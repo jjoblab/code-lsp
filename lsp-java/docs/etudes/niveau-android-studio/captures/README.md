@@ -17,7 +17,7 @@
 ## 2. Préparation (une fois, ~10 min)
 
 1. Android Studio **Ladybug ou plus récent**, projet de test = copie locale
-   de `bancs/projet-android/` (ne pas committer les modifications locales).
+   de `lsp-java/bancs/projet-android/` (ne pas committer les modifications locales).
 2. Copier [`kit/KitCapturesAs.java`](kit/KitCapturesAs.java) vers
    `app/src/main/java/com/example/monip/KitCapturesAs.java`.
 3. Copier [`kit/res-values-strings.xml`](kit/res-values-strings.xml) vers

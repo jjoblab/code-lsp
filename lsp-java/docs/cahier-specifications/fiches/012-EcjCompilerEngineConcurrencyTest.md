@@ -1,6 +1,6 @@
 # Fiche 012 — EcjCompilerEngineConcurrencyTest
 
-> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/java/src/test/java/jo/lspjava/ecj/EcjCompilerEngineConcurrencyTest.java`.
+> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/lsp-java/moteur/src/test/java/jo/lspjava/ecj/EcjCompilerEngineConcurrencyTest.java`.
 > **Domaine** : concurrence-annulation
 > **Résumé** : Concurrence du moteur ecj in-process : `resolveUnit()` lit/écrit le parse cache non thread-safe et ouvre les jars partagés de l'environnement ; de nombreux points d'entrée LSP (complétion, signature help, inlay hints, rename, import organizer, document symbol) y passent sur le pool LSP4J (`newCachedThreadPool`) — exposition à une course réelle. Deux tests : un mix concurrent diagnostics + resolveUnit + hover sur un moteur PARTAGÉ (cohérence des résultats, aucune exception) et un stress de `resolveUnit` sur deux sources à clés de cache distinctes.
 

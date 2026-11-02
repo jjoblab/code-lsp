@@ -1,6 +1,6 @@
 # Fiche 020 — MembresManquantsTest
 
-> **Source** : `codeide-lsp` @ `bc11253` — `lsp/kotlin/src/test/kotlin/jo/lspkotlin/session/MembresManquantsTest.kt` (10 tests, 319 l.).
+> **Source** : `codeide-lsp` @ `bc11253` — `lsp/lsp-kotlin/moteur/src/test/kotlin/jo/lspkotlin/session/MembresManquantsTest.kt` (10 tests, 319 l.).
 > **Domaine** : diagnostics
 > **Résumé** : Tests du quick-fix « IMPLÉMENTER LES MEMBRES MANQUANTS » (chantier P1-C, ADR 0229) — par le SPI (chemin de production D6) : la clôture des supertypes (PROJET via le port, CLASSPATH via la vue JVM), la substitution des paramètres de type, l'appariement getters/setters en propriétés, la garde générique (attribut `Signature` du bytecode) et les exclusions du corps — chaque test éprouve AUSSI la borne
 > **Convention** : chaque comportement porte le **nom exact du test source** (identifiant de traçabilité) ; l'attendu le reformule en français lisible, enrichi du contrat D3 quand le nom le porte. Le résumé ci-dessus décrit le contrat de la classe de test.

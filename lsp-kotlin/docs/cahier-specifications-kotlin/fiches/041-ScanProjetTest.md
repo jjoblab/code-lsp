@@ -1,6 +1,6 @@
 # Fiche 041 — ScanProjetTest
 
-> **Source** : `codeide-lsp` @ `bc11253` — `lsp/kotlin/src/test/kotlin/jo/lspkotlin/session/ScanProjetTest.kt` (15 tests, 277 l.).
+> **Source** : `codeide-lsp` @ `bc11253` — `lsp/lsp-kotlin/moteur/src/test/kotlin/jo/lspkotlin/session/ScanProjetTest.kt` (15 tests, 277 l.).
 > **Domaine** : index-classpath
 > **Résumé** : Tests du scan des racines sources (KP6 — plan de stabilisation LSP §3.2 S0) : contrat fonctionnel (scan paresseux des `.kt`, exclusion du document courant, invalidation au changement de racines) et accès CONCURRENTS — deux sessions simultanées doivent voir un état cohérent : la paire (racines, scannees) est mutée sous le verrou du scan, la visibilité mémoire est garantie par les champs volatils (m
 > **Convention** : chaque comportement porte le **nom exact du test source** (identifiant de traçabilité) ; l'attendu le reformule en français lisible, enrichi du contrat D3 quand le nom le porte. Le résumé ci-dessus décrit le contrat de la classe de test.

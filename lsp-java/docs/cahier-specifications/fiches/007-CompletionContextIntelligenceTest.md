@@ -1,6 +1,6 @@
 # Fiche 007 — CompletionContextIntelligenceTest
 
-> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/java/src/test/java/jo/lspjava/ecj/CompletionContextIntelligenceTest.java`.
+> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/lsp-java/moteur/src/test/java/jo/lspjava/ecj/CompletionContextIntelligenceTest.java`.
 > **Domaine** : completion
 > **Résumé** : Intelligence contextuelle de la complétion (v1.16.0) : la position grammaticale filtre le légal (`extends`/`implements`/`throws`/`catch`/`new`/annotation), la position de membre propose des stubs d'override (snippets), la position de nom de déclaration suggère des noms dérivés du type, les labels d'un `switch` sur enum proposent les constantes (kind ENUM), les valeurs d'attribut d'annotation de type enum proposent les constantes (forme nommée et mono-valeur). Moteur sur racine source temporaire + android.jar (sinon classe ignorée) ; le caret est simulé par une frappe partielle dans `Main.java` réécrit sur disque.
 

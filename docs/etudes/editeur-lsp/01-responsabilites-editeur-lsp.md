@@ -7,7 +7,7 @@
 >
 > Branche `etude/moteur-java` du dépôt `jjoblab/code-lsp`. Document d'étude ; la
 > décision qui en découle (correctif v1.1.4, pas de refonte de l'éditeur) est consignée
-> dans `docs/INTEGRATION-CODEIDE.md` §12.
+> dans `lsp-java/docs/INTEGRATION-CODEIDE.md` §12.
 
 ## Cadre et méthode
 
@@ -231,7 +231,7 @@ popup après « `import ` » + espace, PAS les réponses vides. Les réponses vi
 (diagnostics analytiques muets, go-to vide, complétion appauvrie en mots-clés,
 documentHighlight/inlayHint vides sur fichier SAIN) viennent du **serveur en régime
 instantané sur ART** : cause racine isolée et corrigée dans
-`docs/INTEGRATION-CODEIDE.md` §12 (correctif v1.1.4).
+`lsp-java/docs/INTEGRATION-CODEIDE.md` §12 (correctif v1.1.4).
 
 Deux écarts véritables subsistent, tous deux côté SERVEUR (écart e1) ou à documenter
 (e2) :

@@ -1,6 +1,6 @@
 # Fiche 043 — SessionLangageKotlinCompletionContextuelleTest
 
-> **Source** : `codeide-lsp` @ `bc11253` — `lsp/kotlin/src/test/kotlin/jo/lspkotlin/session/SessionLangageKotlinCompletionContextuelleTest.kt` (14 tests, 308 l.).
+> **Source** : `codeide-lsp` @ `bc11253` — `lsp/lsp-kotlin/moteur/src/test/kotlin/jo/lspkotlin/session/SessionLangageKotlinCompletionContextuelleTest.kt` (14 tests, 308 l.).
 > **Domaine** : completion
 > **Résumé** : Tests de la complétion CONTEXTUELLE Kotlin (vague 1 du chantier du rapport d'analyse du 28/10/2026 — ADR 0228) : les trois contextes portés du moteur Java 1.16.0, par le SPI (chemin de production D6) — arguments NOMMÉS d'un appel, CONSTANTES d'enum des branches d'un `when`, ATTRIBUTS d'annotation. Chaque test éprouve AUSSI la borne conservatrice (D3) : position de valeur muette, candidat inconnu,
 > **Convention** : chaque comportement porte le **nom exact du test source** (identifiant de traçabilité) ; l'attendu le reformule en français lisible, enrichi du contrat D3 quand le nom le porte. Le résumé ci-dessus décrit le contrat de la classe de test.

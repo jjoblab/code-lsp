@@ -1,6 +1,6 @@
 # Fiche 033 — ReproductionObjetsClasspathTest
 
-> **Source** : `codeide-lsp` @ `bc11253` — `lsp/kotlin/src/test/kotlin/jo/lspkotlin/session/ReproductionObjetsClasspathTest.kt` (9 tests, 460 l.).
+> **Source** : `codeide-lsp` @ `bc11253` — `lsp/lsp-kotlin/moteur/src/test/kotlin/jo/lspkotlin/session/ReproductionObjetsClasspathTest.kt` (9 tests, 460 l.).
 > **Domaine** : diagnostics
 > **Résumé** : REPRODUCTION des OBJETS DU CLASSPATH (retour utilisateurs 25/10/2026, familles A du programme U1-U4) : `MaterialTheme.typography`, `Arrangement.spacedBy`, `Icons.Filled` — un objet Kotlin compilé est une classe au champ STATIQUE `INSTANCE` dont les membres sont des membres d'INSTANCE. Le moteur n'offrait que « INSTANCE » en complétion après le nom de l'objet (Léa : `MaterialTheme.` → UNE propositi
 > **Convention** : chaque comportement porte le **nom exact du test source** (identifiant de traçabilité) ; l'attendu le reformule en français lisible, enrichi du contrat D3 quand le nom le porte. Le résumé ci-dessus décrit le contrat de la classe de test.

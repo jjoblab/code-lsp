@@ -1,7 +1,7 @@
 # Corpus réel Android Kotlin (banc de cohérence P1–P9, vague 0)
 
-> Répertoire **jamais committé** (`.gitignore` : `bancs/corpus-android-kotlin/`)
-> — le contenu arrive par `scripts/telecharger-corpus-kotlin.sh`, épinglé commit
+> Répertoire **jamais committé** (`.gitignore` : `lsp-kotlin/bancs/corpus-android-kotlin/`)
+> — le contenu arrive par `lsp-kotlin/scripts/telecharger-corpus-kotlin.sh`, épinglé commit
 > par commit. Les dépôts sont des **données de corpus** (cibles de mesure) :
 > ils sont les SEULS projets tiers nommés dans le code du banc (liste blanche
 > du corpus, Apache-2.0).
@@ -31,23 +31,23 @@ positifs de montage, pas du moteur). La préparation produit UN manifeste par
 projet :
 
 ```
-bancs/corpus-android-kotlin/prepares/<projet>.manifeste
+lsp-kotlin/bancs/corpus-android-kotlin/prepares/<projet>.manifeste
 racine:<chemin absolu d'une racine de sources>
 racine:<...>                      # une ligne par racine (main, debug, générés…)
 classpath:<chemin absolu d'un jar> # une ligne par entrée (android.jar, kotlin-stdlib, AAR…)
 ```
 
 **Procédure (CI ou poste avec SDK Android)** — la même que les gates corpus
-du domaine Java (`bancs/corpus-android/LISEZMOI.md`) :
+du domaine Java (`lsp-java/bancs/corpus-android/LISEZMOI.md`) :
 
-1. `scripts/telecharger-corpus-kotlin.sh` (sources épinglées).
+1. `lsp-kotlin/scripts/telecharger-corpus-kotlin.sh` (sources épinglées).
 2. Pour chaque projet : exporter le classpath de compilation de la variante
    debug via Gradle (`./gradlew :app:dependencies` ou tâche d'export maison)
    — en extraire les jars et les racines de sources (y compris
    `build/generated/…` après un build). Le manifeste DOIT inclure le
    `kotlin-stdlib` et l'`android.jar` (le plancher d'appelables du moteur).
 3. Écrire le manifeste (chemins ABSOLUS).
-4. `CORPUS_KOTLIN=bancs/corpus-android-kotlin ./gradlew :kotlin:test --tests 'jo.codeide.lsp.kotlin.coherence.*' --max-workers=1`.
+4. `CORPUS_KOTLIN=lsp-kotlin/bancs/corpus-android-kotlin ./gradlew :kotlin:test --tests 'jo.codeide.lsp.kotlin.coherence.*' --max-workers=1`.
 
 > **Note d'honnêteté (R5)** : le manifeste dépend du SDK/Gradle locaux ; il
 > n'est JAMAIS committé. Tant qu'il n'existe pas, les gates corpus s'ignorent

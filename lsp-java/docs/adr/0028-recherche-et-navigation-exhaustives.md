@@ -28,7 +28,7 @@ ressource ↔ code / manifest ↔ classe n'existe pas (H1 — dépend ADR 0020/0
   champs, safe delete), §B11 (navigation `R.*` ↔ XML bidirectionnelle, rename de
   ressource avec propagation code+XML et collisions).
 - `01-audit-moteur.md` §1.8, §3.5 (preuves).
-- ADR 0014 (QueryExecutor sur index — socle livré), `docs/ECARTS-SERVEUR.md` §2 M4
+- ADR 0014 (QueryExecutor sur index — socle livré), `lsp-java/docs/ECARTS-SERVEUR.md` §2 M4
   (écart assumé, coût réel « à mesurer » — le banc le mesure déjà).
 - Banc `:java:benchUsages` (rappel = oracle, CI-bloquant) + P7.
 

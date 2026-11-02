@@ -5,7 +5,7 @@
 
 ## Contexte
 
-Le nouveau dépôt doit accueillir un **moteur Java de niveau IDE** pour CodeIDE (R8 : moteur Java uniquement — les moteurs Kotlin et XML restent dans `codeide-lsp`). La question du périmètre (moteur seul, ou avec hôte/index/modèle) est une conclusion à proposer, pas un présupposé (§4 bis du prompt). L'inventaire Phase 0 (`00b-inventaire-reprise.md`) établit rôle, taille, dépendances, tests et statut de provenance de chaque module des anciens dépôts ; le manifeste `docs/PROVENANCE-REPRISE.md` tient les registres.
+Le nouveau dépôt doit accueillir un **moteur Java de niveau IDE** pour CodeIDE (R8 : moteur Java uniquement — les moteurs Kotlin et XML restent dans `codeide-lsp`). La question du périmètre (moteur seul, ou avec hôte/index/modèle) est une conclusion à proposer, pas un présupposé (§4 bis du prompt). L'inventaire Phase 0 (`00b-inventaire-reprise.md`) établit rôle, taille, dépendances, tests et statut de provenance de chaque module des anciens dépôts ; le manifeste `lsp-java/docs/PROVENANCE-REPRISE.md` tient les registres.
 
 Faits structurants :
 
@@ -40,7 +40,7 @@ Faits structurants :
 
 ## Décision — ACCEPTÉE par le propriétaire le 2026-10-28
 
-**Option 1**. Le nouveau dépôt porte le **domaine moteur Java** : `:index` (CIDX), `:model`, `:testing`, le moteur Java (voie tranchée le 28/10 : **réécriture intégrale** — ADR 0001 accepté modifié, option 2) et les modules d'étude (`docs/`, `spike/`). L'hôte, les moteurs Kotlin/XML et tout code CodeIDE/code-editor restent dans leurs dépôts (intégration par consommation d'artefats, comme aujourd'hui via GitHub Packages / substitution composite). Condition suspensive : éclaircissement de la licence du protocole tooling (ADR 0001/0017) pour la reprise de `:model`.
+**Option 1**. Le nouveau dépôt porte le **domaine moteur Java** : `:index` (CIDX), `:model`, `:testing`, le moteur Java (voie tranchée le 28/10 : **réécriture intégrale** — ADR 0001 accepté modifié, option 2) et les modules d'étude (`docs/`, `lsp-java/spike/`). L'hôte, les moteurs Kotlin/XML et tout code CodeIDE/code-editor restent dans leurs dépôts (intégration par consommation d'artefats, comme aujourd'hui via GitHub Packages / substitution composite). Condition suspensive : éclaircissement de la licence du protocole tooling (ADR 0001/0017) pour la reprise de `:model`.
 
 **Éléments consignés à la décision (séance du 28/10/2026) :**
 

@@ -184,7 +184,7 @@ que tout ce que le moteur neuf ANNONCE est bien consommé.
 
 | Étape | Contenu | Sortie |
 |---|---|---|
-| **I0** Préparation | re-vérifier les rails au HEAD courant de CodeIDE (`8450bb7` : dépôt Packages `jo.codeide.lsp.java` + filtres + mavenLocal filtré + composite opt-in) ; checkout `codeide-lsp` archivé (`bc11253`) ; oracle du banc croisé disponible (`scripts/preparer-oracle.sh`, épinglage `cb809e14`) | préambule vérifié, exigence §2 de la bascule |
+| **I0** Préparation | re-vérifier les rails au HEAD courant de CodeIDE (`8450bb7` : dépôt Packages `jo.codeide.lsp.java` + filtres + mavenLocal filtré + composite opt-in) ; checkout `codeide-lsp` archivé (`bc11253`) ; oracle du banc croisé disponible (`lsp-java/scripts/preparer-oracle.sh`, épinglage `cb809e14`) | préambule vérifié, exigence §2 de la bascule |
 | **I1** Adaptation de `:lsp:host` (le chaînon) | arbitrage §3.3 (A/B) PUIS les 4 fichiers main + 5 fichiers de tests, dépendance `api(project(":lsp:java"))` → coordonnée + compagnon `runtimeOnly` | `:lsp:host` compilé contre la façade `jo.codeide.lsp.java.*` |
 | **I2** DEV sans jeton | `publishToMavenLocal` de code-lsp (rails : mavenLocal filtré `jo.codeide.lsp.java`) + `publishToMavenLocal` de `:lsp:host` adapté → construire CodeIDE, vérifier `serverInfo = { "name": "lspjava", "version": "1.0.0" }` au premier lancement | témoin de branchement observé côté client (à CONSIGNER dans les logs — aujourd'hui absent, §1.3) |
 | **I3** Non-régression hôte | 141 tests d'hôte rejoués contre la façade neuve (ADR 0015 §Tests) ; `AlignementLsp4jTest` (0.22.0 consommée, binaire 0.21.2) ; CI `codeide-lsp` verte ; publication de l'`:host` adapté (version `codeide-lsp`) | `:host` publié sur Packages |
@@ -690,7 +690,7 @@ ININSTANCIABLE ( internes JDK absents — incident contenu en v1.1.2,
 `AccesJrt.ouvrirDepuisJarExterne` → null ). La sonde du régime plein était
 `MoteurJava.isLikelyUsable()` = `jrtDisponible()` = **jrt seul** :
 
-- `java/src/main/kotlin/jo/codeide/lsp/java/MoteurJava.kt:1297` (avant
+- `lsp-java/moteur/src/main/kotlin/jo/codeide/lsp/java/MoteurJava.kt:1297` (avant
   correctif) : `isLikelyUsableInterne() = environnementNoms().jrtDisponible()` ;
 - ~30 points de garde `if (!isLikelyUsableInterne()) return emptyList()` —
   definition, typeDefinition, implementation, superDefinition, survol,
@@ -737,7 +737,7 @@ résoluble »** — par le jrt OU par un jar du classpath porteur.
 
 ### 12.4 Validation — la régression ART simulée, fonctionnalité par fonctionnalité
 
-`java/src/test/kotlin/jo/codeide/lsp/java/protocole/PlateformeClasspathARTTest.kt`
+`lsp-java/moteur/src/test/kotlin/jo/codeide/lsp/java/protocole/PlateformeClasspathARTTest.kt`
 (8 tests verts) : home JDK factice SANS `lib/modules` + JAR DE PLATEFORME
 construit depuis l'image jrt du runtime ( `java.lang.Object`, `String`,
 `Iterable`, `Integer`, `java.util.ArrayList` — le rôle d'`android.jar` ) +
@@ -821,16 +821,16 @@ L'audit des logs a d'abord établi les FAITS :
   « The import … is never used ») : la chaîne sync → classpath →
   résolution EST saine une fois nourrie.
 
-### 13.2 Le banc (v1.1.5) — `bancs/projet-android/` + vraies bibliothèques
+### 13.2 Le banc (v1.1.5) — `lsp-java/bancs/projet-android/` + vraies bibliothèques
 
 Le montage demandé — un PROJET ANDROID COMPLET aux artefacts réels :
 
-- `bancs/projet-android/` : la réplique du projet « monip »
+- `lsp-java/bancs/projet-android/` : la réplique du projet « monip »
   (com.example.monip, AppCompatActivity, ActivityMainBinding data binding,
   Greeter, layout `<layout>`) ;
-- `bancs/projet-android-genere/` : les sources GÉNÉRÉES simulées (R.java,
+- `lsp-java/bancs/projet-android-genere/` : les sources GÉNÉRÉES simulées (R.java,
   ActivityMainBinding) à leur emplacement AGP ;
-- `scripts/preparer-projet-android.sh` : télécharge la plateforme
+- `lsp-java/scripts/preparer-projet-android.sh` : télécharge la plateforme
   **android.jar 34-ext12** + **16 AARs/jars réels** (appcompat 1.7.0,
   material 1.12.0, constraintlayout, core, fragment, activity 1.8.2,
   lifecycle, savedstate, viewbinding, databinding-runtime…) — la FERMETURE
@@ -943,7 +943,7 @@ Android Studio. Il y a toujours un retard avant que les suggestions
 arrivent. »
 
 L'inventaire demandé vit désormais à part :
-**`docs/ECARTS-SERVEUR.md`** (corrigés v1.1.6 §1, moteur §2, hôte §3 —
+**`lsp-java/docs/ECARTS-SERVEUR.md`** (corrigés v1.1.6 §1, moteur §2, hôte §3 —
 la cause racine des retards appareil selon §13.5, client §4, décisions
 §5).
 
@@ -1003,7 +1003,7 @@ la cause racine des retards appareil selon §13.5, client §4, décisions
 
 ### 14.4 Chaîne exécutée et reste
 
-- code-lsp : trois correctifs + inventaire `docs/ECARTS-SERVEUR.md` +
+- code-lsp : trois correctifs + inventaire `lsp-java/docs/ECARTS-SERVEUR.md` +
   ce §14, suite verte (§14.3). **Publication v1.1.6 EFFECTUÉE le
   31/10** (même geste que la v1.1.5, §13.5) : commit `f15b738` poussé,
   CI **VERTE** (run `41134718315`) au préalable → tag annoté `v1.1.6`
@@ -1065,7 +1065,7 @@ désormais consommer :
    composées, incréments → Write ; le reste → Read ; méthodes/types →
    Text).
 
-Validation (PV complet dans `docs/etudes/niveau-android-studio/
+Validation (PV complet dans `lsp-java/docs/etudes/niveau-android-studio/
 04-plan-vagues.md` §V-E) : 564 tests / 0 échec gates Android ouvertes,
 banc usages rappel 1,000 / p95 50,30 ms, banc qualité baseline tenue,
 P1–P8 strict 0 violation. Fiche 054 AMENDÉE (D1 + kinds), M4/M7 rayés

@@ -1,6 +1,6 @@
 # Fiche 013 — FacadeKtTest
 
-> **Source** : `codeide-lsp` @ `bc11253` — `lsp/kotlin/src/test/kotlin/jo/lspkotlin/parse/kt/FacadeKtTest.kt` (13 tests, 240 l.).
+> **Source** : `codeide-lsp` @ `bc11253` — `lsp/lsp-kotlin/moteur/src/test/kotlin/jo/lspkotlin/parse/kt/FacadeKtTest.kt` (13 tests, 240 l.).
 > **Domaine** : parse
 > **Résumé** : Tests de la façade `Kt*` : les accesseurs portent le vocabulaire du compilateur et RESTENT conservateurs (D3) — introuvable = null/vide.
 > **Convention** : chaque comportement porte le **nom exact du test source** (identifiant de traçabilité) ; l'attendu le reformule en français lisible, enrichi du contrat D3 quand le nom le porte. Le résumé ci-dessus décrit le contrat de la classe de test.

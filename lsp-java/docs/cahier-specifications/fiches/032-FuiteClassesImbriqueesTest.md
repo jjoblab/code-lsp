@@ -1,6 +1,6 @@
 # Fiche 032 — FuiteClassesImbriqueesTest
 
-> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/java/src/test/java/jo/lspjava/ecj/FuiteClassesImbriqueesTest.java`.
+> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/lsp-java/moteur/src/test/java/jo/lspjava/ecj/FuiteClassesImbriqueesTest.java`.
 > **Domaine** : index-classpath (fiche mixte : filtrage de l'index disque observé côté complétion/quick-fix)
 > **Résumé** : Régression v1.9.1 : les classes internes binaires (« R$style », « R$id », « R$string »…) ne doivent PLUS fuiter dans les complétions servies par l'INDEX DISQUE PRÊT (retour propriétaire : le popup proposait `import com.example.monip.R$style;` et des FQN bruts impossibles à écrire en Java). Un index de test (`IndexNoms` PRÊT) mime l'index de production AVANT correctif : il indexe les imbriquées par segment après dollar (clé « style » → FQCN `com.example.monip.R$style`) et rend les entrées brutes. Les TROIS chemins consommateurs sont éprouvés : complétion d'import, complétion de types par préfixe, quick-fix d'import. Moteur sur racine source réelle + android.jar + R.jar (construit par le helper partagé `PopupSpontaneReproTestHelper`) ; le lot se skippe si android.jar est absent.
 

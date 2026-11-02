@@ -14,7 +14,7 @@
 | Runtime d'exécution (Termux openjdk-__ / AndroidIDE / dalvikvm…) | OpenJDK 17.0.19 ( 2026-04-21 ), aarch64 — origine exacte non déclarée ( la procédure vise Termux ) |
 | Mode (chargeur branché ? économie d'énergie ? autres apps) | non déclaré |
 | Date et heure de la passe | 2026-10-28 14:33:48 ( heure locale de l'appareil, fuseau non déclaré ) |
-| `resultats-appareil.txt` brut joint ? | **oui** — `spike/appareil/resultats-appareil.txt` ( transcript exact de la passe ) |
+| `resultats-appareil.txt` brut joint ? | **oui** — `lsp-java/spike/appareil/resultats-appareil.txt` ( transcript exact de la passe ) |
 
 Notes de passe ( depuis le transcript ) :
 - **ScanArt** ( échantillon V1, `java-syntax-jvm-0.3.381.jar` seul ) : 95 classes, 777 méthodes déclarées, **0 motif sensible** — cohérent avec le scan de bureau ( `resultats/scan-art-v1.txt` : même jar → 95 classes / 777 méthodes / 0 motif ; le total 411 / 2 965 du bureau porte sur la pile V1 complète de 4 jars ).

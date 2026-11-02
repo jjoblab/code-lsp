@@ -1,6 +1,6 @@
 # Fiche 037 — PopupSpontaneReproTestHelper
 
-> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/java/src/test/java/jo/lspjava/ecj/PopupSpontaneReproTestHelper.java`.
+> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/lsp-java/moteur/src/test/java/jo/lspjava/ecj/PopupSpontaneReproTestHelper.java`.
 > **Domaine** : autre
 > **Résumé** : AIDE de test (aucune méthode `@Test`) : assistant partagé qui construit un R.jar « réaliste » (aapt2-like) pour les bancs — notamment celui de `PopupSpontaneReproTest` (fiche 036). Écrit la source `R.java` (paquet `com.example.monip`, classe finale `R` avec classes internes statiques vides `style`, `id`, `string`), la compile via le compilateur système et package les 4 `.class` dans `r-bench.jar`. Version partagée de la méthode privée `buildRJar` dupliquée dans le test 036.
 

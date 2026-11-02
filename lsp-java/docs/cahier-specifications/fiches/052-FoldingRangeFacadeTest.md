@@ -1,6 +1,6 @@
 # Fiche 052 — FoldingRangeFacadeTest
 
-> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/java/src/test/java/jo/lspjava/lsp/FoldingRangeFacadeTest.java`.
+> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/lsp-java/moteur/src/test/java/jo/lspjava/lsp/FoldingRangeFacadeTest.java`.
 > **Domaine** : folding
 > **Résumé** : Tests BOUT-EN-BOUT des handlers à travers la façade LSP réelle `JavaTextDocumentService` : `foldingRange` (imports repliés par défaut avec texte replié, javadoc/commentaires, corps des accolades — avec précision CARACTÈRE du dépliage) et `inlayHint` (hint de type `var` inféré par bindings). Fixture : android.jar + compliance « 17 », documents posés sur disque et ouverts par `didOpen`.
 

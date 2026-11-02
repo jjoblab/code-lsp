@@ -26,7 +26,7 @@ si `nonFinalResIds`), BuildConfig désactivé par défaut en AGP 8.
   fidèlement, règles de nommage/nullabilité vérifiées dans le code public du plugin).
 - `01-audit-moteur.md` §1.1 (aucune synthèse — preuve `rg` citée).
 - ADR 0020 (référentiel + buildFeatures = prérequis), ADR 0013 (le rouge reste ecj).
-- `bancs/projet-android-genere/` (l'existant simule la sortie AGP — deviendra le
+- `lsp-java/bancs/projet-android-genere/` (l'existant simule la sortie AGP — deviendra le
   banc d'équivalence light vs généré).
 
 ## Options
@@ -52,7 +52,7 @@ projet de l'utilisateur, conflits avec AGP, mauvaise citoyenneté LSP.
 
 ## Critères et mesures
 
-- **Équivalence** : sur `bancs/projet-android-genere/` + corpus réel (BasicSample =
+- **Équivalence** : sur `lsp-java/bancs/projet-android-genere/` + corpus réel (BasicSample =
   DataBinding, OpenTracks = viewBinding), diagnostics light vs sources générées
   réelles : **zéro écart** sur les positions couvertes (cas dorés versionnés).
 - Corpus P3 : les 5 projets **sans build** → zéro « cannot be resolved » sur `R.*`,

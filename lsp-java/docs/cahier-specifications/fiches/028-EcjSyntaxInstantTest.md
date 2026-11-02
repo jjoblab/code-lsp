@@ -1,6 +1,6 @@
 # Fiche 028 — EcjSyntaxInstantTest
 
-> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/java/src/test/java/jo/lspjava/ecj/EcjSyntaxInstantTest.java`.
+> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/lsp-java/moteur/src/test/java/jo/lspjava/ecj/EcjSyntaxInstantTest.java`.
 > **Domaine** : diagnostics (fiche mixte : repli diagnostics de syntaxe + complétion instantanée)
 > **Résumé** : Tests du lot h4 « LSP instantané » (v0.101.0) — le régime de repli quand la plateforme manque (classpath vide AVANT la première sync, jdkHome sans `lib/modules` : JDK du terminal non installé). Deux garanties fondamentales : ① une source syntaxiquement cassée rend SES erreurs de syntaxe (le silence d'avant h4 était le défaut) ; ② une source saine mais pleine de types non résolus rend une liste VIDE — le repli ne fabrique JAMAIS de « cannot be resolved ». La complétion instantanée propose champs/locales/paramètres du fichier + mots-clés du langage, sans jamais deviner de types du JDK. Marqueur de caret : la séquence `/*CAR*/` dans la source témoin, remplacée par le préfixe inséré, caret juste après lui. Le repli est aussi vérifié au niveau service (`DiagnosticService`).
 

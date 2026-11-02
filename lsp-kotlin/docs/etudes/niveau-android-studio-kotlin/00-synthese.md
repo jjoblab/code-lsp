@@ -100,7 +100,7 @@ hôte/client/Java au [plan](04-plan-vagues.md).
 
 - **Mesures appareil ART** (latences perçues, GC, thermique, dex en charge)
   — gabarit [07](07-gabarit-mesure-appareil.md) (rails existants :
-  `scripts/kit-bascule.sh`, kit enrichi doc 11 §2.2) ;
+  `lsp-java/scripts/kit-bascule.sh`, kit enrichi doc 11 §2.2) ;
 - **Captures Android Studio** (comportements de la référence) — protocole
   [06](06-protocole-captures-android-studio.md), lot E + kit Kotlin, les
   lots A–D Java restent valables côté Java ;

@@ -1,6 +1,6 @@
 # Fiche 017 — EcjFormatterTest
 
-> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/java/src/test/java/jo/lspjava/ecj/EcjFormatterTest.java`.
+> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/lsp-java/moteur/src/test/java/jo/lspjava/ecj/EcjFormatterTest.java`.
 > **Domaine** : formatage
 > **Résumé** : Tests du formateur Eclipse JDT in-process (`EcjFormatter`) : style Eclipse par défaut (indentation 4 espaces, espacement des opérateurs, repli à 120 colonnes) et style Google (2 espaces), idempotence, syntaxe Java 17 (record, bloc texte), formatage de plage, reformatage des commentaires/javadoc, et contrats de sûreté (imparsable, source vide). Tourne sur JVM desktop avec les jars Eclipse PATCHÉS (tâche `patchEclipseForArt`) : il valide donc AUSSI que le formateur charge et s'exécute au travers des shims. Fixture principale : classe `demo.Main` volontairement mal formatée (`MESSY`).
 

@@ -1,6 +1,6 @@
 # Fiche 040 — ScratchAstShapesTest
 
-> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/java/src/test/java/jo/lspjava/ecj/ScratchAstShapesTest.java`.
+> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/lsp-java/moteur/src/test/java/jo/lspjava/ecj/ScratchAstShapesTest.java`.
 > **Domaine** : parse
 > **Résumé** : Banc d'étude (dump empirique, **aucune assertion**) des formes AST consommées par le moteur : lambdas (implicites et typées), chaînage d'appels, allocations. Le source de démonstration est résolu par `resolveUnit`, puis traversé par une traversée RÉSILIENTE avec un visiteur qui imprime, pour chaque nœud observé, ses champs observables (positions sources, bindings, arités). Utile comme grammaire d'inspection pour la réécriture : ce que l'ancien moteur lisait sur ces formes.
 

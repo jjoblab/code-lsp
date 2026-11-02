@@ -15,12 +15,12 @@
 ## 0. Vague 0 — MESURE (livrée dans cette mission, sans dépendance décisionnelle)
 
 **Périmètre livré** (ce dépôt, branche `etude/moteur-java`) :
-- Banc d'incohérences **P1–P8** exécutable en CI (`java/src/test/…/coherence/`).
+- Banc d'incohérences **P1–P8** exécutable en CI (`lsp-java/moteur/src/test/…/coherence/`).
 - **Corpus réel** 5 projets Android Java (commits épinglés, licences vérifiées,
-  registre + script `scripts/telecharger-corpus-android.sh` — jamais de binaire).
+  registre + script `lsp-java/scripts/telecharger-corpus-android.sh` — jamais de binaire).
 - **Protocole de captures Android Studio** (`06-protocole-captures-android-studio.md`).
 - **Gabarit de mesure appareil** (`07-gabarit-mesure-appareil.md`, style
-  `bancs/GABARIT-BASCULE-APPAREIL.md`).
+  `docs/GABARIT-BASCULE-APPAREIL.md`).
 - ADR 0030 (cadre qualité) + cette étude (audit, référence, matrice, ADR).
 
 **Critères de sortie de la vague 0** : ~~CI verte avec le banc P1–P8 compilé~~ **atteint
@@ -108,7 +108,7 @@ complètent la couverture.
 > `08-rapport-divergences-ecj-javac.md`, ADR 0030 mis à jour, ADR 0022
 > amendé)** :
 > - **Préparation outillée et rejouable** : `scripts/preparer-manifestes-
->   corpus.sh` + `scripts/manifeste-corpus.init.gradle` (vue d'artefats
+>   corpus.sh` + `lsp-java/scripts/manifeste-corpus.init.gradle` (vue d'artefats
 >   `android-classes-jar` = la vue EXACTE de javac — jetifier compris ;
 >   R.jar d'AGP par module ; classes Kotlin `built_in_kotlinc` zippées ;
 >   racines générées au PARENT DU PAQUET ; replis ARTIFACT-* = refus franc,
@@ -421,7 +421,7 @@ complètent la couverture.
 > schéma B de l'ADR 0010) :
 >
 > - **Verrous par périmètre** : le moniteur d'instance du moteur (51
->   `synchronized` dans `MoteurJava.kt`, 99 dans `java/src/main`) est
+>   `synchronized` dans `MoteurJava.kt`, 99 dans `lsp-java/moteur/src/main`) est
 >   remplacé par des verrous NOMMÉS — `verrouCompilation` (le périmètre
 >   MODULE : tout ce qui touche le pont ecj, l'environnement de noms ou
 >   un arbre résolu ; la drainage de `dispose` est préservée),
@@ -480,7 +480,7 @@ complètent la couverture.
 >   dans `bits`, effacement générique des collections.
 > - **V-C2 (ADR 0024, G-011 RÉSOLU en première vague)** : base
 >   `api-versions.xml` (parseur StAX en tâche de fond, < 2 s cible ;
->   script `scripts/preparer-base-api.sh`, propriété
+>   script `lsp-java/scripts/preparer-base-api.sh`, propriété
 >   `jo.codeide.lsp.java.lint.baseapi`, repli honnête MUET sans base) ;
 >   **NewApi** (échappatoires `@RequiresApi`/`@TargetApi` + gardes
 >   `SDK_INT`, le déclarant réel fait foi), **InlinedApi**,
@@ -773,7 +773,7 @@ complètent la couverture.
 > (G-021 RÉSOLU) — auto-import DIFFÉRÉ négocié par `resolveSupport`
 > (règles fiche 029 miroir, balayage lexical) ; sans annonce, liste
 > complète d'avant V-G. **(g)** registre client K2 VIVANT
-> (`docs/REGISTRE-CLIENT-K2.md`) + capability `x-codeide.plageVisible`
+> (`lsp-java/docs/REGISTRE-CLIENT-K2.md`) + capability `x-codeide.plageVisible`
 > v1 posée (V-F4) ; clés V-G de complétion ADDITIVES → la version de
 > `completionRanking` RESTE 2 (ADR 0015 R1). Tests contractuels par
 > capability (annoncée ⇔ testée) : 9 cas V-G.

@@ -45,7 +45,7 @@
 
 ## B6 — projet SANS build (copie fraîche, aucune compilation)
 
-> Préparation : copie fraîche de `bancs/projet-android/` (avec le kit +
+> Préparation : copie fraîche de `lsp-java/bancs/projet-android/` (avec le kit +
 > strings.xml posés), ouverte dans AS, **ne PAS lancer de build** ; attendre
 > la fin de l'indexation uniquement.
 

@@ -1,6 +1,6 @@
 # Fiche 008 — IndexAppelablesKotlinTest
 
-> **Source** : `codeide-lsp` @ `bc11253` — `lsp/kotlin/src/test/kotlin/jo/lspkotlin/index/IndexAppelablesKotlinTest.kt` (9 tests, 243 l.).
+> **Source** : `codeide-lsp` @ `bc11253` — `lsp/lsp-kotlin/moteur/src/test/kotlin/jo/lspkotlin/index/IndexAppelablesKotlinTest.kt` (9 tests, 243 l.).
 > **Domaine** : index-classpath
 > **Résumé** : Tests de l'index des appelables (K3) — le CONTRAT DISQUE est le cœur du test : un segment écrit puis relu SANS le jar d'origine (supprimé) prouve la persistance ; un segment CORROMPU se re-décoderait (jar absent → partiel honnête, jamais d'exception).
 > **Convention** : chaque comportement porte le **nom exact du test source** (identifiant de traçabilité) ; l'attendu le reformule en français lisible, enrichi du contrat D3 quand le nom le porte. Le résumé ci-dessus décrit le contrat de la classe de test.

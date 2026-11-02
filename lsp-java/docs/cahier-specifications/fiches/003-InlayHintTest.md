@@ -1,6 +1,6 @@
 # Fiche 003 — InlayHintTest
 
-> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/java/src/test/java/jo/lspjava/InlayHintTest.java`.
+> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/lsp-java/moteur/src/test/java/jo/lspjava/InlayHintTest.java`.
 > **Domaine** : hover-inlay
 > **Résumé** : Couverture du fournisseur d'inlay hints via `JavaTextDocumentService` (cycle `initialize`/`initialized` + `didOpen` sur `file:///Demo.java`). Verrouille : hints de type « : Type » pour les déclarations `var` dont l'initialiseur est inférable (littéraux, création d'objet, retour de méthode), rien pour les déclarations non-`var` ; hints de noms de paramètres « name: » aux sites d'appel de méthodes déclarées dans la CU (kind `Parameter`, libellé terminé par « : ») ; rien pour les appels sans argument ou externes à la CU ; pas de filtrage par range côté serveur ; liste volontairement NON triée (contrat documenté).
 

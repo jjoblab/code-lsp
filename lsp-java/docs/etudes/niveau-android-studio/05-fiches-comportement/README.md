@@ -2,7 +2,7 @@
 
 > Fiches de comportement **dérivées de la référence** (IntelliJ Platform / plugin
 > Android / Android Lint — étude `02-reference-android-studio.md`, sources listées
-> par fiche). Format du cahier (`docs/cahier-specifications/`). Elles constituent la
+> par fiche). Format du cahier (`lsp-java/docs/cahier-specifications/`). Elles constituent la
 > **vérité terrain qualitative** qui manque au contrat actuel (H11) : chaque fiche
 > est `[DÉRIVÉ DES SOURCES]` (documentation et code public de la référence, lecture
 > seule) ; les points non confirmés sont marqués et renvoient au protocole de

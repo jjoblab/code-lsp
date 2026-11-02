@@ -1,6 +1,6 @@
 # Fiche 010 — DeviceFqcnReproTest
 
-> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/java/src/test/java/jo/lspjava/ecj/DeviceFqcnReproTest.java`.
+> **Source** : `codeide-lsp` @ `cb809e14` — `lsp/lsp-java/moteur/src/test/java/jo/lspjava/ecj/DeviceFqcnReproTest.java`.
 > **Domaine** : index-classpath
 > **Résumé** : Repro des conditions EXACTES du log device : sur mobile, l'environnement était construit avec sourceDirs = [workingDir (racine projet), app/src/main/java] — LA RACINE PROJET EN PREMIER. Or `fqcnFor()` itère les racines DANS L'ORDRE : la racine projet matche tout fichier du projet AVANT le vrai source set → FQCN segmenté par les slashes (`app.src.main.java.com.example.r.MainActivity` au lieu de `com.example.r.MainActivity`), d'où 31–32 diagnostics sur un MainActivity de 349 caractères (22 sur la ligne de déclaration) et « got 0 items » en complétion. Le test compare l'ordre device contre l'ordre corrigé et n'échoue que sur deux invariants forts.
 

@@ -186,18 +186,18 @@ recalages ») est en place, VERT et SIGNÉ. L'inventaire à la clôture :
 |---|---|---|---|---|
 | **Fidélité K2 oracle** (banc de fidélité, vague 2g) | les diagnostics du moteur face au compilateur K2 sur les corpus quatre mondes : compte des faux négatifs ET empreinte SHA-256 du détail — toute variation, en hausse comme en baisse, est une divergence à expliquer | `BancFideliteK2Test` + `baseline-fidelite.txt` (signée) | suite du module (l'oracle s'exécute en CI, ~20 s) | VERT — inchangé par le correctif `it` (§5.2) |
 | **Zéro faux positif** (passe corpus quatre mondes, vague 2g) | moteur 0 faux positif sur les mondes sains (Views, Compose, K/JVM, scripts) — l'invariant §4 du prompt | passe du banc de fidélité | suite du module | VERT |
-| **Qualité complétion** (banc commun Java, vague 3e) | recall / top-1 / MRR sur corpus versionné 16 positions étiquetées (7 genres), chaîne livrée vs naïve (gate +5 pts), p95 ≤ tolérance, contrat zéro saut, déterminisme des genres, stabilité sous gel | `:kotlin:benchQualite` + `bancs/baselines/completion-kotlin.json` (SIGNÉE : livrée 1.000/1.000/1.000, p95 7,53 ms) | job dédié BLOQUANT (10e) | VERT — p95 7,71 ms sous tolérance, 0 saut |
+| **Qualité complétion** (banc commun Java, vague 3e) | recall / top-1 / MRR sur corpus versionné 16 positions étiquetées (7 genres), chaîne livrée vs naïve (gate +5 pts), p95 ≤ tolérance, contrat zéro saut, déterminisme des genres, stabilité sous gel | `:kotlin:benchQualite` + `lsp-kotlin/bancs/baselines/completion-kotlin.json` (SIGNÉE : livrée 1.000/1.000/1.000, p95 7,53 ms) | job dédié BLOQUANT (10e) | VERT — p95 7,71 ms sous tolérance, 0 saut |
 | **Empreinte / latence** (banc de la grammaire, étage 0) | productions/jetons/marqueurs des corpus 500 et 3 000 lignes (déterminisme), p50/p95 parse, tas au repos — nombres, aucun seuil | `:kotlin:bench` | job dédié | VERT — déterminisme IDENTIQUE étages 2→T |
 | **Parité grammaire** (suite de parité, étage 0) | le corpus du DÉPÔT (main + test, 422 fichiers) parse SANS marqueur d'erreur ; digeste SHA-256 par fichier (baseline signée) — une montée de grammaire ou un fichier neuf la déplace EXPLICITEMENT | fiches 010–012 + `digeste-corpus.txt` (signée, 422 lignes) | suite du module | VERT — re-signée 421→422 (le test T-a) |
-| **Scan ART + dexage d8** (gates étage 0) | 0 motif sensible ART sur la pile spécifique (6 × AUCUNE) ; ≤ 32 768 méthodes / ≤ 6 Mo (budget arbitré E-K8) | `spike-kotlin/scripts/scan-art.py` + d8 build-tools 34 | job dédié BLOQUANT | VERT — 6 × AUCUNE ; 26 590 / 4,10 Mo |
+| **Scan ART + dexage d8** (gates étage 0) | 0 motif sensible ART sur la pile spécifique (6 × AUCUNE) ; ≤ 32 768 méthodes / ≤ 6 Mo (budget arbitré E-K8) | `lsp-kotlin/spike/scripts/scan-art.py` + d8 build-tools 34 | job dédié BLOQUANT | VERT — 6 × AUCUNE ; 26 590 / 4,10 Mo |
 | **Manifeste de provenance** | AUCUN fichier hors registre (reprises voie C contrôlées, vendoring amont noté) | `verifier-provenance.sh` + `PROVENANCE-REPRISE-KOTLIN.md` | job dédié BLOQUANT | VERT — rc=0, 8 reprises R1–R8 |
 | **Compilation croisée** | le module compile et teste sous le JDK 17 de l'appareil (incident du 30/10 : API JDK 21 invisibles) | toolchain 17 du module | jobs Build + suite | VERT |
 
 Les **corpus versionnés** : completion-kotlin v1 (16 positions, stdlib du
 runtime seule — le job tourne sans SDK), corpus quatre mondes (17/27 jars,
-`kotlin/mondes/`), digeste de parité (422 fichiers du dépôt), corpus du banc
+`lsp-kotlin/moteur/mondes/`), digeste de parité (422 fichiers du dépôt), corpus du banc
 d'empreinte (500/3 000 lignes générés déterministement) — plus le gabarit
-appareil (`bancs/GABARIT-BASCULE-APPAREIL.md` + kit `scripts/kit-bascule.sh`,
+appareil (`docs/GABARIT-BASCULE-APPAREIL.md` + kit `lsp-java/scripts/kit-bascule.sh`,
 mesures à retourner par le propriétaire — synthèse §5).
 
 ## 7. Le relevé final du coût du programme (les « recalages finaux » — journal 09 §9.4)
@@ -225,12 +225,12 @@ comptes des journaux 03–09, `wc -l` par arborescence.
 
 | Arborescence | Lignes | Nature |
 |---|---:|---|
-| `kotlin/src/main/kotlin` | **25 250** | moteur NEUF (SPI, parse, resolve, classpath, session, protocole…) |
-| `kotlin/src/main/vendor` | 10 518 | grammaire officielle amont (ré-obtention épinglée v2.3.0 — jamais « reprise ») |
-| `kotlin/src/test` | **17 860** | 53 fiches du cahier + cas dorés + bancs + parité |
-| `kotlin/src/bench` | 986 | bancs qualité + empreinte (source set dédié) |
-| `docs/etudes/moteur-kotlin` | 5 223 | synthèse + inventaire + journaux 00–10 + ALERTES + DEMANDES |
-| `docs/cahier-specifications-kotlin` | 2 952 | les 469 comportements extraits des tests sources |
+| `lsp-kotlin/moteur/src/main/kotlin` | **25 250** | moteur NEUF (SPI, parse, resolve, classpath, session, protocole…) |
+| `lsp-kotlin/moteur/src/main/vendor` | 10 518 | grammaire officielle amont (ré-obtention épinglée v2.3.0 — jamais « reprise ») |
+| `lsp-kotlin/moteur/src/test` | **17 860** | 53 fiches du cahier + cas dorés + bancs + parité |
+| `lsp-kotlin/moteur/src/bench` | 986 | bancs qualité + empreinte (source set dédié) |
+| `lsp-kotlin/docs/etudes/moteur-kotlin` | 5 223 | synthèse + inventaire + journaux 00–10 + ALERTES + DEMANDES |
+| `lsp-kotlin/docs/cahier-specifications-kotlin` | 2 952 | les 469 comportements extraits des tests sources |
 | `docs/adr` (0100–0121) | 1 791 | les 21 ADR de la plage Kotlin |
 | `spike-kotlin` | 11 608 | spike de mesure S0–S3 + scripts scan/dex (reproductible) |
 

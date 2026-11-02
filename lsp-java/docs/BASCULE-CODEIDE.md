@@ -1,7 +1,7 @@
 # BASCULE CÔTÉ CODEIDE — procédure de mise en œuvre (§8.5, décision signée le 30/10/2026)
 
 > **Rôle** : mise en œuvre **côté client** de la décision de bascule signée le
-> 30/10/2026 ([`bancs/GABARIT-BASCULE-APPAREIL.md`](../bancs/GABARIT-BASCULE-APPAREIL.md)
+> 30/10/2026 ([`docs/GABARIT-BASCULE-APPAREIL.md`](../../docs/GABARIT-BASCULE-APPAREIL.md)
 > §6 — checklist 6/6 : banc croisé CI VERT, passe appareil 18/18 / 0 saut,
 > latences consignées, deltas arbitrés 103/62/0, retour arrière 1 ligne).
 > Ce document est la **procédure préparée** dans le dépôt `code-lsp` ; les
@@ -15,12 +15,12 @@
 | Fait | Preuve |
 |---|---|
 | Version du dépôt = **1.0.0** (décision §8.5 signée) | `build.gradle.kts` — `serverInfo.version` générée de cette valeur (fiche 059 I7) |
-| Bytecode **17**, consommable par la chaîne Android/ART (d8) | `java/build.gradle.kts` (`jvmTarget` 17, `sourceCompatibility` 17) |
-| Façade publique LSP : `jo.codeide.lsp.java.protocole.ServeurLangageJava` (implémente `LanguageServer` + `TextDocumentService` + `WorkspaceService` + expérimentales) | `java/src/main/kotlin/.../protocole/ServeurLangageJava.kt` |
-| Façade publique in-process : `jo.codeide.lsp.java.MoteurJava` (tests/bancs, §10 du `USAGE.md`) | `java/src/main/kotlin/.../MoteurJava.kt` |
+| Bytecode **17**, consommable par la chaîne Android/ART (d8) | `lsp-java/moteur/build.gradle.kts` (`jvmTarget` 17, `sourceCompatibility` 17) |
+| Façade publique LSP : `jo.codeide.lsp.java.protocole.ServeurLangageJava` (implémente `LanguageServer` + `TextDocumentService` + `WorkspaceService` + expérimentales) | `lsp-java/moteur/src/main/kotlin/.../protocole/ServeurLangageJava.kt` |
+| Façade publique in-process : `jo.codeide.lsp.java.MoteurJava` (tests/bancs, §10 du `USAGE.md`) | `lsp-java/moteur/src/main/kotlin/.../MoteurJava.kt` |
 | Mode autonome `setStandaloneMode(true)` + lanceur stdio lsp4j documentés (exemple complet) | `USAGE.md` §4.1 |
 | CI **VERTE** sur le commit de la signature (6/6 jobs : banc parité croisée, banc qualité, empreinte/latence, gates Android, provenance, build/tests) | API GitHub Actions, commit `5b0db74` |
-| **Fait (30/10, PR publication)** : bloc `maven-publish` dans `:java` **et** `:ecj-art` — moteur `jo.codeide.lsp.java:jo-codeide-lsp-java:1.0.0` + compagnon runtime `jo.codeide.lsp.java:jo-codeide-lsp-java-ecj-art:1.0.0` (jar ecj 3.40.0 patché, EPL-2.0 — le moteur est ecj-less par construction, compileOnly : « l'hôte fournit le jar ») ; workflow `publish.yml` (tag `v*`, build de vérification puis publication, `packages: write`) ; `publishToMavenLocal` vérifié : `version.properties=1.0.0` dans le jar, POM sans ecj, lsp4j runtime seule, bytecode 17 | `java/build.gradle.kts`, `ecj-art/build.gradle.kts`, `.github/workflows/publish.yml` (constat du 30/10 au soir — le « non fait » du matin est résolu) |
+| **Fait (30/10, PR publication)** : bloc `maven-publish` dans `:java` **et** `:ecj-art` — moteur `jo.codeide.lsp.java:jo-codeide-lsp-java:1.0.0` + compagnon runtime `jo.codeide.lsp.java:jo-codeide-lsp-java-ecj-art:1.0.0` (jar ecj 3.40.0 patché, EPL-2.0 — le moteur est ecj-less par construction, compileOnly : « l'hôte fournit le jar ») ; workflow `publish.yml` (tag `v*`, build de vérification puis publication, `packages: write`) ; `publishToMavenLocal` vérifié : `version.properties=1.0.0` dans le jar, POM sans ecj, lsp4j runtime seule, bytecode 17 | `lsp-java/moteur/build.gradle.kts`, `socle/ecj-art/build.gradle.kts`, `.github/workflows/publish.yml` (constat du 30/10 au soir — le « non fait » du matin est résolu) |
 | **Fait (30/10 au soir, publication EFFECTUÉE)** : tag **`v1.0.0`** (annoté, `a178dff`) poussé → workflow `Publication` **vert** (run `40942576172` : build + tests PUIS publication) ; les 4 artefacts résolvent sur `maven.pkg.github.com/jjoblab/code-lsp` (HTTP 302) et ont été re-téléchargés et vérifiés : POM moteur sans ecj (kotlin-stdlib 2.2.10 compile + lsp4j 0.21.2 runtime seules dépendances), **`version.properties=1.0.0`** embarqué dans le jar moteur (témoin serverInfo), compagnon 942 entrées dont 929 `org/eclipse/jdt` + shims `jo/codeide/lsp/ecjart/compat` + `about.html` + registre `META-INF/ECJ-ART-MODIFICATIONS.txt` (EPL-2.0) | tag `v1.0.0`, run Actions `40942576172` |
 
 ## 2. Point d'intégration (inchangé par construction)

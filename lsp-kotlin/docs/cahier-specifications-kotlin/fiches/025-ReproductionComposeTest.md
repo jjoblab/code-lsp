@@ -1,6 +1,6 @@
 # Fiche 025 — ReproductionComposeTest
 
-> **Source** : `codeide-lsp` @ `bc11253` — `lsp/kotlin/src/test/kotlin/jo/lspkotlin/session/ReproductionComposeTest.kt` (12 tests, 300 l.).
+> **Source** : `codeide-lsp` @ `bc11253` — `lsp/lsp-kotlin/moteur/src/test/kotlin/jo/lspkotlin/session/ReproductionComposeTest.kt` (12 tests, 300 l.).
 > **Domaine** : diagnostics
 > **Résumé** : REPRODUCTION des faux positifs `kt.unresolved` signalés par le propriétaire sur un projet Android Compose (25/10/2026) — chaque test porte UN motif Compose canonique et constate le verdict du moteur aujourd'hui. Classpath : kotlin-stdlib RÉEL (voie 6 d'ADR 0203) — les motifs ne dépendent d'aucune AAR Compose, ils isolent les FORMES.
 > **Convention** : chaque comportement porte le **nom exact du test source** (identifiant de traçabilité) ; l'attendu le reformule en français lisible, enrichi du contrat D3 quand le nom le porte. Le résumé ci-dessus décrit le contrat de la classe de test.

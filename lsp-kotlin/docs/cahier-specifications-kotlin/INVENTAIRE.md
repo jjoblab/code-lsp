@@ -1,6 +1,6 @@
 # INVENTAIRE — fichiers de test sources du cahier Kotlin
 
-> Base d'extraction (R9.1/R9.5) : `codeide-lsp` @ `bc11253` — `lsp/kotlin/src/test/**`, lecture seule. 53 fichiers, 469 méthodes `@Test`, 15 853 lignes [mesuré]. Le cahier ne contient AUCUN extrait de code : chaque comportement est spécifié par son nom de test source, son attendu reformulé et son classement.
+> Base d'extraction (R9.1/R9.5) : `codeide-lsp` @ `bc11253` — `lsp/lsp-kotlin/moteur/src/test/**`, lecture seule. 53 fichiers, 469 méthodes `@Test`, 15 853 lignes [mesuré]. Le cahier ne contient AUCUN extrait de code : chaque comportement est spécifié par son nom de test source, son attendu reformulé et son classement.
 
 | Fiche | Fichier | Domaine | Tests | Lignes |
 |---|---|---|---:|---:|
