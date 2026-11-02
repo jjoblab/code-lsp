@@ -41,11 +41,11 @@
 #   scripts/telecharger-corpus-kotlin.sh              # tout le corpus
 #   scripts/telecharger-corpus-kotlin.sh sunflower    # un seul projet
 #
-# Sortie : bancs/corpus-android-kotlin/<projet>/ (sources seules, profondeur 1).
+# Sortie : lsp-kotlin/bancs/corpus-android-kotlin/<projet>/ (sources seules, profondeur 1).
 # ============================================================================
 set -euo pipefail
 
-CIBLE="bancs/corpus-android-kotlin"
+CIBLE="lsp-kotlin/bancs/corpus-android-kotlin"
 
 # <clé> <organisation/dépôt> <commit épinglé> [chemin du module utile]
 declare -A PROJETS=(
@@ -88,11 +88,11 @@ done
 cat <<'FIN'
 
 Corpus prêt. Prochaine étape (préparation du classpath réel, voir
-bancs/corpus-android-kotlin/LISEZMOI.md) : produire un manifeste par projet
-sous bancs/corpus-android-kotlin/prepares/<projet>.manifeste (lignes
+lsp-kotlin/bancs/corpus-android-kotlin/LISEZMOI.md) : produire un manifeste par projet
+sous lsp-kotlin/bancs/corpus-android-kotlin/prepares/<projet>.manifeste (lignes
 « racine:<chemin> » et « classpath:<chemin> »), puis :
 
-  CORPUS_KOTLIN=bancs/corpus-android-kotlin ./gradlew :kotlin:test \
+  CORPUS_KOTLIN=lsp-kotlin/bancs/corpus-android-kotlin ./gradlew :kotlin:test \
     --tests 'jo.codeide.lsp.kotlin.coherence.*' --max-workers=1
 
 Les propriétés P1(b)/P2 sur corpus réel ne se jouent qu'en présence des

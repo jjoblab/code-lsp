@@ -42,6 +42,6 @@ kotlin/META-INF/
 # scripts/telecharger-corpus-kotlin.sh — jamais committé, miroir du corpus
 # Java) : sources des 6 projets épinglés + manifestes de classpath préparés
 # localement.
-bancs/corpus-android-kotlin/*
+lsp-kotlin/bancs/corpus-android-kotlin/*
 # ... sauf la documentation du corpus (versionnée).
-!bancs/corpus-android-kotlin/LISEZMOI.md
+!lsp-kotlin/bancs/corpus-android-kotlin/LISEZMOI.md

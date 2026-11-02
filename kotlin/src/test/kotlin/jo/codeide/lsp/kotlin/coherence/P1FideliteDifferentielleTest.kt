@@ -226,7 +226,7 @@ class P1FideliteDifferentielleTest {
 
     /**
      * P1(b) corpus externe : fidélité sur code Android RÉEL (les projets du
-     * corpus `bancs/corpus-android-kotlin`, racines et jars de leurs
+     * corpus `lsp-kotlin/bancs/corpus-android-kotlin`, racines et jars de leurs
      * manifestes). Le montage REMONTE la session par projet (le moteur
      * singleton accepte les redéfinitions de classpath — voir
      * [SocleCoherence.monterSession]) ; impression par projet (FP, FN,

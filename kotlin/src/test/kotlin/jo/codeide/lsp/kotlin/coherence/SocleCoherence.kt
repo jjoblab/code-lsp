@@ -22,7 +22,7 @@ import jo.codeide.lsp.kotlin.session.SessionLangageKotlinDocuments
  * **Rôle** : outiller la mesure des PROPRIÉTÉS du moteur Kotlin sur des
  * sources réelles — l'auto-corpus (le module `:kotlin` lui-même, du vrai
  * Kotlin compilable, TOUJOURS disponible en CI) et le corpus externe Android
- * (`bancs/corpus-android-kotlin`, jamais committé — voir son LISEZMOI).
+ * (`lsp-kotlin/bancs/corpus-android-kotlin`, jamais committé — voir son LISEZMOI).
  *
  * **Mode de fonctionnement (convention d'honnêteté R5)** : les chiffres sont
  * IMPRIMÉS, jamais inventés — un écart est un RÉSULTAT à rapporter ; le mode
@@ -72,7 +72,7 @@ internal object SocleCoherence {
      * Le répertoire du corpus externe (null = absent). Propriété
      * `corpus.kotlin` ou variable d'environnement `CORPUS_KOTLIN` ; un chemin
      * RELATIF se résout contre la racine du dépôt (le LISEZMOI documente
-     * `CORPUS_KOTLIN=bancs/corpus-android-kotlin`, or la JVM de test travaille
+     * `CORPUS_KOTLIN=lsp-kotlin/bancs/corpus-android-kotlin`, or la JVM de test travaille
      * dans le répertoire du MODULE — la remontée rend l'écriture honnête).
      */
     internal val corpusKotlin: Path? = run {
@@ -95,7 +95,7 @@ internal object SocleCoherence {
      * Les projets du corpus externe, lus des manifestes `*.manifeste` du
      * répertoire `prepares` (une ligne `racine:<chemin absolu>` par racine
      * de sources, `classpath:<chemin absolu>` par jar — voir
-     * `bancs/corpus-android-kotlin/LISEZMOI.md`). Liste VIDE si le corpus est
+     * `lsp-kotlin/bancs/corpus-android-kotlin/LISEZMOI.md`). Liste VIDE si le corpus est
      * absent ou sans manifeste : les gates corpus s'ignorent alors AVEC LA
      * RAISON AFFICHÉE (jamais un vert silencieux).
      */

@@ -322,7 +322,7 @@ jobs:
   # ADR 0113 non validé), latence p95 (JVM = limite basse, borne 50 ms),
   # contrat « zéro saut de liste » (gel des têtes sur succession de
   # frappe), contrôles de santé (déterminisme des genres, stabilité sous
-  # gel). Baseline SIGNÉE (bancs/baselines/completion-kotlin.json — le
+  # gel). Baseline SIGNÉE (lsp-kotlin/bancs/baselines/completion-kotlin.json — le
   # commit qui la porte est la signature) : la tâche ÉCHOUE sur régression
   # (CI bloquante) ; re-signature par PR dédiée (-Presigner).
   kotlin-banc-qualite:

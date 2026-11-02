@@ -16,7 +16,7 @@ import org.junit.jupiter.api.Test
  *
  * ## Ce que la propriété mesure
  *
- * Chaque projet du corpus externe (`bancs/corpus-android-kotlin`) est
+ * Chaque projet du corpus externe (`lsp-kotlin/bancs/corpus-android-kotlin`) est
  * réputé COMPILER à son commit épinglé (ce sont des applications livrées) :
  * TOUT diagnostic `kt.*` de gravité ERREUR émis par le moteur sur leurs
  * sources est donc un FAUX POSITIF POTENTIEL — à la nuance près, tracée

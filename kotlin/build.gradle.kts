@@ -296,7 +296,7 @@ kotlin.target.compilations.configureEach {
 
 // Banc de QUALITÉ (étage 3 — critère de sortie, ADR 0119 option 1) :
 // recall/top-1/MRR + p95 + zéro saut sur corpus versionné, comparés à la
-// baseline JSON signée (bancs/baselines/completion-kotlin.json) — la
+// baseline JSON signée (lsp-kotlin/bancs/baselines/completion-kotlin.json) — la
 // tâche ÉCHOUE sur régression (CI bloquante) ; la chaîne livrée doit
 // battre la naïve alphabétique de ≥ 5 points top-1/MRR (miroir ADR
 // 0012/0016 Java). Re-signature : PR dédiée avec -Presigner.
@@ -311,7 +311,7 @@ tasks.register<JavaExec>("benchQualite") {
         javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(VERSION_JDK)) },
     )
     jvmArgs("-Xmx2g", "-XX:+UseSerialGC")
-    systemProperty("banc.baseline", rootProject.file("bancs/baselines/completion-kotlin.json").absolutePath)
+    systemProperty("banc.baseline", rootProject.file("lsp-kotlin/bancs/baselines/completion-kotlin.json").absolutePath)
     if (project.hasProperty("resigner")) {
         args("--resigner")
     }
