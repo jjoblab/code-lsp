@@ -29,6 +29,7 @@
 | 14 | `refonte(digeste)` | re-signature du digeste de parité après PREUVE d'équivalence (P-1, commit dédié et annoncé) |
 | 15 | `refonte(liens)` | correction des références Markdown (P-6) — 204 fichiers par table + 47 corrections ciblées |
 | 16 | `refonte(bilan)` | le présent PV + mises à jour de statut |
+| 17 | `fix(refonte)` | littéraux de chemins racine dans les tests (mondres de fidélité P3/P4/P9, candidat module java) — corrections après run #126 |
 
 Chaque commit embarque les correctifs de chemins FONCTIONNELS des
 déplacements qu'il effectue (build.gradle.kts, ci.yml, .gitignore, scripts,
@@ -59,7 +60,8 @@ concerné).
 | `git log --follow` | historique conservé | échantillons : ParseurKotlin.kt (5 commits), build.gradle.kts :java (13 commits) | ✅ |
 | Jobs CI | mêmes noms | ci.yml : **aucun `name:` modifié** (diff vide) | ✅ P-4 |
 | Chemins Gradle / coordonnées / capacités LSP | inchangés | `:java`, `:kotlin`, `:index`, `:model`, `:testing`, `:ecj-art`, `:spike-kotlin` — projectDir remappés uniquement ; `./gradlew projects` résout les 7 modules | ✅ |
-| Chiffres dex / tailles de jars | §5–6 AVANT | arbitre : CI (run sur `refonte/organisation`) | ⏳ CI |
+| Chiffres dex Kotlin | method_ids 26 590 ; classes.dex 4 294 352 octets | **method_ids 26 590 ; classes.dex 4 294 352 octets** (CI run #127, job scan ART — seuils tenus) | ✅ identiques |
+| Taille compagnon ecj (3 211 Ko) | 3 211 Ko | non imprimée par la CI de branche (publication v* uniquement) — inchangé par construction (aucun build ecj-art modifié) | ✅ par construction |
 
 ## 3. Pièges traités (plan §7)
 
@@ -123,7 +125,16 @@ concerné).
    successeur, ajouts attendus), l'intégrité de contenu des fichiers
    sensibles restant prouvée séparément (SHA-256, vendoring R100, digeste).
 
-## 6. Ce qui reste à décider par le propriétaire
+## 6. Verdict CI (arbitre final)
+
+Run **#127** (id 41510365551, 02/11/2026) sur `refonte/organisation` :
+**SUCCÈS — 10/10 jobs VERTS**, mêmes noms que la photographie AVANT §7.
+Chiffres dex relevés : method_ids **26 590**, classes.dex **4 294 352 octets**
+— IDENTIQUES à l'AVANT §5. Un correctif a été nécessaire après le premier
+run (#126, 8/10) : trois tests de cohérence résolvaient les mondes de
+fidélité par un littéral d'ancien chemin (commit 17).
+
+## 7. Ce qui reste à décider par le propriétaire
 
 - **§3.2.4** : branche cible de la fusion (`main` proposée), protection de
   branche, devenir des branches `etude/*` (proposition du plan : conservation
@@ -138,7 +149,7 @@ concerné).
   Kotlin, ARCHITECTURE, CHANGELOG, AGENTS par LSP, INDEX) — hors périmètre
   Phase 2, plan §2.
 
-## 7. Retour arrière (plan §9)
+## 8. Retour arrière (plan §9)
 
 - Tags `pre-fusion/etude-moteur-java` et `pre-fusion/etude-moteur-kotlin`
   (poussés) — état exact avant la fusion, JAMAIS modifiés.
