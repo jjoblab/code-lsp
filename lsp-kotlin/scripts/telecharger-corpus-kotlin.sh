@@ -38,8 +38,8 @@
 # empreinte vérifiée par commit épinglé (clone puis `git checkout <sha>`).
 #
 # Usage :
-#   scripts/telecharger-corpus-kotlin.sh              # tout le corpus
-#   scripts/telecharger-corpus-kotlin.sh sunflower    # un seul projet
+#   lsp-kotlin/scripts/telecharger-corpus-kotlin.sh              # tout le corpus
+#   lsp-kotlin/scripts/telecharger-corpus-kotlin.sh sunflower    # un seul projet
 #
 # Sortie : lsp-kotlin/bancs/corpus-android-kotlin/<projet>/ (sources seules, profondeur 1).
 # ============================================================================

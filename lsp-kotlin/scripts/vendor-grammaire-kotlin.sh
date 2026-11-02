@@ -27,8 +27,8 @@
 #      UP-TO-DATE et laisser une baseline périmée en silence).
 #
 # Usage :
-#   bash scripts/vendor-grammaire-kotlin.sh <tag>          # ex. v2.3.0
-#   bash scripts/vendor-grammaire-kotlin.sh <tag> <clone-amont>
+#   bash lsp-kotlin/scripts/vendor-grammaire-kotlin.sh <tag>          # ex. v2.3.0
+#   bash lsp-kotlin/scripts/vendor-grammaire-kotlin.sh <tag> <clone-amont>
 #        (réutilise un clone existant de JetBrains/kotlin au lieu de cloner)
 # ============================================================================
 set -euo pipefail
@@ -89,7 +89,7 @@ cat > "${VENDOR}/VENDOR.md" <<FIN
 >
 > Copie **octet pour octet** (\`git archive\` au tag) : ${NB_FICHIERS} fichiers
 > Kotlin, ${NB_LIGNES} lignes. Un re-sync est un **remplacement**, jamais une
-> fusion : il se fait par \`scripts/vendor-grammaire-kotlin.sh\` (miroir de la
+> fusion : il se fait par \`lsp-kotlin/scripts/vendor-grammaire-kotlin.sh\` (miroir de la
 > procédure de l'ADR 0121 — remplacement intégral + suite de parité + digeste
 > comme gate). Règle d'épinglage : tag compilé par un bootstrap ≤ notre chaîne
 > d'outils.

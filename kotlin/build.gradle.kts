@@ -35,7 +35,7 @@ plugins {
 // ---------------------------------------------------------------------------
 // Règle d'épinglage : tag compilé par un bootstrap ≤ notre chaîne d'outils
 // (v2.3.0 est compilé par le bootstrap 2.2.x ; notre chaîne est KGP 2.2.10).
-// Toute montée passe par scripts/vendor-grammaire-kotlin.sh (remplacement
+// Toute montée passe par lsp-kotlin/scripts/vendor-grammaire-kotlin.sh (remplacement
 // intégral) + gates (suite de parité + re-signature digeste + revue du diff).
 val VERSION_GRAMMAIRE = "v2.3.0"
 

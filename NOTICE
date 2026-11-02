@@ -55,7 +55,7 @@ maintenu dans lsp-java/docs/PROVENANCE-REPRISE.md (règle R9 du cahier des charg
               amont ne liste AUCUNE exception de licence sur ce chemin.
    Usage    : grammaire de production du moteur Kotlin LSP (voie (i), ADR
               0103) ; re-sync = remplacement scripté
-              (scripts/vendor-grammaire-kotlin.sh, ADR 0121).
+              (lsp-kotlin/scripts/vendor-grammaire-kotlin.sh, ADR 0121).
 
 7. syntax-api / lang-syntax / annotations (moteur :kotlin — étage 0)
    Artefacts : org.jetbrains:syntax-api:0.3.340 (+ org.jetbrains:lang-syntax

@@ -16,7 +16,7 @@ import org.junit.jupiter.api.Test
  * marqueur d'erreur (le dépôt compile en CI, la grammaire du compilateur
  * doit l'accepter telle quelle), et la FORME globale des arbres est épinglée
  * par un digeste de base : toute dérive de grammaire — re-sync amont
- * (`scripts/vendor-grammaire-kotlin.sh`, ADR 0121) ou régression locale —
+ * (`lsp-kotlin/scripts/vendor-grammaire-kotlin.sh`, ADR 0121) ou régression locale —
  * déplace les digests et se voit immédiatement.
  *
  * Le digeste porte la FORME de l'arbre (productions + genres de jetons, pas
