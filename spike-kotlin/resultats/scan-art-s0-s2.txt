@@ -1,0 +1,32 @@
+=== lsp-kotlin-1.22.1.jar ===
+classes analysées : 287
+méthodes déclarées (borne basse dex) : 355
+versions de class-file (majeure:nombre) : 61:287
+références sensibles ART :
+       1 × ServiceLoader (présent ART — vérifier META-INF/services)   ex: java/util/ServiceLoader
+
+=== syntax-api-jvm-0.3.340.jar ===
+classes analysées : 309
+méthodes déclarées (borne basse dex) : 514
+versions de class-file (majeure:nombre) : 52:309
+références sensibles ART : AUCUNE
+
+=== lang-syntax-jvm-0.3.340.jar ===
+classes analysées : 3
+méthodes déclarées (borne basse dex) : 71
+versions de class-file (majeure:nombre) : 61:3
+références sensibles ART : AUCUNE
+
+=== annotations-26.0.2.jar ===
+classes analysées : 61
+méthodes déclarées (borne basse dex) : 33
+versions de class-file (majeure:nombre) : 52:60, 53:1
+références sensibles ART : AUCUNE
+
+=== kotlin-metadata-jvm-2.2.10.jar ===
+classes analysées : 492
+méthodes déclarées (borne basse dex) : 1141
+versions de class-file (majeure:nombre) : 49:81, 52:411
+références sensibles ART :
+       1 × ServiceLoader (présent ART — vérifier META-INF/services)   ex: java/util/ServiceLoader
+

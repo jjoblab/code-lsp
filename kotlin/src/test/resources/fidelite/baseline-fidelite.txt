@@ -1,0 +1,8 @@
+faux-negatifs=1
+empreinte=62b21b7f0009b90dad304a5cb20ea57bae731031cf223d5c26b5008075b7459c
+monde-views.kt oracle=0 moteur=0 fp=0 fn=0
+monde-compose.kt oracle=0 moteur=0 fp=0 fn=0
+monde-coroutines.kt oracle=0 moteur=0 fp=0 fn=0
+monde-stdlib.kt oracle=0 moteur=0 fp=0 fn=0
+temoin-positif.kt oracle=3 moteur=2 fp=0 fn=1
+  FN 10:zzMembreInconnu

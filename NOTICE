@@ -44,8 +44,39 @@ maintenu dans docs/PROVENANCE-REPRISE.md (règle R9 du cahier des charges).
               fichier LICENSE à ce jour (action propriétaire P1, ADR 0001/0017).
               Tant que P1 n'est pas traitée, ce composant n'est pas consommé.
 
+6. Grammaire Kotlin multiplateforme (moteur :kotlin — étage 0, ADR 0100/0120)
+   Origine  : JetBrains/kotlin, compiler/multiplatform-parsing/common/src,
+              tag épinglé v2.3.0 (commit f95cb2f7693a15966fd8fd9b1d78d440545e7b66)
+              — RÉ-OBTENUE de l'amont par git archive (jamais depuis
+              codeide-lsp, R9.2), copie octet pour octet, zéro modification.
+   Licence  : Apache-2.0 — LICENSE.txt + COPYRIGHT.txt du dépôt amont embarqués
+              dans le jar du module (META-INF/vendor-kotlin/) et à la racine du
+              vendoring (kotlin/src/main/vendor/, notice VENDOR.md) ; le tag
+              amont ne liste AUCUNE exception de licence sur ce chemin.
+   Usage    : grammaire de production du moteur Kotlin LSP (voie (i), ADR
+              0103) ; re-sync = remplacement scripté
+              (scripts/vendor-grammaire-kotlin.sh, ADR 0121).
+
+7. syntax-api / lang-syntax / annotations (moteur :kotlin — étage 0)
+   Artefacts : org.jetbrains:syntax-api:0.3.340 (+ org.jetbrains:lang-syntax
+               0.3.340 transitif, org.jetbrains:annotations:26.0.2) — pile
+               épinglée par le tag amont v2.3.0 de la grammaire vendorée.
+   Licences  : Apache-2.0 (sources) ; les artefacts BINAIRES proviennent du
+               dépôt intellij-dependencies (JetBrains, accès cache-redirector)
+               et n'embarquent AUCUN META-INF/LICENSE — hypothèse Apache-2.0
+               à CONFIRMER par le propriétaire avant publication du pack
+               (alerte P-K2, miroir AL1 Java — action ADR 0120).
+   Usage     : arbre de construction syntaxique contre lequel la grammaire
+               vendorée est écrite (voie (i) — plan chaud sans compilateur).
+
 L'implémentation du moteur Java de ce dépôt est une RÉÉCRITURE INTÉGRALE en
 Kotlin (ADR 0001, option 2 — décision du propriétaire du 28/10/2026) : aucun
 code du moteur vendored de jjoblab/codeide-lsp n'est repris, même partiellement
 (ni production, ni tests). Le moteur vendored demeure dans codeide-lsp comme
 oracle de parité et repli de production.
+
+Le moteur Kotlin (module :kotlin) suit la voie C hybride (ADR 0100, acceptée
+le 30/10/2026) : noyau réécrit depuis le cahier de spécifications, modules
+différenciants repris après contrôle (registre
+docs/PROVENANCE-REPRISE-KOTLIN.md), grammaire ré-obtenue de l'amont (ci-dessus
+n° 6).

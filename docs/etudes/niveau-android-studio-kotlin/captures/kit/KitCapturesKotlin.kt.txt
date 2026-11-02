@@ -1,0 +1,300 @@
+package com.exemple.monapp
+
+/*
+ * ============================================================================
+ * KIT DE CAPTURES ANDROID STUDIO — LOT E (moteur Kotlin). Référence :
+ * docs/etudes/niveau-android-studio-kotlin/06-protocole-captures-android-studio.md §2.
+ *
+ * MODE D'EMPLOI (copie locale, JAMAIS committée) :
+ *  1. créer ou réutiliser un projet Android de test en KOTLIN — modèle
+ *     « Empty Activity » d'Android Studio (Compose et coroutines inclus ;
+ *     si les imports kotlinx.coroutines ne résolvent pas, ajouter
+ *     localement kotlinx-coroutines-android) ;
+ *  2. copier ce fichier vers app/src/main/java/com/exemple/monapp/
+ *     KitCapturesKotlin.kt (copie locale, non committée) ;
+ *  3. ouvrir le projet dans Android Studio, laisser Gradle resynchroniser
+ *     et ATTENDRE la fin de l'indexation avant les captures (§4.3 du
+ *     protocole) ;
+ *  4. pour chaque bloc : placer le caret à l'emplacement du marqueur
+ *     « ¦ » (retirer le marqueur), jouer le geste indiqué par le
+ *     commentaire « CAPTURE Ex », et TRANSCRIRE EN TEXTE la liste
+ *     proposée — l'ordre compte (protocole §2) ;
+ *  5. reporter chaque résultat dans captures/RESULTATS-LOT-E.md.
+ *
+ * Ce fichier ne compile PAS volontairement en totalité : les marqueurs
+ * « ¦ » simulent une frappe en cours (énoncés incomplets). Support de
+ * spécification, pas du code de production.
+ *
+ * STATUT CLEAN-ROOM : fichier écrit pour la mission « moteur Kotlin au
+ * niveau d'Android Studio » — aucun code copié (ni d'IntelliJ IDEA, ni
+ * d'Android Studio, ni d'un projet tiers) ; données fictives.
+ * ============================================================================
+ */
+
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.tooling.preview.Preview
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
+
+// ============================================================================
+// SUPPORTS — la mini application (aucune capture directe ici)
+// ============================================================================
+
+/** Catégories du catalogue (E4 : when exhaustif sur enum). */
+enum class Categorie { ALIMENTAIRE, HYGIENE, LOISIRS }
+
+/** États du panier (E4 : when exhaustif sur sealed). */
+sealed interface EtatPanier {
+    data object Vide : EtatPanier
+    data class EnCours(val articles: List<Article>) : EtatPanier
+    data class Valide(val totalCentimes: Int) : EtatPanier
+}
+
+/** Entité du catalogue. */
+data class Article(
+    val id: Long,
+    val titre: String,
+    val prixCentimes: Int,
+    val categorie: Categorie,
+)
+
+/** Accès aux données — les lectures sont SUSPEND (E7). */
+interface DepotArticle {
+    /** Charge tout le catalogue (réseau simulé). */
+    suspend fun chargerTous(): List<Article>
+
+    /** Recherche par préfixe de titre. */
+    suspend fun chercher(prefixe: String): List<Article>
+}
+
+/** Implémentation mémoire du dépôt (données fictives). */
+class DepotArticleMemoire : DepotArticle {
+    private val catalogue = listOf(
+        Article(id = 1, titre = "Lait demi-écrémé", prixCentimes = 109, categorie = Categorie.ALIMENTAIRE),
+        Article(id = 2, titre = "Savon doux", prixCentimes = 249, categorie = Categorie.HYGIENE),
+        Article(id = 3, titre = "Jeu de cartes", prixCentimes = 599, categorie = Categorie.LOISIRS),
+    )
+
+    override suspend fun chargerTous(): List<Article> =
+        withContext(Dispatchers.IO) {
+            delay(50) // réseau simulé
+            catalogue
+        }
+
+    override suspend fun chercher(prefixe: String): List<Article> =
+        chargerTous().filter { it.titre.startsWith(prefixe, ignoreCase = true) }
+}
+
+/** ViewModel minimaliste (sans dépendance lifecycle — seul le contrat compte). */
+class PanierViewModel(private val depot: DepotArticle) {
+    var etat: EtatPanier = EtatPanier.Vide
+        private set
+
+    /** Recharge le catalogue — appelable DEPUIS une coroutine (contraste E7). */
+    suspend fun rafraichir() {
+        etat = EtatPanier.EnCours(depot.chargerTous())
+    }
+}
+
+/** Contrat d'écran (E5 : stubs d'override). */
+interface Ecran {
+    val titreEcran: String
+
+    fun actualiser()
+}
+
+// ============================================================================
+// LOT E — scénarios (une fonction par position, ¦ = position du caret)
+// ============================================================================
+
+/** Scénarios de capture du lot E (complétion, diagnostics, inlay hints). */
+class ScenariosLotE(private val depot: DepotArticle) {
+
+    /**
+     * E1 — complétion smart par type attendu.
+     * CARET : juste après « = » (retirer le marqueur).
+     * À transcrire : position de « libelle » (String, compatible) ;
+     * « compte » (Int) et « villes » (List<String>, non compatibles)
+     * présents ou absents ? littéraux, membres de String, mots-clés.
+     */
+    fun e1Smart() {
+        val libelle = "panier"
+        val compte = 3
+        val villes = listOf("Paris", "Lyon")
+        // CAPTURE E1 : Ctrl+Shift+Espace (smart) puis Ctrl+Espace — 2 listes.
+        val s: String = ¦
+    }
+
+    /**
+     * E2 — complétion en chaîne sur une collection.
+     * CARET : juste après « fil » (retirer le marqueur, retaper « fil »
+     * à la main pour la liste spontanée).
+     * À transcrire : ordre exact (filter, filterNot, filterIndexed,
+     * find, first…), la lambda « it » est-elle insérée à l'insertion ?
+     */
+    fun e2Chaine() {
+        val notes = listOf(1, 2)
+        // CAPTURE E2 : frappe « fil » (spontané) puis Ctrl+Espace.
+        val grandes = notes.fil¦
+    }
+
+    /**
+     * E3 — récepteurs implicites de DSL.
+     * CARET 1 : dans « buildString { appe¦ » — après « appe ».
+     * CARET 2 : dans « with(context) { ¦ } » — après l'accolade ouvrante.
+     * À transcrire : membres du récepteur proposés SANS préfixe
+     * (StringBuilder : append, appendLine… ; Context : getString,
+     * getSystemService…), extensions à récepteur proposées ?
+     */
+    fun e3Recepteurs(context: android.content.Context) {
+        // CAPTURE E3a : frappe « appe » — membres de StringBuilder.
+        val phrase = buildString { appe¦ }
+        // CAPTURE E3b : Ctrl+Espace — membres de Context sans préfixe.
+        with(context) { ¦ }
+    }
+
+    /**
+     * E4 — when exhaustif (enum puis sealed).
+     * CARET 1 : après l'accolade ouvrante du premier when (VIDE) ;
+     * CARET 2 : Alt+Enter sur le soulignement du second when — la
+     * branche Vide MANQUE (when non exhaustif).
+     * À transcrire : sujets de branche proposés, intitulé et effet du
+     * correctif « Add remaining branches », message exact du diagnostic.
+     */
+    fun e4When(categorie: Categorie, etat: EtatPanier): String {
+        // CAPTURE E4a : Ctrl+Espace — que propose un when vide sur enum ?
+        val nomCategorie = when (categorie) { ¦ }
+        // CAPTURE E4b : Alt+Enter — when NON exhaustif (Vide manque).
+        return when (etat) {
+            is EtatPanier.EnCours -> "en cours : ${etat.articles.size} article(s)"
+            is EtatPanier.Valide -> "validé : ${etat.totalCentimes} cts"
+        } + " [$nomCategorie]"
+    }
+
+    /**
+     * E6 — inlay hints (types, paramètres, récepteurs).
+     * Aucun geste : OUVRIR cette fonction, laisser l'éditeur se
+     * stabiliser, capturer l'écran PUIS transcrire chaque hint en texte.
+     * À transcrire : hint de type sur « total » et « premier » ; hint de
+     * nom de paramètre aux appels (sumOf, firstOrNull) ; hints de
+     * lambda/récepteur (« it », « this » dans buildString).
+     */
+    fun e6Inlays(articles: List<Article>) {
+        // CAPTURE E6 : écran OBLIGATOIRE + transcription des hints en clair.
+        val total = articles.sumOf { it.prixCentimes }
+        val premier = articles.firstOrNull() ?: Article(0, "—", 0, Categorie.ALIMENTAIRE)
+        val phrase = buildString {
+            append("Total : ")
+            append(total)
+        }
+        println(phrase + " / " + premier.titre)
+    }
+
+    /**
+     * E7 — contexte suspend (appel hors coroutine).
+     * Aucun geste de complétion : laisser le diagnostic apparaître, puis
+     * Alt+Enter sur l'appel souligné.
+     * À capturer : message EXACT + liste ordonnée des correctifs
+     * (runBlocking, rendre la fonction suspend, surround with…).
+     */
+    fun e7HorsCoroutine(): List<Article> {
+        // CAPTURE E7 : diagnostic + Alt+Enter sur l'appel souligné.
+        return depot.chargerTous()
+    }
+
+    /**
+     * E8 — Compose (appel composable hors contexte).
+     * CARET : aucun — laisser le diagnostic apparaître sur l'appel de
+     * TitreEcran (fonction NON composable), puis Alt+Enter.
+     * La complétion Modifier (E8b) se joue dans ListeArticles (bas de
+     * fichier).
+     */
+    fun e8ComposeHorsContexte() {
+        // CAPTURE E8a : message exact + correctifs du hors-contexte.
+        TitreEcran("Catalogue")
+    }
+
+    /**
+     * E9 — nullabilité et smart cast.
+     * Position 1 : accès SANS garde — message exact + correctifs ;
+     * position 2 : le même accès DANS « if (pseudo != null) » —
+     * l'erreur disparaît-elle (smart cast) ? ; position 3 : en aval de
+     * l'elvis « ?: » — le type est-il redevenu non nullable ?
+     */
+    fun e9Nullabilite(): Int {
+        var pseudo: String? = lirePseudo()
+
+        // CAPTURE E9a : diagnostic + Alt+Enter sur « length ».
+        val tailleBrute = pseudo.length¦
+
+        // CAPTURE E9b : smart cast — l'erreur disparaît-elle ?
+        if (pseudo != null) {
+            return pseudo.length
+        }
+
+        // CAPTURE E9c : Ctrl+Espace après le point — membres de String.
+        val secours = pseudo ?: "invité"
+        return secours.¦
+    }
+
+    private fun lirePseudo(): String? = null
+
+    /**
+     * E10 — complétion dans le KDoc.
+     * Le geste se joue dans le KDoc de totalLigne (juste en dessous) :
+     * ligne « * @p¦ », taper « @p » ; puis « * @param ¦ », Ctrl+Espace
+     * après « @param » + espace. À transcrire : balises proposées et
+     * leur ordre ; noms des paramètres proposés (prefixe, total).
+     */
+    fun e10Kdoc() {
+        // CAPTURE E10 : dans le KDoc de totalLigne ci-dessous (« @p » puis « @param »).
+    }
+
+    /**
+     * Total d'une ligne de panier (support du scénario E10).
+     *
+     * @p¦
+     */
+    fun totalLigne(prefixe: String, total: Int): Int = prefixe.length + total
+}
+
+/**
+ * Écran du catalogue (E5 — hérite de Ecran).
+ * CARET : dans le corps, juste après « o » de la ligne marquée (retaper
+ * « o » ou « ov » à la main) — actualiser() n'est PAS encore surchargé.
+ * À transcrire : membres surchargeables proposés (actualiser,
+ * titreEcran), position du mot-clé « override », forme du stub inséré.
+ */
+class EcranArticles(private val depot: DepotArticle) : Ecran {
+    override val titreEcran = "Catalogue"
+
+    // CAPTURE E5 : frappe « o » — stubs d'override proposés.
+    o¦
+}
+
+// ============================================================================
+// COMPOSABLES (E8 — le décor Compose de la mini application)
+// ============================================================================
+
+/** Titre d'écran (composable — appelé hors contexte par e8ComposeHorsContexte). */
+@Composable
+fun TitreEcran(texte: String) {
+    // Rendu omis : seul le contrat compte pour les captures.
+}
+
+/** Liste du catalogue (E8b — complétion sur Modifier). */
+@Composable
+fun ListeArticles(articles: List<Article>, modificateur: Modifier = Modifier) {
+    TitreEcran("Catalogue")
+    // CAPTURE E8b : frappe « p » — membres et extensions de Modifier.
+    val filet = modificateur.p¦
+}
+
+/** Aperçu du composable (aucune capture dédiée — décor du projet). */
+@Preview
+@Composable
+fun ApercuListeArticles() {
+    ListeArticles(articles = listOf(Article(1, "Lait demi-écrémé", 109, Categorie.ALIMENTAIRE)))
+}
