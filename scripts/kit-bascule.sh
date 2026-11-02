@@ -2,7 +2,7 @@
 # ============================================================================
 # kit-bascule.sh — assemble le KIT DE PASSE BASCULE SUR APPAREIL (étage T,
 # §8.5 : « latences tenues sur appareil » — protocole du gabarit
-# bancs/GABARIT-BASCULE-APPAREIL.md, mesures à retourner par le propriétaire,
+# docs/GABARIT-BASCULE-APPAREIL.md, mesures à retourner par le propriétaire,
 # JAMAIS simulées — R5).
 #
 # Produit build/kit-bascule.zip (jamais committé — R6.4) :
@@ -14,7 +14,7 @@
 # Sur l'appareil (Termux) :
 #   unzip -o kit-bascule.zip -d bascule && cd bascule
 #   bash banc-bascule.sh > resultats-bascule.txt
-# Puis remplir bancs/GABARIT-BASCULE-APPAREIL.md et le joindre à la décision.
+# Puis remplir docs/GABARIT-BASCULE-APPAREIL.md et le joindre à la décision.
 # ============================================================================
 set -euo pipefail
 
@@ -59,7 +59,7 @@ cat > "$KIT/banc-bascule.sh" <<'FIN'
 #!/bin/bash
 # Banc de passe bascule sur appareil — étage T (§8.5), R5 : mesure réelle.
 # Sortie : couverture du cahier (18 positions) + latences p50/p95 par genre
-# + verdict zéro-saut. À reporter dans bancs/GABARIT-BASCULE-APPAREIL.md.
+# + verdict zéro-saut. À reporter dans docs/GABARIT-BASCULE-APPAREIL.md.
 set -uo pipefail
 cd "$(dirname "$0")"
 echo "=============================================================="

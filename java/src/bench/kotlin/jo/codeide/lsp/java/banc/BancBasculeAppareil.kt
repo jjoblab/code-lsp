@@ -3,7 +3,7 @@
 // l'oracle (banc croisé ADR 0016), latences §4 tenues sur appareil »).
 //
 // RÔLE : mesure PURE pour l'appareil (moto g06 / Termux — le protocole du
-// gabarit `bancs/GABARIT-BASCULE-APPAREIL.md`, R5 : jamais simulée). Ce banc
+// gabarit `docs/GABARIT-BASCULE-APPAREIL.md`, R5 : jamais simulée). Ce banc
 // ne compare AUCUNE baseline (les bornes de non-régression sont l'affaire
 // de la CI JVM — benchQualite/benchParite) : il rejoue le corpus de parité
 // sur l'appareil et rend (a) la COUVERTURE DU CAHIER position par position
