@@ -18,8 +18,8 @@
 #   # une machine de build puis le transférer :
 #   #   ./gradlew :kotlin:jar :kotlin:compileBenchKotlin
 #   #   mkdir -p kit-kotlin/{libs,banc}
-#   #   cp kotlin/build/libs/kotlin-*.jar kit-kotlin/libs/
-#   #   cp -r kotlin/build/classes/kotlin/bench/* kit-kotlin/banc/
+#   #   cp lsp-kotlin/moteur/build/libs/kotlin-*.jar kit-kotlin/libs/
+#   #   cp -r lsp-kotlin/moteur/build/classes/kotlin/bench/* kit-kotlin/banc/
 #   #   find ~/.gradle/caches/modules-2 -name 'syntax-api-jvm-0.3.340.jar' -exec cp {} kit-kotlin/libs/ \;
 #   #   find ~/.gradle/caches/modules-2 -name 'lang-syntax-jvm-0.3.340.jar' -exec cp {} kit-kotlin/libs/ \;
 #   #   find ~/.gradle/caches/modules-2 -name 'annotations-26.0.2.jar' -exec cp {} kit-kotlin/libs/ \;

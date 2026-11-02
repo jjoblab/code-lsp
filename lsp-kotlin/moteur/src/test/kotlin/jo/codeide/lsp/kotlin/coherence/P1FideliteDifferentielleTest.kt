@@ -157,7 +157,7 @@ class P1FideliteDifferentielleTest {
 
     /**
      * P1 auto-corpus : zéro faux positif du moteur sur SON PROPRE code
-     * compilable (les 99 fichiers `.kt` de `kotlin/src/main/kotlin` + la
+     * compilable (les 99 fichiers `.kt` de `lsp-kotlin/moteur/src/main/kotlin` + la
      * grammaire vendorée — du vrai Kotlin, K2-compilable, TOUJOURS en CI).
      *
      * L'oracle compile le corpus ENTIERS en UNE invocation (mesuré en bac à
@@ -170,7 +170,7 @@ class P1FideliteDifferentielleTest {
     fun `auto-corpus---zéro-faux-positif-du-moteur-sur-son-propre-code-compilable`() {
         val debut = System.nanoTime()
         val racines = SocleCoherence.racinesAutoCorpus()
-        assertTrue(racines.isNotEmpty(), "l'auto-corpus (kotlin/src/main/kotlin + vendor) doit exister")
+        assertTrue(racines.isNotEmpty(), "l'auto-corpus (lsp-kotlin/moteur/src/main/kotlin + vendor) doit exister")
         val jars = SocleCoherence.assurerPlancherStdlib(SocleCoherence.jarsAutoCorpus())
         assertTrue(jars.isNotEmpty(), "le classpath de test doit porter des jars")
         val fichiers = fichiersKotlin(racines)

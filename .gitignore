@@ -35,8 +35,8 @@ lsp-java/bancs/corpus-android/*
 bt/
 dex-sortie/
 # Sorties du sous-processus K2 du banc de fidélité (CWD du compilateur)
-kotlin/mondes/
-kotlin/META-INF/
+lsp-kotlin/moteur/mondes/
+lsp-kotlin/moteur/META-INF/
 
 # Corpus réel Android Kotlin du banc de cohérence P1-P9 (téléchargé par
 # lsp-kotlin/scripts/telecharger-corpus-kotlin.sh — jamais committé, miroir du corpus

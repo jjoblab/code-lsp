@@ -51,7 +51,7 @@ maintenu dans lsp-java/docs/PROVENANCE-REPRISE.md (règle R9 du cahier des charg
               codeide-lsp, R9.2), copie octet pour octet, zéro modification.
    Licence  : Apache-2.0 — LICENSE.txt + COPYRIGHT.txt du dépôt amont embarqués
               dans le jar du module (META-INF/vendor-kotlin/) et à la racine du
-              vendoring (kotlin/src/main/vendor/, notice VENDOR.md) ; le tag
+              vendoring (lsp-kotlin/moteur/src/main/vendor/, notice VENDOR.md) ; le tag
               amont ne liste AUCUNE exception de licence sur ce chemin.
    Usage    : grammaire de production du moteur Kotlin LSP (voie (i), ADR
               0103) ; re-sync = remplacement scripté

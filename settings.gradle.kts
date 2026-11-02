@@ -45,7 +45,7 @@ include(":testing");   project(":testing").projectDir   = file("socle/testing")
 include(":ecj-art");   project(":ecj-art").projectDir   = file("socle/ecj-art")
 // Moteur Kotlin LSP (voie C, ADR 0100 — étage 0 : grammaire vendorée par
 // ré-obtention amont + suite de parité fiches 010–012 + descripteur de pack).
-include(":kotlin")
+include(":kotlin");   project(":kotlin").projectDir   = file("lsp-kotlin/moteur")
 // Module de mesure isolé de l'étude « moteur Kotlin » (Phase 2 du prompt de
 // mission) — NON PUBLIÉ, tâches désactivées sans -PspikeKotlin (voir
 // spike-kotlin/build.gradle.kts) : la CI du domaine Java n'est pas affectée.

@@ -229,7 +229,7 @@ jobs:
         run: ./gradlew :kotlin:jar --no-daemon --stacktrace
       - name: "Scan ART - moteur + pile amont (gate : 0 motif)"
         run: |
-          JAR_MOTEUR=$(ls kotlin/build/libs/kotlin-*.jar)
+          JAR_MOTEUR=$(ls lsp-kotlin/moteur/build/libs/kotlin-*.jar)
           SA=$(find "$HOME/.gradle/caches/modules-2" -name 'syntax-api-jvm-0.3.340.jar' | head -1)
           LS=$(find "$HOME/.gradle/caches/modules-2" -name 'lang-syntax-jvm-0.3.340.jar' | head -1)
           AN=$(find "$HOME/.gradle/caches/modules-2" -name 'annotations-26.0.2.jar' | head -1)
@@ -267,7 +267,7 @@ jobs:
         run: |
           curl -sSfL --retry 3 -o bt34.zip "https://dl.google.com/android/repository/build-tools_r34-linux.zip"
           unzip -o -q bt34.zip 'android-14/d8' 'android-14/lib/*' -d bt
-          JAR_MOTEUR=$(ls kotlin/build/libs/kotlin-*.jar)
+          JAR_MOTEUR=$(ls lsp-kotlin/moteur/build/libs/kotlin-*.jar)
           SA=$(find "$HOME/.gradle/caches/modules-2" -name 'syntax-api-jvm-0.3.340.jar' | head -1)
           LS=$(find "$HOME/.gradle/caches/modules-2" -name 'lang-syntax-jvm-0.3.340.jar' | head -1)
           AN=$(find "$HOME/.gradle/caches/modules-2" -name 'annotations-26.0.2.jar' | head -1)

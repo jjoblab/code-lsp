@@ -37,7 +37,7 @@ TAG="${1:?usage : vendor-grammaire-kotlin.sh <tag> [clone-amont-existent]}"
 CLONE="${2:-}"
 
 cd "$(git rev-parse --show-toplevel)"
-VENDOR="kotlin/src/main/vendor"
+VENDOR="lsp-kotlin/moteur/src/main/vendor"
 CHEMIN_AMONT="compiler/multiplatform-parsing/common/src"
 
 # --- 1. Obtenir l'amont au tag (clone jetable ou clone fourni) -------------

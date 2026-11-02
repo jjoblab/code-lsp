@@ -57,9 +57,9 @@ else
 fi
 
 # --- 2. Artefacts du module (asserts — le jar moteur et les classes banc) --
-MOTEUR="$(ls kotlin/build/libs/kotlin-*.jar 2>/dev/null | head -1 || true)"
-[ -n "$MOTEUR" ] || echouer "jar moteur absent (kotlin/build/libs/kotlin-*.jar) — lancer le build."
-CLASSE_BANC="kotlin/build/classes/kotlin/bench/jo/codeide/lsp/kotlin/banc/BancGrammaireKt.class"
+MOTEUR="$(ls lsp-kotlin/moteur/build/libs/kotlin-*.jar 2>/dev/null | head -1 || true)"
+[ -n "$MOTEUR" ] || echouer "jar moteur absent (lsp-kotlin/moteur/build/libs/kotlin-*.jar) — lancer le build."
+CLASSE_BANC="lsp-kotlin/moteur/build/classes/kotlin/bench/jo/codeide/lsp/kotlin/banc/BancGrammaireKt.class"
 [ -s "$CLASSE_BANC" ] || echouer "classes du banc absentes (:kotlin:compileBenchKotlin)."
 [ -s "spike-kotlin/scripts/scan-art.py" ] || echouer "scan-art.py absent (spike-kotlin/scripts/)."
 
@@ -71,7 +71,7 @@ mkdir -p "$STAGING/kit-kotlin/libs" "$STAGING/kit-kotlin/banc"
 cp "$MOTEUR" "$STAGING/kit-kotlin/libs/$(basename "$MOTEUR")"
 echo "OK : $(basename "$MOTEUR") ($(du -h "$MOTEUR" | cut -f1)) — jar moteur (mesures bac à sable)."
 
-cp -r kotlin/build/classes/kotlin/bench/* "$STAGING/kit-kotlin/banc/"
+cp -r lsp-kotlin/moteur/build/classes/kotlin/bench/* "$STAGING/kit-kotlin/banc/"
 echo "OK : banc/ — $(find "$STAGING/kit-kotlin/banc" -name '*.class' | wc -l) classe(s) du banc."
 
 cp spike-kotlin/scripts/scan-art.py "$STAGING/kit-kotlin/scan-art.py"

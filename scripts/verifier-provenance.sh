@@ -21,7 +21,7 @@
 # --- EXTENSION KOTLIN (vague 0, ADR 0100 acceptée le 2026-10-30) -----------
 # Le module :kotlin est MIXTE (voie C — hybride) : trois régimes distincts.
 #
-#  1. VENDORING (kotlin/src/main/vendor/**) : grammaire officielle RÉ-OBTENUE
+#  1. VENDORING (lsp-kotlin/moteur/src/main/vendor/**) : grammaire officielle RÉ-OBTENUE
 #     de l'amont JetBrains (R9.2 : jamais depuis codeide-lsp). Contrôles :
 #     notices obligatoires (VENDOR.md, LICENSE.txt, COPYRIGHT.txt — Apache-2.0
 #     accompagne la redistribution) + inscription du chemin du vendoring au
@@ -30,7 +30,7 @@
 #     (digeste structurel, fiches 010/012) — pas par ce script.
 #
 #  2. ZONES DE REPRISE (voie C, inscription PRÉALABLE fichier par fichier) :
-#     tout fichier suivi sous kotlin/src/main/kotlin/** dont le paquet est
+#     tout fichier suivi sous lsp-kotlin/moteur/src/main/kotlin/** dont le paquet est
 #     une zone de reprise (synthetics, preview, classpath, format, plis,
 #     documentation, symboles — frontières ADR 0100) DOIT être inscrit au
 #     manifeste Kotlin AVANT d'exister dans le dépôt (R9.2). Une réécriture
@@ -72,7 +72,7 @@ if [[ "$CODE" -eq 0 ]]; then
 fi
 
 # --- Extension Kotlin : 1) vendoring (notices + inscription) ---------------
-VENDOR_KOTLIN="kotlin/src/main/vendor"
+VENDOR_KOTLIN="lsp-kotlin/moteur/src/main/vendor"
 if git ls-files -- "${VENDOR_KOTLIN}/*" | grep -q .; then
   for notice in VENDOR.md LICENSE.txt COPYRIGHT.txt; do
     if ! git ls-files -- "${VENDOR_KOTLIN}/${notice}" | grep -q .; then
@@ -82,8 +82,8 @@ if git ls-files -- "${VENDOR_KOTLIN}/*" | grep -q .; then
     fi
   done
   # Chemin ANCRÉ (espace/backtick/pipe/début avant, pour ne pas confondre
-  # kotlin/src/main/vendor avec le vendoring DU SPIKE spike-kotlin/src/…).
-  if ! grep -qE "(^|[[:space:]\`|])kotlin/src/main/vendor" "${MANIFESTE_KOTLIN}" 2>/dev/null; then
+  # lsp-kotlin/moteur/src/main/vendor avec le vendoring DU SPIKE spike-kotlin/src/…).
+  if ! grep -qE "(^|[[:space:]\`|])lsp-kotlin/moteur/src/main/vendor" "${MANIFESTE_KOTLIN}" 2>/dev/null; then
     echo "ERREUR : le vendoring ${VENDOR_KOTLIN}/ n'est pas inscrit au manifeste ${MANIFESTE_KOTLIN} (§4)."
     CODE=1
   fi
@@ -105,10 +105,10 @@ while IFS= read -r f; do
     echo "    inscription PRÉALABLE au manifeste ${MANIFESTE_KOTLIN} obligatoire (R9.2, R9.4)."
     CODE=1
   fi
-done < <(git ls-files -- 'kotlin/src/main/kotlin/*')
+done < <(git ls-files -- 'lsp-kotlin/moteur/src/main/kotlin/*')
 
 if [[ "$CODE" -eq 0 ]]; then
-  echo "OK : aucune reprise hors registre sous kotlin/src/main/kotlin/ (zones voie C respectées)."
+  echo "OK : aucune reprise hors registre sous lsp-kotlin/moteur/src/main/kotlin/ (zones voie C respectées)."
 fi
 
 exit "$CODE"

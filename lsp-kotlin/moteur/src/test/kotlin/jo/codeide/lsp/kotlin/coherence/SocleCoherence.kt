@@ -38,8 +38,8 @@ import jo.codeide.lsp.kotlin.session.SessionLangageKotlinDocuments
  * multi-fichiers en UNE invocation — miroir du banc de fidélité vague 2g.
  * Le CWD du sous-processus est un répertoire TEMPORAIRE dédié (sans `-d`, K2
  * écrit ses sorties `META-INF/` et paquets dans son répertoire de travail —
- * le banc de fidélité laisse les siennes dans `kotlin/mondes/` et
- * `kotlin/META-INF/`, gitignoreés ; ici le bac à sable reste PROPRE, best-
+ * le banc de fidélité laisse les siennes dans `lsp-kotlin/moteur/mondes/` et
+ * `lsp-kotlin/moteur/META-INF/`, gitignoreés ; ici le bac à sable reste PROPRE, best-
  * effort de suppression inclus).
  */
 internal object SocleCoherence {
@@ -132,13 +132,13 @@ internal object SocleCoherence {
 
     /**
      * Les racines de l'AUTO-CORPUS : les sources du module `:kotlin` lui-même
-     * (`kotlin/src/main/kotlin` + la grammaire vendorée
-     * `kotlin/src/main/vendor`, relativement à la racine du dépôt) — du vrai
+     * (`lsp-kotlin/moteur/src/main/kotlin` + la grammaire vendorée
+     * `lsp-kotlin/moteur/src/main/vendor`, relativement à la racine du dépôt) — du vrai
      * Kotlin compilable, TOUJOURS présent en CI (P3–P9 tournent sans corpus
      * téléchargé, miroir du LISEZMOI du corpus).
      */
     internal fun racinesAutoCorpus(): List<Path> =
-        listOf("kotlin/src/main/kotlin", "kotlin/src/main/vendor")
+        listOf("lsp-kotlin/moteur/src/main/kotlin", "lsp-kotlin/moteur/src/main/vendor")
             .map { racineDepot.resolve(it) }
             .filter { Files.isDirectory(it) }
 
