@@ -73,7 +73,7 @@ plugins {
 // isolé en corps de méthode (SingleTypeReference de recovery ECJ → le
 // contexte NOM : la locale en tête, le popup Android Studio). Montage :
 // lsp-java/bancs/projet-android/ (réplique monip) + sources générées +
-// scripts/preparer-projet-android.sh (android.jar 34-ext12 + 16 AARs/jars
+// lsp-java/scripts/preparer-projet-android.sh (android.jar 34-ext12 + 16 AARs/jars
 // réels, fermeture transitive vérifiée classe par classe) +
 // BancProjetAndroidReelTest (20 tests : timeline appareil rejouée au
 // protocole — didOpen avant sync, diagnostics du cache, sync,

@@ -11,7 +11,7 @@
 #   2. $BASE_API_SOURCE — chemin direct d'un api-versions.xml.
 #
 # Usage :
-#   bash scripts/preparer-base-api.sh [destination]
+#   bash lsp-java/scripts/preparer-base-api.sh [destination]
 # Variables : ANDROID_HOME, BASE_API_SOURCE.
 # Sortie : le chemin de la base préparée (à passer au moteur via
 #   -Djo.codeide.lsp.java.lint.baseapi=<chemin>).

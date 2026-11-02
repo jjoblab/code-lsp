@@ -17,7 +17,7 @@ import kotlin.test.assertTrue
  * G-011) : NewApi (+ InlinedApi + ObsoleteSdkInt), MissingSuperCall,
  * SetTextI18n — sur une BASE API SYNTHÉTIQUE (jamais la vraie 5,5 Mo —
  * R6.4/R5 : le banc éprouve la SÉMANTIQUE, le script
- * `scripts/preparer-base-api.sh` branche la vraie en CI/appareil) et le
+ * `lsp-java/scripts/preparer-base-api.sh` branche la vraie en CI/appareil) et le
  * VRAI android.jar du banc (plateforme résoluble, annotations réelles
  * @RequiresApi/@SuppressLint/@CallSuper — gate environnementale assumée,
  * même discipline que le banc projet réel).

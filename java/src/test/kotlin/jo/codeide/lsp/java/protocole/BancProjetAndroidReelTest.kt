@@ -39,7 +39,7 @@ import org.junit.jupiter.api.TestMethodOrder
  * `lsp-java/bancs/projet-android-genere/`) est la réplique du projet utilisateur
  * « monip » (com.example.monip, AppCompatActivity, ActivityMainBinding,
  * Greeter) ; les bibliothèques réelles sont téléchargées par
- * `scripts/preparer-projet-android.sh` dans `lsp-java/bancs/projet-android-libs/`
+ * `lsp-java/scripts/preparer-projet-android.sh` dans `lsp-java/bancs/projet-android-libs/`
  * (R6.4 : jamais committées). Sans elles, la suite s'ignore avec un
  * message VISIBLE (gate environnementale, motif Fiche004).
  *
@@ -163,7 +163,7 @@ class BancProjetAndroidReelTest {
         assumeTrue(
             libs != null && androidJar() != null && jarsApplication().size >= 5,
             "bibliothèques réelles absentes (lsp-java/bancs/projet-android-libs — " +
-                "exécuter scripts/preparer-projet-android.sh) — banc ignoré (gate visible)",
+                "exécuter lsp-java/scripts/preparer-projet-android.sh) — banc ignoré (gate visible)",
         )
         assumeTrue(
             fixtures != null && generees != null,

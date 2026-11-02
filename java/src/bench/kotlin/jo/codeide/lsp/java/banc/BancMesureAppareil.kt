@@ -22,7 +22,7 @@
 // hôte 50 ms et la publication). Le protocole l'exige : chaque valeur du
 // gabarit vient d'une mesure exécutée, jamais d'une estimation.
 //
-// Usage (assemblé par scripts/kit-mesure.sh — jamais à la main) :
+// Usage (assemblé par lsp-java/scripts/kit-mesure.sh — jamais à la main) :
 //   java -Xmx2g -cp <kit> jo.codeide.lsp.java.banc.BancMesureAppareilKt [android.jar]
 // Le jar de plateforme est OPTIONNEL : absent, la plateforme vient du jrt
 // du runtime (même corpus que le kit de bascule ; présent, la passe est

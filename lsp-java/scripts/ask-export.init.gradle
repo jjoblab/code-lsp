@@ -1,7 +1,7 @@
 // ask-export.init.gradle — EXPORT du classpath externe de debug pour le corpus
 // AnySoftKeyboard (V-A2, ADR 0030). Usage LOCAL, jamais committé dans le corpus :
 //
-//   ./gradlew --init-script scripts/ask-export.init.gradle exportClasspathAsk \
+//   ./gradlew --init-script lsp-java/scripts/ask-export.init.gradle exportClasspathAsk \
 //             -PsortieAsk=<repertoire>
 //
 // Principe (règle R5 — honnêteté sur la préparation) :

@@ -1,6 +1,6 @@
 // ============================================================================
 // manifeste-corpus.init.gradle — V-A2 (ADR 0030) : export du classpath réel
-// des modules Android du corpus, pour scripts/preparer-manifestes-corpus.sh.
+// des modules Android du corpus, pour lsp-java/scripts/preparer-manifestes-corpus.sh.
 //
 // Compatible Gradle 7.5 → 9.x (aucune API retirée ; --no-configuration-cache
 // requis : l'enregistrement différé des tâches n'est pas compatible cache de

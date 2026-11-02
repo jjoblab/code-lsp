@@ -18,7 +18,7 @@
 # de la baseline du banc croisé (lsp-java/bancs/baselines/parite-completion.json).
 #
 # Usage :
-#   bash scripts/preparer-oracle.sh
+#   bash lsp-java/scripts/preparer-oracle.sh
 # Variables d'environnement :
 #   CODEIDE_LSP_DIR   — checkout codeide-lsp EXISTANT (le commit épinglé est
 #                       VÉRIFIÉ ; refus sinon) — évite le clonage réseau

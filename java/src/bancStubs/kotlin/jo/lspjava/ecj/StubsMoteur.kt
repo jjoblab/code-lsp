@@ -62,6 +62,6 @@ public class EcjCompletionEngine(moteur: EcjCompilerEngine?) {
 /** Alarme chargée : un stub a atteint l'exécution — le jar oracle manque. */
 private fun alarmeStub(): Nothing = throw IllegalStateException(
     "STUB CHARGÉ — la classe jo.lspjava du banc de parité est un stub de compilation : " +
-        "le jar réel du vendored (.oracle/java-1.16.0.jar, scripts/preparer-oracle.sh) " +
+        "le jar réel du vendored (.oracle/java-1.16.0.jar, lsp-java/scripts/preparer-oracle.sh) " +
         "est absent du classpath d'exécution ou n'a pas fourni cette classe (dérive de façade ?).",
 )

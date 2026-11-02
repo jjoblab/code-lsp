@@ -11,7 +11,7 @@
 // p50/p95 par genre de contexte et globales, (c) le verdict zéro-saut de la
 // succession de frappe.
 //
-// Usage (assemblé par scripts/kit-bascule.sh — jamais à la main) :
+// Usage (assemblé par lsp-java/scripts/kit-bascule.sh — jamais à la main) :
 //   java -Xmx2g -cp <kit> jo.codeide.lsp.java.banc.BancBasculeAppareilKt
 package jo.codeide.lsp.java.banc
 

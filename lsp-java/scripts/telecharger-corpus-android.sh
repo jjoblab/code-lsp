@@ -16,8 +16,8 @@
 # commit épinglé (clone puis `git checkout <sha>`).
 #
 # Usage :
-#   scripts/telecharger-corpus-android.sh            # tout le corpus
-#   scripts/telecharger-corpus-android.sh opentracks # un seul projet
+#   lsp-java/scripts/telecharger-corpus-android.sh            # tout le corpus
+#   lsp-java/scripts/telecharger-corpus-android.sh opentracks # un seul projet
 #
 # Sortie : lsp-java/bancs/corpus-android/<projet>/ (sources seules, profondeur 1).
 # ============================================================================

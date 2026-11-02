@@ -169,7 +169,7 @@ class P1EquivalenceCheminsTest {
         assumeTrue(
             projets.isNotEmpty(),
             "CORPUS_ANDROID/manifestes absents — corpus réel non téléchargé ou non préparé " +
-                "(scripts/telecharger-corpus-android.sh puis scripts/preparer-manifestes-corpus.sh) ; " +
+                "(lsp-java/scripts/telecharger-corpus-android.sh puis lsp-java/scripts/preparer-manifestes-corpus.sh) ; " +
                 "gate ignorée, jamais un vert silencieux",
         )
 

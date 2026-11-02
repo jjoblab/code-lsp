@@ -8,7 +8,7 @@
 //         ./gradlew :java:benchParite -Presigner (re-signature, PR dédiée)
 //
 // Prérequis (gate, motif ANDROID_JAR) : l'oracle vendored construit au
-// commit épinglé par scripts/preparer-oracle.sh → .oracle/ (jamais committé,
+// commit épinglé par lsp-java/scripts/preparer-oracle.sh → .oracle/ (jamais committé,
 // R6.4). Oracle absent = banc IGNORÉ avec message (exit 0) — la CI le
 // construit d'abord, le banc y est donc BLOQUANT.
 //
@@ -140,7 +140,7 @@ fun main(args: Array<String>) {
     if (!jarOracle.isRegularFile() || !jarLsp4j.isRegularFile() || !jarGson.isRegularFile()) {
         println(
             "== BANC CROISÉ IGNORÉ — oracle vendored absent de $dossierOracle " +
-                "(construire : bash scripts/preparer-oracle.sh — jamais committé, R6.4).",
+                "(construire : bash lsp-java/scripts/preparer-oracle.sh — jamais committé, R6.4).",
         )
         return
     }

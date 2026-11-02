@@ -98,7 +98,7 @@ jobs:
           curl -sSfL --retry 3 -o "$HOME/.gradle/caches/modules-2/files-2.1/androidx.appcompat/appcompat/ci-gate/appcompat-1.7.0.aar" \
             "https://maven.google.com/androidx/appcompat/appcompat/1.7.0/appcompat-1.7.0.aar"
       - name: Bibliothèques réelles du banc projet Android (INTEGRATION-CODEIDE §13)
-        run: bash scripts/preparer-projet-android.sh
+        run: bash lsp-java/scripts/preparer-projet-android.sh
       - name: Tests avec gates ouvertes (:java:test)
         run: BANC_ANDROID_LIBS="$PWD/lsp-java/bancs/projet-android-libs" ./gradlew :java:test --no-daemon --stacktrace
         env:
@@ -132,7 +132,7 @@ jobs:
   # depuis le dépôt codeide-lsp au COMMIT ÉPINGLÉ) et le moteur neuf ;
   # baseline SIGNÉE (lsp-java/bancs/baselines/parite-completion.json) ; la CI ÉCHOUE
   # sur régression (couverture cahier, libellé perdu, dérive de l'oracle).
-  # L'oracle est CONSTRUIT par scripts/preparer-oracle.sh (clone épinglé +
+  # L'oracle est CONSTRUIT par lsp-java/scripts/preparer-oracle.sh (clone épinglé +
   # :lsp:java:jar du vendored, JVM pur — aucun SDK Android) ; dépôts publics
   # clonés anonymement ; .oracle/ jamais committé (R6.4). Le JDK du runner
   # porte javac (setup-java complet). Re-pin de l'oracle = PR dédiée de
@@ -151,7 +151,7 @@ jobs:
       - name: Gradle
         uses: gradle/actions/setup-gradle@v4
       - name: Construction de l'oracle vendored (commit épinglé cb809e14)
-        run: bash scripts/preparer-oracle.sh
+        run: bash lsp-java/scripts/preparer-oracle.sh
       - name: Banc de parité croisée (:java:benchParite)
         run: ./gradlew :java:benchParite --no-daemon --stacktrace
 

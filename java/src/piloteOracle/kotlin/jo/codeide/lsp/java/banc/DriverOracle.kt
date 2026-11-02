@@ -1,7 +1,7 @@
 // PILOTE ORACLE du banc de parité croisé — étage T (ADR 0016).
 //
 // CE PROCESSUS exécute le moteur VENDORED de `codeide-lsp` (jar réel
-// construit au commit épinglé par scripts/preparer-oracle.sh) comme
+// construit au commit épinglé par lsp-java/scripts/preparer-oracle.sh) comme
 // ORACLE EN BOÎTE NOIRE : il ne touche QUE les points d'entrée publics
 // documentés (`EcjCompilerEngine`/`EcjCompletionEngine` — la surface
 // même que sollicitent les tests du vendored, source du cahier), reçoit
@@ -92,7 +92,7 @@ private fun verifierOracleReel() {
     val emplacement = source.location.toString()
     check(emplacement.endsWith(".jar")) {
         "EcjCompilerEngine chargé depuis « $emplacement » (répertoire de classes — STUB, pas le jar vendored) : " +
-            "le classpath du pilote doit porter .oracle/java-1.16.0.jar en tête (scripts/preparer-oracle.sh)"
+            "le classpath du pilote doit porter .oracle/java-1.16.0.jar en tête (lsp-java/scripts/preparer-oracle.sh)"
     }
 }
 

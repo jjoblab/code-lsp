@@ -251,7 +251,7 @@ tasks.register<JavaExec>("benchRessources") {
 // JVM isolé piloté par DriverOracle) et le moteur neuf (in-process) ;
 // baselines JSON signées (lsp-java/bancs/baselines/parite-completion.json) ; la
 // tâche ÉCHOUE sur régression (CI bloquante). Prérequis (gate, motif
-// ANDROID_JAR) : .oracle/ construit par scripts/preparer-oracle.sh —
+// ANDROID_JAR) : .oracle/ construit par lsp-java/scripts/preparer-oracle.sh —
 // absent localement = banc IGNORÉ (exit 0) ; la CI construit l'oracle
 // d'abord, le banc y est donc bloquant. Re-signature : PR dédiée avec
 // -Presigner.

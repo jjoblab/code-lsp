@@ -7,7 +7,7 @@ et tests exécutés ce jour (JVM du bac à sable — CPU partagé plus bruyant
 que la CI ; les gates de latence y sont re-vérifiées par la CI, la valeur
 de référence reste la passe CI). Contexte bac : les bibliothèques réelles
 du banc projet Android se sont téléchargées SANS incident ce jour
-(scripts/preparer-projet-android.sh — aucun 429 rencontré, contrairement à
+(lsp-java/scripts/preparer-projet-android.sh — aucun 429 rencontré, contrairement à
 la passe du 01/11 où Maven Central rate-limitait l'IP via Cloudflare).
 
 --- Le retour appareil (cause mesurée, pas devinée) ------------------

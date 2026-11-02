@@ -24,13 +24,13 @@ passé par jeton (extraheader éphémère, jamais persisté).
 --- Montage (banc à sable : 4 Go RAM, 2 CPU, JDK 21.0.13+9) ---------
 
 Corpus : AnySoftKeyboard @ 8cf81a3a2f73e9914c8613d56390a933486f0c6b
-(commit épinglé par scripts/telecharger-corpus-android.sh — LISEZMOI
+(commit épinglé par lsp-java/scripts/telecharger-corpus-android.sh — LISEZMOI
 §1). Outils du projet : Gradle 9.7.1 (wrapper du corpus), AGP 9.4.1,
 Kotlin 2.4.10 ; SDK posé : platforms;android-37.0, build-tools;36.1.0,
 ndk;29.0.14206865 (side-by-side exigé par jnidictionaryv1/v2),
 cmake;3.22.1.
 
-Export du classpath (scripts/ask-export.init.gradle, tâche
+Export du classpath (lsp-java/scripts/ask-export.init.gradle, tâche
 exportClasspathAsk) : les dépendances PROJET sont substituées par un
 module « void » local (jar vide, dépôt fichier sous GRADLE_USER_HOME)
 — la résolution NE DÉCLENCHE AUCUNE tâche de build du corpus (pas de
@@ -51,7 +51,7 @@ debugCompileClasspath (attributs AGP conservés). Sortie MESURÉE :
     processDebugResources, dictionaries, nextword) + safe-args (13
     fichiers, ime:app).
 
-Manifeste (scripts/preparer-manifeste-ask.sh) :
+Manifeste (lsp-java/scripts/preparer-manifeste-ask.sh) :
 lsp-java/bancs/corpus-android/prepares/anysoftkeyboard.manifeste — 96 racines
 (92 sources + 4 racines générées PORTANT LEUR ARBRE DE PAQUETS : la
 racine d'un source généré est le répertoire CONTENANT com/, remontée

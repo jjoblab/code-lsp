@@ -3,7 +3,7 @@
 # telecharger-corpus-kotlin.sh — télécharge le corpus réel Android KOTLIN du
 # banc de cohérence P1–P9 (mission « niveau Android Studio Kotlin », vague 0 —
 # banc de mesure du moteur Kotlin, miroir du corpus Java
-# scripts/telecharger-corpus-android.sh du domaine :java).
+# lsp-java/scripts/telecharger-corpus-android.sh du domaine :java).
 #
 # Le corpus est constitué de 6 dépôts Android open source à dominante KOTLIN,
 # sous licence permissive (Apache-2.0), épinglés à des commits exacts

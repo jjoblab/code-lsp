@@ -29,7 +29,7 @@ import java.nio.file.Path
  *
  * **Corpus réel** : la variable d'environnement `CORPUS_ANDROID` (ou la propriété
  * `corpus.android`) désigne le répertoire du corpus des 5 projets (téléchargé par
- * `scripts/telecharger-corpus-android.sh`) ; les propriétés P3/P4/P7 sur corpus
+ * `lsp-java/scripts/telecharger-corpus-android.sh`) ; les propriétés P3/P4/P7 sur corpus
  * ne se jouent que si des manifestes de préparation existent
  * (`<repertoire>/prepares/<projet>.manifeste` — voir
  * `lsp-java/bancs/corpus-android/LISEZMOI.md`). Sans corpus, les tests de corpus sont
@@ -225,7 +225,7 @@ internal object SocleCoherence {
 
     /**
      * Les projets du corpus réel montés (manifestes du répertoire `prepares`,
-     * produits par `scripts/preparer-manifestes-corpus.sh`). Vide (et la gate
+     * produits par `lsp-java/scripts/preparer-manifestes-corpus.sh`). Vide (et la gate
      * s'ignore avec raison) si le corpus ou les manifestes sont absents.
      */
     internal fun projetsCorpus(): List<ProjetCorpus> {

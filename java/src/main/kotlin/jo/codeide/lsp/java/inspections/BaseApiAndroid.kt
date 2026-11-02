@@ -17,7 +17,7 @@ import javax.xml.stream.XMLInputFactory
  * **Chargement** : en TÂCHE DE FOND au premier usage (cible ADR : < 2 s
  * JVM, une fois) depuis le chemin posé par la propriété système
  * `jo.codeide.lsp.java.lint.baseapi` (le script
- * `scripts/preparer-base-api.sh` la construit depuis un SDK local ou
+ * `lsp-java/scripts/preparer-base-api.sh` la construit depuis un SDK local ou
  * l'artefact officiel). **Repli honnête (R1)** : base absente ou illisible
  * → [disponible] faux — les contrôles de niveau d'API restent MUETS
  * (jamais un faux silence : la présence de la base est observable par

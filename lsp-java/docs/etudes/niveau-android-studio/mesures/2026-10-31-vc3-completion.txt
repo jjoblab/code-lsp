@@ -137,7 +137,7 @@ Fiche 007 AMENDÉE (décision D7 — M1/G-024) : les mots-clés
   comportement livré est désormais le comportement attendu ; amendement
   consigné dans la fiche).
 Banc de parité croisée (oracle vendored RECONSTRUIT localement —
-  scripts/preparer-oracle.sh, jar 13 Mo, empreintes consignées) :
+  lsp-java/scripts/preparer-oracle.sh, jar 13 Mo, empreintes consignées) :
   couverture cahier neuf 1,000 INTACTE (24 positions + 4 frappes),
   pertes vs oracle 165 → 314, re-signées et ARBITRÉES dans la baseline :
   (1) l'accessibilité JLS 6.6 éprouvée dès le 1er appel (membres

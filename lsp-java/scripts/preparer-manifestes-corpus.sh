@@ -6,7 +6,7 @@
 # Pour chaque projet demandé :
 #   1. compile la variante DEBUG avec le Gradle ÉPINGLÉ du projet
 #      (compileDebugJavaWithJavac — génère R/BuildConfig/binding/Room) ;
-#   2. exporte le classpath réellement résolu (scripts/manifeste-corpus.init.gradle :
+#   2. exporte le classpath réellement résolu (lsp-java/scripts/manifeste-corpus.init.gradle :
 #      artefacts EXTERNES de debugCompileClasspath, post-transformations AGP,
 #      dépendances de PROJET) ;
 #   3. écrit lsp-java/bancs/corpus-android/prepares/<projet>.manifeste (chemins ABSOLUS) :
@@ -24,7 +24,7 @@
 #
 # Usage :
 #   ANDROID_HOME=<sdk> [JAVA21_HOME=<jdk>] [JAVA17_HOME=<jdk>] \
-#     bash scripts/preparer-manifestes-corpus.sh [projet…]
+#     bash lsp-java/scripts/preparer-manifestes-corpus.sh [projet…]
 #
 #   JAVA21_HOME (défaut : JAVA_HOME) — projets Gradle ≥ 8 ;
 #   JAVA17_HOME — requis pour basicsample (Gradle 7.5, cf. ALERTES AL3) ;
@@ -34,10 +34,10 @@
 # ============================================================================
 set -euo pipefail
 
-REPO=$(cd "$(dirname "$0")/.." && pwd)
+REPO=$(cd "$(dirname "$0")/../.." && pwd)
 CORPUS="$REPO/lsp-java/bancs/corpus-android"
 PREPARES="$CORPUS/prepares"
-INIT="$REPO/scripts/manifeste-corpus.init.gradle"
+INIT="$REPO/lsp-java/scripts/manifeste-corpus.init.gradle"
 
 ANDROID_HOME_RESOLU=${ANDROID_HOME:-}
 if [[ -z "$ANDROID_HOME_RESOLU" ]]; then
@@ -197,7 +197,7 @@ preparer_projet() {
   local app_awk=":${module//\//:}"; [[ -z "$module" ]] && app_awk=":"
 
   if [[ ! -d "$repertoire" ]]; then
-    echo "— $cle : corpus absent ($repertoire) — lancez scripts/telecharger-corpus-android.sh $cle"
+    echo "— $cle : corpus absent ($repertoire) — lancez lsp-java/scripts/telecharger-corpus-android.sh $cle"
     echecs=$((echecs + 1))
     return
   fi
@@ -401,8 +401,8 @@ preparer_projet() {
   commit=$(git -C "$CORPUS/$cle" rev-parse HEAD 2>/dev/null || echo "commit inconnu")
   {
     echo "# Manifeste de classpath du corpus — $cle (V-A2, ADR 0030)"
-    echo "# Généré par scripts/preparer-manifestes-corpus.sh le $(date -u +%Y-%m-%dT%H:%M:%SZ)"
-    echo "# Corpus : $cle @ $commit (scripts/telecharger-corpus-android.sh)"
+    echo "# Généré par lsp-java/scripts/preparer-manifestes-corpus.sh le $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    echo "# Corpus : $cle @ $commit (lsp-java/scripts/telecharger-corpus-android.sh)"
     echo "# Plateforme : android-$sdk (compileSdk épinglé par le projet) ; variante $variante,"
     echo "# module ${module_path:-racine}, dépendances de projet : ${deps//[[:space:]]+/ }"
     echo "# Jamais committé (git-ignoré) — dépend du SDK/Gradle locaux (R5)."

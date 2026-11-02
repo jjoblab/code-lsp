@@ -17,7 +17,7 @@ import java.nio.file.Path
  * Sortie : la taille du segment écrit, l'empreinte SHA-256 du segment et
  * celle de la source (les DEUX signatures se consignent au déploiement —
  * le couple prouve la re-compilation bit-à-bit). Le script
- * `scripts/preparer-base-api.sh` enveloppe cet outil quand le jar du
+ * `lsp-java/scripts/preparer-base-api.sh` enveloppe cet outil quand le jar du
  * moteur est disponible (`java/build/libs/` ou `JAR_BASE_API`).
  */
 public object OutilSegmentBaseApi {

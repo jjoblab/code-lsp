@@ -9,9 +9,9 @@ Le corpus est le corpus des 5 projets épinglés (LISEZMOI §1), cloné ce
 jour aux commits épinglés, compilé par les Gradle ÉPINGLÉS de chaque
 projet (compile<Variante>JavaWithJavac exécuté : R, BuildConfig,
 binding, safeargs et classes Kotlin built_in_kotlinc présents sur
-disque), classpath exporté par scripts/manifeste-corpus.init.gradle
+disque), classpath exporté par lsp-java/scripts/manifeste-corpus.init.gradle
 (vue d'artefats android-classes-jar = la vue EXACTE de javac, jetifier
-compris) et assemblé par scripts/preparer-manifestes-corpus.sh.
+compris) et assemblé par lsp-java/scripts/preparer-manifestes-corpus.sh.
 
 --- Manifestes produits (jamais committés, R5) ------------------------
 

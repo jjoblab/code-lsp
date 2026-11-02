@@ -20,7 +20,7 @@ import kotlin.test.assertTrue
  *    (génériques, lambdas, enums, switch, classes internes, try-with-resources,
  *    `var`, records) — zéro ERREUR attendu ;
  *  - **corpus réel** (gate) : les 5 projets Android du corpus (téléchargés par
- *    `scripts/telecharger-corpus-android.sh`, manifestes de préparation sous
+ *    `lsp-java/scripts/telecharger-corpus-android.sh`, manifestes de préparation sous
  *    `<repertoire>/prepares/<projet>.manifeste` — format `racine:` / `classpath:`,
  *    voir `lsp-java/bancs/corpus-android/LISEZMOI.md`) — la métrique FP/1 000 lignes par
  *    famille d'ID ecj est MESURÉE et imprimée (baseline d'écart — aucun seuil
@@ -214,7 +214,7 @@ class P3ZeroFauxPositifTest {
         assumeTrue(
             projets.isNotEmpty(),
             "CORPUS_ANDROID/manifestes absents — corpus réel non téléchargé ou non préparé " +
-                "(scripts/telecharger-corpus-android.sh puis scripts/preparer-manifestes-corpus.sh) ; " +
+                "(lsp-java/scripts/telecharger-corpus-android.sh puis lsp-java/scripts/preparer-manifestes-corpus.sh) ; " +
                 "gate ignorée, jamais un vert silencieux",
         )
 

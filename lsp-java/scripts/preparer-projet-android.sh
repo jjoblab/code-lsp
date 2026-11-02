@@ -3,7 +3,7 @@
 # projet Android (lsp-java/bancs/projet-android) : plateforme android.jar 34-ext12,
 # AARs androidx/material et leurs classes.jar extraits.
 #
-# Usage : bash scripts/preparer-projet-android.sh
+# Usage : bash lsp-java/scripts/preparer-projet-android.sh
 # Cible : lsp-java/bancs/projet-android-libs/ (git-ignoré, R6.4 — jamais committé)
 #
 # Sources (mêmes URL que la CI, .github/workflows/ci.yml) :
@@ -12,7 +12,7 @@
 #                  lsp-java/bancs/projet-android/gradle/libs.versions.toml)
 set -euo pipefail
 
-REPO=$(cd "$(dirname "$0")/.." && pwd)
+REPO=$(cd "$(dirname "$0")/../.." && pwd)
 LIBS="$REPO/lsp-java/bancs/projet-android-libs"
 mkdir -p "$LIBS"
 cd "$LIBS"

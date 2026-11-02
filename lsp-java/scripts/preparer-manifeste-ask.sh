@@ -5,8 +5,8 @@
 #
 # ENTRÉES (toutes locales, jamais committées) :
 #   1. lsp-java/bancs/corpus-android/anysoftkeyboard — clone épinglé
-#      (scripts/telecharger-corpus-android.sh anysoftkeyboard) APRÈS :
-#        ./gradlew exportClasspathAsk --init-script scripts/ask-export.init.gradle \
+#      (lsp-java/scripts/telecharger-corpus-android.sh anysoftkeyboard) APRÈS :
+#        ./gradlew exportClasspathAsk --init-script lsp-java/scripts/ask-export.init.gradle \
 #                  -PsortieAsk=<export>          (artefacts externes + racines)
 #        ./gradlew generateDebugSources generateDebugRFile :ime:app:processDebugResources
 #                                          (R.jar + sources générées)
@@ -25,7 +25,7 @@
 # ============================================================================
 set -euo pipefail
 
-REPO=$(cd "$(dirname "$0")/.." && pwd)
+REPO=$(cd "$(dirname "$0")/../.." && pwd)
 ASK="$REPO/lsp-java/bancs/corpus-android/anysoftkeyboard"
 EXPORT="${1:-/tmp/ask-export}"
 SDK="${ANDROID_SDK:-/home/z/my-project/android-sdk}"
@@ -47,7 +47,7 @@ MANIFESTE="$PREPARES/anysoftkeyboard.manifeste"
 #    (jars directs, AAR réduits à leur classes.jar).
 # ---------------------------------------------------------------------------
 {
-  echo "# Manifeste corpus AnySoftKeyboard — généré par scripts/preparer-manifeste-ask.sh"
+  echo "# Manifeste corpus AnySoftKeyboard — généré par lsp-java/scripts/preparer-manifeste-ask.sh"
   echo "# clone épinglé : $(git -C "$ASK" rev-parse HEAD 2>/dev/null || echo '?')"
   echo "# android.jar : $ANDROID_JAR"
   echo "# export : $EXPORT ($(wc -l < "$EXPORT/artefacts.txt") artefacts externes)"

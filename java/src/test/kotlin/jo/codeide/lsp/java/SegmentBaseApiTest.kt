@@ -16,7 +16,7 @@ import kotlin.test.assertTrue
  * BIT-À-BIT, empreinte versionnée — critère de sortie de l'ADR).
  *
  * La vraie base (5,5 Mo, R6.4 jamais committée) vit en CI/appareil via
- * `scripts/preparer-base-api.sh` ; ce banc éprouve le FORMAT sur une base
+ * `lsp-java/scripts/preparer-base-api.sh` ; ce banc éprouve le FORMAT sur une base
  * synthétique : aller-retour des requêtes, déterminisme des octets,
  * EMPREINTES consignées, chemin rapide du chargeur.
  */
