@@ -37,7 +37,7 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")
 
     // Le moteur s'exécute contre le jar ecj PATCHÉ en test (compileOnly en
-    // production — l'hôte fournit le jar, cf. :java/build.gradle.kts).
+    // production — l'hôte fournit le jar, cf. lsp-java/moteur/build.gradle.kts).
     testImplementation(project(mapOf("path" to ":ecj-art", "configuration" to "sortieEcjArt")))
 
     testImplementation(kotlin("test"))

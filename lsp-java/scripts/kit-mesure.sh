@@ -34,8 +34,8 @@ echap() { printf '\033[1m== %s\033[0m\n' "$*"; }
 echap "compilation :java:benchClasses…"
 ./gradlew :java:benchClasses --no-daemon -q
 
-CLASSES_BANC="java/build/classes/kotlin/bench"
-CLASSES_MAIN="java/build/classes/kotlin/main"
+CLASSES_BANC="lsp-java/moteur/build/classes/kotlin/bench"
+CLASSES_MAIN="lsp-java/moteur/build/classes/kotlin/main"
 JAR_ECJ="ecj-art/build/ecj-patche/ecj-3.40.0-art.jar"
 
 for chemin in "$CLASSES_BANC" "$CLASSES_MAIN" "$JAR_ECJ"; do

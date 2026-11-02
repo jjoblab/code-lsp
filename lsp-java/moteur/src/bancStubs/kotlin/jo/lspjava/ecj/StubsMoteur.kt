@@ -2,7 +2,7 @@
 // croisé ADR 0016).
 //
 // RÔLE EXACT : ces classes servent UNIQUEMENT à la COMPILATION du pilote
-// oracle (`java/src/piloteOracle/`). Elles reproduisent les SIGNATURES
+// oracle (`lsp-java/moteur/src/piloteOracle/`). Elles reproduisent les SIGNATURES
 // publiques documentées de `jo.lspjava.ecj`/`jo.lspjava.api` (façade
 // consommable par tout projet Java — ADR 0002 du dépôt jjoblab/code-lsp,
 // même surface que celle qu'utilisent les tests du vendored, source du

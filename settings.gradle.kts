@@ -38,7 +38,7 @@ plugins {
 // Socle partagé (réorganisation Phase 2 — docs/REORGANISATION.md §3) :
 // les chemins de projets Gradle (:java, :kotlin, :index, :model, :testing,
 // :ecj-art) NE CHANGENT PAS — seuls les répertoires sont remappés.
-include(":java")
+include(":java");     project(":java").projectDir     = file("lsp-java/moteur")
 include(":index");     project(":index").projectDir     = file("socle/index")
 include(":model");     project(":model").projectDir     = file("socle/model")
 include(":testing");   project(":testing").projectDir   = file("socle/testing")

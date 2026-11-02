@@ -18,7 +18,7 @@ import java.nio.file.Path
  * celle de la source (les DEUX signatures se consignent au déploiement —
  * le couple prouve la re-compilation bit-à-bit). Le script
  * `lsp-java/scripts/preparer-base-api.sh` enveloppe cet outil quand le jar du
- * moteur est disponible (`java/build/libs/` ou `JAR_BASE_API`).
+ * moteur est disponible (`lsp-java/moteur/build/libs/` ou `JAR_BASE_API`).
  */
 public object OutilSegmentBaseApi {
 
