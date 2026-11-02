@@ -1,6 +1,15 @@
 # ADR 0010 — Concurrence, annulation, priorités
 
-- **Statut** : Proposé
+- **Statut** : **Accepté — exécuté par vagues (V-F2 le 31/10/2026,
+  V-H le 02/11/2026)** — schéma B livré (verrous par périmètre,
+  comptage `synchronized(` 99 → 0, cible < 6 tenue) ; le chaînon
+  manquant du branchement PROTOCOLE livré en V-H : la sémantique
+  3 voies du scheduler (« conservé » ci-dessous) est TRANSPOSÉE à la
+  couche protocole (`soumettrePrioritaire` — 29 méthodes de document
+  câblées), après qu'un retour appareil a mesuré la complétion servie
+  29–87 s derrière la file du fil de lecture lsp4j (PV
+  `mesures/2026-11-02-vh-repartition.txt`). L'époque C (swap
+  d'environnement) est livrée par V-F1 (double-tampon).
 - **Date** : 2026-10-28
 
 ## Contexte
@@ -59,3 +68,40 @@
 - **R1 — Interblocage par violation d'ordre** : ordre global documenté + test de chaos multi-threads en CI.
 - **R2 — `EcjParseCache` non thread-safe** : verrous par fichier sur le cache, ou migration en `ConcurrentHashMap` de paires ( arbre + verrou ) — mesurer les deux.
 - **R3 — ART monocœur bas de gamme** : workers plafonnés, bénéfice réel à re-mesurer sur appareil ( gabarit spike ).
+
+## Exécution V-H — le branchement du protocole (02/11/2026)
+
+La décision ci-dessus disait « le scheduler 3 lanes est conservé » —
+mais la réécriture avait laissé le chaînon au sol : au protocole,
+CHAQUE requête était calculée SYNCHRONEMENT sur le fil de lecture
+lsp4j. Le retour appareil du 01/11/2026 (CodeIDE 0.205.2, moto g06,
+`codeide-logs-2026-11-01-221628.zip`) l'a mesuré : le client émet
+complétion + inlayHint + surbrillances (+ codeAction sur idle) à
+CHAQUE frappe ; la complétion rendait ses 120 items 29 s et 87 s plus
+tard, timeout client 5 s — RIEN ne s'affichait (l'utilisateur voyait
+« liaison. » et « greeter. » muets alors que la résolution était
+JUSTE).
+
+Le correctif transpose les voies du scheduler à la couche protocole :
+
+- `OrdonnanceurMoteur.soumettrePrioritaire(fichier, priorite,
+  calcul, remplacement)` — 3 voies (0 FRAPPE : complétion, aide de
+  signature, fin d'instruction ; 1 NAVIGATION ; 2 CONFORT) ;
+- **supersession à VALEUR** : la tâche remplacée se solde par la
+  réponse VIDE honnête du type — jamais une annulation (le client
+  attend une réponse pour son identifiant) ; une FRAPPE rend caduques
+  les voies inférieures EN ATTENTE du même document ;
+- **exclusion par fichier toutes voies** (contrat V-F2 inchangé) ;
+  clé null = durable ;
+- **capture du document à la soumission + vérification d'époque à la
+  livraison** : l'invariant « 0 réponse périmée » (critère de sortie
+  ci-dessus) tient sous le nouveau parallélisme ;
+- `exit()` solde les requêtes en attente par leur réponse vide.
+
+Verrous : `RepartitionPrioriteeVhTest` (5 — voies, supersession à
+valeur, frappe-caducité, exclusion par fichier, arrêt) +
+`TempeteAppareilVhTest` (3 — au PROTOCOLE, boucle locale LSP4J : la
+tempête du journal rejouée ne perd ni n'échoue aucune future, la
+complétion rend les membres d'une classe du projet PENDANT la
+tempête, péremption honnête, arrêt propre). Reste : la mesure APPAREIL
+du service pendant la tempête réelle (gabarit 07 — propriétaire).

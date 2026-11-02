@@ -786,6 +786,49 @@ complètent la couverture.
 - **Dépendances** : client (consommation — registre K2, liste séparée par vague).
   **Effort [estimé]** : **10–18 j-h** (1–2 séances).
 
+### V-H — Branchement du répartiteur au protocole (hors plan initial)
+
+> **LIVRÉE le 02/11/2026 (v1.13.0 — ADR 0010 Accepté-exécuté, PV
+> `mesures/2026-11-02-vh-repartition.txt`)**. Née d'un retour appareil
+> (CodeIDE 0.205.2, moto g06, `codeide-logs-2026-11-01-221628.zip`) :
+> « liaison. » et « greeter. » muets — la cause mesurée N'ÉTAIT PAS la
+> résolution (120 items rendus deux fois côté serveur) mais la TEMPÊTE :
+> le client émet complétion + inlayHint + surbrillances (+ codeAction
+> sur idle) à CHAQUE frappe, et CHAQUE requête était calculée
+> SYNCHRONEMENT sur le fil de lecture lsp4j — la complétion patientait
+> derrière TOUTE la file (29 s et 87 s mesurés, timeout client 5 s).
+> Le correctif : `OrdonnanceurMoteur.soumettrePrioritaire` — 3 voies
+> (0 FRAPPE : complétion/aide de signature/fin d'instruction,
+> 1 NAVIGATION, 2 CONFORT), supersession à VALEUR (la réponse VIDE
+> honnête du type — jamais une annulation : le client attend une
+> réponse), FRAPPE rendant caduques les voies inférieures EN ATTENTE
+> du même document, exclusion par fichier toutes voies (contrat V-F2
+> inchangé), tâches DURABLES (clé null) ; câblé sur 29 méthodes de
+> document de `ServeurLangageJava` (3 frappe + 16 navigation +
+> 10 confort — resolve*/decompiledSource hors périmètre, documentés) ;
+> CAPTURE du document à la soumission + époque à la livraison
+> (invariant « 0 réponse périmée » tenu) ; `exit()` solde les requêtes
+> en attente par la réponse vide. Verrous : 5 sémantiques
+> (`RepartitionPrioriteeVhTest` — voies, supersession à valeur,
+> frappe-caducité, exclusion par fichier, arrêt) + 3 au PROTOCOLE
+> (`TempeteAppareilVhTest`, boucle locale LSP4J — la tempête du
+> journal rejouée ne perd ni n'échoue aucune future, la complétion
+> rend les membres d'une classe du projet PENDANT la tempête,
+> péremption honnête, arrêt propre). Banc N1 projet réel tourné ce
+> jour (libs réelles téléchargées sans 429) : `liaison.s|` → 2 items,
+> préfixe vide → 120 items, chaud p50 40 ms / p95 77 ms.
+
+- **Périmètre** : transposer les voies du scheduler à la couche protocole
+  (le chaînon laissé au sol par la réécriture) ; la complétion devant la
+  file de confort sous rafale.
+- **Critères de sortie** : aucune future perdue/échouée sous tempête ; la
+  complétion servie PENDANT la tempête ; « 0 réponse périmée » tenu sous
+  parallélisme ; arrêt propre (solde par valeur vide).
+- **Dépendances** : aucune (moteur inchangé — V-F2 fournit le pool et les
+  verrous par périmètre). **Effort [estimé]** : **2–4 j-h** (< 1 séance).
+  **Reste** : mesure APPAREIL pendant tempête réelle (gabarit 07 —
+  propriétaire).
+
 ## 3. Synthèse d'effort et calendrier indicatif
 
 | Vague | Effort [estimé] j-h agent | Séances effectives | Prérequis décision |
@@ -799,6 +842,7 @@ complètent la couverture.
 | V-D actions | 28–46 | 3–5 (livrée 31/10–01/11 — trois tranches + complément de catalogue ADR 0032) | V-C partiel |
 | V-F perf complète | 16–26 | 2–3 (livrée 01/11 — phases 3–4 ; phase 5 reportée motivée) | aucune |
 | V-G protocole | 10–18 | 1–2 (livrée 01/11 ; solde href livré au complément ADR 0032) | client (K2) |
+| V-H branchement protocole (hors plan initial — retour appareil) | 2–4 | < 0,5 (livrée 02/11) | aucune |
 | **Total** | **145–241 j-h agent** | **16–29 séances** | — |
 
 > Recoupement volumétrie (méthode §3.2 du PLAN-REECRITURE) : les vagues ajoutent

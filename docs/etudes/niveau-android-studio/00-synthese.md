@@ -236,7 +236,24 @@ par resolveSupport, sans annonce la liste reste complète), registre
 client K2 VIVANT (`docs/REGISTRE-CLIENT-K2.md` — ADR 0031 (g)) ; 23 cas
 V-F3/V-F4/V-G verts, latence semanticTokens p95 mesurée 1 ms — cf.
 `04-plan-vagues.md` §V-F (suite)/§V-G et
-`mesures/2026-11-01-vf-finale-vg-protocole.txt`).
+`mesures/2026-11-01-vf-finale-vg-protocole.txt` ; **V-H livrée le
+02/11/2026 (v1.13.0 — branchement du répartiteur au protocole, ADR
+0010 Accepté-exécuté)** : née du retour appareil du 01/11 (« liaison. »
+et « greeter. » muets — la résolution était JUSTE, 120 items rendus
+deux fois ; la cause : chaque requête calculée SYNCHRONEMENT sur le fil
+de lecture lsp4j, la complétion patientant 29–87 s derrière la rafale
+inlay/surbrillances, timeout client 5 s) ; `soumettrePrioritaire`
+transpose les 3 voies au protocole (FRAPPE/NAVIGATION/CONFORT — 29
+méthodes de document câblées, supersession à VALEUR = réponse vide
+honnête, capture à la soumission + époque à la livraison, exclusion
+par fichier toutes voies, `exit()` solde) ; verrous 5 répartiteur +
+3 protocole (tempête rejouée : complétion servie PENDANT la tempête),
+959 tests / 0 échec après rebase sur V-A2/V-A3 (les repros appareil
+v1.12.1 passent AVEC le répartiteur — pré-chauffe/budget/chien de
+garde attaquent le COÛT, la répartition attaque la FILE), build
+strict P1–P8 VERT, banc N1 projet réel
+tourné (liaison.s| → 2 items) — cf. `04-plan-vagues.md` §V-H et
+`mesures/2026-11-02-vh-repartition.txt`).
 
 | # | Décision | Recommandation |
 |---|---|---|

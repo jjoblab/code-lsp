@@ -1687,6 +1687,57 @@ viennent du FICHIER utilisateur qui copie la signature générique avec
 ses variables de type, javac dirait pareil), cf.
 `java/src/test/kotlin/jo/codeide/lsp/java/Repro*20261101*`.
 
+### 7.29 V-H — répartition priorisée des requêtes : la complétion pendant la tempête (v1.13.0)
+
+Le serveur répartit ses requêtes de document sur un pool priorisé
+(ADR 0010 — « le scheduler 3 lanes est conservé », transposé à la
+couche protocole). Avant v1.13.0, chaque requête était calculée
+SYNCHRONEMENT sur le fil de lecture lsp4j : un client qui émet à chaque
+frappe une rafale complétion + inlayHint + surbrillances (+ actions sur
+idle) plaçait la complétion derrière TOUTE la file (29–87 s mesurés sur
+appareil, timeout client 5 s — la complétion ne s'affichait jamais, alors
+qu'elle était calculée juste : 120 items rendus deux fois dans les logs).
+Complémentaire de la §7.28 : la pré-chauffe et le budget (V-A3)
+attaquent le COÛT de chaque calcul, la répartition (V-H) attaque la
+FILE — le chien de garde y chronomètre désormais le calcul SUR LE
+WORKER du répartiteur.
+
+**Trois voies** — la prise d'un worker privilégie la voie la plus basse,
+puis l'ordre de soumission :
+
+| Voie | Requêtes |
+|---|---|
+| 0 — FRAPPE | `completion`, `signatureHelp`, `statementCompletion` |
+| 1 — NAVIGATION | `hover`, `definition`, `typeDefinition`, `implementation`, `references`, `documentHighlight`, `prepareRename`, `rename`, hiérarchies de types et d'appels, `superDefinition`, `usagesGroupes` |
+| 2 — CONFORT | `documentSymbol`, formatage (3 formes), `selectionRange`, `foldingRange`, `inlayHint`, `semanticTokensFull`, `codeAction`, `codeLens` |
+
+**Supersession à valeur (jamais d'annulation)** — une requête EN ATTENTE
+remplacée (même document, même voie — ou voie inférieure lors d'une
+soumission FRAPPE) est soldée par la **réponse vide honnête** du type de
+la requête : liste vide, `null` pour le survol (convention I9), jamais
+une exception — le client attend une réponse pour l'identifiant qu'il a
+émis. Une frappe rend caduques les voies inférieures en attente du même
+document (le texte a bougé, leurs coordonnées sont périmées).
+
+**Capture à la soumission, époque à la livraison** — la requête porte des
+positions relatives au texte au moment de son émission : le couple
+(chemin, texte) est figé à la soumission, et si le document mute pendant
+le calcul, la réponse calculée ne part JAMAIS — réponse vide honnête
+(invariant « 0 réponse périmée » conservé sous le nouveau parallélisme ;
+elle remplace `calculerFraiche` pour la complétion — recalculer contre
+un texte muté y appliquerait une position révolue).
+
+**Exclusion par fichier** — jamais deux requêtes du MÊME document en vol,
+toutes voies confondues ; les requêtes d'espace de travail sont durables
+(jamais supersedées). `exit()` solde les requêtes en attente par leur
+réponse vide : aucune future en erreur côté client lors d'un arrêt.
+
+Les verrous : 8 tests (5 sémantiques du répartiteur + 3 au protocole par
+boucle locale LSP4J authentique — la tempête du journal rejouée ne perd
+ni n'échoue aucune future, la complétion rend les membres d'une classe
+du projet PENDANT la tempête), cf.
+`docs/etudes/niveau-android-studio/mesures/2026-11-02-vh-repartition.txt`.
+
 ## 8. Capability maison `x-codeide.completionRanking`
 
 Le protocole riche de classement (ADR 0012/0015, design intégré N8) :
