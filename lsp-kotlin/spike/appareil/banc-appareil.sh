@@ -1,6 +1,6 @@
 #!/bin/bash
 # CodeIDE — moteur Kotlin (étage 0) : point d'entrée de benchmark SUR APPAREIL.
-# Déclinaison de spike/appareil/banc-appareil.sh (étude Java — §6.c du prompt
+# Déclinaison de lsp-java/spike/appareil/banc-appareil.sh (étude Java — §6.c du prompt
 # de mission) pour la porte d'entrée de l'étage 1 : « mesure sur appareil »
 # (décision Java §10.2 transposée, synthèse Kotlin §6.3).
 #
@@ -26,7 +26,7 @@
 #   #   find ~/.gradle/caches/modules-2 -name 'kotlin-stdlib-2.2.10.jar' -exec cp {} kit-kotlin/libs/ \;
 #   #   zip -r kit-kotlin.zip kit-kotlin
 #   # Assembleur dédié (ces pas MÉCANISÉS + garde sha1 publiée de chaque pile,
-#   # testé positif et négatif) : bash spike-kotlin/scripts/assembler-kit.sh
+#   # testé positif et négatif) : bash lsp-kotlin/spike/scripts/assembler-kit.sh
 #   unzip -o kit-kotlin.zip -d kit    # à la racine du clone
 #
 # Exécution :
@@ -69,7 +69,7 @@ CP="$CP:$STDLIB"
 java -Xmx2g -XX:+UseSerialGC -cp "$CP" jo.codeide.lsp.kotlin.banc.BancGrammaireKt
 
 # Scan ART (échantillon — le jar moteur seul) : le scanner du spike est
-# embarqué dans le kit par l'assembleur (copie de spike-kotlin/scripts/).
+# embarqué dans le kit par l'assembleur (copie de lsp-kotlin/spike/scripts/).
 if [ -f "$KIT/scan-art.py" ] && command -v python3 >/dev/null 2>&1; then
   echo "---"
   python3 "$KIT/scan-art.py" "$MOTEUR"

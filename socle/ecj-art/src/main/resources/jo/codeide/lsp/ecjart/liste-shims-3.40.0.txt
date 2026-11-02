@@ -7,7 +7,7 @@
 # version d'ecj non accompagnée d'une révision de la liste).
 #
 # Motifs constatés sur ecj 3.40.0 (scanner du spike,
-# spike/resultats/scan-art-v3-ecj.txt — 801 classes, 11 990 méthodes) :
+# lsp-java/spike/resultats/scan-art-v3-ecj.txt — 801 classes, 11 990 méthodes) :
 #   Runtime$Version (1x), InputStream.readAllBytes (3x),
 #   InputStream.readNBytes (1x)  →  3 shims actifs ci-dessous.
 #   StackWalker : ABSENT des références à 3.40 (écart consigné ALERTES.md A3) —

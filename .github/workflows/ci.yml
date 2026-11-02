@@ -236,7 +236,7 @@ jobs:
           STDLIB=$(find "$HOME/.gradle/caches/modules-2" -name 'kotlin-stdlib-2.2.10.jar' | head -1)
           KM=$(find "$HOME/.gradle/caches/modules-2" -name 'kotlin-metadata-jvm-2.2.10.jar' | head -1)
           test -n "$SA" && test -n "$LS" && test -n "$AN" && test -n "$STDLIB" && test -n "$KM"
-          SORTIE=$(python3 spike-kotlin/scripts/scan-art.py "$JAR_MOTEUR" "$SA" "$LS" "$AN" "$STDLIB" "$KM")
+          SORTIE=$(python3 lsp-kotlin/spike/scripts/scan-art.py "$JAR_MOTEUR" "$SA" "$LS" "$AN" "$STDLIB" "$KM")
           echo "$SORTIE"
           # Gate étage 0 : la pile SPÉCIFIQUE Kotlin (moteur + syntax-api +
           # lang-syntax + annotations + kotlin-metadata-jvm — dépendance

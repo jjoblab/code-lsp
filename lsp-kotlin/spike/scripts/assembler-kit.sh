@@ -23,10 +23,10 @@
 #      scripts/telecharger-jars.sh).
 #
 # Usage :
-#   bash spike-kotlin/scripts/assembler-kit.sh [repertoire-cible]
+#   bash lsp-kotlin/spike/scripts/assembler-kit.sh [repertoire-cible]
 #     répertoire-cible (défaut ../kit-assemble) : reçoit kit-kotlin.zip —
 #     HORS du dépôt (R6.4 : les jars ne sont jamais committés).
-#   ASSEMBLER_SAUTER_BUILD=1 bash spike-kotlin/scripts/assembler-kit.sh ...
+#   ASSEMBLER_SAUTER_BUILD=1 bash lsp-kotlin/spike/scripts/assembler-kit.sh ...
 #     re-assemblage d'un arbre DÉJÀ bâti : saute ./gradlew et réutilise les
 #     artefacts de kotlin/build (utile en bac à sable quand la résolution
 #     réseau est indisponible — les artefacts existants restent gardés par
@@ -61,7 +61,7 @@ MOTEUR="$(ls lsp-kotlin/moteur/build/libs/kotlin-*.jar 2>/dev/null | head -1 || 
 [ -n "$MOTEUR" ] || echouer "jar moteur absent (lsp-kotlin/moteur/build/libs/kotlin-*.jar) — lancer le build."
 CLASSE_BANC="lsp-kotlin/moteur/build/classes/kotlin/bench/jo/codeide/lsp/kotlin/banc/BancGrammaireKt.class"
 [ -s "$CLASSE_BANC" ] || echouer "classes du banc absentes (:kotlin:compileBenchKotlin)."
-[ -s "spike-kotlin/scripts/scan-art.py" ] || echouer "scan-art.py absent (spike-kotlin/scripts/)."
+[ -s "lsp-kotlin/spike/scripts/scan-art.py" ] || echouer "scan-art.py absent (lsp-kotlin/spike/scripts/)."
 
 # --- 3. Assemblage ---------------------------------------------------------
 STAGING="$(mktemp -d)"
@@ -74,7 +74,7 @@ echo "OK : $(basename "$MOTEUR") ($(du -h "$MOTEUR" | cut -f1)) — jar moteur (
 cp -r lsp-kotlin/moteur/build/classes/kotlin/bench/* "$STAGING/kit-kotlin/banc/"
 echo "OK : banc/ — $(find "$STAGING/kit-kotlin/banc" -name '*.class' | wc -l) classe(s) du banc."
 
-cp spike-kotlin/scripts/scan-art.py "$STAGING/kit-kotlin/scan-art.py"
+cp lsp-kotlin/spike/scripts/scan-art.py "$STAGING/kit-kotlin/scan-art.py"
 echo "OK : scan-art.py (scan ART de l'appareil, si python3 y est présent)."
 
 # pile <nom-de-fichier> <sha1-attendu> : cache Gradle puis jars du spike,
@@ -103,7 +103,7 @@ prendre_pile "kotlin-stdlib-2.2.10.jar"      "$SHA1_STDLIB"
 # java.util.List (miroir du garde CompatibiliteJdk17Test du module et du
 # motif MOTIFS_MEMBRES de scan-art.py en CI).
 if command -v python3 >/dev/null 2>&1; then
-  python3 spike-kotlin/scripts/scan-jdk21.py \
+  python3 lsp-kotlin/spike/scripts/scan-jdk21.py \
     "$STAGING/kit-kotlin/libs/$(basename "$MOTEUR")" "$STAGING/kit-kotlin/banc" \
     || echouer "kit non conforme JDK 17 (références JDK 21+ détectées) — expédition REFUSÉE."
 else

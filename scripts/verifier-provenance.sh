@@ -82,7 +82,7 @@ if git ls-files -- "${VENDOR_KOTLIN}/*" | grep -q .; then
     fi
   done
   # Chemin ANCRÉ (espace/backtick/pipe/début avant, pour ne pas confondre
-  # lsp-kotlin/moteur/src/main/vendor avec le vendoring DU SPIKE spike-kotlin/src/…).
+  # lsp-kotlin/moteur/src/main/vendor avec le vendoring DU SPIKE lsp-kotlin/spike/src/…).
   if ! grep -qE "(^|[[:space:]\`|])lsp-kotlin/moteur/src/main/vendor" "${MANIFESTE_KOTLIN}" 2>/dev/null; then
     echo "ERREUR : le vendoring ${VENDOR_KOTLIN}/ n'est pas inscrit au manifeste ${MANIFESTE_KOTLIN} (§4)."
     CODE=1

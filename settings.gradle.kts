@@ -48,7 +48,7 @@ include(":ecj-art");   project(":ecj-art").projectDir   = file("socle/ecj-art")
 include(":kotlin");   project(":kotlin").projectDir   = file("lsp-kotlin/moteur")
 // Module de mesure isolé de l'étude « moteur Kotlin » (Phase 2 du prompt de
 // mission) — NON PUBLIÉ, tâches désactivées sans -PspikeKotlin (voir
-// spike-kotlin/build.gradle.kts) : la CI du domaine Java n'est pas affectée.
-include(":spike-kotlin")
+// lsp-kotlin/spike/build.gradle.kts) : la CI du domaine Java n'est pas affectée.
+include(":spike-kotlin"); project(":spike-kotlin").projectDir = file("lsp-kotlin/spike")
 // Réservation LSP XML (aucun code — cf. lsp-xml/docs/PLAN-MIGRATION.md) :
 // include(":xml"); project(":xml").projectDir = file("lsp-xml/moteur")

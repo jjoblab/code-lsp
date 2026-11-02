@@ -33,7 +33,7 @@ class BancS1Test {
         @BeforeClass
         fun jarPresent() {
             assumeTrue(
-                "kotlin-compiler-embeddable absent — lancer spike-kotlin/scripts/telecharger-jars.sh",
+                "kotlin-compiler-embeddable absent — lancer lsp-kotlin/spike/scripts/telecharger-jars.sh",
                 CheminJars.jar("kotlin-compiler-embeddable-2.2.10.jar") != null,
             )
         }

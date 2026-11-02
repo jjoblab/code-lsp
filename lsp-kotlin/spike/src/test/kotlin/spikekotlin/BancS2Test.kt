@@ -23,7 +23,7 @@ class BancS2Test {
         @BeforeClass
         fun jarsPresents() {
             assumeTrue(
-                "syntax-api absent — lancer spike-kotlin/scripts/telecharger-jars.sh",
+                "syntax-api absent — lancer lsp-kotlin/spike/scripts/telecharger-jars.sh",
                 CheminJars.jar("syntax-api-jvm-0.3.340.jar") != null,
             )
         }

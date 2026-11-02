@@ -34,7 +34,7 @@ class BancS0Test {
         @BeforeClass
         fun jarPresent() {
             assumeTrue(
-                "jar oracle absent — lancer spike-kotlin/scripts/telecharger-jars.sh",
+                "jar oracle absent — lancer lsp-kotlin/spike/scripts/telecharger-jars.sh",
                 CheminJars.jar("lsp-kotlin-1.22.1.jar") != null,
             )
         }

@@ -26,7 +26,7 @@ import org.jetbrains.kotlin.kmp.parser.KotlinParser
  * étant fait par [KotlinLexer] + [performLexing]. Le patron d'assemblage est
  * adapté de `compiler/multiplatform-parsing/jvm/test/.../NewTestParser.kt`
  * amont (Apache-2.0, JetBrains — crédit consigné, miroir de l'adaptation de
- * l'ancien moteur et du spike `spike-kotlin/src/main/kotlin/spikekotlin/
+ * l'ancien moteur et du spike `lsp-kotlin/spike/src/main/kotlin/spikekotlin/
  * ParseurOfficiel.kt`) : c'est l'ASSEMBLAGE qui est adapté, pas copié.
  *
  * Contrat de tolérance (cahier, fiches 011/012 — D3 amont) : l'éditeur

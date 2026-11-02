@@ -7,8 +7,8 @@ import java.util.zip.ZipFile
 
 /**
  * Références de sensibilité ART (android.jar API 34) — listes noires du
- * scanner, portées du spike de l'étude (`spike/scripts/ScanArt.kt`,
- * résultats consignés dans `spike/resultats/scan-art-v3-ecj.txt`).
+ * scanner, portées du spike de l'étude (`lsp-java/spike/scripts/ScanArt.kt`,
+ * résultats consignés dans `lsp-java/spike/resultats/scan-art-v3-ecj.txt`).
  *
  * Écrites à partir de la JVMS et de la documentation Android (niveaux d'API) ;
  * aucun code tiers consulté pour l'écriture (R6.4). Ces listes constituent
@@ -130,7 +130,7 @@ public data class MotifSensible(
 /**
  * Rapport de scan d'un jar : analyse de chaque classe + motifs sensibles
  * agrégés (même convention de comptage que le scanner du spike — les chiffres
- * sont directement comparables à `spike/resultats/scan-art-v3-ecj.txt`).
+ * sont directement comparables à `lsp-java/spike/resultats/scan-art-v3-ecj.txt`).
  */
 public class RapportScan(
     public val jar: Path,
