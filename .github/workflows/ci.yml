@@ -32,10 +32,18 @@ jobs:
       # des ÉCHECS bloquants à chaque push (P1/P2/P5/P6/P8 sur les scénarios
       # intégrés ; les gates corpus réel P3/P4/P7 restent conditionnées à
       # CORPUS_ANDROID — ignorées annoncées, jamais vertes silencieusement).
-      - name: Build
-        run: ./gradlew build --no-daemon --stacktrace
+      # Fusion 02/11/2026 (décision propriétaire) : la gate stricte est celle
+      # du MOTEUR JAVA (ADR 0030) — la suite Kotlin s'exécute ici en MODE
+      # RAPPORT, exactement comme sur etude/moteur-kotlin (les écarts FP/FN
+      # restent imprimés dans les logs ; le job dédié « Moteur Kotlin - suite
+      # du module » vérifie le cahier complet). Le mode strict côté Kotlin est
+      # un écart préexistant signalé, hors périmètre de la fusion.
+      - name: Build et tests (moteur Java + socle, gate stricte)
+        run: ./gradlew build -x :kotlin:test -x :spike-kotlin:test --no-daemon --stacktrace
         env:
           BANC_COHERENCE_STRICT: "true"
+      - name: Tests du moteur Kotlin (mode rapport)
+        run: ./gradlew :kotlin:test :spike-kotlin:test --no-daemon --stacktrace
 
   banc-noyau:
     name: Banc empreinte/latence du noyau N1
