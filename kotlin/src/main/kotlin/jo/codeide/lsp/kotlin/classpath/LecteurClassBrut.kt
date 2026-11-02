@@ -1,5 +1,5 @@
 // CodeIDE — lecteur de class-files brut (module :kotlin, zone classpath —
-// REPRISE VOIE C, manifeste docs/PROVENANCE-REPRISE-KOTLIN.md §3 R5).
+// REPRISE VOIE C, manifeste lsp-kotlin/docs/PROVENANCE-REPRISE-KOTLIN.md §3 R5).
 // Origine : codeide-lsp
 // lsp/kotlin/src/main/kotlin/jo/lspkotlin/classpath/LecteurClassBrut.kt @
 // bc11253 (auteur jjoblab, dépôt propriétaire) — contrôle R9.4 PASSÉ

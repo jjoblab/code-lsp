@@ -18,7 +18,7 @@ import org.junit.jupiter.api.Test
  *    `kotlin.jvm.internal.Intrinsics` — classe Java, négatif honnête).
  *
  * Chaque comportement porte le nom exact du test source (identifiant de
- * traçabilité du cahier docs/cahier-specifications-kotlin/).
+ * traçabilité du cahier lsp-kotlin/docs/cahier-specifications-kotlin/).
  */
 class Fiche004LecteurClassBrutTest {
 

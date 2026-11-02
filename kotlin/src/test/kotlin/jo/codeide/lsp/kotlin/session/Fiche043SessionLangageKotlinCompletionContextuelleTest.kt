@@ -17,7 +17,7 @@ import org.junit.jupiter.api.io.TempDir
  * Fiche 043 — SessionLangageKotlinCompletionContextuelleTest : la
  * complétion CONTEXTUELLE Kotlin (vague 1 du chantier du rapport d'analyse
  * du 28/10/2026 — ADR 0228 ancien, repris en parité par l'ADR 0113) — 14
- * comportements du cahier docs/cahier-specifications-kotlin/ : les trois
+ * comportements du cahier lsp-kotlin/docs/cahier-specifications-kotlin/ : les trois
  * contextes portés du moteur Java 1.16.0, par le SPI (chemin de production
  * D6) — arguments NOMMÉS d'un appel, CONSTANTES d'enum des branches d'un
  * `when`, ATTRIBUTS d'annotation. Chaque comportement éprouve AUSSI la

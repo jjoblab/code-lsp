@@ -14,7 +14,7 @@ import org.junit.jupiter.api.io.TempDir
 /**
  * Fiche 036 — ReproductionTroncationScanTest : H1 — TRONCATION DU SCAN
  * (mission fiabilisation, étape A.2 → CORRECTIF étape B) — 3
- * comportements du cahier docs/cahier-specifications-kotlin/.
+ * comportements du cahier lsp-kotlin/docs/cahier-specifications-kotlin/.
  *
  * La MARCHE du scan est BORNÉE ([ScanProjetParesseux.BORN_FICHIERS]) ;
  * au-delà de la borne, les fichiers sont IGNORÉS du parse mais COMPTÉS

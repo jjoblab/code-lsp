@@ -1,6 +1,6 @@
 // CodeIDE — le GO-TO SUPER (module :kotlin, étage 4 vague 4c). Code NEUF
 // jjoblab (clean-room — contrat : fiche 052 du cahier
-// docs/cahier-specifications-kotlin/ : ADR 0210,
+// lsp-kotlin/docs/cahier-specifications-kotlin/ : ADR 0210,
 // `textDocument/superDefinition`, miroir des scénarios NavigationFacadeTest
 // du LSP Java). Les DEUX chemins du picker : (1) MEMBRE au caret
 // (déclaration outrepassante, ou usage RÉSOLU non ambigu — un homonyme

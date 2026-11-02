@@ -13,7 +13,7 @@ import org.junit.jupiter.api.io.TempDir
 /**
  * Fiche 038 — ReproductionVague5Test : REPRODUCTION des familles de la
  * VAGUE 5 (retour utilisateurs 25/10/2026 — backlog RETOURS §4, items 1 et
- * 2) — 8 comportements du cahier docs/cahier-specifications-kotlin/ :
+ * 2) — 8 comportements du cahier lsp-kotlin/docs/cahier-specifications-kotlin/ :
  *
  *  1. RÉCEPTEURS DE PORTÉE des lambdas de scope — le paramètre
  *     `content: RowScope.() -> Unit` de Compose `Row { … }` prête RowScope

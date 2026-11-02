@@ -1,6 +1,6 @@
 // CodeIDE — descripteur de pack langue Kotlin (module :kotlin, étage 6
 // vague 6a — chargeur). Code NEUF jjoblab (contrat : fiche 001 du cahier
-// docs/cahier-specifications-kotlin/ — « descripteur de pack complet :
+// lsp-kotlin/docs/cahier-specifications-kotlin/ — « descripteur de pack complet :
 // valeurs réelles pas des replis » ; le descripteur `version.properties`
 // est GÉNÉRÉ par :kotlin:genererDescripteurPack depuis la version du
 // projet — contrat D6, ADR 0101 ; les CLÉS `id`/`version`/`minApp`/

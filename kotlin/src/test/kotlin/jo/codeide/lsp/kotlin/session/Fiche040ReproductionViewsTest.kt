@@ -15,7 +15,7 @@ import org.junit.jupiter.api.io.TempDir
 /**
  * Fiche 040 — ReproductionViewsTest : le monde NON-Compose (vues XML /
  * AppCompat) au niveau MOTEUR — ADR 0219 (vague 2c) — 11 comportements du
- * cahier docs/cahier-specifications-kotlin/.
+ * cahier lsp-kotlin/docs/cahier-specifications-kotlin/.
  *
  * Deux découvertes du template « Empty Views Activity » (rapport d'audit
  * §14) :

@@ -1,6 +1,6 @@
 // CodeIDE — occurrences PROUVÉES (module :kotlin, étage 4 vague 4a). Code
 // NEUF jjoblab (clean-room — contrat : fiche 048 du cahier
-// docs/cahier-specifications-kotlin/ : le contrat S2 « references /
+// lsp-kotlin/docs/cahier-specifications-kotlin/ : le contrat S2 « references /
 // documentHighlight / rename borné » du plan de stabilisation LSP §3.2,
 // multi-fichiers par la PREUVE DE LIAISON — jamais de faux usage, jamais
 // de faux renommage). Le germe de la vague 2e (occurrences périmètre

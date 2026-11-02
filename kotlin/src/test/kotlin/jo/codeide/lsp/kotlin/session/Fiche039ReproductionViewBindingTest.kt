@@ -18,7 +18,7 @@ import org.junit.jupiter.api.io.TempDir
  * synthétique K5, TOUJOURS dans le sous-paquet `databinding` (convention
  * AGP réelle — le template Android Studio « Empty Views Activity »
  * importe com.ex.app.databinding.ActivityMainBinding) — 1 comportement du
- * cahier docs/cahier-specifications-kotlin/.
+ * cahier lsp-kotlin/docs/cahier-specifications-kotlin/.
  *
  * Un PROJET ANDROID FACTICE sur disque (manifeste + res/layout) nourrit
  * les synthétiques du moteur ; la FUSION AVEC COUPURE les ajoute au

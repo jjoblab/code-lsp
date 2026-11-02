@@ -1,6 +1,6 @@
 // CodeIDE — index des appelables Kotlin : modèle (module :kotlin, étage 1
 // vague 1d). Code NEUF jjoblab écrit pour code-lsp (contrat : fiches
-// 002/003/008/009/034 du cahier docs/cahier-specifications-kotlin/ ; ADR
+// 002/003/008/009/034 du cahier lsp-kotlin/docs/cahier-specifications-kotlin/ ; ADR
 // 0108 — index DÉDIÉ au module, hypothèse de travail tant que
 // l'arbitrage Q-K1 est ouvert). INTERNE au module : la frontière publique
 // reste le SPI `api/` (D6) — l'hôte ne voit jamais les appelables bruts,

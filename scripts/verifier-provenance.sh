@@ -25,7 +25,7 @@
 #     de l'amont JetBrains (R9.2 : jamais depuis codeide-lsp). Contrôles :
 #     notices obligatoires (VENDOR.md, LICENSE.txt, COPYRIGHT.txt — Apache-2.0
 #     accompagne la redistribution) + inscription du chemin du vendoring au
-#     manifeste Kotlin docs/PROVENANCE-REPRISE-KOTLIN.md. La DÉRIVE de
+#     manifeste Kotlin lsp-kotlin/docs/PROVENANCE-REPRISE-KOTLIN.md. La DÉRIVE de
 #     contenu du vendoring (re-sync amont) est gardée par la SUITE DE PARITÉ
 #     (digeste structurel, fiches 010/012) — pas par ce script.
 #
@@ -48,7 +48,7 @@ set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
 MANIFESTE="lsp-java/docs/PROVENANCE-REPRISE.md"
-MANIFESTE_KOTLIN="docs/PROVENANCE-REPRISE-KOTLIN.md"
+MANIFESTE_KOTLIN="lsp-kotlin/docs/PROVENANCE-REPRISE-KOTLIN.md"
 SQUELETTE_AUTORISE="build.gradle.kts"
 CODE=0
 

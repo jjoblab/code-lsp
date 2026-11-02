@@ -1,6 +1,6 @@
 // CodeIDE — SPI du moteur Kotlin LSP : aide à la signature (module :kotlin,
 // étage 6 vague 6d). Code NEUF jjoblab (contrat : fiches 051 et 018 du
-// cahier docs/cahier-specifications-kotlin/ — l'aide à la signature S1 du
+// cahier lsp-kotlin/docs/cahier-specifications-kotlin/ — l'aide à la signature S1 du
 // plan de stabilisation LSP §3.2, par le SPI (chemin de production D6),
 // moteur réel). Types NEUTRES : aucune dépendance LSP4J ni Android — D6.
 package jo.codeide.lsp.kotlin.api

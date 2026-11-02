@@ -1,7 +1,7 @@
 // CodeIDE — harnais de parse de la grammaire Kotlin officielle (module
 // :kotlin, étage 0 — amorçage). Ce fichier est du code NEUF jjoblab écrit
 // pour code-lsp (clean-room : le code de l'ancien moteur codeide-lsp n'est
-// pas consulté — le cahier docs/cahier-specifications-kotlin/ est le contrat).
+// pas consulté — le cahier lsp-kotlin/docs/cahier-specifications-kotlin/ est le contrat).
 package jo.codeide.lsp.kotlin.parse
 
 import com.intellij.platform.syntax.lexer.performLexing

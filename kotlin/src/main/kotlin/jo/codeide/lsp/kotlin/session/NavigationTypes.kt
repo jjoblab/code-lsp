@@ -1,6 +1,6 @@
 // CodeIDE — navigation de TYPES (module :kotlin, étage 4 vague 4b). Code
 // NEUF jjoblab (clean-room — contrat : fiche 053 du cahier
-// docs/cahier-specifications-kotlin/ : `textDocument/typeDefinition` et
+// lsp-kotlin/docs/cahier-specifications-kotlin/ : `textDocument/typeDefinition` et
 // `textDocument/implementation` L2, plan 1.3.0 — la PREUVE PAR FQCN : une
 // cible n'est servie que si son nom résout par les IMPORTS du fichier du
 // curseur (ou par le fichier lui-même, ou par unicité projet) ; un

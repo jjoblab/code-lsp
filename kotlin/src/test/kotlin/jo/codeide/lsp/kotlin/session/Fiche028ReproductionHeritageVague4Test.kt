@@ -14,7 +14,7 @@ import org.junit.jupiter.api.io.TempDir
 /**
  * Fiche 028 — ReproductionHeritageVague4Test : les familles de la VAGUE 4
  * (retour utilisateurs 25/10/2026 — backlog RETOURS §4, items 1 à 4) —
- * 12 comportements du cahier docs/cahier-specifications-kotlin/.
+ * 12 comportements du cahier lsp-kotlin/docs/cahier-specifications-kotlin/.
  *
  *  1. MEMBRES HÉRITÉS du classpath par le RÉCEPTEUR IMPLICITE —
  *     `soumettre(…)`/`compte` nus dans une classe projet qui hérite d'une

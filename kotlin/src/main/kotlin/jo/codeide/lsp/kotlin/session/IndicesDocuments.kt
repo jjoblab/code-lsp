@@ -1,6 +1,6 @@
 // CodeIDE — indices en ligne d'un document Kotlin (module :kotlin, étage 6
 // vague 6b). Code NEUF jjoblab (contrat : fiche 015 du cahier
-// docs/cahier-specifications-kotlin/ — les trois familles d'indices :
+// lsp-kotlin/docs/cahier-specifications-kotlin/ — les trois familles d'indices :
 // PARAMETRE aux appels positionnels prouvés, TYPE des déclarations sans
 // type écrit, LAMBDA des `it` implicites). L'honnêteté D3 est le cœur :
 // sans preuve, AUCUN indice (un appel non résolu, une initialisation

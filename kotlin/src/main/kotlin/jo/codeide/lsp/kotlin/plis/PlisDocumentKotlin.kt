@@ -1,5 +1,5 @@
 // CodeIDE — plages pliables d'un document Kotlin (module :kotlin, zone
-// plis — REPRISE VOIE C, manifeste docs/PROVENANCE-REPRISE-KOTLIN.md
+// plis — REPRISE VOIE C, manifeste lsp-kotlin/docs/PROVENANCE-REPRISE-KOTLIN.md
 // §3 R7). Origine : codeide-lsp
 // lsp/kotlin/src/main/kotlin/jo/lspkotlin/plis/PlisDocumentKotlin.kt
 // @ bc11253 (auteur jjoblab, dépôt propriétaire) — contrôle R9.4 PASSÉ

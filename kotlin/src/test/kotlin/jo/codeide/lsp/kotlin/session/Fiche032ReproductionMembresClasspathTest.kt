@@ -15,7 +15,7 @@ import org.junit.jupiter.api.io.TempDir
  * Fiche 032 — ReproductionMembresClasspathTest : REPRODUCTION H5 (mission
  * fiabilisation, étape A.2 — hypothèses « entrées d'enum (`entries`,
  * `values()`), membres statiques de bibliothèques ») — 3 comportements du
- * cahier docs/cahier-specifications-kotlin/.
+ * cahier lsp-kotlin/docs/cahier-specifications-kotlin/.
  *
  * Le moteur résout les sélecteurs d'un récepteur CLASSPATH via la vue JVM
  * (champs + méthodes du bytecode de la chaîne). Le jar de fixture calque

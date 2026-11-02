@@ -1,6 +1,6 @@
 // CodeIDE — SPI du moteur Kotlin LSP : capacités L2 (module :kotlin, étage
 // 6 vague 6b). Code NEUF jjoblab (contrat : fiche 015 du cahier
-// docs/cahier-specifications-kotlin/ — les trois capacités L2 restantes :
+// lsp-kotlin/docs/cahier-specifications-kotlin/ — les trois capacités L2 restantes :
 // indices en ligne, symboles d'espace, chaînes de sélection — par le SPI
 // (chemin de production D6), moteur réel). Types NEUTRES : aucune
 // dépendance LSP4J ni Android — frontière D6.

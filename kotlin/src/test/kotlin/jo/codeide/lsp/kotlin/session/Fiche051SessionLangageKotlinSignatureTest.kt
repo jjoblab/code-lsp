@@ -19,7 +19,7 @@ import jo.codeide.lsp.kotlin.api.ServiceMoteurLangageKotlin
  * constructeurs, membres vifs), candidates du CLASSPATH (index Kotlin —
  * jar stdlib RÉEL ; méthode JVM du récepteur qualifié — même montage que
  * le survol qualifié K3) (12 comportements du cahier
- * docs/cahier-specifications-kotlin/).
+ * lsp-kotlin/docs/cahier-specifications-kotlin/).
  *
  * Chaque comportement porte le nom exact du test source (identifiant de
  * traçabilité du cahier).

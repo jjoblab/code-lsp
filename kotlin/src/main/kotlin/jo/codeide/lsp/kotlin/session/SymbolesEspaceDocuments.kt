@@ -1,6 +1,6 @@
 // CodeIDE — symboles d'espace d'une session Kotlin (module :kotlin, étage 6
 // vague 6b). Code NEUF jjoblab (contrat : fiche 015 du cahier
-// docs/cahier-specifications-kotlin/ — la palette `workspace/symbol` : les
+// lsp-kotlin/docs/cahier-specifications-kotlin/ — la palette `workspace/symbol` : les
 // déclarations de PREMIER NIVEAU des documents OUVERTS et du SCAN, requête
 // CONTIENT insensible à la casse, ordre par nom ; les LOCALES ne remontent
 // JAMAIS).

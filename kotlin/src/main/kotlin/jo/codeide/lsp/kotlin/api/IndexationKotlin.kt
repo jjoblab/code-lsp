@@ -1,6 +1,6 @@
 // CodeIDE — SPI du moteur Kotlin LSP : événements d'indexation (module
 // :kotlin, étage 1 vague 1d). Code NEUF jjoblab écrit pour code-lsp
-// (contrat : fiche 009 du cahier docs/cahier-specifications-kotlin/ —
+// (contrat : fiche 009 du cahier lsp-kotlin/docs/cahier-specifications-kotlin/ —
 // pilote de passages d'indexation, demandes D1/D3/D4/D5 de CodeIDE ;
 // ADR 0211/0213/0214 anciens dont le CONTRAT observable est repris tel
 // quel : séquence d'événements, annulation coopérative, reprise ciblée,

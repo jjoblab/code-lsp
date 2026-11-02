@@ -1,6 +1,6 @@
 // CodeIDE — pilote des passages d'indexation Kotlin (module :kotlin, étage
 // 1 vague 1d). Code NEUF jjoblab écrit pour code-lsp (contrat : fiche 009
-// du cahier docs/cahier-specifications-kotlin/ ; ADR 0211/0213/0214
+// du cahier lsp-kotlin/docs/cahier-specifications-kotlin/ ; ADR 0211/0213/0214
 // anciens dont le CONTRAT observable est repris : une passe par sync sur
 // fil démon dédié, séquence d'événements BIBLIOTHEQUES puis SOURCES puis
 // PRET/PARTIEL, annulation coopérative, reprise ciblée, no-op chaud).

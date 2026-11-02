@@ -1,5 +1,5 @@
 // CodeIDE — formateur Kotlin borné (module :kotlin, zone format —
-// REPRISE VOIE C, manifeste docs/PROVENANCE-REPRISE-KOTLIN.md §3 R6).
+// REPRISE VOIE C, manifeste lsp-kotlin/docs/PROVENANCE-REPRISE-KOTLIN.md §3 R6).
 // Origine : codeide-lsp
 // lsp/kotlin/src/main/kotlin/jo/lspkotlin/format/FormateurKotlin.kt
 // @ bc11253 (auteur jjoblab, dépôt propriétaire) — contrôle R9.4 PASSÉ

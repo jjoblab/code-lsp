@@ -18,7 +18,7 @@ import org.junit.jupiter.api.io.TempDir
  * settings.gradle.kts du template « Empty Views Activity » d'Android
  * Studio (version-catalog `libs`, blocs plugins/android/dependencies,
  * récepteurs implicites injectés par le DSL Gradle) — 5 comportements du
- * cahier docs/cahier-specifications-kotlin/.
+ * cahier lsp-kotlin/docs/cahier-specifications-kotlin/.
  *
  * Miroir Android Studio : le DSL Gradle est INJECTÉ par le modèle Gradle
  * — sans lui (pas de classpath Gradle), IntelliJ ne signale PAS les noms

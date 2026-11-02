@@ -33,7 +33,7 @@ import org.junit.jupiter.api.io.TempDir
  * aucune primitive d'attente publique).
  *
  * Chaque comportement porte le nom exact du test source (identifiant de
- * traçabilité du cahier docs/cahier-specifications-kotlin/).
+ * traçabilité du cahier lsp-kotlin/docs/cahier-specifications-kotlin/).
  */
 class Fiche009PasseurIndexationKotlinTest {
 

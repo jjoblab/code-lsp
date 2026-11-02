@@ -2,7 +2,7 @@
 // grammaire Kotlin officielle (module :kotlin, étage 1 vague 1a — noyau
 // parse/session). Code NEUF jjoblab écrit pour code-lsp (clean-room : le code
 // de l'ancien moteur codeide-lsp n'est pas consulté — le cahier
-// docs/cahier-specifications-kotlin/ est le contrat, fiches 012/013).
+// lsp-kotlin/docs/cahier-specifications-kotlin/ est le contrat, fiches 012/013).
 package jo.codeide.lsp.kotlin.parse
 
 import com.intellij.platform.syntax.SyntaxElementType

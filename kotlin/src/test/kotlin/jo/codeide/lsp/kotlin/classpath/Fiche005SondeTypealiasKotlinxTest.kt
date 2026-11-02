@@ -30,7 +30,7 @@ import org.junit.jupiter.api.Test
  *    (l'hypothèse n'y est PAS éprouvable).
  *
  * Chaque comportement porte le nom exact du test source (identifiant de
- * traçabilité du cahier docs/cahier-specifications-kotlin/).
+ * traçabilité du cahier lsp-kotlin/docs/cahier-specifications-kotlin/).
  */
 @Suppress("LoopWithTooManyJumpStatements", "CyclomaticComplexMethod", "NestedBlockDepth")
 class Fiche005SondeTypealiasKotlinxTest {

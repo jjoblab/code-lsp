@@ -16,7 +16,7 @@ import jo.codeide.lsp.kotlin.api.ServiceMoteurLangageKotlin
  * (`workspace/symbol`) et CHAÎNES DE SÉLECTION
  * (`textDocument/selectionRange`) — par le SPI (chemin de production D6),
  * moteur RÉEL (12 comportements du cahier
- * docs/cahier-specifications-kotlin/).
+ * lsp-kotlin/docs/cahier-specifications-kotlin/).
  *
  * Le cœur éprouvé : l'honnêteté D3. Un appel sans candidate prouvée ne
  * rend AUCUN indice de paramètre ; une initialisation dont le type n'est

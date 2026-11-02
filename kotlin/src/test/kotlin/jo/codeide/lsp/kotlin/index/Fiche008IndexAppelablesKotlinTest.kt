@@ -18,7 +18,7 @@ import org.junit.jupiter.api.io.TempDir
  * d'exception).
  *
  * Chaque comportement porte le nom exact du test source (identifiant de
- * traçabilité du cahier docs/cahier-specifications-kotlin/). Le stdlib
+ * traçabilité du cahier lsp-kotlin/docs/cahier-specifications-kotlin/). Le stdlib
  * RÉEL du classpath de test sert d'entrée froide (COPIE sous empreinte de
  * test — le jar original n'est JAMAIS touché).
  */

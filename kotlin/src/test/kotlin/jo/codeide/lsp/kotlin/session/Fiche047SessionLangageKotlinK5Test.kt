@@ -17,7 +17,7 @@ import org.junit.jupiter.api.io.TempDir
  * (LSP_KOTLIN.md §5 — classes synthétiques R/ViewBinding/DataBinding,
  * intégration éditeur complète : complétion multi-langue, bascule
  * Java↔Kotlin) — 21 comportements du cahier
- * docs/cahier-specifications-kotlin/.
+ * lsp-kotlin/docs/cahier-specifications-kotlin/.
  *
  * Un PROJET ANDROID FACTICE sur disque (manifeste + res/layout +
  * res/values + res/drawable + sources Java) nourrit les synthétiques du

@@ -1,6 +1,6 @@
 // CodeIDE — fiche structurelle d'un type du classpath (module :kotlin, étage
 // 6 vague 6c). Code NEUF jjoblab (contrat : fiche 018 du cahier
-// docs/cahier-specifications-kotlin/ — chantier P1-D « documentation du
+// lsp-kotlin/docs/cahier-specifications-kotlin/ — chantier P1-D « documentation du
 // classpath au survol » : genre, héritage direct, interfaces, constantes
 // d'enum, champs publics — prouvé par la lecture brute du `.class`, les
 // plafonds d'affichage et la dégradation honnête du binaire à hiérarchie

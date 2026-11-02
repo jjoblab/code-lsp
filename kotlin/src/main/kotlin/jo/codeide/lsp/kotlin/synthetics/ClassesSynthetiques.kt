@@ -1,5 +1,5 @@
 // CodeIDE — classes synthétiques Android (module :kotlin, zone synthetics —
-// REPRISE VOIE C, manifeste docs/PROVENANCE-REPRISE-KOTLIN.md §3 R2).
+// REPRISE VOIE C, manifeste lsp-kotlin/docs/PROVENANCE-REPRISE-KOTLIN.md §3 R2).
 // Origine : codeide-lsp
 // lsp/kotlin/src/main/kotlin/jo/lspkotlin/synthetics/ClassesSynthetiques.kt
 // @ bc11253 (auteur jjoblab, dépôt propriétaire) — contrôle R9.4 PASSÉ

@@ -12,10 +12,10 @@ import jo.codeide.lsp.kotlin.parse.kt.KtDeclaration
 /**
  * Fiche 007 — DocumentationKotlinTest : le moteur de KDoc du cahier
  * (hover-inlay — S2, survol riche, KDocParser vendoré) — 9
- * comportements du cahier docs/cahier-specifications-kotlin/.
+ * comportements du cahier lsp-kotlin/docs/cahier-specifications-kotlin/.
  *
  * Le moteur est la REPRISE voie C R8 (manifeste
- * docs/PROVENANCE-REPRISE-KOTLIN.md §3) : extraction du DOC_COMMENT
+ * lsp-kotlin/docs/PROVENANCE-REPRISE-KOTLIN.md §3) : extraction du DOC_COMMENT
  * porté par la déclaration, rendu en texte neutre (sections libres +
  * tags). Tolérance D3 : rien ne lève.
  *

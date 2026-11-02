@@ -13,7 +13,7 @@ import org.junit.jupiter.api.io.TempDir
  * Fiche 052 — SuperKotlinTest : le GO-TO « Super » Kotlin (ADR 0210 —
  * `textDocument/superDefinition`, miroir des scénarios
  * `NavigationFacadeTest` du LSP Java) — 10 comportements du cahier
- * docs/cahier-specifications-kotlin/.
+ * lsp-kotlin/docs/cahier-specifications-kotlin/.
  *
  * Le montage éprouve le CHEMIN DE PRODUCTION D6 (moteur nourricier réel
  * + session branchée + guichet attendu) : un projet multi-fichiers sur

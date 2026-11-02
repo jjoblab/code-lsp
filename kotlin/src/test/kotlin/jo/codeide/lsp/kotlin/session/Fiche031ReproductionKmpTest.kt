@@ -15,7 +15,7 @@ import org.junit.jupiter.api.io.TempDir
 /**
  * Fiche 031 — ReproductionKmpTest : REPRODUCTION du template Kotlin
  * Multiplatform (KMP) d'Android Studio au niveau MOTEUR — 5 comportements
- * du cahier docs/cahier-specifications-kotlin/.
+ * du cahier lsp-kotlin/docs/cahier-specifications-kotlin/.
  *
  * Le module `shared` a DEUX racines sources : commonMain (les `expect`) et
  * androidMain (les `actual`) — le paquet y vit DEUX fois, le scan des

@@ -1,6 +1,6 @@
 // CodeIDE — résolution de références du socle (module :kotlin, étage 2 vague
 // 2a). Code NEUF jjoblab (clean-room — contrat : fiches 017/022/006/042 du
-// cahier docs/cahier-specifications-kotlin/ + ADR 0106 (hiérarchie de
+// cahier lsp-kotlin/docs/cahier-specifications-kotlin/ + ADR 0106 (hiérarchie de
 // portées : locales → membres → englobantes → paquet → imports exact/joker/
 // alias → défauts kotlin.*/java.lang.*) + ADR 0223 (sélection par types
 // complets : jamais de résolution devinée). L'ancien `resolve/` est en

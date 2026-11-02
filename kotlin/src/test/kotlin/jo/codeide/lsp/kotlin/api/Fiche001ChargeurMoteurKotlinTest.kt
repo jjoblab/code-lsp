@@ -12,7 +12,7 @@ import org.junit.jupiter.api.Test
  * Fiche 001 — ChargeurMoteurKotlinTest : tests du SPI — résolution
  * ServiceLoader du moteur (le contrat de pack LSP_KOTLIN §6 vérifié
  * MÉCANIQUEMENT, pas seulement revu) et intégrité du descripteur de pack
- * (3 comportements du cahier docs/cahier-specifications-kotlin/).
+ * (3 comportements du cahier lsp-kotlin/docs/cahier-specifications-kotlin/).
  *
  * Le cœur éprouvé : le descripteur `version.properties` GÉNÉRÉ porte des
  * VALEURS RÉELLES — les replis « inconnue » du moteur sont des files de

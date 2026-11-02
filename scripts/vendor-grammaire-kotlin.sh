@@ -97,7 +97,7 @@ cat > "${VENDOR}/VENDOR.md" <<FIN
 > **Rôle dans le module** : grammaire de production du moteur Kotlin LSP
 > (voie C, ADR 0100 accepté ; stratégie (i), ADR 0103 accepté — vendoring
 > amont épinglé, façade \`Kt*\` mince conservatrice, ADR 0104). Inscription au
-> registre : \`docs/PROVENANCE-REPRISE-KOTLIN.md\` §4. La CI vérifie ce
+> registre : \`lsp-kotlin/docs/PROVENANCE-REPRISE-KOTLIN.md\` §4. La CI vérifie ce
 > répertoire via \`scripts/verifier-provenance.sh\` (périmètre \`kotlin/\`).
 
 ## Dépendances amont (artefacts binaires, pas vendorés)
@@ -133,6 +133,6 @@ Re-sync posé au tag ${TAG} (${COMMIT}) — GATES OBLIGATOIRES avant commit :
 Le DIFF de la baseline digeste (kotlin/src/test/resources/parite/digeste-corpus.txt)
 fait partie de la revue : toute dérive de forme d'arbre doit être EXPLIQUÉE
 (changement de grammaire amont) avant signature. Mettre à jour le registre
-(docs/PROVENANCE-REPRISE-KOTLIN.md §4/§6 : nouveau tag + commit) et le
+(lsp-kotlin/docs/PROVENANCE-REPRISE-KOTLIN.md §4/§6 : nouveau tag + commit) et le
 descripteur de pack (version de grammaire, kotlin/build.gradle.kts).
 FIN

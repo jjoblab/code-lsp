@@ -15,7 +15,7 @@ import org.junit.jupiter.api.io.TempDir
  * Fiche 021 — MesuresPerfDiagnosticsTest : MESURES DE PERFORMANCE sur un
  * GROS fichier (≥ 1 500 lignes) — reparse complet et diagnostics, à froid
  * puis à chaud (le comportement « caches-perf » du cahier
- * docs/cahier-specifications-kotlin/ : la RELÈVE des chiffres, pas une
+ * lsp-kotlin/docs/cahier-specifications-kotlin/ : la RELÈVE des chiffres, pas une
  * capacité du moteur).
  *
  * Le document est GÉNÉRÉ DÉTERMINISTEMENT (~1 650 lignes : 150 fonctions

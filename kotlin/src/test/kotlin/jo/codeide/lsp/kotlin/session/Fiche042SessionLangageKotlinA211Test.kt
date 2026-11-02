@@ -44,7 +44,7 @@ import org.junit.jupiter.api.io.TempDir
  * verrouillent.
  *
  * Chaque comportement porte le nom exact du test source (identifiant de
- * traçabilité du cahier docs/cahier-specifications-kotlin/). Les requêtes
+ * traçabilité du cahier lsp-kotlin/docs/cahier-specifications-kotlin/). Les requêtes
  * qui prouvent par l'absence à `DiagnosticKotlin` proprement dit
  * (`kt.unresolved`) naissent à l'étage 2 : la sous-lecture s'atteste par
  * l'état du guichet d'index (`indexSiPret` — null tant que rien n'est

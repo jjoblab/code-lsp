@@ -1,6 +1,6 @@
 // CodeIDE — aide à la signature d'un document Kotlin (module :kotlin, étage
 // 6 vague 6d). Code NEUF jjoblab (contrat : fiches 051 et 018 du cahier
-// docs/cahier-specifications-kotlin/ — l'aide à la signature S1 : l'appel
+// lsp-kotlin/docs/cahier-specifications-kotlin/ — l'aide à la signature S1 : l'appel
 // englobant le plus profond, les candidates projet ET classpath, l'arité
 // compatible, le paramètre actif, la KDoc qui accompagne).
 package jo.codeide.lsp.kotlin.session

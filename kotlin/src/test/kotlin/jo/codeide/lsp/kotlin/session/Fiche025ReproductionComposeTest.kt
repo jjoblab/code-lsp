@@ -17,7 +17,7 @@ import org.junit.jupiter.api.io.TempDir
  * Fiche 025 — ReproductionComposeTest : REPRODUCTION des faux positifs
  * `kt.unresolved` signalés par le propriétaire sur un projet Android
  * Compose (25/10/2026) — 12 comportements du cahier
- * docs/cahier-specifications-kotlin/.
+ * lsp-kotlin/docs/cahier-specifications-kotlin/.
  *
  * Classpath : kotlin-stdlib RÉEL (voie 6 d'ADR 0203) — les motifs ne
  * dépendent d'aucune AAR Compose, ils isolent les FORMES.

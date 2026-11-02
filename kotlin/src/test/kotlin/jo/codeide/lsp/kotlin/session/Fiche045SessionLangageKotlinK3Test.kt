@@ -18,7 +18,7 @@ import org.junit.jupiter.api.io.TempDir
 /**
  * Fiche 045 — SessionLangageKotlinK3Test : le contrat de session K3
  * (LSP_KOTLIN.md §5, K3 « symboles + complétion + survol + définition »)
- * — 21 comportements du cahier docs/cahier-specifications-kotlin/.
+ * — 21 comportements du cahier lsp-kotlin/docs/cahier-specifications-kotlin/.
  *
  * Le montage éprouve le CHEMIN DE PRODUCTION D6 (moteur nourricier par le
  * SPI + session branchée + guichet attendu par sondage borné) : le jar

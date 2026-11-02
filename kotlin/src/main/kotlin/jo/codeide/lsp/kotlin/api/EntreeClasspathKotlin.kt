@@ -1,7 +1,7 @@
 // CodeIDE — SPI du moteur Kotlin LSP : entrées de classpath riches (module
 // :kotlin, étage 1 vague 1d — classpath + index appelables). Code NEUF
 // jjoblab écrit pour code-lsp (contrat : fiches 002–005/008/009/034 du
-// cahier docs/cahier-specifications-kotlin/ ; ADR 0108 — index dédié,
+// cahier lsp-kotlin/docs/cahier-specifications-kotlin/ ; ADR 0108 — index dédié,
 // hypothèse de travail tant que l'arbitrage Q-K1 est ouvert). Formes
 // NEUTRES : chemins et empreintes en chaînes, aucune dépendance LSP4J ni
 // Android — frontière D6.

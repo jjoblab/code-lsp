@@ -1,6 +1,6 @@
 // CodeIDE — chaînes de sélection d'un document Kotlin (module :kotlin,
 // étage 6 vague 6b). Code NEUF jjoblab (contrat : fiche 015 du cahier
-// docs/cahier-specifications-kotlin/ — `textDocument/selectionRange` : la
+// lsp-kotlin/docs/cahier-specifications-kotlin/ — `textDocument/selectionRange` : la
 // chaîne des maillons englobants, du PLUS PROFOND au FICHIER ENTIER,
 // strictement croissante ; hors arbre = fichier SEUL, rien n'est inventé).
 package jo.codeide.lsp.kotlin.session

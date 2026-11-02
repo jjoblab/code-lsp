@@ -16,7 +16,7 @@ import org.junit.jupiter.api.io.TempDir
  * Fiche 026 — ReproductionExtensionsRecepteurNulTest : EXTENSIONS À
  * RÉCEPTEUR PARAMÈTRE DE TYPE (mission fiabilisation, étape A.3 — mesure
  * née du différentiel [jo.lspkotlin.classpath.LecteurClassBrutDifferentielTest])
- * — 2 comportements du cahier docs/cahier-specifications-kotlin/.
+ * — 2 comportements du cahier lsp-kotlin/docs/cahier-specifications-kotlin/.
  *
  * `let`/`also`/`apply`/`run`/`takeIf`/`takeUnless` sont déclarées
  * `fun <T> T.…(…)` : leur récepteur n'est PAS une classe, l'index des

@@ -16,7 +16,7 @@ import org.junit.jupiter.api.io.TempDir
  * Fiche 016 — CorrectifsTexteTest : les correctifs de texte du cahier
  * (fiches 016 — accès non sûr `?.`/`!!`/entourage, conversions de
  * littéraux fermées par famille) — 13 comportements du cahier
- * docs/cahier-specifications-kotlin/.
+ * lsp-kotlin/docs/cahier-specifications-kotlin/.
  *
  * Le moteur RE-PROUVE le document à la requête : un correctif existe si
  * et seulement si le diagnostic correspondant existe (alignement par

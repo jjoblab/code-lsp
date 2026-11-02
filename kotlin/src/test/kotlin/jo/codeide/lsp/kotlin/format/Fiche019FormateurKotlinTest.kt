@@ -9,9 +9,9 @@ import jo.codeide.lsp.kotlin.api.ServiceMoteurLangageKotlin
  * Fiche 019 — FormateurKotlinTest : le FORMATEUR BORNÉ du cahier
  * (formatage, L2 — plan 1.3.0, `textDocument/formating` et
  * `rangeFormatting`, ADR 0202 miroir) — 9 comportements du cahier
- * docs/cahier-specifications-kotlin/, par le SPI (chemin de production
+ * lsp-kotlin/docs/cahier-specifications-kotlin/, par le SPI (chemin de production
  * D6), moteur RÉEL (la REPRISE voie C R6, manifeste
- * docs/PROVENANCE-REPRISE-KOTLIN.md §3).
+ * lsp-kotlin/docs/PROVENANCE-REPRISE-KOTLIN.md §3).
  *
  * Le contrat éprouvé est celui de l'honnêteté D3 : ré-indentation
  * canonique SEULE (le contenu des lignes n'est jamais réécrit),

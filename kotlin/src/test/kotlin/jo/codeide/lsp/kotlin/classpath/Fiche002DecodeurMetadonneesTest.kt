@@ -13,7 +13,7 @@ import org.junit.jupiter.api.Test
  *    est le contrat même du décodeur).
  *
  * Chaque comportement porte le nom exact du test source (identifiant de
- * traçabilité du cahier docs/cahier-specifications-kotlin/). Les jars sont
+ * traçabilité du cahier lsp-kotlin/docs/cahier-specifications-kotlin/). Les jars sont
  * localisés au runtime par leurs ANCRES de classe, jamais résolus en code.
  */
 class Fiche002DecodeurMetadonneesTest {

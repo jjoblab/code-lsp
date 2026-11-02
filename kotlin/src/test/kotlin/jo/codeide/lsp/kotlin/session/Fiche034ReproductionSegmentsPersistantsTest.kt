@@ -37,7 +37,7 @@ import org.junit.jupiter.api.io.TempDir
  * portant (`println` servi, extensions vivantes).
  *
  * Chaque comportement porte le nom exact du test source (identifiant de
- * traçabilité du cahier docs/cahier-specifications-kotlin/).
+ * traçabilité du cahier lsp-kotlin/docs/cahier-specifications-kotlin/).
  */
 class Fiche034ReproductionSegmentsPersistantsTest {
 

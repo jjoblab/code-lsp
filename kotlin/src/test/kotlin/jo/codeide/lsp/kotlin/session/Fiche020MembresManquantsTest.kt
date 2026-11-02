@@ -14,7 +14,7 @@ import org.junit.jupiter.api.io.TempDir
 /**
  * Fiche 020 — MembresManquantsTest : le quick-fix « IMPLÉMENTER LES
  * MEMBRES MANQUANTS » (chantier P1-C, ADR 0229) — 10 comportements du
- * cahier docs/cahier-specifications-kotlin/ : la clôture des supertypes
+ * cahier lsp-kotlin/docs/cahier-specifications-kotlin/ : la clôture des supertypes
  * (PROJET via le modèle, CLASSPATH via la vue JVM), la substitution des
  * paramètres de type, l'appariement getters/setters en propriétés et les
  * exclusions du corps — chaque test éprouve AUSSI la borne.

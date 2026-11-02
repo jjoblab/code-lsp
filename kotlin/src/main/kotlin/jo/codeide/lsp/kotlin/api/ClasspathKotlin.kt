@@ -2,7 +2,7 @@
 // étage 1 vague 1b — session documents ; vague 1d — vue riche des entrées
 // + dossier d'index, annoncée par la vague 1b sur cette même frontière).
 // Code NEUF jjoblab écrit pour code-lsp (contrat : fiches 042/049 puis
-// 002–005/008/009/034 du cahier docs/cahier-specifications-kotlin/ ; les
+// 002–005/008/009/034 du cahier lsp-kotlin/docs/cahier-specifications-kotlin/ ; les
 // types du SPI sont NEUTRES, sans aucune dépendance LSP4J ni Android —
 // frontière D6).
 package jo.codeide.lsp.kotlin.api

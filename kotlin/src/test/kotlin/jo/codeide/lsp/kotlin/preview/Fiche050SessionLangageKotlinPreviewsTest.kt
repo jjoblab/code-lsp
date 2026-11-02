@@ -17,9 +17,9 @@ import jo.codeide.lsp.kotlin.api.ServiceMoteurLangageKotlin
  * Fiche 050 — SessionLangageKotlinPreviewsTest : le contrat de session
  * C1 (preview Compose — `previews(uri)`, PREVIEW.md §4.4) du cahier —
  * 16 comportements du cahier
- * docs/cahier-specifications-kotlin/, par le SPI (chemin de production
+ * lsp-kotlin/docs/cahier-specifications-kotlin/, par le SPI (chemin de production
  * D6), moteur RÉEL (la REPRISE voie C R3, manifeste
- * docs/PROVENANCE-REPRISE-KOTLIN.md §3).
+ * lsp-kotlin/docs/PROVENANCE-REPRISE-KOTLIN.md §3).
  *
  * Le cœur éprouvé : la preuve FQCN des annotations PAR LES IMPORTS, les
  * paramètres `@Preview` tranchés dans la source, la réduction du corps

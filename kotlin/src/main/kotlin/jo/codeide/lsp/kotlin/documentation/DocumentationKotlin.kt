@@ -1,6 +1,6 @@
 // CodeIDE — documentation KDoc d'une déclaration (module :kotlin, zone
 // documentation — REPRISE VOIE C, manifeste
-// docs/PROVENANCE-REPRISE-KOTLIN.md §3 R8). Origine : codeide-lsp
+// lsp-kotlin/docs/PROVENANCE-REPRISE-KOTLIN.md §3 R8). Origine : codeide-lsp
 // lsp/kotlin/src/main/kotlin/jo/lspkotlin/documentation/DocumentationKotlin.kt
 // @ bc11253 (auteur jjoblab, dépôt propriétaire) — contrôle R9.4 PASSÉ
 // (en-têtes sans mention tierce ; re-contrôle au moment de la copie,

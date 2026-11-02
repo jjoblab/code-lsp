@@ -15,7 +15,7 @@ import org.junit.jupiter.api.io.TempDir
  * Fiche 029 — ReproductionJavaImbriqueTest : REPRODUCTION H3 (mission
  * fiabilisation, étape A.2 — hypothèse « Java mixte : classes imbriquées »
  * MESURÉE) — 5 comportements du cahier
- * docs/cahier-specifications-kotlin/.
+ * lsp-kotlin/docs/cahier-specifications-kotlin/.
  *
  * La frontière du modèle Java telle que la mesure la révèle :
  *

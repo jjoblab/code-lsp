@@ -6,11 +6,11 @@ import org.gradle.jvm.toolchain.JavaLanguageVersion
 // Module :kotlin — moteur Kotlin LSP de CodeIDE (voie C hybride, ADR 0100
 // ACCEPTÉE le 2026-10-30 ; stratégie sémantique (i), ADR 0103 acceptée).
 //
-// ÉTAGE 0 — AMORÇAGE (plan §4 de la synthèse, docs/etudes/moteur-kotlin/) :
+// ÉTAGE 0 — AMORÇAGE (plan §4 de la synthèse, lsp-kotlin/docs/etudes/moteur-kotlin/) :
 //   - grammaire officielle vendorée par RÉ-OBTENTION AMONT (tag v2.3.0,
 //     R9.2 — jamais depuis codeide-lsp) dans `src/main/vendor/` ;
 //   - suite de parité « grammaire » (fiches 010–012 du cahier
-//     docs/cahier-specifications-kotlin/) : corpus du dépôt sans marqueur
+//     lsp-kotlin/docs/cahier-specifications-kotlin/) : corpus du dépôt sans marqueur
 //     d'erreur + digeste structurel + tolérance aux fautes + fixtures ;
 //     la fiche 013 (façade `Kt*`) est l'étage 1 — périmètre documenté ;
 //   - descripteur de pack langue (contrat D6, ADR 0101) généré ;
@@ -20,7 +20,7 @@ import org.gradle.jvm.toolchain.JavaLanguageVersion
 // complétion, navigation, serveur LSP) naîtront du CAHIER — le code de
 // l'ancien moteur (codeide-lsp:lsp/kotlin) n'est JAMAIS lu pour le noyau
 // (clean-room, AGENTS.md) ; les modules différenciants repris (voie C) sont
-// inscrits au préalable au manifeste docs/PROVENANCE-REPRISE-KOTLIN.md.
+// inscrits au préalable au manifeste lsp-kotlin/docs/PROVENANCE-REPRISE-KOTLIN.md.
 //
 // Règles : Kotlin 100 %, KDoc français détaillé, explicitApi sur le code
 // neuf (le vendoring en est EXEMPTÉ — compilation séparée ci-dessous,

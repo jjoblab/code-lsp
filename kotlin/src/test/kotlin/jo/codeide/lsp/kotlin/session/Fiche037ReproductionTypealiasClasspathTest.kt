@@ -16,7 +16,7 @@ import org.junit.jupiter.api.io.TempDir
  * Fiche 037 — ReproductionTypealiasClasspathTest : REPRODUCTION (mission
  * fiabilisation, étape B — rejeu du non-concluant §4 du rapport faux
  * positifs) : un TYPEALIAS PUBLIC d'une bibliothèque Kotlin — 5
- * comportements du cahier docs/cahier-specifications-kotlin/.
+ * comportements du cahier lsp-kotlin/docs/cahier-specifications-kotlin/.
  *
  * Aucun miroir bytecode : la sonde [jo.lspkotlin.classpath.SondeTypealiasKotlinxTest]
  * a établi que le corpus kotlinx-datetime 0.6.1 en porte trois

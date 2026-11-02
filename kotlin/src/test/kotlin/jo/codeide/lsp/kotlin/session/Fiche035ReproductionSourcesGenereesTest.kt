@@ -15,7 +15,7 @@ import org.junit.jupiter.api.io.TempDir
  * Fiche 035 — ReproductionSourcesGenereesTest : REPRODUCTION H2 (mission
  * fiabilisation, étape A.2 — hypothèse « sources générées invisibles » du
  * prompt) — 2 comportements du cahier
- * docs/cahier-specifications-kotlin/.
+ * lsp-kotlin/docs/cahier-specifications-kotlin/.
  *
  * La MARCHE du scan EXCLUT le dossier `build` (exclusions ADR 0212 :
  * sorties, caches — le scan est le SOURCE). Or les sources GÉNÉRÉES d'un

@@ -1,6 +1,6 @@
 // CodeIDE — façade `Kt*` : socle générique des nœuds (module :kotlin, étage 1
 // vague 1a). Code NEUF jjoblab écrit pour code-lsp (clean-room — le contrat
-// est la fiche 013 du cahier docs/cahier-specifications-kotlin/ : « les
+// est la fiche 013 du cahier lsp-kotlin/docs/cahier-specifications-kotlin/ : « les
 // accesseurs portent le vocabulaire du compilateur et RESTENT conservateurs
 // (D3) — introuvable = null/vide »).
 package jo.codeide.lsp.kotlin.parse.kt

@@ -1,5 +1,5 @@
 // CodeIDE — previews Compose d'un document (module :kotlin, zone preview
-// — REPRISE VOIE C, manifeste docs/PROVENANCE-REPRISE-KOTLIN.md §3 R3).
+// — REPRISE VOIE C, manifeste lsp-kotlin/docs/PROVENANCE-REPRISE-KOTLIN.md §3 R3).
 // Origine : codeide-lsp
 // lsp/kotlin/src/main/kotlin/jo/lspkotlin/preview/PreviewsDocumentKotlin.kt
 // @ bc11253 (auteur jjoblab, dépôt propriétaire) — contrôle R9.4 PASSÉ

@@ -16,7 +16,7 @@ import org.junit.jupiter.api.io.TempDir
  * Fiche 044 — SessionLangageKotlinHeritageTest : la voie 2-ter « membres
  * HÉRITÉS » d'ADR 0216 (vague 2c — la CLÔTURE des supertypes, mixte
  * projet/classpath) — 13 comportements du cahier
- * docs/cahier-specifications-kotlin/.
+ * lsp-kotlin/docs/cahier-specifications-kotlin/.
  *
  * Le câblage suit le chemin de production (D6 — miroir du patron fiche
  * 046) : moteur nourricier + session branchée + guichet attendu par sondage

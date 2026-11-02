@@ -1,5 +1,5 @@
 // CodeIDE — décodeur des métadonnées Kotlin (module :kotlin, zone
-// classpath — REPRISE VOIE C, manifeste docs/PROVENANCE-REPRISE-KOTLIN.md
+// classpath — REPRISE VOIE C, manifeste lsp-kotlin/docs/PROVENANCE-REPRISE-KOTLIN.md
 // §3 R4). Origine : codeide-lsp
 // lsp/kotlin/src/main/kotlin/jo/lspkotlin/classpath/DecodeurMetadonnees.kt
 // @ bc11253 (auteur jjoblab, dépôt propriétaire) — contrôle R9.4 PASSÉ

@@ -16,7 +16,7 @@ import org.junit.jupiter.api.io.TempDir
  * Fiche 024 — ReproductionCompanionTest : REPRODUCTION des COMPANION
  * OBJECTS (ADR 0222) — le quatrième monde Kotlin pour la parité Android
  * Studio — 7 comportements du cahier
- * docs/cahier-specifications-kotlin/.
+ * lsp-kotlin/docs/cahier-specifications-kotlin/.
  *
  * Les compagnons PROJET (anonymes et nommés) vivent dans le document :
  * `Boite.creer()` (membres du compagnon accessibles par le NOM de la

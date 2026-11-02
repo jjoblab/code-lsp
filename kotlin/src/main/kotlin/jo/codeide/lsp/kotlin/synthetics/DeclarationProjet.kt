@@ -1,7 +1,7 @@
 // CodeIDE — modèle local de sortie des classes synthétiques (module
 // :kotlin, étage 1 vague 1e). Code NEUF jjoblab écrit pour code-lsp —
 // fichier associé à la REPRISE VOIE C R2 (manifeste
-// docs/PROVENANCE-REPRISE-KOTLIN.md §3 : la zone synthetics est une zone
+// lsp-kotlin/docs/PROVENANCE-REPRISE-KOTLIN.md §3 : la zone synthetics est une zone
 // de reprise, ce compagnon neuf y est inscrit pour le contrôle
 // verifier-provenance.sh ; il ne reprend AUCUNE ligne de l'ancien dépôt —
 // sa forme est dictée par la SURFACE D'USAGE du module repris, la

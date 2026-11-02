@@ -78,5 +78,5 @@ oracle de parité et repli de production.
 Le moteur Kotlin (module :kotlin) suit la voie C hybride (ADR 0100, acceptée
 le 30/10/2026) : noyau réécrit depuis le cahier de spécifications, modules
 différenciants repris après contrôle (registre
-docs/PROVENANCE-REPRISE-KOTLIN.md), grammaire ré-obtenue de l'amont (ci-dessus
+lsp-kotlin/docs/PROVENANCE-REPRISE-KOTLIN.md), grammaire ré-obtenue de l'amont (ci-dessus
 n° 6).

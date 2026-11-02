@@ -16,7 +16,7 @@ import org.junit.jupiter.api.io.TempDir
  * Fiche 033 — ReproductionObjetsClasspathTest : REPRODUCTION des OBJETS DU
  * CLASSPATH (retour utilisateurs 25/10/2026, familles A du programme
  * U1-U4) — 9 comportements du cahier
- * docs/cahier-specifications-kotlin/.
+ * lsp-kotlin/docs/cahier-specifications-kotlin/.
  *
  * Un objet Kotlin compilé est une classe au champ STATIQUE `INSTANCE` dont
  * les membres sont des membres d'INSTANCE : le jar de fixture calque la

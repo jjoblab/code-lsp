@@ -16,7 +16,7 @@ import org.junit.jupiter.api.io.TempDir
  * fiabilisation, étape A.3 — découverte du test différentiel
  * [jo.lspkotlin.classpath.LecteurClassBrutDifferentielTest]) : les
  * FONCTIONS BUILTIN `arrayOf` et `intArrayOf` du stdlib — 2 comportements
- * du cahier docs/cahier-specifications-kotlin/.
+ * du cahier lsp-kotlin/docs/cahier-specifications-kotlin/.
  *
  * Le moteur prouve l'absence d'un nom nu par la voie 6 (appelables de
  * premier niveau du classpath — ADR 0203) : le jar kotlin-stdlib RÉEL du

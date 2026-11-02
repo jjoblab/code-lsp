@@ -18,7 +18,7 @@ import org.junit.jupiter.api.io.TempDir
  * object` (le patron HttpClient/Database de toute lib KMP), `actual
  * typealias`, membres d'expect object, génériques sur un type expect,
  * usage depuis une EXTENSION — 5 comportements du cahier
- * docs/cahier-specifications-kotlin/.
+ * lsp-kotlin/docs/cahier-specifications-kotlin/.
  *
  * Chaque comportement porte le nom exact du test source (identifiant de
  * traçabilité du cahier).

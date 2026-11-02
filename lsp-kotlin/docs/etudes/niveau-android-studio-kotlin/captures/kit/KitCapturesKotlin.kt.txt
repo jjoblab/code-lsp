@@ -3,7 +3,7 @@ package com.exemple.monapp
 /*
  * ============================================================================
  * KIT DE CAPTURES ANDROID STUDIO — LOT E (moteur Kotlin). Référence :
- * docs/etudes/niveau-android-studio-kotlin/06-protocole-captures-android-studio.md §2.
+ * lsp-kotlin/docs/etudes/niveau-android-studio-kotlin/06-protocole-captures-android-studio.md §2.
  *
  * MODE D'EMPLOI (copie locale, JAMAIS committée) :
  *  1. créer ou réutiliser un projet Android de test en KOTLIN — modèle

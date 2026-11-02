@@ -13,7 +13,7 @@ import org.junit.jupiter.api.io.TempDir
  * Fiche 053 — TypesKotlinTest : la NAVIGATION DE TYPES Kotlin (L2 —
  * plan 1.3.0, `textDocument/typeDefinition` et
  * `textDocument/implementation`) — 7 comportements du cahier
- * docs/cahier-specifications-kotlin/.
+ * lsp-kotlin/docs/cahier-specifications-kotlin/.
  *
  * Le montage éprouve le CHEMIN DE PRODUCTION D6 (moteur nourricier réel
  * + session branchée + guichet attendu) : un projet multi-fichiers sur

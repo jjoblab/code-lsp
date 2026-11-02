@@ -16,7 +16,7 @@ import org.junit.jupiter.api.io.TempDir
  * Fiche 048 — SessionLangageKotlinOccurrencesTest : le contrat de session
  * OCCURRENCES (S2, plan de stabilisation LSP §3.2 : `references`,
  * `documentHighlight`, rename borné miroir Java) — 21 comportements du
- * cahier docs/cahier-specifications-kotlin/.
+ * cahier lsp-kotlin/docs/cahier-specifications-kotlin/.
  *
  * Le montage éprouve le CHEMIN DE PRODUCTION D6 (moteur nourricier réel
  * par le SPI + session branchée + guichet attendu par sondage borné) : un

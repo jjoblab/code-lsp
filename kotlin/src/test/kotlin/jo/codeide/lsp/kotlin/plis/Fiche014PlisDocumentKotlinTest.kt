@@ -8,10 +8,10 @@ import jo.codeide.lsp.kotlin.parse.ParseurKotlin
 /**
  * Fiche 014 — PlisDocumentKotlinTest : le moteur de pliage complet du
  * cahier (folding, S2 — plan de stabilisation LSP §3.2) — 7
- * comportements du cahier docs/cahier-specifications-kotlin/.
+ * comportements du cahier lsp-kotlin/docs/cahier-specifications-kotlin/.
  *
  * Le moteur est la REPRISE voie C R7 (manifeste
- * docs/PROVENANCE-REPRISE-KOTLIN.md §3) : chaque corps à accolades est
+ * lsp-kotlin/docs/PROVENANCE-REPRISE-KOTLIN.md §3) : chaque corps à accolades est
  * UNE plage (de la première accolade ouvrante à la dernière fermante —
  * JAMAIS du début du nœud), le bloc d'imports entier en est un, les
  * commentaires multi-lignes aussi ; déduplication BODY/BLOCK ;

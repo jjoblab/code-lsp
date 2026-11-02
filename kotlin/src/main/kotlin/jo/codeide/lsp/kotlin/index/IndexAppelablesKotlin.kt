@@ -1,6 +1,6 @@
 // CodeIDE — index des appelables Kotlin (module :kotlin, étage 1 vague
 // 1d). Code NEUF jjoblab écrit pour code-lsp (contrat : fiches 008/034 du
-// cahier docs/cahier-specifications-kotlin/ ; ADR 0108/0211/0214 anciens
+// cahier lsp-kotlin/docs/cahier-specifications-kotlin/ ; ADR 0108/0211/0214 anciens
 // dont les CONTRATS sont repris : segments par empreinte, persistance
 // sans jar d'origine, auto-guérison, cache mémoire, garde de couverture,
 // annulation coopérative). INTERNE au module (D6).

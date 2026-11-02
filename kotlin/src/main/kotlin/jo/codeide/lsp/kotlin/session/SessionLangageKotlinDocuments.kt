@@ -2,7 +2,7 @@
 // vague 1b — session documents ; vague 1c — scan paresseux fiche 041 ;
 // vague 2b — quick-fix d'import `importsCandidats`, fiche 046). Code NEUF
 // jjoblab (clean-room — contrat : fiches 049/042/041/046 du
-// cahier docs/cahier-specifications-kotlin/ ; concurrence ADR 0117/ADR 0212
+// cahier lsp-kotlin/docs/cahier-specifications-kotlin/ ; concurrence ADR 0117/ADR 0212
 // ancien : verrou lecture-écriture, écritures = mutations de documents et
 // définitions, lectures parallèles = requêtes, JAMAIS de scan sous verrou).
 package jo.codeide.lsp.kotlin.session

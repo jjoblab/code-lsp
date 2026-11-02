@@ -1,6 +1,6 @@
 // CodeIDE — modèle de symboles du PROJET pour la résolution (module :kotlin,
 // étage 2 vague 2a — socle de résolution). Code NEUF jjoblab (clean-room —
-// contrat : fiches 017/022/006 du cahier docs/cahier-specifications-kotlin/
+// contrat : fiches 017/022/006 du cahier lsp-kotlin/docs/cahier-specifications-kotlin/
 // + ADR 0105/0106 ; les zones NOYAU anciennes resolve/ et diagnostics/ sont
 // en lecture interdite R9.1 — ce modèle est écrit cahier en main).
 package jo.codeide.lsp.kotlin.resolve
