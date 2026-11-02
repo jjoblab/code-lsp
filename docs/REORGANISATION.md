@@ -1,6 +1,8 @@
 # REORGANISATION — plan de réorganisation du dépôt code-lsp (Phase 1)
 
-> **Statut : EN ATTENTE DE VALIDATION DU PROPRIÉTAIRE — aucun déplacement effectué.**
+> **Statut : VALIDÉ puis EXÉCUTÉ le 03/11/2026 — branche `refonte/organisation`**
+> (PV d'exécution : [`REORGANISATION-BILAN-PHASE2.md`](REORGANISATION-BILAN-PHASE2.md) ;
+> ce plan décrit l'avant et reste la référence des décisions).
 > Base du plan : branche `integration/fusion` (fusion sans perte de
 > `etude/moteur-java` et `etude/moteur-kotlin`, CI verte). Photographie des
 > invariants : [`REORGANISATION-AVANT.md`](REORGANISATION-AVANT.md). Table

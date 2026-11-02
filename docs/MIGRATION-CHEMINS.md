@@ -1,4 +1,4 @@
-# MIGRATION-CHEMINS — table ancien → nouveau (Phase 1, en attente de validation)
+# MIGRATION-CHEMINS — table ancien → nouveau (exécutée le 03/11/2026)
 
 > Générée par `scripts/generer-migration-chemins.py` (relue à la main) à partir de
 > `git ls-files` de la branche `integration/fusion`. **Aucun déplacement effectué**
