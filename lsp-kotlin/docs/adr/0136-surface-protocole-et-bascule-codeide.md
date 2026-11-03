@@ -1,7 +1,7 @@
 # ADR 0136 — Surface de protocole, capacités absentes et bascule CodeIDE avant extension
 
-- **Statut** : Proposé
-- **Date** : 2026-10-31
+- **Statut** : **Accepté** — arbitrage du **propriétaire** reçu le 2026-11-03 : **Q-K4 tranché** (mécanisme miroir `:java`, façade unique, publication dans le MÊME run que le moteur Java) et **séquencement bascule AVANT extension des capacités** (option 1). Étape A EXÉCUTÉE le même jour : publication du pack + du moteur Java V-H (`v1.13.0`, run Publication 13 vert — `:java`, `:ecj-art`, `:kotlin` publish), chaînon hôte franchi (`codeide-lsp` `v1.25.0` — `:lsp:host` consomme le pack via le SPI D6, publication run 50 verte), montée client (`CodeIDE` `v0.206.0` — pack embarqué, témoin D6 `jo/codeide/lsp/kotlin/pack/version.properties` = `1.13.0` lu dans l'APK). Étape B (vagues de capacités) reste à venir ; l'étape B de l'ADR 0118 (retrait physique du module vendored) après « 2 versions sans régression » (I6).
+- **Date** : 2026-10-31 (proposition), acceptation 2026-11-03
 
 ## Contexte
 

@@ -45,7 +45,7 @@
 | [0133](adr/0133-budget-dex-taille-et-packaging.md) | Budget dex, taille et packaging (gel du socle + packs) | Proposé |
 | [0134](adr/0134-performance-concurrence-memoire-art.md) | Performance, concurrence et mémoire sur ART | Proposé |
 | [0135](adr/0135-qualite-mesuree-niveau-android-studio.md) | Qualité mesurée « niveau Android Studio » (P1–P9, seuils, baselines) | Proposé |
-| [0136](adr/0136-surface-protocole-et-bascule-codeide.md) | Surface de protocole, capacités absentes et bascule AVANT extension | Proposé |
+| [0136](adr/0136-surface-protocole-et-bascule-codeide.md) | Surface de protocole, capacités absentes et bascule AVANT extension | Accepté (2026-11-03, exécuté) |
 
 Les 8 ADR impactées par l'étude post-clôture portent des **amendements
 datés** (« Amendement 2026-10-31 ») activés uniquement si le propriétaire
