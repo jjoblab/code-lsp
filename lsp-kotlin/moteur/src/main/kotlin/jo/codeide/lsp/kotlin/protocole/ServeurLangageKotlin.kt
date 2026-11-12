@@ -17,6 +17,9 @@ import jo.codeide.lsp.kotlin.api.SessionLangageKotlin
 import org.eclipse.lsp4j.CodeAction
 import org.eclipse.lsp4j.CodeActionKind
 import org.eclipse.lsp4j.CodeActionParams
+import org.eclipse.lsp4j.Color
+import org.eclipse.lsp4j.ColorInformation
+import org.eclipse.lsp4j.DocumentColorParams
 import org.eclipse.lsp4j.CodeLens
 import org.eclipse.lsp4j.CodeLensParams
 import org.eclipse.lsp4j.CallHierarchyIncomingCall
@@ -654,9 +657,68 @@ public class ServeurLangageKotlin(
 
     override fun onTypeFormatting(params: DocumentOnTypeFormattingParams): CompletableFuture<List<TextEdit>> {
         garde<List<TextEdit>>()?.let { return it }
-        // NON annoncée (matrice Kotlin : ❌) — la requête reste TOLÉRANTE
-        // (liste vide, jamais d'exception).
-        return CompletableFuture.completedFuture(emptyList())
+        // V-I1 — la RÉ-INDENTATION après frappe (ADR 0136 B.2, miroir borné
+        // ADR 0115) : le blanc de tête de la ligne concernée.
+        val uri = params.textDocument.uri
+        val editions = calculFraiche(uri) { texte ->
+            val repere = ConvertisseurLsp.repere(texte)
+            val deplacement = repere.offset(params.position)
+            session?.formatageFrappé(
+                uri,
+                deplacement,
+                params.ch.singleOrNull() ?: ' ',
+                params.options.tabSize,
+            ).orEmpty()
+        }.orEmpty()
+        return CompletableFuture.completedFuture(editionsLsp(editions, uri))
+    }
+
+    // ----------------------------------------------------------------- //
+    // Capacités arbre — couleurs et délimiteurs (V-I1, ADR 0136 B.2)
+    // ----------------------------------------------------------------- //
+
+    override fun documentColor(params: DocumentColorParams): CompletableFuture<List<ColorInformation>> {
+        garde<List<ColorInformation>>()?.let { return it }
+        val uri = params.textDocument.uri
+        val couleurs = calculFraiche(uri) { _ -> session?.couleursDocument(uri).orEmpty() }.orEmpty()
+        val instantane = etats.instantane(uri)
+        val repere = instantane?.let { ConvertisseurLsp.repere(it.texte) }
+        val rendues = couleurs.map { couleur ->
+            ColorInformation(
+                repere?.let { it.plage(couleur.plage) } ?: org.eclipse.lsp4j.Range(
+                    org.eclipse.lsp4j.Position(0, 0),
+                    org.eclipse.lsp4j.Position(0, 0),
+                ),
+                org.eclipse.lsp4j.Color(
+                    couleur.rouge, couleur.vert, couleur.bleu, couleur.alpha,
+                ),
+            )
+        }
+        return CompletableFuture.completedFuture(rendues)
+    }
+
+    override fun linkedEditingRange(
+        params: org.eclipse.lsp4j.LinkedEditingRangeParams,
+    ): CompletableFuture<org.eclipse.lsp4j.LinkedEditingRanges> {
+        garde<org.eclipse.lsp4j.LinkedEditingRanges>()?.let { return it }
+        val uri = params.textDocument.uri
+        val plages = calculFraiche(uri) { texte ->
+            val repere = ConvertisseurLsp.repere(texte)
+            val deplacement = repere.offset(params.position)
+            session?.plagesLiees(uri, deplacement)
+        }
+        val rendu = plages?.let { paire ->
+            val instantane = etats.instantane(uri)
+            val repere = instantane?.let { ConvertisseurLsp.repere(instantane.texte) }
+            if (repere != null) {
+                listOf(repere.plage(paire.plageOuvrante), repere.plage(paire.plageFermante))
+            } else {
+                null
+            }
+        }
+        return CompletableFuture.completedFuture(
+            org.eclipse.lsp4j.LinkedEditingRanges(rendu ?: emptyList(), null),
+        )
     }
 
     override fun foldingRange(params: FoldingRangeRequestParams): CompletableFuture<List<FoldingRange>> {

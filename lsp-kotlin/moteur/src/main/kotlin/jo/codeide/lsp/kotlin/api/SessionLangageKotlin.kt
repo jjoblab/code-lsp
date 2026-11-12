@@ -105,6 +105,56 @@ public interface SessionLangageKotlin : AutoCloseable {
     public fun plagesPliables(uri: String): List<PlagePliableKotlin>
 
     /**
+     * Rend les PLAGES LIÉES au point (vague V-I1 — ADR 0136 étape B.2 :
+     * `textDocument/linkedEditingRange`) : la paire de délimiteurs
+     * APPARIÉS dont l'un couvre le déplacement — `(`…`)`, `{`…`}`,
+     * `[`…`]` par empilement lexical, `<`…`>` UNIQUEMENT dans les listes
+     * d'arguments de type (jamais les comparaisons).
+     *
+     * @param uri l'identifiant du document ;
+     * @param deplacement l'offset du caret (sur un délimiteur) ;
+     * @return la paire couvrante ; `null` hors délimiteur apparié ou pour
+     * un document inconnu/fermé — jamais d'exception.
+     */
+    public fun plagesLiees(uri: String, deplacement: Int): PlagesLieesKotlin?
+
+    /**
+     * Rend les COULEURS littérales du document (vague V-I1 — ADR 0136
+     * étape B.2 : `textDocument/documentColor`) : les entiers
+     * hexadécimaux Android (`0xFF1A73E8` à 8 chiffres, `0x1A73E8` à 6 —
+     * opaque) avec leurs canaux normalisés [0, 1] pour le color picker.
+     *
+     * @param uri l'identifiant du document ;
+     * @return les couleurs en ordre du document ; liste VIDE sans littéral
+     * de la bonne largeur ou pour un document inconnu/fermé — jamais
+     * `null`, jamais d'exception.
+     */
+    public fun couleursDocument(uri: String): List<CouleurDocumentKotlin>
+
+    /**
+     * Rend la RÉ-INDENTATION après frappe (vague V-I1 — ADR 0136 étape
+     * B.2 : `textDocument/onTypeFormatting`, miroir borné du formateur
+     * ADR 0115 — l'édition ne touche QUE le blanc de tête de la ligne
+     * concernée). La frappe `\n` indente la nouvelle ligne de l'ouverture
+     * nette de la précédente ; la frappe `}` aligne l'accolade sur son
+     * OUVRANT apparié.
+     *
+     * @param uri l'identifiant du document ;
+     * @param deplacement l'offset du caret APRÈS la frappe ;
+     * @param caractere le caractère frappé (`\n` ou `}`) ;
+     * @param tailleIndentation la taille d'un niveau d'indentation ;
+     * @return ZÉRO ou UNE édition (le blanc de tête) ; liste VIDE quand la
+     * forme ne se décide pas ou pour un document inconnu/fermé — jamais
+     * `null`, jamais d'exception.
+     */
+    public fun formatageFrappé(
+        uri: String,
+        deplacement: Int,
+        caractere: Char,
+        tailleIndentation: Int,
+    ): List<EditionTexteKotlin>
+
+    /**
      * Rend les éditions de ré-indentation du FORMATEUR BORNÉ d'un document
      * entier (étage 5 vague 5a — fiche 019, `textDocument/formatting` L2,
      * ADR 0202 miroir) : ré-indentation canonique SEULE, le contenu des

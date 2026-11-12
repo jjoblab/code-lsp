@@ -8,6 +8,7 @@ import java.util.Properties
 import org.eclipse.lsp4j.CodeActionKind
 import org.eclipse.lsp4j.CodeActionOptions
 import org.eclipse.lsp4j.CompletionOptions
+import org.eclipse.lsp4j.DocumentOnTypeFormattingOptions
 import org.eclipse.lsp4j.InitializeResult
 import org.eclipse.lsp4j.PositionEncodingKind
 import org.eclipse.lsp4j.RenameOptions
@@ -101,6 +102,12 @@ public object CapacitesServeur {
         capacites.setFoldingRangeProvider(true)
         capacites.setInlayHintProvider(true)
         capacites.setRenameProvider(optionsRenommage())
+        // V-I1 — les CAPACITÉS ARBRE (ADR 0136 étape B.2 : décidables sur
+        // l'arbre SEUL, avant le palier 2) : les délimiteurs appariés, les
+        // couleurs littérales, la ré-indentation à la frappe.
+        capacites.setLinkedEditingRangeProvider(true)
+        capacites.setColorProvider(true)
+        capacites.setDocumentOnTypeFormattingProvider(optionsFormatageFrappé())
         return capacites
     }
 
@@ -108,6 +115,18 @@ public object CapacitesServeur {
     private fun optionsActions(): CodeActionOptions {
         val options = CodeActionOptions()
         options.codeActionKinds = listOf(CodeActionKind.QuickFix)
+        return options
+    }
+
+    /**
+     * V-I1 — les options de formatage À LA FRAPPE : les déclencheurs
+     * `\n` (l'indent de la nouvelle ligne) et `}` (l'alignement sur
+     * l'ouvrant) — le périmètre borné du miroir ADR 0115.
+     */
+    private fun optionsFormatageFrappé(): DocumentOnTypeFormattingOptions {
+        val options = DocumentOnTypeFormattingOptions()
+        options.firstTriggerCharacter = "\n"
+        options.moreTriggerCharacter = listOf("}")
         return options
     }
 

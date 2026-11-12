@@ -13,12 +13,14 @@ import java.util.concurrent.locks.ReentrantReadWriteLock
 import jo.codeide.lsp.kotlin.api.AideSignatureKotlin
 import jo.codeide.lsp.kotlin.api.ClasspathKotlin
 import jo.codeide.lsp.kotlin.api.ChaineSelectionKotlin
+import jo.codeide.lsp.kotlin.api.CouleurDocumentKotlin
 import jo.codeide.lsp.kotlin.api.DiagnosticKotlin
 import jo.codeide.lsp.kotlin.api.EditionTexteKotlin
 import jo.codeide.lsp.kotlin.api.EmplacementKotlin
 import jo.codeide.lsp.kotlin.api.GenreContexteKotlin
 import jo.codeide.lsp.kotlin.api.IndiceKotlin
 import jo.codeide.lsp.kotlin.api.NiveauMemoireKotlin
+import jo.codeide.lsp.kotlin.api.PlagesLieesKotlin
 import jo.codeide.lsp.kotlin.api.PlagePliableKotlin
 import jo.codeide.lsp.kotlin.api.PlageRenommableKotlin
 import jo.codeide.lsp.kotlin.api.PlanActionKotlin
@@ -410,6 +412,48 @@ internal class SessionLangageKotlinDocuments(
             if (fermee) return@read emptyList()
             val document = documents[uri] ?: return@read emptyList()
             PlisDocumentKotlin.depuis(document.arbre.noeud)
+        }
+    }
+
+    /**
+     * V-I1 — les PLAGES LIÉES (linkedEditingRange) : la paire de
+     * délimiteurs appariés couvrant le point (document inconnu/fermé =
+     * `null` honnête).
+     */
+    override fun plagesLiees(uri: String, deplacement: Int): PlagesLieesKotlin? {
+        return verrou.read {
+            if (fermee) return@read null
+            val document = documents[uri] ?: return@read null
+            CapacitesArbre.plagesLiees(document.arbre, deplacement)
+        }
+    }
+
+    /**
+     * V-I1 — les COULEURS littérales (documentColor) : les hexadécimaux
+     * Android 6/8 chiffres du document (document inconnu/fermé = vide).
+     */
+    override fun couleursDocument(uri: String): List<CouleurDocumentKotlin> {
+        return verrou.read {
+            if (fermee) return@read emptyList()
+            val document = documents[uri] ?: return@read emptyList()
+            CapacitesArbre.couleurs(document.arbre)
+        }
+    }
+
+    /**
+     * V-I1 — la RÉ-INDENTATION après frappe (onTypeFormatting) : le blanc
+     * de tête de la ligne concernée, miroir borné du formateur.
+     */
+    override fun formatageFrappé(
+        uri: String,
+        deplacement: Int,
+        caractere: Char,
+        tailleIndentation: Int,
+    ): List<EditionTexteKotlin> {
+        return verrou.read {
+            if (fermee) return@read emptyList()
+            val document = documents[uri] ?: return@read emptyList()
+            CapacitesArbre.formatageFrappé(document.texte, deplacement, caractere, tailleIndentation)
         }
     }
 
