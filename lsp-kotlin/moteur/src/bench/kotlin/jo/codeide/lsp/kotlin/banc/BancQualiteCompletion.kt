@@ -285,13 +285,19 @@ fun main(args: Array<String>) {
         if (!resigner) echecs.add("baseline absente — signer par PR dédiée : ./gradlew :kotlin:benchQualite -Presigner")
     } else {
         val baseLivree = baseline.getValue("livree")
-        if (livree.recall < baseLivree.getValue("recall")) {
+        // La baseline écrite est ARRONDIE à 3 décimales (« %.3f ») : la
+        // métrique EXACTE ne « régresse » jamais contre son propre arrondi —
+        // la tolérance d'un demi-arrondi (5e-4) garde la comparaison honnête
+        // (une vraie régression — au moins une position perdue = 6,3 pts —
+        // la dépasse toujours de loin).
+        val toleranceArrondi = 5e-4
+        if (livree.recall < baseLivree.getValue("recall") - toleranceArrondi) {
             echecs.add("recall régressé : %.3f < baseline %.3f".format(livree.recall, baseLivree.getValue("recall")))
         }
-        if (livree.top1 < baseLivree.getValue("top1")) {
+        if (livree.top1 < baseLivree.getValue("top1") - toleranceArrondi) {
             echecs.add("top-1 régressé : %.3f < baseline %.3f".format(livree.top1, baseLivree.getValue("top1")))
         }
-        if (livree.mrr < baseLivree.getValue("mrr")) {
+        if (livree.mrr < baseLivree.getValue("mrr") - toleranceArrondi) {
             echecs.add("MRR régressé : %.3f < baseline %.3f".format(livree.mrr, baseLivree.getValue("mrr")))
         }
         val p95Base = baseLivree.getValue("p95_ms")

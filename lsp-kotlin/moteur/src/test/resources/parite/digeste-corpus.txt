@@ -235,7 +235,6 @@
 64624c3e74a6a2146c0a8ae0d5b0a0af1f024fa25782043a47ec57b46d2926ae  lsp-java/moteur/src/main/kotlin/jo/codeide/lsp/java/protocole/AuxiliairesProtocole.kt
 64cf5de4a7eb50242736d202a8f66df45191b238db169f0da78202c454f1ebc1  lsp-kotlin/moteur/src/main/kotlin/jo/codeide/lsp/kotlin/resolve/VueJvm.kt
 6566984c531457b4a88134da708017a6473ab46ff6ec8b02d6924d5018c2b131  lsp-kotlin/moteur/src/test/kotlin/jo/codeide/lsp/kotlin/session/CapacitesArbreKotlinTest.kt
-6570d3d81a18e2565378889217472facca22952ebf8761a1f4147b247e964a3f  lsp-kotlin/moteur/src/bench/kotlin/jo/codeide/lsp/kotlin/banc/BancQualiteCompletion.kt
 658a50e58d50c80a71794cad5ffa263847111213980ebf48a1693eeac9d39596  lsp-kotlin/moteur/src/test/kotlin/jo/codeide/lsp/kotlin/session/Fiche037ReproductionTypealiasClasspathTest.kt
 65bfcedb5b7d5f4e68c3f37c21a96719d149fdfd648d3b4f747dd4d743ec278c  lsp-kotlin/moteur/src/test/kotlin/jo/codeide/lsp/kotlin/plis/Fiche014PlisDocumentKotlinTest.kt
 664d574456ab9f540291950b93f0bb853a7cf47a92acee492a1e3ebf61d636dc  lsp-kotlin/moteur/src/test/kotlin/jo/codeide/lsp/kotlin/classpath/Fiche002DecodeurMetadonneesTest.kt
@@ -391,6 +390,7 @@ b0d3fa2011e2f7af387883c357ba145e4d7f35fd21941c872d12d1d0f95f3842  lsp-kotlin/mot
 b11d4aea27638cc4e9ffe38e2a61025a13c0f351331884a1a6100bea70144be0  lsp-java/moteur/src/test/kotlin/jo/codeide/lsp/java/Fiche048OrdonnanceurTest.kt
 b1a7436b9fc0c59cbbfe0f79d0c208b5579943e9e71aec179e5d385febafa872  lsp-kotlin/moteur/src/test/kotlin/jo/codeide/lsp/kotlin/coherence/P6CompletionResolubleTest.kt
 b22f5c3823594d81bfaaf3426b95a7df002427f670800d5085bc1f68aa5c9d6c  lsp-java/moteur/src/test/resources/projetandroid/mixte/src/demo/sous/Registre.kt
+b257529513cb5bacee5744bd237fd74f8ad75b627be49bdceaf24daec286c8e6  lsp-kotlin/moteur/src/bench/kotlin/jo/codeide/lsp/kotlin/banc/BancQualiteCompletion.kt
 b2a1f2c6cd02d775ed25429946a93d620aebae78564a0c254e05f6a2094d12cf  lsp-kotlin/spike/src/main/kotlin/spikekotlin/ParseurOfficiel.kt
 b2b7a6822bab46a6436fde2f2f3b295a63c5ad318fc3fdaf5ff022964cc25979  socle/index/src/main/kotlin/jo/codeide/lsp/index/EcrivainSegment.kt
 b31ab2634abaf44fb63afd37cecec524e2d117d15051d6ecdf756a3b2d73a28c  lsp-kotlin/moteur/src/test/kotlin/jo/codeide/lsp/kotlin/protocole/BoucleLocale.kt
