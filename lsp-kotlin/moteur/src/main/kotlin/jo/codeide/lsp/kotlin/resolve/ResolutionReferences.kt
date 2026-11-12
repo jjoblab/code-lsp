@@ -66,6 +66,29 @@ internal class UniversPreuves(
     internal fun importAmorce(racine: String): Boolean =
         imports.any { it.nomQualifie()?.startsWith("$racine.") == true }
 
+    /**
+     * V-B — les EXTENSIONS de l'index applicables à un récepteur FQCN (le
+     * récepteur EXACT puis sa CHAÎNE de supertypes — miroir de
+     * [verdictExtensions]) portant ce nom : la matière de l'ATTENTE des
+     * lambdas d'extension (`List<Client>.map { … }` — le paramètre
+     * fonctionnel `(T) -> R` substitué par les arguments écrits du
+     * récepteur).
+     *
+     * @param fqcn le FQCN Kotlin du récepteur ;
+     * @param nom le nom de l'extension appelée ;
+     * @return les extensions candidates (l'ordre de la chaîne — la plus
+     * dérivée d'abord) ; liste vide sans candidate.
+     */
+    internal fun extensionsApplicables(
+        fqcn: String,
+        nom: String,
+    ): List<jo.codeide.lsp.kotlin.index.AppelableKotlin> {
+        if (index == null) return emptyList()
+        return recepteursExtension(fqcn).flatMap { recepteur ->
+            index.extensionsSur(recepteur).filter { it.nom == nom }
+        }
+    }
+
     /** Le cache des CLÔTURES d'héritage par FQCN projet (vague 2c). */
     private val clotures = HashMap<String, ClotureHeritage?>()
 
@@ -272,6 +295,12 @@ internal class UniversPreuves(
             .trim()
         if (nom.isEmpty()) return null
 
+        // V-B — les ARGUMENTS DE TYPE écrits (`List<Client>`, `Map<K, V>`)
+        // : portés par le type rendu (la matière de la substitution des
+        // paramètres de type — SPECIFICATION-TYPES.md). Imbrication
+        // tolérée par PROFONDEUR de chevrons (`Map<String, List<Int>>`).
+        val arguments = argumentsDeTypeEcrits(nomEcrit.trim())
+
         // Un nom QUALIFIÉ (round-trip de la liaison typée — `kotlin.String`
         // rendu par l'initialisateur d'une propriété ; type écrit QUALIFIÉ
         // `Aquarium.Bac` — vague 2c, fiche 029) : FQCN direct du modèle,
@@ -283,10 +312,10 @@ internal class UniversPreuves(
             if (segments.size > 1 && segments.all { it.isNotEmpty() }) {
                 cheminClasse(segments)?.let { chemin ->
                     modele.type(chemin)?.let { return TypeValeur.Projet(it) }
-                    return TypeValeur.Jvm(chemin)
+                    return TypeValeur.Jvm(chemin, arguments)
                 }
             }
-            return TypeValeur.Jvm(nom)
+            return TypeValeur.Jvm(nom, arguments)
         }
 
         // Le PROJET d'abord (même nom simple, même package ou unique).
@@ -299,12 +328,49 @@ internal class UniversPreuves(
             val chemin = directive.nomQualifie() ?: continue
             if (chemin.substringAfterLast('.') != nom && directive.alias() != nom) continue
             modele.type(chemin)?.let { return TypeValeur.Projet(it) }
-            return TypeValeur.Jvm(chemin)
+            return TypeValeur.Jvm(chemin, arguments)
         }
 
         // Le catalogue KP8 : les types bien connus des paquets par défaut.
-        NOMS_FQCN_DEFAUT[nom]?.let { return TypeValeur.Jvm(it) }
+        NOMS_FQCN_DEFAUT[nom]?.let { return TypeValeur.Jvm(it, arguments) }
         return null
+    }
+
+    /**
+     * V-B — les ARGUMENTS DE TYPE écrits d'un type (`List<Client>` →
+     * `["Client"]`, `Map<String, List<Int>>` → `["String", "List<Int>"]`)
+     * : TEXTES ÉCRITS sans trivia, imbriqués tolérés par profondeur de
+     * chevrons, `*` et `out`/`in` conservés tels quels (jamais une
+     * inférence — les textes servent la substitution, D3 aux frontières).
+     */
+    private fun argumentsDeTypeEcrits(nomEcrit: String): List<String> {
+        val ouverture = nomEcrit.indexOf('<')
+        if (ouverture < 0 || !nomEcrit.endsWith(">")) return emptyList()
+        val corps = nomEcrit.substring(ouverture + 1, nomEcrit.length - 1)
+        val arguments = mutableListOf<String>()
+        val courant = StringBuilder()
+        var profondeur = 0
+        for (c in corps) {
+            when {
+                c == '<' -> {
+                    profondeur++
+                    courant.append(c)
+                }
+                c == '>' -> {
+                    if (profondeur == 0) return emptyList() // chevron déséquilibré : rien.
+                    profondeur--
+                    courant.append(c)
+                }
+                c == ',' && profondeur == 0 -> {
+                    arguments.add(courant.toString().trim())
+                    courant.setLength(0)
+                }
+                else -> courant.append(c)
+            }
+        }
+        if (profondeur != 0) return emptyList()
+        arguments.add(courant.toString().trim())
+        return arguments.filter { it.isNotEmpty() }
     }
 
     /**
@@ -481,7 +547,16 @@ internal class UniversPreuves(
     private fun recepteursExtension(fqcn: String): List<String> {
         val recepteurs = LinkedHashSet<String>()
         recepteurs.add(fqcn)
-        for (maillon in vueJvm?.chainesDe(MAPPES_JVM[fqcn] ?: fqcn).orEmpty()) {
+        // V-B — la chaîne se lit du nom MAPPÉ JVM (java.util.List → sa
+        // hiérarchie), du nom KOTLIN lui-même (kotlin.collections.List →
+        // les interfaces du stdlib) ET de la HIÉRARCHIE DES INTÉGRÉES
+        // (HIERARCHIE_BUILTINS — les facades sans class-file, D4) ; les
+        // maillons lus portent des noms JVM, le miroir KOTLIN des types
+        // mappés est consulté aussi.
+        val maillons = vueJvm?.chainesDe(MAPPES_JVM[fqcn] ?: fqcn).orEmpty() +
+            vueJvm?.chainesDe(fqcn).orEmpty() +
+            HIERARCHIE_BUILTINS[fqcn].orEmpty()
+        for (maillon in maillons) {
             recepteurs.add(maillon)
             MAPPES_JVM_INVERSE[maillon]?.let { recepteurs.add(it) }
         }
@@ -949,7 +1024,7 @@ internal class UniversPreuves(
             "ArrayDeque", "LazyThreadSafetyMode", "Charsets", "Comparator", "Result",
             // V-A — les types java.lang des usages machine (Runtime.halt,
             // AutoCloseable.use…).
-            "Runtime", "AutoCloseable", "ProcessBuilder", "Iterable",
+            "Runtime", "AutoCloseable", "ProcessBuilder", "Iterable", "Character",
             // kotlin.sequences / kotlin.annotation / kotlin.jvm.
             "Sequence", "Annotation", "Deprecated",
             // kotlin / kotlin.jvm — les ANNOTATIONS STANDARD (vague 2g :
@@ -1046,7 +1121,7 @@ internal class UniversPreuves(
             "LazyThreadSafetyMode" to "kotlin.LazyThreadSafetyMode",
             "Charsets" to "kotlin.text.Charsets", "Comparator" to "kotlin.Comparator",
             "Result" to "kotlin.Result",
-            "Runtime" to "java.lang.Runtime", "AutoCloseable" to "java.lang.AutoCloseable",
+            "Runtime" to "java.lang.Runtime", "AutoCloseable" to "java.lang.AutoCloseable", "Character" to "java.lang.Character",
             "ProcessBuilder" to "java.lang.ProcessBuilder", "Iterable" to "java.lang.Iterable",
             "Object" to "java.lang.Object", "Thread" to "java.lang.Thread",
             "Runnable" to "java.lang.Runnable", "Class" to "java.lang.Class",
@@ -1095,6 +1170,47 @@ internal class UniversPreuves(
          */
         internal val BUILTINS_PROPRIETES: Map<String, Map<String, String>> = mapOf(
             "java.util.Map" to mapOf("entrySet" to "entries", "keySet" to "keys", "values" to "values"),
+        )
+
+        /**
+         * V-B — la HIÉRARCHIE des COLLECTIONS INTÉGRÉES (ADR 0123 : la
+         * substitution des paramètres de type). Les interfaces
+         * `kotlin.collections.*` sont des FACADES DE COMPILATION sans
+         * class-file (D4 — `kotlin.kotlin_builtins` les porte, aucune
+         * entrée ne se lit) : la chaîne de supertypes se déclare ICI,
+         * figée par le langage (miroir des [BUILTINS_PROPRIETES] — même
+         * famille de constatations, fiche 038). Elle sert la recherche
+         * d'EXTENSIONS par récepteur (`Iterable<T>.map` atteint un
+         * récepteur `List<T>`).
+         */
+        internal val HIERARCHIE_BUILTINS: Map<String, List<String>> = mapOf(
+            "kotlin.collections.Iterable" to emptyList(),
+            "kotlin.collections.Collection" to listOf("kotlin.collections.Iterable"),
+            "kotlin.collections.MutableIterable" to listOf("kotlin.collections.Iterable"),
+            "kotlin.collections.MutableCollection" to listOf(
+                "kotlin.collections.Collection", "kotlin.collections.MutableIterable", "kotlin.collections.Iterable",
+            ),
+            "kotlin.collections.List" to listOf(
+                "kotlin.collections.Collection", "kotlin.collections.Iterable",
+            ),
+            "kotlin.collections.MutableList" to listOf(
+                "kotlin.collections.List", "kotlin.collections.Collection",
+                "kotlin.collections.MutableCollection", "kotlin.collections.MutableIterable",
+                "kotlin.collections.Iterable",
+            ),
+            "kotlin.collections.Set" to listOf("kotlin.collections.Collection", "kotlin.collections.Iterable"),
+            "kotlin.collections.MutableSet" to listOf(
+                "kotlin.collections.Set", "kotlin.collections.Collection",
+                "kotlin.collections.MutableCollection", "kotlin.collections.MutableIterable",
+                "kotlin.collections.Iterable",
+            ),
+            "kotlin.collections.Map" to emptyList(),
+            "kotlin.collections.MutableMap" to listOf("kotlin.collections.Map"),
+            "kotlin.collections.Sequence" to emptyList(),
+            "kotlin.String" to listOf("kotlin.Comparable", "kotlin.CharSequence"),
+            "kotlin.CharSequence" to emptyList(),
+            "kotlin.Comparable" to emptyList(),
+            "kotlin.Array" to emptyList(),
         )
 
         /**

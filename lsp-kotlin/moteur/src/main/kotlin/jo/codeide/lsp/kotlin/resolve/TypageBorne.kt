@@ -15,14 +15,27 @@ import org.jetbrains.kotlin.kmp.parser.KtNodeTypes
  * type du PROJET (modèle de symboles) ou un type de BIBLIOTHÈQUE connu par
  * son FQCN (classpath, mappé Kotlin) — le reste n'est pas typé (`null`,
  * sélecteur muet, D3).
+ *
+ * V-B (ADR 0123) — le type de bibliothèque porte les ARGUMENTS DE TYPE
+ * ÉCRITS (`List<Client>` → `Jvm("kotlin.collections.List", ["Client"])`)
+ * : la matière de la substitution des paramètres de type (l'attente des
+ * lambdas d'extension — `clients.map { it.nom }` type `it` par
+ * l'ÉLÉMENT). Les arguments restent des TEXTES ÉCRITS (jamais une
+ * inférence) — frontière versionnée [SPECIFICATION-TYPES.md](../SPECIFICATION-TYPES.md).
  */
 internal sealed class TypeValeur {
 
     /** Un type du PROJET (classe, interface, enum, objet — modèle 2a). */
     internal class Projet(internal val type: TypeProjet) : TypeValeur()
 
-    /** Un type de BIBLIOTHÈQUE (`kotlin.String`, `android.widget.TextView`). */
-    internal class Jvm(internal val fqcn: String) : TypeValeur()
+    /**
+     * Un type de BIBLIOTHÈQUE (`kotlin.String`, `android.widget.TextView`)
+     * — avec ses ARGUMENTS DE TYPE écrits le cas échéant (V-B).
+     */
+    internal class Jvm(
+        internal val fqcn: String,
+        internal val arguments: List<String> = emptyList(),
+    ) : TypeValeur()
 }
 
 /**
@@ -337,6 +350,26 @@ internal object TypageBorne {
                                 if (base != nom) continue
                                 if (carte == null || carte[propriete] == null) continue
                                 appliquerSiNonOmbre(carte, propriete, alors, position) ?: continue
+                                garde = Raffinement(typeNom = null, nonNul = true)
+                            }
+                        }
+                    }
+                    // V-B — la branche ELSE d'une IF-EXPRESSION `if (nom ==
+                    // null) a else …nom…` voit le nom NON NUL (la
+                    // négation de la condition) : garde STICKY.
+                    val sinon = ancetre.enfants.firstOrNull { it.genre == KtNodeTypes.ELSE }
+                    if (sinon != null && couvre(sinon, position) && garde == null) {
+                        val condition = ancetre.enfants
+                            .firstOrNull { it.genre == KtNodeTypes.CONDITION }
+                            ?.enfants?.firstOrNull()
+                        if (condition != null && condition.genre == KtNodeTypes.BINARY_EXPRESSION &&
+                            porteOperation(condition, KtTokens.EQEQ)
+                        ) {
+                            val sujets = condition.enfants.filter { it.genre == KtNodeTypes.REFERENCE_EXPRESSION }
+                            val nuls = condition.enfants.filter { it.genre == KtNodeTypes.NULL }
+                            if (sujets.size == 1 && nuls.isNotEmpty() &&
+                                sujets.single().texteCanonique == nom
+                            ) {
                                 garde = Raffinement(typeNom = null, nonNul = true)
                             }
                         }
@@ -847,12 +880,15 @@ internal object TypageBorne {
                 val appel = chaineAncetres(arbre.noeud, parent.debut)
                     .getOrNull(chaineAncetres(arbre.noeud, parent.debut).indexOf(parent) - 1)
                 if (appel?.genre == KtNodeTypes.CALL_EXPRESSION) {
-                    attenteDeLappel(appel, univers) ?: attenteSelecteurClasspath(appel, univers, liaison, pile)
+                    attenteDeLappel(appel, univers)
+                        ?: attenteSelecteurClasspath(appel, univers, liaison, pile)
+                        ?: attenteExtensionClasspath(appel, univers, liaison, pile)
                 } else {
                     null
                 }
             }
-            KtNodeTypes.VALUE_ARGUMENT -> attenteDeLargument(parent, univers)
+            KtNodeTypes.VALUE_ARGUMENT ->
+                attenteDeLargument(parent, univers) ?: attenteExtensionClasspathArgument(parent, univers, liaison, pile)
             KtNodeTypes.PROPERTY -> attenteDePropriete(parent)
             else -> null
         }
@@ -904,6 +940,140 @@ internal object TypageBorne {
             return attente.map { it.substringAfterLast('.') }
         }
         return null
+    }
+
+    /**
+     * V-B — l'attente d'une lambda passée à une EXTENSION du CLASSPATH
+     * (ADR 0123 : la substitution des paramètres de type) : le récepteur
+     * TYPAÉ portant des ARGUMENTS DE TYPE écrits (`List<Client>`) prête
+     * ses arguments au paramètre FONCTIONNEL de l'extension
+     * (`Iterable<T>.map(transform: (T) -> R)` — T ← Client) : `it` se
+     * type par l'ÉLÉMENT, ses sélecteurs se prouvent.
+     *
+     * La substitution est POSITIONNELLE et BORNÉE : seuls les paramètres
+     * de type à UNE lettre majuscule du type fonctionnel se substituent
+     * (le N-ième ← le N-ième argument du récepteur — `Map<K, V>.forEach
+     * {(K, V) -> …}` substitue K et V) ; tout autre texte reste tel quel
+     * (jamais une inférence — SPECIFICATION-TYPES.md).
+     *
+     * @param appel le CALL porteur (callee sans récepteur propre) ;
+     * @param univers l'univers des preuves ;
+     * @param liaison la liaison de la région ;
+     * @param pile la pile des this ;
+     * @return les types écrits attendus des paramètres de la lambda ;
+     * `null` sans extension candidate démontrable.
+     */
+    private fun attenteExtensionClasspath(
+        appel: NoeudArbre,
+        univers: UniversPreuves,
+        liaison: MarcheTypee.Liaison?,
+        pile: PileThis,
+    ): List<String>? {
+        val typeRecepteur = recepteurTypeDeLappel(appel, univers, liaison, pile) ?: return null
+        if (typeRecepteur !is TypeValeur.Jvm) return null
+        if (typeRecepteur.arguments.isEmpty()) return null
+        val nom = appel.enfants
+            .firstOrNull { it.genre == KtNodeTypes.REFERENCE_EXPRESSION }
+            ?.texteCanonique.orEmpty()
+        if (nom.isEmpty()) return null
+        val extensions = univers.extensionsApplicables(typeRecepteur.fqcn, nom)
+        for (extension in extensions) {
+            attenteDuParametreFonctionnel(extension.parametres.lastOrNull())?.let { parametres ->
+                val substitues = substituerParametresDeType(parametres, typeRecepteur.arguments)
+                if (substitues != parametres) return substitues
+            }
+        }
+        return null
+    }
+
+    /**
+     * V-B — l'attente d'une lambda en ARGUMENT PARENTHÉSÉ d'une extension
+     * du classpath (`clients.map({ it.nom })`) : le porteur qualifié se
+     * remonte depuis l'argument, miroir de [attenteExtensionClasspath].
+     */
+    private fun attenteExtensionClasspathArgument(
+        argument: NoeudArbre,
+        univers: UniversPreuves,
+        liaison: MarcheTypee.Liaison?,
+        pile: PileThis,
+    ): List<String>? {
+        val liste = chaineAncetres(univers.arbre.noeud, argument.debut)
+            .lastOrNull { it.genre == KtNodeTypes.VALUE_ARGUMENT_LIST } ?: return null
+        val appel = chaineAncetres(univers.arbre.noeud, liste.debut)
+            .lastOrNull { it.genre == KtNodeTypes.CALL_EXPRESSION } ?: return null
+        return attenteExtensionClasspath(appel, univers, liaison, pile)
+    }
+
+    /**
+     * V-B — le RÉCEPTEUR typé d'un appel qualifié (le porteur DOT/SAFE de
+     * l'appel) ; `null` pour un appel nu ou un récepteur non typable.
+     */
+    private fun recepteurTypeDeLappel(
+        appel: NoeudArbre,
+        univers: UniversPreuves,
+        liaison: MarcheTypee.Liaison?,
+        pile: PileThis,
+    ): TypeValeur? {
+        val chaine = chaineAncetres(univers.arbre.noeud, appel.debut)
+        val porteur = chaine.getOrNull(chaine.indexOf(appel) - 1) ?: return null
+        if (porteur.genre != KtNodeTypes.DOT_QUALIFIED_EXPRESSION &&
+            porteur.genre != KtNodeTypes.SAFE_ACCESS_EXPRESSION
+        ) {
+            return null
+        }
+        val recepteur = porteur.enfants.firstOrNull() ?: return null
+        val liaisonEffective = liaison
+            ?: MarcheTypee.Liaison(arbre = univers.arbre, univers = univers, region = null)
+        return typeDeLexpression(recepteur, univers, liaisonEffective, pile)
+    }
+
+    /**
+     * V-B — les paramètres du TYPE FONCTIONNEL écrit d'un paramètre
+     * d'appelable. Deux formes rendues :
+     *
+     * - la forme DÉCODEE du classpath — `Function1<T, R>` (le miroir JVM
+     *   du type fonctionnel : les N premiers arguments sont les
+     *   PARAMÈTRES, le dernier est le RETOUR — `Function2<K, V, Unit>`
+     *   rend `["K", "V"]`) ;
+     * - la forme ÉCRITE du projet — `(T) -> R`, `(K, V) -> Unit`.
+     *
+     * `null` si le type n'est pas fonctionnel ou illisible.
+     */
+    private fun attenteDuParametreFonctionnel(parametre: jo.codeide.lsp.kotlin.index.ParametreAppelable?): List<String>? {
+        val type = parametre?.type ?: return null
+        if (type.startsWith("Function") && type.contains('<') && type.endsWith('>')) {
+            val arguments = type.substringAfter('<').removeSuffix(">").split(',').map { it.trim() }
+            if (arguments.size < 2) return null
+            return arguments.dropLast(1).filter { it.isNotEmpty() }.ifEmpty { null }
+        }
+        if (!type.contains("->")) return null
+        val parametres = type.substringBefore("->")
+            .removePrefix("(")
+            .removeSuffix(")")
+            .split(",")
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+        if (parametres.isEmpty()) return null
+        return parametres
+    }
+
+    /**
+     * V-B — la SUBSTITUTION positionnelle : chaque paramètre de type à
+     * UNE lettre majuscule (le N-ième en ordre) ← le N-ième argument
+     * écrit du récepteur (`(T) -> R` + `List<Client>` → `["Client"]`).
+     * Les autres textes restent tels quels.
+     */
+    private fun substituerParametresDeType(parametres: List<String>, arguments: List<String>): List<String> {
+        var rang = 0
+        return parametres.map { parametre ->
+            if (parametre.length == 1 && parametre[0] in 'A'..'Z') {
+                val substitue = arguments.getOrNull(rang)
+                rang++
+                substitue ?: parametre
+            } else {
+                parametre
+            }
+        }
     }
 
     /**

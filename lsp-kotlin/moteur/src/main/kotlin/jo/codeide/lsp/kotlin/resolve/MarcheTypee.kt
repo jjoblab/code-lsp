@@ -197,10 +197,12 @@ internal object MarcheTypee {
         /**
          * Le nom ÉCRIT du type d'une référence — la NULLABILITÉ EST
          * CONSERVÉE (`String?` rend `String?` : c'est elle qui prouve
-         * `kt.unsafeNullable`, fiche 046) et les génériques sont DÉPOUILLÉS
-         * (`List<Int>?` rend `List?`) — les consommateurs tranchent
-         * ([UniversPreuves.resoudreTypeEcrit] dépouille, la passe typée
-         * regarde le `?`).
+         * `kt.unsafeNullable`, fiche 046) et les ARGUMENTS DE TYPE sont
+         * CONSERVÉS depuis la vague V-B (`List<Int>?` rend `List<Int>?` :
+         * [UniversPreuves.resoudreTypeEcrit] en extrait les arguments pour
+         * la substitution des paramètres de type — les consommateurs qui
+         * n'en veulent pas dépouillent par `substringBefore('<')`, la
+         * passe typée regarde le `?`).
          */
         private fun nomTypeEcritDeReference(reference: NoeudArbre): String? {
             val nullable = reference.enfants.any { it.genre == KtNodeTypes.NULLABLE_TYPE }
@@ -212,7 +214,7 @@ internal object MarcheTypee {
             val utilisateur = porteur.enfants.firstOrNull { it.genre == KtNodeTypes.USER_TYPE }
                 ?: porteur.takeIf { it.genre == KtNodeTypes.USER_TYPE }
                 ?: return null
-            val nom = utilisateur.texteCanonique.substringBefore('<')
+            val nom = utilisateur.texteCanonique
             if (nom.isEmpty()) return null
             return if (nullable) "$nom?" else nom
         }
