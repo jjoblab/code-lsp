@@ -449,6 +449,7 @@ c9f257d6c46d9eabf4d09090077654d86682fd8da845488d681e0982f299cf8a  socle/ecj-art/
 ca3d060edac2c0fffdcd6e0addc20d721b4e1a0f022fe351cc8d1479cce07487  lsp-kotlin/moteur/src/main/vendor/org/jetbrains/kotlin/kmp/parser/KDocParseNodes.kt
 ca3d060edac2c0fffdcd6e0addc20d721b4e1a0f022fe351cc8d1479cce07487  lsp-kotlin/spike/src/main/vendor/org/jetbrains/kotlin/kmp/parser/KDocParseNodes.kt
 cb8a728de18343ead1811fe14f0c9d4ae90d6ec85ff99e2b3d7d404f05a0ba46  lsp-java/spike/scripts/SondeJdk.kt
+cb9a31998652bd7e95d726b89fb30c48127ff7889b233a103d61fd097022527f  lsp-kotlin/moteur/src/bench/kotlin/jo/codeide/lsp/kotlin/banc/BancMesureAppareil.kt
 cc25df77e0236c02d22274b9bccc5d0f14d0db010219632ee88271777842c90a  lsp-java/moteur/src/main/kotlin/jo/codeide/lsp/java/gabarits/GabaritsVivants.kt
 cc525e469a3fabf680435576cb08967823b99d7051c47563a3e209f00f9cbebf  socle/model/src/test/kotlin/jo/codeide/lsp/model/FixturesClasspath.kt
 cd088291bc04e29d6fb9868cb393460c21d5dcd58c292493ab6b7a904f12c809  lsp-java/moteur/src/main/kotlin/jo/codeide/lsp/java/MoteurJava.kt
