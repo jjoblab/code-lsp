@@ -7,6 +7,44 @@
 > (`lsp-kotlin/docs/etudes/moteur-kotlin/`) et l'en-tête de version du module.
 > Format : **Ajouté / Modifié / Corrigé**.
 
+## V-A — vague « Fiabilité » du plan niveau Android Studio (12/11/2026)
+
+- **Corrigé — les HUIT familles de faux positifs mesurées (GK-002)** : la
+  P1 auto-corpus passe de **980 FP (28,05/1 000 l.) à 0 FP (0,000/1 000 l.
+  — mode strict VERT)** — gardes partagées noms nus ↔ chemins FQN
+  (`it.name`, `this.x`), chemins amorce connus (racines `jo`/`org` muettes),
+  catalogue KP8 élargi (imports implicites `kotlin.*` : IntArray,
+  ArrayDeque, LazyThreadSafetyMode, Charsets, Comparator…), paramètres de
+  type `T`, zone de construction de la clause super, récepteur d'extension
+  dans la pile des this, compagnons des supertypes à la clôture, supertype
+  délégué (`by`), cible gauche de `kt.valReassign` + définition garantie,
+  témoins d'arité (fonctions nichées, constructeurs secondaires), smart
+  casts étendus (when à sujet, elvis terminal, disjonction, while,
+  requireNotNull, accès sûr), extensions à récepteur nullable, références
+  appelables `x::m` vérifiées par sélecteur.
+- **Ajouté — SPI mémoire neutre** (GK-031, ADR 0117/0134) :
+  `NiveauMemoireKotlin` + `SessionLangageKotlin.reduireMemoire(niveau)` —
+  l'hôte traduit ses rappels `onTrimMemory` en niveaux neutres, la session
+  vidange ce qui se reconstruit (caches vue JVM dès FAIBLE, annuaires et
+  gels dès CRITIQUE) ; documents, époque et index persistants ne partent
+  jamais.
+- **Ajouté — budgets d'octets** (ADR 0117/0134) : les 7 caches de la vue
+  JVM portent chacun un plafond d'octets ESTIMÉS (512 KiB – 4 MiB) avec
+  vidange totale au plafond (`CacheBorneOctets`) + observabilité
+  (`occupationOctetsEstimee`).
+- **Ajouté — fraîcheur inter-fichiers par empreinte STAT** (GK-038, miroir
+  Java ADR 0025) : sonde throttlée (500 ms) au consult — un fichier
+  modifié hors éditeur déclenche la passe delta-only asynchrone ; le
+  consult suivant voit l'état frais.
+- **Modifié — complétion** : à préfixe VIDE, la source du catalogue KP8 se
+  borne à 80 types (ordre alphabétique déterministe) pour que le TÉMOIN
+  mots-clés du régime de repli (fiche 043) survive au plafond
+  d'affichage 120 malgré l'élargissement du catalogue ; à préfixe non
+  vide le catalogue reste intégral (banc de qualité re-signé VERT).
+- Suite : **542 tests verts** (534 + 6 mémoire + 2 fraîcheur) ; digeste de
+  parité re-signé (E-K9 consigné au journal V-A — le corpus EST le
+  module, les correctifs en modifient les sources).
+
 ## 1.13.0 — version unifiée par la fusion + PREMIÈRE PUBLICATION (03/11/2026, PUBLIÉE v1.13.0)
 
 - **Modifié** : la version du dépôt est unifiée à **1.13.0** par la fusion

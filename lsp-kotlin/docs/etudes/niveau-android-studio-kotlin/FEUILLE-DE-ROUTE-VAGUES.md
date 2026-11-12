@@ -1,0 +1,65 @@
+# FEUILLE DE ROUTE — Vagues du chantier « niveau Android Studio Kotlin »
+
+> Document VIVANT de pilotage des vagues V-A…V-I du plan
+> [`04-plan-vagues.md`](04-plan-vagues.md) — mis à jour à CHAQUE étape
+> terminée (engagement de la mission du 12/11/2026 : « toujours la feuille
+> de route pour chaque étape terminée »). Chaque vague livrée pointe vers
+> son [journal d'exécution](execution/) (miroir des journaux d'étages) ;
+> la CI reste l'arbitre (une tête n'est poussée que suite verte).
+>
+> **Point d'entrée du 12/11/2026** : la bascule (ADR 0136 étape A) et la
+> publication du pack (Q-K4) sont FAITES (`v1.13.0`, 03/11/2026) — les
+> vagues ci-dessous sont l'ÉTAPE B de l'ADR 0136 (capacités et fiabilité).
+
+## État des vagues
+
+| Vague | Intitulé | État | Journal | Preuves |
+|---|---|---|---|---|
+| V0 | Mesure (banc P1–P9) | **LIVRÉE** (mission du 31/10) | — | baseline FP 28,05/1000 l. consignée |
+| V-A | Fiabilité & bascule | **LIVRÉE** (12/11/2026) | [execution/V-A-fiabilite.md](execution/V-A-fiabilite.md) | P1 strict **FP=0** (0,000/1000 l.), 542/542 tests, bancs verts |
+| V-I1 | Capacités arbre (ADR 0136 B.2) | À FAIRE | — | — |
+| V-B | Typage palier 2 | À FAIRE | — | — |
+| V-C | Diagnostics élargis (gated) | À FAIRE | — | — |
+| V-D | Complétion smart/chain/DSL | À FAIRE | — | — |
+| V-I2 | Vague palier 2 protocole (ADR 0136 B.3) | À FAIRE | — | — |
+| V-E | Android réel | À FAIRE | — | — |
+| V-F | Actions & refactorings | À FAIRE | — | — |
+| V-G | Gradle KTS & catalogue | À FAIRE | — | — |
+| V-H | Palier profond | **SOUS ARBITRAGE** (le plan §2 la conditionne à une décision propriétaire — ADR 0124) | — | — |
+| V-I | Protocole, sémantique & usages à l'échelle | À FAIRE (pilotée par étapes V-I1/V-I2) | — | — |
+
+## Ordre d'exécution suivi
+
+```
+V0 mesure (LIVRÉE, 31/10)
+ └─ V-A fiabilité (LIVRÉE, 12/11) ── V-I1 capacités arbre ── V-B typage palier 2
+        │                                                        │
+        │                                                        ├─ V-C diagnostics élargis (gated)
+        │                                                        └─ V-D complétion smart/chain
+        │
+        └─ V-E Android réel ── V-G Gradle KTS
+                 │
+                 └─ V-F actions & refactorings ── V-I2 protocole palier 2
+                                              └─ V-H palier profond (SI arbitré)
+```
+
+L'ordre suit le plan §1 (V-A rend le moteur vrai et visible, V-B débloque
+V-C/V-D, V-E suit le modèle partagé) AMENDÉ par l'ADR 0136 acceptée : les
+CAPACITÉS D'ARBRE (linkedEditingRange, documentColor, onTypeFormatting)
+précèdent le palier 2 (séquencement « bascule d'abord, capacités ensuite »
+— étape B.2 avant B.3).
+
+## Règles de la mission (consignées)
+
+- **Commit + push après CHAQUE vague terminée** (décision propriétaire du
+  12/11/2026) ; le tag `v*` ne se pose QUE lorsque TOUTES les vagues sont
+  closes (il déclenche la publication Maven du pack).
+- La vérification `scripts/verifier-push.sh` (distant + identité +
+  utilisateur GitHub) précède CHAQUE push.
+- Les re-signatures de baselines (digeste de parité) se font par étape
+  dédiée avec la preuve d'équivalence consignée au journal de la vague
+  (piège P-1, écart E-K9).
+- La CI (10 jobs) reste l'arbitre : toute casse corrigée par commit
+  `fix(...)` minimal expliqué.
+- Les critères de sortie MESURABLES du plan §2 s'imposent à chaque vague ;
+- ce document est la **feuille de route** tenue à jour à chaque étape.

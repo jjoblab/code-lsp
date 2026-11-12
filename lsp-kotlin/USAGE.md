@@ -105,6 +105,27 @@ Deux modes, miroir du serveur Java (N8) :
 Configuration serveur : le comportement est piloté par le descripteur de
 pack ; aucune propriété système n'est requise en service.
 
+### 6.1 Pression mémoire — le SPI neutre (vague V-A, ADR 0117/0134)
+
+L'hôte qui reçoit les rappels mémoire de SA plateforme (`onTrimMemory`
+côté Android) les TRADUIT en niveaux neutres et appelle
+`session.reduireMemoire(niveau)` :
+
+| Rappel plateforme (Android) | Niveau neutre |
+|---|---|
+| `TRIM_MEMORY_UI_HIDDEN` | `NiveauMemoireKotlin.UI_MASQUEE` |
+| `TRIM_MEMORY_RUNNING_MODERATE/LOW`, `TRIM_MEMORY_BACKGROUND` | `NiveauMemoireKotlin.FAIBLE` |
+| `TRIM_MEMORY_RUNNING_CRITICAL`, `TRIM_MEMORY_MODERATE` | `NiveauMemoireKotlin.CRITIQUE` |
+| `TRIM_MEMORY_COMPLETE`, `onLowMemory` | `NiveauMemoireKotlin.URGENT` |
+
+La réponse est TOUJOURS sûre : les caches de lecture paresseuse du
+classpath se vidangent dès `FAIBLE` (chaque cache porte son plafond
+d'octets estimés — vidange totale au plafond), les annuaires de
+complétion et les gels de classement dès `CRITIQUE` ; les documents
+ouverts, l'époque copy-on-write et les index persistants ne partent
+JAMAIS — la justesse est intacte, seul le coût de relecture revient. Une
+session fermée ignore l'appel (no-op silencieux).
+
 ## 7. Procédure de bascule CodeIDE (ADR 0136 — AVANT toute extension)
 
 1. **Publier le pack** (Q-K4 — bloqueurs de licence P-K1/P-K2 levés le

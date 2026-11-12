@@ -63,7 +63,7 @@ fiches, 469 comportements** (extraction clean-room `codeide-lsp` @
 | Étude | Contenu |
 |---|---|
 | [`etudes/moteur-kotlin/`](etudes/moteur-kotlin/) | synthèse et décision (00) · inventaire de l'existant (00b) · architectures K1–K12 (01) · spike S0–S3 (02) · **journaux d'exécution des étages 0–6 et transverse T** (03–10) · décisions propriétaire post-clôture (11) · ALERTES · DEMANDES-INTERFACE |
-| [`etudes/niveau-android-studio-kotlin/`](etudes/niveau-android-studio-kotlin/) | audit du moteur (matrice capacité × moteur, KH1–KH16) · référence Android Studio · matrice d'écarts GK-001…GK-038 · plan par vagues V-A…V-I · fiches de comportement · protocole de captures · gabarit de mesure appareil · résultats de captures (lot E) |
+| [`etudes/niveau-android-studio-kotlin/`](etudes/niveau-android-studio-kotlin/) | audit du moteur (matrice capacité × moteur, KH1–KH16) · référence Android Studio · matrice d'écarts GK-001…GK-038 · plan par vagues V-A…V-I · **[FEUILLE DE ROUTE des vagues](etudes/niveau-android-studio-kotlin/FEUILLE-DE-ROUTE-VAGUES.md) (tenue à jour à chaque étape)** · **[journaux d'exécution des vagues](etudes/niveau-android-studio-kotlin/execution/)** (V-A livrée) · fiches de comportement · protocole de captures · gabarit de mesure appareil · résultats de captures (lot E) |
 
 ## Documents d'exploitation
 
