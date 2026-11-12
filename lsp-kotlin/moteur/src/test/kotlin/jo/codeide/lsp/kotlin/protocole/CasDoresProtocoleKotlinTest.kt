@@ -199,13 +199,33 @@ class CasDoresProtocoleKotlinTest {
         // Les NON ANNONCÉES (honnêtes — la matrice Kotlin : ❌) : les
         // cases restent VIDES dans le protocole (les requêtes restent
         // tolérantes, jamais d'annonce fantôme).
-        assertNull(capacites.semanticTokensProvider, "semanticTokens NON annoncée (dette D3 documentée)")
-        assertNull(capacites.codeLensProvider, "codeLens NON annoncé")
-        assertNull(capacites.callHierarchyProvider, "callHierarchy NON annoncée")
-        assertNull(capacites.typeHierarchyProvider, "typeHierarchy NON annoncée")
-        assertNull(capacites.colorProvider, "documentColor NON annoncé")
-        assertNull(capacites.documentOnTypeFormattingProvider, "onTypeFormatting NON annoncé")
-        assertNull(capacites.linkedEditingRangeProvider, "linkedEditingRange NON annoncée")
+        assertNull(capacites.semanticTokensProvider, "semanticTokens NON annoncée (dette D3 documentée — V-I2)")
+        assertNull(capacites.codeLensProvider, "codeLens NON annoncé (V-I2)")
+        assertNull(capacites.callHierarchyProvider, "callHierarchy NON annoncée (V-I2)")
+        assertNull(capacites.typeHierarchyProvider, "typeHierarchy NON annoncée (V-I2)")
+        // V-I1 (ADR 0136 étape B.2) — les CAPACITÉS ARBRE passent ANNONCÉES
+        // (annoncées ET servies — les tests CapacitesArbreKotlinTest).
+        assertEquals(
+            true,
+            capacites.linkedEditingRangeProvider.isLeft && capacites.linkedEditingRangeProvider.left,
+            "linkedEditingRange annoncée (V-I1)",
+        )
+        assertEquals(
+            true,
+            capacites.colorProvider.isLeft && capacites.colorProvider.left,
+            "documentColor annoncé (V-I1)",
+        )
+        assertNotNull(capacites.documentOnTypeFormattingProvider, "onTypeFormatting annoncé (V-I1)")
+        assertEquals(
+            "\n",
+            capacites.documentOnTypeFormattingProvider.firstTriggerCharacter,
+            "onTypeFormatting : déclencheur \\n exact",
+        )
+        assertEquals(
+            listOf("}"),
+            capacites.documentOnTypeFormattingProvider.moreTriggerCharacter,
+            "onTypeFormatting : déclencheur } exact",
+        )
     }
 
     // ── Époque copy-on-write (critère de sortie) ───────────────────────
