@@ -137,7 +137,12 @@ internal object DiagnosticsSemantiques {
                 enteteBrisee = false,
             )
         }
-        return diagnostics
+        // V-C — `@Suppress` SERVI (GK-021) : les annotations @Suppress des
+        // déclarations englobantes éteignent leurs codes dans leurs régions
+        // (le joker "*"/"all" couvre tout — miroir kotlinc).
+        return diagnostics.filterNot {
+            DiagnosticsElargis.supprimeA(univers, it.plage.debut, it.code.code)
+        }
     }
 
     /**
@@ -193,6 +198,7 @@ internal object DiagnosticsSemantiques {
         chemin: List<String>,
         nomsZone: Set<String>,
         enteteBrisee: Boolean,
+        suspendEnglobant: Boolean = false,
     ) {
         when (noeud.genre) {
             KtNodeTypes.CLASS, KtNodeTypes.OBJECT_DECLARATION -> {
@@ -242,6 +248,7 @@ internal object DiagnosticsSemantiques {
                             if (nom != null) chemin + nom else chemin,
                             zoneMembre,
                             !enteteSaine,
+                            suspendEnglobant,
                         )
                     }
                 }
@@ -251,7 +258,7 @@ internal object DiagnosticsSemantiques {
                 // si le sous-arbre est propre (les déclarations cassées ne
                 // diagnostiquent RIEN — leurs noms restent des gardes).
                 if (sousArbrePropre(noeud)) {
-                    visiterRegion(noeud, contextes, diagnostics, pile, nomsZone, enteteBrisee)
+                    visiterRegion(noeud, contextes, diagnostics, pile, nomsZone, enteteBrisee, suspendEnglobant)
                 }
             }
         }
@@ -306,6 +313,7 @@ internal object DiagnosticsSemantiques {
         pile: PileThis,
         nomsZone: Set<String>,
         enteteBrisee: Boolean,
+        suspendEnglobant: Boolean = false,
     ) {
         if (noeud.genre == KtNodeTypes.FUN) {
             verifierRetourManquant(noeud, diagnostics)
@@ -321,6 +329,9 @@ internal object DiagnosticsSemantiques {
         // La passe TYPÉE de la famille K4 (fiche 046 — vague 2b) : les cinq
         // familles sémantiques sur la région propre.
         DiagnosticsTypage.verifier(noeud, contextes.univers, liaison, diagnostics)
+        // V-C — les familles ÉLARGIES par décidabilité (ADR 0125 : le
+        // `when` non exhaustif, l'appel suspend hors contexte).
+        DiagnosticsElargis.verifier(noeud, contextes.univers, liaison, suspendEnglobant, diagnostics)
     }
 
     /**

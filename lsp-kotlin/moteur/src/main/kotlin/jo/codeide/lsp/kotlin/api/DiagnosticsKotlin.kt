@@ -97,6 +97,19 @@ public enum class CodeDiagnosticKotlin(public val code: String) {
      * restent muets (D3).
      */
     REAFFECTATION_VAL("kt.valReassign"),
+
+    /**
+     * `when` NON EXHAUSTIF (vague V-C — ADR 0125, famille sans inférence)
+     * : un `when` utilisé en EXPRESSION sur un sujet ENUM typé dont les
+     * entrées ne sont pas toutes couvertes et sans branche `else`.
+     */
+    WHEN_NON_EXHAUSTIF("kt.whenNonExhaustif"),
+
+    /**
+     * Appel SUSPEND hors contexte (vague V-C — ADR 0125) : l'appel d'une
+     * fonction `suspend` PROUVÉE du projet hors d'une fonction `suspend`.
+     */
+    SUSPEND_HORS_CONTEXTE("kt.suspendHorsContexte"),
 }
 
 /**

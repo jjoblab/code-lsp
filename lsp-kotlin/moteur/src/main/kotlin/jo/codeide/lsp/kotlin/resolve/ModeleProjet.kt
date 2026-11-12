@@ -259,6 +259,8 @@ internal class AppelableProjet(
     internal val uri: String,
     internal val parametres: List<ParametreProjet>,
     internal val estFonction: Boolean = true,
+    /** V-C — la fonction porte le modificateur `suspend` (preuve écrite, jamais inférée). */
+    internal val estSuspend: Boolean = false,
     internal val debutNom: Int = -1,
 )
 
@@ -545,6 +547,7 @@ internal class ModeleProjet private constructor(
                         nom, recepteur, typeRetourEcrit(noeud), paquet, uri,
                         parametresDeclares(noeud),
                         estFonction = true,
+                        estSuspend = porteurModificateurSuspend(noeud),
                         debutNom = debutNomDeclaration(noeud),
                     )
                     if (recepteur == null) appelables.add(appelable) else extensions.add(appelable)
@@ -702,6 +705,16 @@ internal class ModeleProjet private constructor(
                 type = type.avecSynthesesData(nbProprietesCtor)
             }
             return type
+        }
+
+        /**
+         * V-C — le nœud déclaration porte-t-il le modificateur `suspend`
+         * (la preuve ÉCRITE du contexte d'appel) ?
+         */
+        private fun porteurModificateurSuspend(noeud: NoeudArbre): Boolean {
+            return noeud.enfants
+                .filter { it.genre == KtNodeTypes.MODIFIER_LIST }
+                .any { liste -> liste.enfants.any { it.genre == KtTokens.SUSPEND_MODIFIER } }
         }
 
         /** Le nœud porte-t-il ce modificateur doux (MODIFIER_LIST comprise) ? */

@@ -194,6 +194,14 @@ internal object TypageBorne {
                         univers.modele.imbriquesDu(typeRecepteur.type.fqcn)
                             .firstOrNull { it.nomSimple == nomMembre }
                             ?.let { return TypeValeur.Projet(it) }
+                        // V-C — une ENTRÉE D'ENUM qualifiée (`Couleur.ROUGE`)
+                        // type l'ENUM lui-même (le sujet des `when` sur
+                        // valeur d'entrée).
+                        if (typeRecepteur.type.genre == GenreTypeProjet.ENUM &&
+                            nomMembre in typeRecepteur.type.entreesEnum
+                        ) {
+                            return TypeValeur.Projet(typeRecepteur.type)
+                        }
                         // Un membre DÉCLARÉ (le socle 2a), puis un membre
                         // HÉRITÉ de la clôture (vague 2c — `this.layoutInflater`
                         // type LayoutInflater par le descripteur du lien).
