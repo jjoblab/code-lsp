@@ -205,15 +205,39 @@ internal object CompletionNoms {
         val region = regionContenant(racine, deplacement) ?: return emptyList()
         val trouvees = mutableListOf<Triple<String, NaturePropositionKotlin, String?>>()
 
-        // Les paramètres de la fonction porteuse.
-        val listeParametres = region.enfants.firstOrNull { it.genre == KtNodeTypes.VALUE_PARAMETER_LIST }
+        // V-D — les paramètres des fonctions ENGLOBANTES : une propriété
+        // LOCALE est une région propre, mais la portée Kotlin garde les
+        // paramètres de la fonction porteuse visibles dans l'initialiseur
+        // (KC-01 T3 : `val principale: Ecran = |` propose les paramètres
+        // `accueil`/`titre` de la fonction). Les paramètres se lisent de
+        // la plus profonde fonction englobante (l'ombre interne gagne).
+        var fonctionPorteuse: NoeudArbre? = null
+        fun chercherFonction(noeud: NoeudArbre, dansRegion: Boolean) {
+            if (dansRegion && noeud.genre == KtNodeTypes.FUN) fonctionPorteuse = noeud
+            if (deplacement < noeud.debut || deplacement > noeud.fin) return
+            for (enfant in noeud.enfants) {
+                chercherFonction(enfant, dansRegion || noeud === region)
+            }
+        }
+        // La marche depuis la racine : la dernière FUN couvrant le caret
+        // (la plus profonde) gagne.
+        fun marcherFonctions(noeud: NoeudArbre) {
+            if (deplacement >= noeud.debut && deplacement <= noeud.fin && noeud.genre == KtNodeTypes.FUN) {
+                fonctionPorteuse = noeud
+            }
+            noeud.enfants.forEach(::marcherFonctions)
+        }
+        marcherFonctions(racine)
+        val porteuse = fonctionPorteuse
+        val listeParametres = porteuse?.enfants?.firstOrNull { it.genre == KtNodeTypes.VALUE_PARAMETER_LIST }
         for (parametre in listeParametres?.enfants.orEmpty()) {
             if (parametre.genre != KtNodeTypes.VALUE_PARAMETER) continue
             val nom = nomDeDeclaration(parametre) ?: continue
             trouvees.add(Triple(nom, NaturePropositionKotlin.PARAMETRE, typeEcritDe(parametre)))
         }
 
-        // Les propriétés locales déclarées avant le caret.
+        // Les propriétés locales déclarées avant le caret (dans la région
+        // OU dans la fonction porteuse — la portée de frappe).
         fun marcher(noeud: NoeudArbre) {
             if (noeud.genre == KtNodeTypes.PROPERTY && noeud.fin <= deplacement) {
                 nomDeDeclaration(noeud)?.let { nom ->
@@ -222,7 +246,7 @@ internal object CompletionNoms {
             }
             noeud.enfants.forEach(::marcher)
         }
-        marcher(region)
+        if (porteuse != null) marcher(porteuse) else marcher(region)
         return trouvees
     }
 

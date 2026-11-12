@@ -112,6 +112,15 @@ public enum class GenreContexteKotlin {
      */
     ATTRIBUTS_ANNOTATION,
 
+    /**
+     * Membres OUVRABLES des supertypes (V-D — KC-05, ADR 0126) : le caret
+     * vit juste après `override fun `/`override val `/`override var ` dans
+     * le corps d'une classe qui déclare des supertypes — les membres
+     * ouvrables (abstraits ou `open`) non déjà surchargés, les ABSTRAITS
+     * devant les OUVERTS (déclassement par le contexte de classement).
+     */
+    OVERRIDE,
+
     /** Contexte non classé (repli honnête : liste vide). */
     INCONNU,
 }

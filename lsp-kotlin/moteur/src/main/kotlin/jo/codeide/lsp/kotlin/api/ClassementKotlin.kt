@@ -117,13 +117,27 @@ public object CorrespondanceGradueeKotlin {
  * peseurs ont besoin — le genre du contexte au caret et le préfixe
  * frappé.
  *
+ * V-D (ADR 0126) y ajoute les données du classement SMART, toutes
+ * OPTIONNELLES (vides = la chaîne standard, inchangée) :
+ *
  * @property genre le genre du contexte (les priorités de nature en
  * dépendent) ;
- * @property prefixe le préfixe frappé (éventuellement vide).
+ * @property prefixe le préfixe frappé (éventuellement vide) ;
+ * @property typesAttendus les noms ÉCRITS (simples ou FQCN) des types
+ * attendus DÉMONTRABLES au caret (KC-01 : argument d'appel typé, `return`
+ * de fonction typée, initialisateur typé, branche d'`if`/`when`
+ * expression) — vide sans preuve (le tri ne s'applique alors JAMAIS,
+ * T6 : jamais de tri mensonger) ;
+ * @property libellesDeclasses les libellés DÉCLASSÉS en fin de liste
+ * (KC-04 W1 : les constantes DÉJÀ CITÉES d'un `when` ; KC-05 O1 : les
+ * membres OUVERTS derrière les ABSTRAITS) — ils restent proposés,
+ * jamais cachés.
  */
 public class ContexteClassementKotlin(
     public val genre: GenreContexteKotlin,
     public val prefixe: String,
+    public val typesAttendus: Set<String> = emptySet(),
+    public val libellesDeclasses: Set<String> = emptySet(),
 )
 
 /**
@@ -177,12 +191,19 @@ public class ChaineClassementKotlin(
     /**
      * La chaîne STANDARD de l'étage 3.
      *
+     * V-D (ADR 0126) : le peseur SMART de type attendu s'insère EN SECOND —
+     * la correspondance du préfixe reste dominante, le type attendu décide
+     * À ÉGALITÉ de correspondance (la frappe reste le premier signal).
+     * Sans types attendus ni déclassés dans le contexte, le peseur se TAIT
+     * (poids constant) : la chaîne est alors l'ancienne à l'identique.
+     *
      * @param statistiques le compteur d'usage local (`null` = statistiques
      *   désactivées — le défaut, opt-in côté hôte).
      */
     public constructor(statistiques: CompteurUsageKotlin? = null) : this(
         listOfNotNull(
             PeseurCorrespondanceKotlin(),
+            PeseurTypeAttenduKotlin(),
             PeseurNatureKotlin(),
             PeseurLongueurKotlin(),
             PeseurAlphabetiqueKotlin(),
@@ -273,6 +294,64 @@ public class PeseurCorrespondanceKotlin : PeseurKotlin {
 }
 
 /**
+ * Le peseur SMART de type attendu (V-D — KC-01, ADR 0126) : les
+ * propositions dont le TYPE DE PRESENTATION correspond à un type attendu
+ * DÉMONTRABLE remontent d'une dimension ENTIÈRE — les autres restent
+ * visibles mais descendent (le tri ne CACHE jamais, T6).
+ *
+ * La correspondance se lit sur le DÉTAIL de présentation quand il porte
+ * un type écrit (le type d'une propriété `Ecran`, le retour d'une
+ * fonction `creer(): Ecran`, le FQCN d'un type du classpath
+ * `android.widget.TextView`) ou sur le FQCN d'import : le nom SIMPLE
+ * (dernier segment du FQCN) suffit — deux écritures du MÊME type
+ * (`Ecran` et `com.ex.Ecran`) doivent correspondre.
+ *
+ * Le peseur se TAIT (poids 1 pour tous) sans types attendus : la liste
+ * reste dans l'ordre de la chaîne standard — jamais de tri mensonger
+ * (KC-01 T6 : la position sans preuve ne réordonne RIEN).
+ *
+ * Les LIBELLÉS DÉCLASSÉS (KC-04 W1 : constantes déjà citées d'un `when`
+ * ; KC-05 O1 : membres ouverts derrière les abstraits) descendent d'une
+ * dimension : ils précèdent néanmoins les hors-attente de même détail
+ * (déclassement = +1, hors-attente = +2).
+ */
+public class PeseurTypeAttenduKotlin : PeseurKotlin {
+    override val nom: String = "typeAttendu"
+
+    override fun poids(proposition: PropositionKotlin, contexte: ContexteClassementKotlin): Comparable<*> {
+        if (contexte.typesAttendus.isEmpty() && contexte.libellesDeclasses.isEmpty()) return 1
+        if (proposition.libelle in contexte.libellesDeclasses) return 2
+        if (contexte.typesAttendus.isEmpty()) return 1
+        return if (correspond(proposition, contexte.typesAttendus)) 0 else 1
+    }
+
+    /**
+     * La proposition correspond-elle à l'un des types attendus : le
+     * DÉTAIL de présentation (type écrit, retour de signature, FQCN) ou
+     * le FQCN d'import porte le nom SIMPLE attendu.
+     *
+     * @param proposition la proposition évaluée ;
+     * @param typesAttendus les noms écrits (simples ou FQCN) attendus ;
+     * @return `true` si un nom attendu vit dans le détail de la proposition.
+     */
+    private fun correspond(proposition: PropositionKotlin, typesAttendus: Set<String>): Boolean {
+        val attendus = typesAttendus.map { it.substringAfterLast('.') }
+        val candidats = sequenceOf(proposition.detail, proposition.fqcnImport)
+            .filterNotNull()
+            .flatMap { detail -> sequenceOf(detail.substringBefore('('), detail) }
+            .flatMap { ecrit ->
+                // Le type écrit (`Ecran`), le retour de signature
+                // (`creer(): Ecran` → `Ecran`), le FQCN (`com.ex.Ecran`).
+                sequenceOf(ecrit.substringAfterLast(')').trim(), ecrit.substringAfterLast('.'))
+            }
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .toList()
+        return attendus.any { it in candidats }
+    }
+}
+
+/**
  * Le peseur de NATURE : la priorité par nature, DÉPENDANTE du contexte
  * (en contexte d'import les paquets dominent les types ; en membre les
  * propriétés dominent les fonctions ; en nom les locales dominent tout).
@@ -319,6 +398,16 @@ public class PeseurNatureKotlin : PeseurKotlin {
             when (nature) {
                 NaturePropositionKotlin.PROPRIETE -> 0
                 else -> 1
+            }
+
+        GenreContexteKotlin.OVERRIDE ->
+            when (nature) {
+                // KC-05 O1 : les abstraits devant les ouverts — le
+                // déclassement des OUVERTS relève du pipeline (libellés
+                // déclassés), la nature FONCTION reste le genre des deux.
+                NaturePropositionKotlin.FONCTION -> 0
+                NaturePropositionKotlin.PROPRIETE -> 1
+                else -> 2
             }
 
         else -> // NOM, INCONNU

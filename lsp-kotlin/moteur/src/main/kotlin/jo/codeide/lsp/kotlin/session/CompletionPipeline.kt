@@ -95,23 +95,68 @@ internal object CompletionPipeline {
         // d'arguments d'un appel membre est une position d'ARGUMENT).
         val genreEffectif: GenreContexteKotlin
         val candidats: List<PropositionKotlin>
+        // V-D — les données SMART du caret : types attendus démontables
+        // (KC-01) et constantes déjà citées d'un `when` (KC-04 W1) ; les
+        // chaînes d'extensions (KC-02) se sondent au régime MEMBRE.
+        val typesAttendus: Set<String>
+        val citeesDuQuand: Set<String>
+        var ouvertsOverride: Set<String> = emptySet()
         if (contexte.genre == GenreContexteKotlin.IMPORT) {
             genreEffectif = GenreContexteKotlin.IMPORT
             candidats = CompletionImports.collecter(contexte.cheminImport.orEmpty(), vueJvm)
+            typesAttendus = emptySet()
+            citeesDuQuand = emptySet()
         } else {
             val univers = univers()
             val region = regionContenant(arbre.noeud, deplacement)
             val liaison = MarcheTypee.Liaison(arbre = arbre, univers = univers, region = region)
             val pile = jo.codeide.lsp.kotlin.resolve.Couches.aPosition(arbre, univers, liaison, deplacement)
+            typesAttendus = CompletionSmart.typesAttendus(arbre, univers, liaison, deplacement)
+            citeesDuQuand = CompletionSmart.citeesDuQuand(arbre, deplacement)
             val contextuel = CompletionContextuelle.argumentsNommes(arbre, univers, liaison, pile, deplacement)
                 ?: CompletionContextuelle.constantesEnum(arbre, univers, liaison, pile, deplacement)
                 ?: CompletionContextuelle.attributsAnnotation(arbre, univers, deplacement)
-            if (contextuel != null) {
+            val override = CompletionSmart.overrideAuPoint(arbre, univers, liaison, deplacement)
+            if (override != null) {
+                // V-D — KC-05 : les membres OUVRABLES des supertypes
+                // après `override fun|val|var ` (le contexte EXCLUSIF :
+                // les abstraits devant les ouverts par le contexte de
+                // classement, libellés déclassés).
+                genreEffectif = override.genre
+                candidats = override.propositions
+                ouvertsOverride = override.ouverts
+            } else if (contextuel != null) {
                 genreEffectif = contextuel.genre
-                candidats = contextuel.propositions
+                candidats = if (contextuel.genre == GenreContexteKotlin.ARGUMENTS_NOMMES) {
+                    // V-D — KC-01 T1 (amendement de la fiche 043 consigné
+                    // dans la fiche de comportement) : la position
+                    // d'argument D'UN APPEL TYPOGRAPHIQUE propose les
+                    // arguments nommés ET les expressions de la portée
+                    // (le type attendu du paramètre ordonne — jamais
+                    // l'exclusivité muette) ; les contextes CONSTANTES_ENUM
+                    // et ATTRIBUTS_ANNOTATION restent EXCLUSIFS.
+                    contextuel.propositions + CompletionNoms.collecter(
+                        arbre = arbre,
+                        univers = univers,
+                        liaison = liaison,
+                        pile = pile,
+                        deplacement = deplacement,
+                        index = index,
+                        vueJvm = vueJvm,
+                    )
+                } else {
+                    contextuel.propositions
+                }
             } else if (contexte.genre == GenreContexteKotlin.MEMBRE) {
                 genreEffectif = GenreContexteKotlin.MEMBRE
-                candidats = CompletionMembres.collecter(arbre, univers, liaison, deplacement)
+                candidats = CompletionMembres.collecter(arbre, univers, liaison, deplacement) +
+                    // V-D — KC-02 : les CHAÎNES D'EXTENSIONS applicables
+                    // du récepteur typé atteignant le type attendu
+                    // (profondeur ≤ 2) se proposent EN PLUS des membres —
+                    // la passe se tait sans preuve complète (E4).
+                    CompletionSmart.chainesExtensions(
+                        arbre, univers, liaison, pile, deplacement, typesAttendus,
+                    )
             } else {
                 genreEffectif = GenreContexteKotlin.NOM
                 candidats = CompletionNoms.collecter(
@@ -136,10 +181,23 @@ internal object CompletionPipeline {
         } else {
             ArrangementListeKotlin.LIMITE_AFFICHAGE
         }
+        // V-D — KC-05 : les membres OUVERTS se déclassent derrière les
+        // ABSTRAITS du contexte OVERRIDE (O1 : « les abstraits devant les
+        // ouverts ») ; les citées du `when` (KC-04 W1) se déclassent
+        // pareillement — jamais cachées.
+        val libellesDeclasses = citeesDuQuand + ouvertsOverride
         val arrangees = arrangement.arranger(
             cleContexte = cleContexte(uri, genreEffectif, arbre.noeud, deplacement),
             candidates = candidats,
-            contexte = ContexteClassementKotlin(genre = genreEffectif, prefixe = contexte.prefixe),
+            contexte = ContexteClassementKotlin(
+                genre = genreEffectif,
+                prefixe = contexte.prefixe,
+                // V-D — le classement SMART : les types attendus
+                // démontables ordonnent (KC-01), les libellés déclassés
+                // descendent (KC-04 W1 : citées du `when`).
+                typesAttendus = typesAttendus,
+                libellesDeclasses = libellesDeclasses,
+            ),
             limite = limite,
         )
         return ReponseCompletionKotlin(
@@ -186,9 +244,7 @@ internal object CompletionPipeline {
         KtNodeTypes.FUN,
         KtNodeTypes.PROPERTY,
         KtNodeTypes.IMPORT_DIRECTIVE,
-    )
-
-    /**
+    )    /**
      * La RÉGION contenant le point : la plus profonde déclaration de
      * fonction ou de propriété (les paramètres et locales y vivent — le
      * miroir des régions propres de la passe de diagnostics).
