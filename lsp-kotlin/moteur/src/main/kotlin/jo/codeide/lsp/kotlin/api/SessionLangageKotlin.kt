@@ -647,6 +647,25 @@ public interface SessionLangageKotlin : AutoCloseable {
     public fun definirClasspath(classpath: ClasspathKotlin)
 
     /**
+     * Réduit l'empreinte mémoire de la session (vague V-A — ADR 0117/0134 :
+     * l'observateur `onTrimMemory` branché par l'hôte). L'hôte traduit les
+     * rappels de sa plateforme en [niveau] NEUTRE (le moteur ne connaît pas
+     * Android) et la session VIDANGE ce qui se RECONSTRUIT : les caches de
+     * lecture paresseuse du classpath dès [NiveauMemoireKotlin.FAIBLE], les
+     * annuaires de complétion et les gels de classement dès
+     * [NiveauMemoireKotlin.CRITIQUE].
+     *
+     * Ce qui NE PART JAMAIS : les documents ouverts (l'état des requêtes),
+     * l'époque copy-on-write et les index persistants — la justesse est
+     * INTACTE, seul le coût de relecture revient.
+     *
+     * @param niveau la pression mémoire traduite par l'hôte ;
+     * @throws kotlin.Exception JAMAIS — une session fermée ignore
+     * silencieusement la réduction (no-op honnête).
+     */
+    public fun reduireMemoire(niveau: NiveauMemoireKotlin)
+
+    /**
      * Abandonne TOUT (documents, classpath, scan) : les mutations et requêtes
      * postérieures sont des no-ops silencieux (fiche 049 — comportement
      * `fermeture---tout-abandonne,-mutations-posterieures-no-ops`).
