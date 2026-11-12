@@ -407,5 +407,5 @@ plugins {
 // la tempête, péremption honnête, arrêt propre). §7.29, ADR 0010 à jour,
 // PV mesures/2026-11-02-vh-repartition.txt.
 allprojects {
-    version = "1.13.0"
+    version = "1.14.0"
 }

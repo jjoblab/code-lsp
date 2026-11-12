@@ -7,6 +7,47 @@
 > (`lsp-kotlin/docs/etudes/moteur-kotlin/`) et l'en-tête de version du module.
 > Format : **Ajouté / Modifié / Corrigé**.
 
+## 1.14.0 — le plan « niveau Android Studio » COMPLET : vagues V-A → V-H (12/11/2026, PUBLIÉE v1.14.0)
+
+- **Ajouté — V-I1/V-I2 : le protocole étendu** (ADR 0136 B.2/B.3) : les
+  capacités ARBRE (`linkedEditingRange`, `documentColor`,
+  `onTypeFormatting`) puis PALIER 2 : `semanticTokens/full` BORNÉ KH1
+  (légende contractuelle — jamais la variance), `typeHierarchy`
+  (supertypes écrits, sous-types par FQCN), `callHierarchy`
+  (entrants/sortants de premier niveau), `codeLens` (occurrences
+  documentaires bornées) — matrice **26 annoncées / 0 absentes**,
+  jamais annoncée sans être servie.
+- **Ajouté — V-D : la complétion smart** (ADR 0126, KC-01/02/04/05) : le
+  peseur de TYPE ATTENDU (argument, return, initialisateur, branche
+  d'if/when), les CHAÎNES d'extensions applicables (profondeur ≤ 2), les
+  constantes DÉJÀ CITÉES d'un `when` déclassées, le contexte OVERRIDE
+  (abstraits devant ouverts, signature complète à l'insertion).
+- **Ajouté — V-F : actions de source et refactoring** (ADR 0131,
+  KC-10/KC-11) : `source.organizeImports` (tri stable idempotent, retrait
+  des inutilisés PROUVÉS lexicalement, alias/jokers conservés, doublons
+  fusionnés), `refactor.extract` variable bornée (intra-fonction), kinds
+  LSP exacts, `codeAction/resolve` identité — cycle P5 ×2.
+- **Ajouté — V-G : Gradle KTS & catalogue de versions** (ADR 0130) :
+  parseur TOML tolérant, accesseurs `libs.…` par lecture disque SANS
+  sync (G4), navigation kts → entrée du catalogue (G5), diagnostic borné
+  `kt.cleCatalogueInconnue` (G6) — jamais un appel réseau.
+- **Ajouté — V-E : Android réel** (ADR 0127/0128/0129) : le scan DÉDIÉ
+  post-build des racines `build/generated` (levée de H2, priorité
+  « généré réel > light », coupure des synthétiques, convention
+  `estNomGenere` BORNÉE PAR PREUVE), les plugins déclaratifs
+  (`@Composable`/`suspend` au survol, Parcelize : supertype
+  `Parcelable` INJECTÉ), le namespace du `build.gradle.kts` PRIME le
+  paquet du manifest (AGP ≥ 8).
+- **Ajouté — V-H : le mode profond K2 optionnel** (ADR 0124 option 2,
+  germe) : `ModeProfondK2` derrière drapeau DÉSACTIVÉ par défaut —
+  l'oracle du banc en service optionnel, provenance `palier 3`
+  étiquetée (ADR 0122), repli palier 1/2 immédiat, échec du processus
+  déporté = repli silencieux ; le verdict final (mesures moto g06 +
+  Q-K7) reste au propriétaire.
+- **Validation** : 613 tests / 0 échec (577 → 613 sur la mission) ;
+  re-signatures du digeste de parité à chaque vague (E-K9 consigné) ;
+  CI 10 jobs inchangée.
+
 ## V-A — vague « Fiabilité » du plan niveau Android Studio (12/11/2026)
 
 - **Corrigé — les HUIT familles de faux positifs mesurées (GK-002)** : la
