@@ -172,6 +172,20 @@ internal object HierarchiesEtLens {
                                 genre = resolu.type.genre.toString(),
                             ),
                         )
+                    } else {
+                        // V-E : le type PROJET est RÉSOLU mais sa DÉCLARATION
+                        // vit hors du document courant (document frère ouvert
+                        // ou fichier du scan) — l'item est servie au nom
+                        // simple avec uri VIDE (affichage honnête, navigation
+                        // inter-document hors périmètre borné de la vague).
+                        items.add(
+                            ItemHierarchieKotlin(
+                                nom = resolu.type.nomSimple,
+                                uri = "",
+                                plage = PlageTexte(0, 0),
+                                genre = resolu.type.genre.toString(),
+                            ),
+                        )
                     }
                 }
                 is TypeValeur.Jvm -> {

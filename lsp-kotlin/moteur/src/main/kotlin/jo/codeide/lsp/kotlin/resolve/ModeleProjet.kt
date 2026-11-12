@@ -261,6 +261,13 @@ internal class AppelableProjet(
     internal val estFonction: Boolean = true,
     /** V-C — la fonction porte le modificateur `suspend` (preuve écrite, jamais inférée). */
     internal val estSuspend: Boolean = false,
+    /**
+     * V-E3 (ADR 0128 palier 1) — les FQCN des ANNOTATIONS ÉCRITES de la
+     * déclaration (`@Composable` → `androidx.compose.runtime.Composable`
+     * par IMPORT EXACT — miroir de la preuve des previews, jamais par
+     * homonymie de nom simple) ; liste vide = aucune.
+     */
+    internal val annotationsFqcn: List<String> = emptyList(),
     internal val debutNom: Int = -1,
 )
 
@@ -548,6 +555,7 @@ internal class ModeleProjet private constructor(
                         parametresDeclares(noeud),
                         estFonction = true,
                         estSuspend = porteurModificateurSuspend(noeud),
+                        annotationsFqcn = annotationsEcrites(noeud),
                         debutNom = debutNomDeclaration(noeud),
                     )
                     if (recepteur == null) appelables.add(appelable) else extensions.add(appelable)
@@ -690,7 +698,17 @@ internal class ModeleProjet private constructor(
                 },
                 nomSimple = nom,
                 genre = genre,
-                supertypesEcrits = supertypesEcrits(noeud),
+                // V-E3 (ADR 0127 : plugins de compilateur DÉCLARATIFS) —
+                // Parcelize : le plugin GÉNÈRE l'implémentation de
+                // `android.os.Parcelable` — la modélisation déclarative
+                // INJECTE le supertype à la clause écrite (une classe
+                // @Parcelize EST un Parcelable, même sans l'écrire).
+                supertypesEcrits = supertypesEcrits(noeud) +
+                    if (annotationsEcrites(noeud).any { it.endsWith("Parcelize") }) {
+                        listOf("android.os.Parcelable")
+                    } else {
+                        emptyList()
+                    },
                 membres = membres,
                 estData = estData,
                 entreesEnum = entrees,
@@ -715,6 +733,24 @@ internal class ModeleProjet private constructor(
             return noeud.enfants
                 .filter { it.genre == KtNodeTypes.MODIFIER_LIST }
                 .any { liste -> liste.enfants.any { it.genre == KtTokens.SUSPEND_MODIFIER } }
+        }
+
+        /**
+         * V-E3 (ADR 0128 palier 1) — les FQCN des ANNOTATIONS ÉCRITES d'une
+         * déclaration : chaque usage `@Nom` de sa MODIFIER_LIST, résolu par
+         * IMPORT EXACT du fichier porteur (`@Composable` importé de
+         * `androidx.compose.runtime` → le FQCN complet — jamais par
+         * homonymie de nom simple : un `@Composable` d'un autre paquet
+         * n'est pas le plugin Compose).
+         */
+        private fun annotationsEcrites(noeud: NoeudArbre): List<String> {
+            val usages = noeud.enfants
+                .filter { it.genre == KtNodeTypes.MODIFIER_LIST }
+                .flatMap { liste -> liste.enfants }
+                .filter { it.genre == KtNodeTypes.ANNOTATION_ENTRY }
+                .mapNotNull { entree -> entree.texteCanonique.removePrefix("@").substringBefore('(').trim().ifEmpty { null } }
+            if (usages.isEmpty()) return emptyList()
+            return usages
         }
 
         /** Le nœud porte-t-il ce modificateur doux (MODIFIER_LIST comprise) ? */

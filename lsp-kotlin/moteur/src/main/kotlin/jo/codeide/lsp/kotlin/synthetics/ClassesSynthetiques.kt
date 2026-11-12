@@ -140,11 +140,47 @@ internal class ClassesSynthetiques {
             val srcMain = srcMainDe(racine) ?: continue
             val res = File(srcMain, "res").takeIf { it.isDirectory } ?: continue
             val manifest = File(srcMain, "AndroidManifest.xml").takeIf { it.isFile } ?: continue
-            val paquet = AnalyseRessourcesAndroid.paquetDuManifest(manifest) ?: continue
+            // V-E1 (ADR 0127 : `:model` v2 — le champ namespace du build
+            // PRIME le paquet du manifest) : le `build.gradle.kts` FRÈRE du
+            // `src/main` porte `namespace = "…"` (AGP ≥ 8 — la convention
+            // du dérivateur disque Java 0020) ; sans namespace, le paquet
+            // du manifest reste la source (AGP < 8).
+            val paquet = namespaceDuBuild(srcMain)
+                ?: AnalyseRessourcesAndroid.paquetDuManifest(manifest)
+                ?: continue
             if (!paquetsVus.add(paquet)) continue
             groupes += groupesDuPaquet(paquet, res)
         }
         return groupes
+    }
+
+    /**
+     * V-E1 — le NAMESPACE écrit du `build.gradle.kts` FRÈRE du `src/main`
+     * (ADR 0127 : le champ namespace du modèle v2 — lecture bornée du
+     * dérivateur disque, `namespace = "…"` ou `namespace "…"`). Un fichier
+     * illisible ou sans namespace rend `null` (le manifest reprend).
+     */
+    private fun namespaceDuBuild(srcMain: File): String? {
+        // srcMain = "<module>/src/main" : le MODULE est le PARENT du parent
+        // ("<module>/src" → "<module>") — le build.gradle.kts vit à sa racine.
+        val module = srcMain.parentFile?.parentFile ?: return null
+        val builds = listOf(
+            File(module, "build.gradle.kts"),
+            File(module, "build.gradle"),
+        )
+        for (build in builds) {
+            if (!build.isFile) continue
+            val texte =
+                try {
+                    build.readText()
+                } catch (_: Exception) {
+                    continue
+                }
+            val namespace = Regex("namespace\\s*[=\\s]*\"([^\"]+)\"")
+                .find(texte)?.groupValues?.getOrNull(1)
+            if (!namespace.isNullOrEmpty()) return namespace
+        }
+        return null
     }
 
     /**

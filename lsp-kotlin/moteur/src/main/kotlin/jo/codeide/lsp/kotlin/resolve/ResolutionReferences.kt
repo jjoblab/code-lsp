@@ -128,6 +128,13 @@ internal class UniversPreuves(
      * @return le maillon résolu (projet ou bibliothèque) ; `null` sinon.
      */
     internal fun supertypeResolu(nomEcrit: String): TypeValeur? {
+        // 0. V-E — le nom écrit peut être un FQCN COMPLET (le supertype
+        // INJECTÉ `android.os.Parcelable` de Parcelize, ou une clause
+        // écrite qualifiée) : le modèle le porte par type(fqcn).
+        if ('.' in nomEcrit) {
+            modele.type(nomEcrit)?.let { return TypeValeur.Projet(it) }
+            return TypeValeur.Jvm(nomEcrit)
+        }
         // 1. Le modèle du projet (package courant d'abord, unique ensuite).
         modele.typeParNomSimple(nomEcrit, paquet)?.let { return TypeValeur.Projet(it) }
 
@@ -250,8 +257,16 @@ internal class UniversPreuves(
         //    classes KSP/Hilt (`Hilt_` préfixé), Room (`_Impl` suffixé)
         //    et DataBinding (`BindingImpl` suffixé) y vivent : leurs
         //    sources sont invisibles PAR CONCEPTION, leur absence n'est
-        //    JAMAIS prouvable).
-        if (estNomGenere(nom)) return Verdict.MUET
+        //    JAMAIS prouvable.
+        //    V-E2 (ADR 0127 : levée de H2, miroir Java 0021 R1) : la
+        //    convention est BORNÉE PAR PREUVE — le scan DÉDIÉ post-build
+        //    LIT `build/generated` : un nom généré dont la SOURCE est
+        //    LUE (le modèle projet la porte) RÉSOUT (généré réel >
+        //    synthétique) ; la convention ne rend plus MUET qu'un nom
+        //    dont la source générée reste INVISIBLE.
+        if (estNomGenere(nom) && modele.typeParNomSimple(nom, paquet) == null) {
+            return Verdict.MUET
+        }
 
         // 7. Le catalogue KP8 : les types des paquets par défaut (positions
         //    de types ET d'expressions — un accès statique y est légal).
@@ -434,7 +449,13 @@ internal class UniversPreuves(
         // Les CONVENTIONS DE SOURCES GÉNÉRÉES (vague 2e — fiche 035) : un
         // type de `build/generated` est invisible du scan par conception —
         // son absence n'est jamais prouvable.
-        if (estNomGenere(nom)) return Verdict.MUET
+        // V-E2 (ADR 0127 : levée de H2) : BORNÉ PAR PREUVE — le scan
+        // dédié post-build LIT `build/generated` : un type généré dont la
+        // SOURCE est LUE résout ; la convention ne rend muet qu'un nom
+        // généré à la source invisible.
+        if (estNomGenere(nom) && modele.typeParNomSimple(nom, paquet) == null) {
+            return Verdict.MUET
+        }
 
         return if (nomsNusProuvables) Verdict.SIGNALABLE else Verdict.MUET
     }

@@ -347,7 +347,21 @@ internal object SurvolDocuments {
                 if (type == null) nomParametre else "$nomParametre: $type"
             }.orEmpty()
 
-        val construction = StringBuilder("fun ")
+        // V-E3 (ADR 0128/0129) — le CONTEXTE du plugin prouvé par écrit :
+        // `suspend` (modificateur écrit) et `@Composable` (annotation
+        // ÉCRITE résolue par import — la signature du survol les porte,
+        // miroir Android Studio qui les montre en tête).
+        val prefixes = mutableListOf<String>()
+        val suspendu = fonction.noeud.enfants
+            .filter { it.genre == KtNodeTypes.MODIFIER_LIST }
+            .any { liste -> liste.enfants.any { it.genre == KtTokens.SUSPEND_MODIFIER } }
+        if (suspendu) prefixes.add("suspend ")
+        val composable = fonction.noeud.enfants
+            .filter { it.genre == KtNodeTypes.MODIFIER_LIST }
+            .flatMap { liste -> liste.enfants }
+            .any { it.genre == KtNodeTypes.ANNOTATION_ENTRY && it.texteCanonique.contains("Composable") }
+        if (composable) prefixes.add("@Composable ")
+        val construction = StringBuilder(prefixes.joinToString("")).append("fun ")
         if (recepteur != null) construction.append(recepteur.texteCanonique).append('.')
         construction.append(nom).append('(').append(parametres).append(')')
         if (retour != null) construction.append(": ").append(retour.texteCanonique)

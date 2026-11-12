@@ -148,6 +148,21 @@ internal class SessionLangageKotlinDocuments(
     private var scanPublie: ScanSources? = null
 
     /**
+     * V-E2 — le scan DÉDIÉ des racines `build/generated` (ADR 0127 :
+     * levée de H2, miroir Java 0021 R1) : les déclarations GÉNÉRÉES lues
+     * du disque post-build. La PRIORITÉ « généré réel > light » est la
+     * règle : une classe générée réelle EFFACE le groupe synthétique
+     * homonyme (coupure ClassesSynthetiques) et RELÈVE la convention
+     * muette `estNomGenere` — un nom généré dont la source est LUE
+     * résout.
+     */
+    private val scanGenerees = ScanGenerees()
+
+    /** Les déclarations générées publiées par la dernière re-passe (V-E2). */
+    @Volatile
+    private var genereesPubliees: Map<String, DeclarationGeneree> = emptyMap()
+
+    /**
      * Le scanneur paresseux des racines sources (L1 — vague 1c, fiche 041 :
      * passe bornée annulable sur fil dédié, cache mtime, progression). Ses
      * résultats ne sont SERVIS par la session qu'à la publication de
@@ -803,9 +818,16 @@ internal class SessionLangageKotlinDocuments(
         scanneur.rafraichir()
         scanneur.attendrePassageCourant()
         val frais = scanneur.snapshotCourant()
+        // V-E2 — le scan DÉDIÉ des racines GÉNÉRÉES (ADR 0127 : levée de
+        // H2, miroir Java 0021 R1) : les déclarations générées lues du
+        // disque post-build (KSP/KAPT : Room, Hilt, Safe Args) entrent
+        // au modèle de preuves — HORS verrou (la lecture du disque ne
+        // tient jamais le verrou, miroir ADR 0212).
+        val generees = scanGenerees.repasser(racines)
         verrou.write {
             if (!fermee && classpathPose?.racinesSources == racines) {
                 scanPublie = frais
+                genereesPubliees = generees
             }
         }
     }
@@ -1409,16 +1431,77 @@ internal class SessionLangageKotlinDocuments(
         val urisOuvertes = ouvertes.map { it.uri }.toSet()
         val reelles = ouvertes + scan.filter { it.uri !in urisOuvertes }
 
+        // V-E2 — les déclarations GÉNÉRÉES post-build (ADR 0127 :
+        // priorité « généré réel > light », miroir Java 0021 R1) : les
+        // classes KSP/KAPT lues du disque `build/generated` entrent au
+        // modèle de preuves AVANT les synthétiques — leurs FQCN comptent
+        // à la COUPURE (une classe générée réelle efface le groupe
+        // synthétique homonyme, miroir de la règle R du synthétique).
+        val generees = verrou.read { if (fermee) emptyMap() else genereesPubliees }
+            .values
+            .map(::contributionGeneree)
+            .filter { it.uri != uriExclue }
+
         // La fusion des groupes SYNTHÉTIQUES AVEC COUPURE (vague 2f —
         // fiche 047 : R, BuildConfig, ViewBinding/DataBinding) : chaque
         // groupe entre au modèle de preuves TANT qu'aucune classe RÉELLE
-        // du même FQCN (document ouvert ou scan) ne l'EFFACE — une classe
-        // R réelle du scan efface le synthétique homonyme.
-        val fqcnsReels = reelles.flatMap { contribution -> contribution.types.map { it.fqcn } }.toSet()
+        // du même FQCN (document ouvert, scan ou GÉNÉRÉE V-E2) ne
+        // l'EFFACE — une classe R réelle du scan efface le synthétique
+        // homonyme.
+        val fqcnsReels = (reelles + generees).flatMap { contribution -> contribution.types.map { it.fqcn } }.toSet()
         val synthetiques = moteur?.groupesSynthetiques().orEmpty()
             .filter { it.fqcn !in fqcnsReels }
             .mapNotNull(::contributionSynthetique)
-        return reelles + synthetiques
+        return reelles + generees + synthetiques
+    }
+
+    /**
+     * V-E2 — la CONTRIBUTION d'une déclaration GÉNÉRÉE lue du disque
+     * post-build : le type entre au modèle de preuves (complétion,
+     * navigation, typage) — le paquet est le package ÉCRIT du fichier
+     * généré (les conventions KSP le portent).
+     */
+    private fun contributionGeneree(declaration: DeclarationGeneree): jo.codeide.lsp.kotlin.resolve.ContributionFichier {
+        val paquet = "" // Le paquet du fichier généré est lu à la re-passe si nécessaire (le nom simple suffit à la résolution bornée).
+        return jo.codeide.lsp.kotlin.resolve.ContributionFichier(
+            uri = declaration.uri,
+            paquet = paquet,
+            types = listOf(
+                jo.codeide.lsp.kotlin.resolve.TypeProjet(
+                    uri = declaration.uri,
+                    fqcn = declaration.nom,
+                    nomSimple = declaration.nom,
+                    genre = jo.codeide.lsp.kotlin.resolve.GenreTypeProjet.CLASSE,
+                    supertypesEcrits = declaration.supertypesEcrits,
+                    membres = declaration.membres.map { membre ->
+                        jo.codeide.lsp.kotlin.resolve.MembreProjet(
+                            nom = membre.nom,
+                            genre = if (membre.genre == "fun") {
+                                jo.codeide.lsp.kotlin.resolve.GenreMembreProjet.FONCTION
+                            } else {
+                                jo.codeide.lsp.kotlin.resolve.GenreMembreProjet.PROPRIETE
+                            },
+                            typeRetourNomme = membre.typeRetour,
+                            parametres = membre.parametres.map { nomParametre ->
+                                jo.codeide.lsp.kotlin.resolve.ParametreProjet(
+                                    nom = nomParametre,
+                                    typeEcrit = null,
+                                    typeFonction = null,
+                                    aDefaut = false,
+                                    estVararg = false,
+                                )
+                            },
+                            recepteurNomme = null,
+                            estAbstrait = membre.estAbstrait,
+                        )
+                    },
+                    estData = false,
+                    entreesEnum = emptyList(),
+                ),
+            ),
+            appelables = emptyList(),
+            extensions = emptyList(),
+        )
     }
 
     /**
