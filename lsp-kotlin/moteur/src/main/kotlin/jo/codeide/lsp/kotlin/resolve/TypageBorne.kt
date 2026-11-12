@@ -137,6 +137,16 @@ internal object TypageBorne {
                 supertype?.let { univers.supertypeResolu(it) }
             }
             KtNodeTypes.CALL_EXPRESSION -> {
+                // V-A — une callee QUALIFIÉE (`ModeleProjet.Batisseur()`) :
+                // le CHEMIN résout l'imbriquée — les enfants RÉFÉRENCE du
+                // CALL sont ceux des ARGUMENTS (la callee vit dans un DOT
+                // parent).
+                val calleeQualifiee = noeud.enfants.firstOrNull {
+                    it.genre == KtNodeTypes.DOT_QUALIFIED_EXPRESSION
+                }
+                if (calleeQualifiee != null) {
+                    univers.resoudreTypeEcrit(calleeQualifiee.texteCanonique)?.let { return it }
+                }
                 val nom = noeud.enfants
                     .firstOrNull { it.genre == KtNodeTypes.REFERENCE_EXPRESSION }
                     ?.texteCanonique.orEmpty()
@@ -257,21 +267,41 @@ internal object TypageBorne {
 
     /**
      * Le raffinement du nom à la POSITION donnée (smart cast positionnel —
-     * fiche 046) : la marche des ANCÊTRES couvrant la position applique —
-     * de l'extérieur vers l'intérieur, le raffinement le plus PROFOND
-     * gagne :
+     * fiche 046 ; étendu en vague V-A) : la marche des ANCÊTRES couvrant la
+     * position applique — de l'extérieur vers l'intérieur, le raffinement
+     * le plus PROFOND gagne :
      *
      * - la branche THEN d'un `if (nom is T)` voit `nom` comme `T` ;
      * - l'opérande DROIT d'un `nom is T && …` voit `nom` comme `T` ;
      * - le CORPS d'une entrée `nom is T ->` d'un `when` sans sujet voit
      *   `nom` comme `T` ;
+     * - le CORPS d'une entrée `is T ->` d'un `when` À SUJET `nom` caste le
+     *   sujet (V-A — le sujet implicite du motif) ; un sujet `nom?.x`
+     *   rend `nom` non nul dans les corps d'entrées ;
+     * - le CORPS d'un `while (nom != null && …)` voit `nom` non nul
+     *   (V-A — la condition domine chaque itération ; une réaffectation
+     *   intermédiaire à `null` reste un sous-rapport assumé) ;
+     * - l'opérande DROIT d'un `nom == null || …` voit `nom` NON NUL (V-A —
+     *   la disjonction ne s'exécute à droite que si le nom n'est pas
+     *   nul) ;
+     * - un `X?.f(…) ?: return/throw/break/continue` précédent rend `X` non
+     *   nul pour la suite du bloc, et `val v = … ?: terminal` rend `v`
+     *   non nul (V-A — l'elvis à sortie précoce) ; une AFFECTATION
+     *   précédente `nom = …` rend l'accès muet (affectation certaine
+     *   avant usage — V-A) ;
+     * - la LAMBDA d'un `X?.f { … }` voit `X` non nul (V-A — l'accès sûr
+     *   ne traverse pas : la lambda ne s'exécute que récepteur non nul) ;
      * - après un `if (nom !is T) return/throw` (garde à sortie précoce),
      *   `nom` est vu comme `T` — de même après `if (nom == null) …` ;
-     * - la branche THEN d'un `if (nom != null)` voit `nom` non nul ;
+     * - la branche THEN d'un `if (nom != null)` voit `nom` non nul ; un
+     *   `if (t is T)` où `val t = nom?.f(…)` précède rend `nom` non nul
+     *   dans le THEN (V-A — la non-nullité du résultat d'un accès sûr
+     *   entraîne celle de sa base) ;
      * - une LOCALE du même nom déclarée APRÈS la condition et AVANT la
      *   position OMBRE le sujet (le cast ne fuit pas — fiche 046) ;
-     * - un `||` dans la condition ANNULE tout raffinement (bornologie
-     *   conservatrice, ADR 0107 : jamais un cast hors preuve).
+     * - un `||` dans une conjonction de garde ANNULE tout raffinement
+     *   (bornologie conservatrice, ADR 0107 : jamais un cast hors
+     *   preuve).
      *
      * @param arbre la racine du document ;
      * @param position l'offset de la référence raffinée ;
@@ -279,7 +309,18 @@ internal object TypageBorne {
      * @return le raffinement applicable ; `null` si aucun.
      */
     internal fun raffinementAuPoint(arbre: KtFichier, position: Int, nom: String): Raffinement? {
+        // V-A — deux CANAUX de raffinement : `courant` (les raffinements de
+        // CONDITION — then/when/&&/droite-de-|| — ANNULABLES par un `||`
+        // englobant, bornologie fiche 046) et `garde` (les raffinements
+        // STICKY — gardes à sortie précoce, elvis terminaux, affectations,
+        // accès sûr, corps de while — qui TIENNENT quoi qu'il arrive dans
+        // la suite de l'expression : un `||` dans une lambda n'invalide
+        // jamais une garde déjà franchie).
         var courant: Raffinement? = null
+        var garde: Raffinement? = null
+        // Les propriétés `val t = X?.f(…)` déjà traversées (V-A) : la
+        // non-nullité de `t` (garde ou cast) entraîne celle de `X`.
+        val baseSureParPropriete = mutableMapOf<String, String>()
         for (ancetre in chaineAncetres(arbre.noeud, position)) {
             when (ancetre.genre) {
                 KtNodeTypes.IF -> {
@@ -289,11 +330,23 @@ internal object TypageBorne {
                             ancetre.enfants.firstOrNull { it.genre == KtNodeTypes.CONDITION },
                         )
                         appliquerSiNonOmbre(carte, nom, alors, position)?.let { courant = it }
+                        // V-A : un cast/garde sur `t` où `val t = nom?.f(…)`
+                        // précède rend la BASE `nom` non nulle dans le THEN.
+                        if (courant == null) {
+                            for ((propriete, base) in baseSureParPropriete) {
+                                if (base != nom) continue
+                                if (carte == null || carte[propriete] == null) continue
+                                appliquerSiNonOmbre(carte, propriete, alors, position) ?: continue
+                                garde = Raffinement(typeNom = null, nonNul = true)
+                            }
+                        }
                     }
                 }
                 KtNodeTypes.BINARY_EXPRESSION -> {
                     // L'opérande DROIT d'un && voit les casts de la chaîne
-                    // GAUCHE (fiche 046) ; un || annule tout.
+                    // GAUCHE (fiche 046) ; l'opérande DROIT d'un || dont la
+                    // GAUCHE est `nom == null` voit `nom` NON NUL (V-A) ;
+                    // tout autre || ANNULE les raffinements de condition.
                     if (porteOperation(ancetre, KtTokens.ANDAND)) {
                         val enfants = ancetre.enfants
                         val droite = enfants.lastOrNull()
@@ -301,8 +354,25 @@ internal object TypageBorne {
                             analyserConjonctions(enfants.firstOrNull())?.get(nom)?.let { courant = it }
                         }
                     } else if (porteOperation(ancetre, KtTokens.OROR)) {
-                        courant = null
+                        val enfants = ancetre.enfants
+                        val droite = enfants.lastOrNull()
+                        if (droite != null && couvre(droite, position)) {
+                            nulliteGaucheDeDisjonction(enfants.firstOrNull(), nom)?.let { courant = it }
+                        } else {
+                            courant = null
+                        }
                     }
+                }
+                KtNodeTypes.WHILE -> {
+                    // V-A : la CONDITION d'un while (gardes `!= null` et
+                    // casts) domine le CORPS — chaque itération la revérifie
+                    // (raffinement STICKY : un `||` dans le corps ne
+                    // l'invalide pas).
+                    val condition = ancetre.enfants.firstOrNull { it.genre == KtNodeTypes.CONDITION }
+                        ?: continue
+                    val porteur = ancetre.enfants.firstOrNull { couvre(it, position) } ?: continue
+                    if (porteur.debut <= condition.debut) continue
+                    analyserConjonctions(condition)?.get(nom)?.let { garde = it }
                 }
                 KtNodeTypes.WHEN -> {
                     val entree = ancetre.enfants.firstOrNull {
@@ -312,9 +382,36 @@ internal object TypageBorne {
                     // conditions `nom is T` castent le corps.
                     val corps = entree.enfants.lastOrNull { !estConditionQuand(it) } ?: continue
                     if (!couvre(corps, position)) continue
+                    val sujet = sujetDuQuand(ancetre)
                     for (condition in entree.enfants) {
                         if (!estConditionQuand(condition) || condition.debut > corps.debut) continue
                         analyserConjonctions(condition)?.get(nom)?.let { courant = it }
+                        // V-A — `when` À SUJET : le motif `is T` caste le
+                        // SUJET implicite dans le corps de l'entrée.
+                        if (sujet?.genre == KtNodeTypes.REFERENCE_EXPRESSION &&
+                            sujet.texteCanonique == nom
+                        ) {
+                            raffinementMotifSujet(condition)?.let { courant = it }
+                        }
+                    }
+                    // V-A — sujet `nom?.x` : la comparaison d'entrée ne
+                    // s'exécute que sujet NON NUL, donc `nom` non nul dans
+                    // les corps.
+                    val base = sujet?.let(::baseReferenceSure)
+                    if (base == nom) {
+                        garde = Raffinement(typeNom = null, nonNul = true)
+                    }
+                }
+                KtNodeTypes.SAFE_ACCESS_EXPRESSION -> {
+                    // V-A — la LAMBDA (ou le sélecteur) d'un accès sûr ne
+                    // s'exécute que si la BASE est non nulle (STICKY : un
+                    // `||` dans la lambda ne ramène pas la base à nulle).
+                    val enfants = ancetre.enfants
+                    val selecteur = enfants.getOrNull(1)
+                    if (selecteur != null && position >= selecteur.debut) {
+                        if (baseReferenceSure(enfants.firstOrNull()) == nom) {
+                            garde = Raffinement(typeNom = null, nonNul = true)
+                        }
                     }
                 }
                 KtNodeTypes.BLOCK -> {
@@ -325,18 +422,185 @@ internal object TypageBorne {
                     for (frere in ancetre.enfants) {
                         if (frere === porteur) break
                         if (frere.genre == KtNodeTypes.PROPERTY) {
-                            if (nomDeDeclaration(frere) == nom) courant = null
+                            val init = initialisateurDePropriete(frere)
+                            // V-A — `val t = X?.f(…)…` : la base d'un accès
+                            // sûr devient la base SÛRE de la propriété.
+                            baseReferenceSure(init)?.let { base ->
+                                nomDeDeclaration(frere)?.let { propriete ->
+                                    baseSureParPropriete[propriete] = base
+                                    // V-A — elvis TERMINAL : la base de
+                                    // l'accès sûr est NON NULLE pour la
+                                    // suite (`X?.f() ?: return`).
+                                    if (elvisTerminal(init) && base == nom) {
+                                        garde = Raffinement(typeNom = null, nonNul = true)
+                                    }
+                                }
+                            }
+                            if (nomDeDeclaration(frere) != nom) continue
+                            // V-A — `val v = … ?: terminal` : `v` NON NUL
+                            // pour la suite (l'elvis à sortie précoce).
+                            if (elvisTerminal(init)) {
+                                garde = Raffinement(typeNom = null, nonNul = true)
+                            } else {
+                                courant = null
+                                garde = null
+                            }
+                            continue
+                        }
+                        // V-A — une AFFECTATION précédente au nom : la
+                        // valeur est certainement assignée avant l'accès
+                        // (le flot d'assignation est hors preuve — muet).
+                        if (frere.genre == KtNodeTypes.BINARY_EXPRESSION &&
+                            cibleAffectation(frere) == nom
+                        ) {
+                            garde = Raffinement(typeNom = null, nonNul = true)
+                            continue
+                        }
+                        // V-A — `requireNotNull(nom)`/`checkNotNull(nom)` en
+                        // instruction : la suite voit le nom NON NUL.
+                        if (frere.genre == KtNodeTypes.CALL_EXPRESSION &&
+                            gardeRequireNotNull(frere, nom)
+                        ) {
+                            garde = Raffinement(typeNom = null, nonNul = true)
                             continue
                         }
                         if (frere.genre != KtNodeTypes.IF) continue
                         val carte = analyserGarde(frere) ?: continue
-                        carte[nom]?.let { courant = it }
+                        carte[nom]?.let { garde = it }
                     }
                 }
                 else -> Unit
             }
         }
-        return courant
+        return courant ?: garde
+    }
+
+    /** Le SUJET d'un `when` (premier enfant hors entrées) ; `null` sans sujet. */
+    private fun sujetDuQuand(quand: NoeudArbre): NoeudArbre? =
+        quand.enfants.firstOrNull { it.genre != KtNodeTypes.WHEN_ENTRY }
+
+    /**
+     * Le raffinement d'un MOTIF d'entrée de `when` À SUJET (V-A) : `is T`
+     * caste le sujet implicite — le motif ne porte PAS la référence du
+     * sujet (elle est implicite dans la grammaire).
+     */
+    private fun raffinementMotifSujet(condition: NoeudArbre): Raffinement? {
+        val motif = when (condition.genre) {
+            KtNodeTypes.WHEN_CONDITION_IS_PATTERN,
+            KtNodeTypes.WHEN_CONDITION_EXPRESSION,
+            -> condition.enfants.firstOrNull() ?: return null
+            else -> condition
+        }
+        if (motif.genre != KtNodeTypes.IS_EXPRESSION) return null
+        val negatif = motif.enfants.any {
+            it.genre == KtNodeTypes.OPERATION_REFERENCE && it.jetonsPropres.any { j ->
+                j.genre == KtTokens.NOT_IS
+            }
+        }
+        if (negatif) return null
+        val type = motif.enfants.firstOrNull { it.genre == KtNodeTypes.TYPE_REFERENCE }
+            ?.let(::nomTypeEcrit) ?: return null
+        return Raffinement(typeNom = type, nonNul = false)
+    }
+
+    /**
+     * La BASE REFERENCE d'une chaîne d'accès sûr (V-A) : le récepteur le
+     * plus profond d'une chaîne `a?.b?.c` — `null` si la base n'est pas un
+     * nom simple. L'opérande GAUCHE d'un elvis (`a?.f() ?: …`) se déroule
+     * d'abord (la base sûre vit à gauche de l'elvis).
+     */
+    private fun baseReferenceSure(noeud: NoeudArbre?): String? {
+        var courant = noeud ?: return null
+        if (courant.genre == KtNodeTypes.BINARY_EXPRESSION && porteOperation(courant, KtTokens.ELVIS)) {
+            courant = courant.enfants.firstOrNull() ?: return null
+        }
+        while (courant.genre == KtNodeTypes.SAFE_ACCESS_EXPRESSION) {
+            courant = courant.enfants.firstOrNull() ?: return null
+        }
+        if (courant.genre != KtNodeTypes.REFERENCE_EXPRESSION) return null
+        return courant.texteCanonique.ifEmpty { null }
+    }
+
+    /**
+     * L'opérande DROIT d'un `||` voit la NON-NULLITÉ du nom si la GAUCHE
+     * (ou un DISJONCT de sa chaîne `a == null || b || c`) est `nom == null`
+     * (V-A — la disjonction ne s'exécute à droite que si le nom n'est pas
+     * nul) ; sinon la disjonction n'apporte rien (conservateur).
+     */
+    private fun nulliteGaucheDeDisjonction(gauche: NoeudArbre?, nom: String): Raffinement? {
+        if (gauche == null) return null
+        // V-A — la chaîne de disjonction se déroule en FEUILLES (un `||`
+        // imbriqué à gauche ou la comparaison DIRECTE `nom == null`).
+        val disjoncts = if (gauche.genre == KtNodeTypes.BINARY_EXPRESSION &&
+            porteOperation(gauche, KtTokens.OROR)
+        ) {
+            disjonctsDeDisjonction(gauche) ?: return null
+        } else {
+            listOf(gauche)
+        }
+        for (disjonct in disjoncts) {
+            if (disjonct.genre != KtNodeTypes.BINARY_EXPRESSION) continue
+            if (!porteOperation(disjonct, KtTokens.EQEQ)) continue
+            val sujets = disjonct.enfants.filter { it.genre == KtNodeTypes.REFERENCE_EXPRESSION }
+            val nuls = disjonct.enfants.filter { it.genre == KtNodeTypes.NULL }
+            if (sujets.size != 1 || nuls.isEmpty()) continue
+            if (sujets.single().texteCanonique == nom) return Raffinement(typeNom = null, nonNul = true)
+        }
+        return null
+    }
+
+    /** Les DISJONCTS d'une chaîne `||` (V-A) ; `null` si ce n'en est pas une. */
+    private fun disjonctsDeDisjonction(noeud: NoeudArbre?): List<NoeudArbre>? {
+        if (noeud == null) return null
+        if (noeud.genre != KtNodeTypes.BINARY_EXPRESSION) return null
+        if (!porteOperation(noeud, KtTokens.OROR)) return null
+        val disjoncts = mutableListOf<NoeudArbre>()
+        fun etendre(courant: NoeudArbre) {
+            if (courant.genre == KtNodeTypes.BINARY_EXPRESSION && porteOperation(courant, KtTokens.OROR)) {
+                courant.enfants.firstOrNull()?.let(::etendre)
+                courant.enfants.lastOrNull()?.let(::etendre)
+            } else {
+                disjoncts.add(courant)
+            }
+        }
+        etendre(noeud)
+        return disjoncts
+    }
+
+    /** L'INITIALISATEUR d'une PROPERTY (dernier enfant hors type/modificateurs). */
+    private fun initialisateurDePropriete(propriete: NoeudArbre): NoeudArbre? {
+        return propriete.enfants.lastOrNull {
+            it.genre != KtNodeTypes.TYPE_REFERENCE &&
+                it.genre != KtNodeTypes.MODIFIER_LIST &&
+                it.genre != KtNodeTypes.PROPERTY_DELEGATE &&
+                it.genre != KtNodeTypes.PROPERTY_ACCESSOR
+        }
+    }
+
+    /**
+     * L'expression porte-t-elle un ELVIS à sortie précoce au SOMMET (V-A :
+     * `… ?: return/throw/break/continue`) — la valeur en est NON NULLE
+     * pour la suite du bloc.
+     */
+    private fun elvisTerminal(expression: NoeudArbre?): Boolean {
+        if (expression == null || expression.genre != KtNodeTypes.BINARY_EXPRESSION) return false
+        if (!porteOperation(expression, KtTokens.ELVIS)) return false
+        val droite = expression.enfants.lastOrNull() ?: return false
+        return when (droite.genre) {
+            KtNodeTypes.RETURN, KtNodeTypes.THROW -> true
+            KtNodeTypes.CONTINUE, KtNodeTypes.BREAK -> true
+            else -> false
+        }
+    }
+
+    /** La CIBLE d'une affectation `=` (V-A) ; `null` si ce n'en est pas une. */
+    private fun cibleAffectation(binaire: NoeudArbre): String? {
+        val operation = binaire.enfants.indexOfFirst { it.genre == KtNodeTypes.OPERATION_REFERENCE }
+        if (operation <= 0) return null
+        if (!porteJetonOperation(binaire.enfants[operation], KtTokens.EQ)) return null
+        val cible = binaire.enfants[operation - 1]
+        if (cible.genre != KtNodeTypes.REFERENCE_EXPRESSION) return null
+        return cible.texteCanonique.ifEmpty { null }
     }
 
     /**
@@ -406,7 +670,9 @@ internal object TypageBorne {
     /**
      * La carte d'une GARDE à sortie précoce (`if (nom !is T) return`) : le
      * négatif caste la SUITE du bloc — la brèche doit être TERMINALE
-     * (`return`/`throw` en dernière instruction).
+     * (`return`/`throw` en dernière instruction). V-A : la garde à
+     * DISJONCTION (`if (nom == null || autre) return`) caste AUSSI la
+     * suite — chaque disjonction franchie implique sa négation.
      *
      * @param si le nœud IF candidat ;
      * @return la carte ; `null` si la forme n'est pas une garde terminale.
@@ -416,6 +682,17 @@ internal object TypageBorne {
         if (!estTerminal(alors)) return null
         val enveloppe = si.enfants.firstOrNull { it.genre == KtNodeTypes.CONDITION } ?: return null
         val condition = enveloppe.enfants.firstOrNull() ?: return null
+        // V-A — une DISJONCTION de gardes : chaque disjonct `nom == null`
+        // (ou `nom !is T`) caste la SUITE (la garde n'a passé que si TOUTES
+        // les disjonctions étaient FAUSSES).
+        if (condition.genre == KtNodeTypes.BINARY_EXPRESSION &&
+            porteOperation(condition, KtTokens.OROR)
+        ) {
+            val carte = mutableMapOf<String, Raffinement>()
+            if (!collecterGardesDisjonction(condition, carte)) return null
+            if (carte.isEmpty()) return null
+            return carte
+        }
         if (condition.genre == KtNodeTypes.IS_EXPRESSION) {
             val cast = raffinementCast(condition, positif = false) ?: return null
             return mapOf(cast)
@@ -426,6 +703,57 @@ internal object TypageBorne {
             raffinementNullite(condition)?.let { return mapOf(it) }
         }
         return null
+    }
+
+    /**
+     * V-A — collecte les gardes d'une DISJONCTION terminale : chaque
+     * disjonct analysable (`nom == null`, `nom !is T`) caste la suite ; un
+     * disjonct non analysable n'apporte RIEN (conservateur : aucune
+     * contre-preuve).
+     *
+     * @return `false` si un disjonct casse la forme (l'analyse s'arrête).
+     */
+    private fun collecterGardesDisjonction(disjonction: NoeudArbre, carte: MutableMap<String, Raffinement>): Boolean {
+        if (disjonction.genre == KtNodeTypes.BINARY_EXPRESSION &&
+            porteOperation(disjonction, KtTokens.OROR)
+        ) {
+            val gauche = disjonction.enfants.firstOrNull() ?: return false
+            val droite = disjonction.enfants.lastOrNull() ?: return false
+            return collecterGardesDisjonction(gauche, carte) &&
+                collecterGardesDisjonction(droite, carte)
+        }
+        if (disjonction.genre == KtNodeTypes.IS_EXPRESSION) {
+            raffinementCast(disjonction, positif = false)?.let { carte.putIfAbsent(it.first, it.second) }
+            return true
+        }
+        if (disjonction.genre == KtNodeTypes.BINARY_EXPRESSION &&
+            porteOperation(disjonction, KtTokens.EQEQ)
+        ) {
+            raffinementNullite(disjonction)?.let { carte.putIfAbsent(it.first, it.second) }
+            return true
+        }
+        // Un disjonct sans intérêt (autre comparaison, appel…) : la garde
+        // reste VALIDE pour les autres disjoncts (aucune contre-preuve).
+        return true
+    }
+
+    /**
+     * V-A — l'instruction est-elle un `requireNotNull(nom)`/
+     * `checkNotNull(nom)` (garde d'invariant : la suite voit le nom NON
+     * NUL) ?
+     */
+    private fun gardeRequireNotNull(appel: NoeudArbre, nom: String): Boolean {
+        val callee = appel.enfants
+            .firstOrNull { it.genre == KtNodeTypes.REFERENCE_EXPRESSION }
+            ?.texteCanonique ?: return false
+        if (callee != "requireNotNull" && callee != "checkNotNull") return false
+        val arguments = appel.enfants
+            .firstOrNull { it.genre == KtNodeTypes.VALUE_ARGUMENT_LIST }
+            ?.enfants?.filter { it.genre == KtNodeTypes.VALUE_ARGUMENT }.orEmpty()
+        if (arguments.size != 1) return false
+        return arguments.single().enfants
+            .firstOrNull { it.genre == KtNodeTypes.REFERENCE_EXPRESSION }
+            ?.texteCanonique == nom
     }
 
     /** La branche est-elle TERMINALE (return/throw en dernière position) ? */
@@ -803,8 +1131,21 @@ internal object TypageBorne {
         operation: com.intellij.platform.syntax.SyntaxElementType,
     ): Boolean {
         return noeud.enfants.any {
-            it.genre == KtNodeTypes.OPERATION_REFERENCE && it.jetonsPropres.any { j -> j.genre == operation }
+            it.genre == KtNodeTypes.OPERATION_REFERENCE && porteJetonOperation(it, operation)
         }
+    }
+
+    /**
+     * V-A — une OPERATION_REFERENCE porte-t-elle ce jeton ? Le jeton peut
+     * être PROPRE (jetonsPropres — `||`, `==`) ou EMBOÎTÉ dans un nœud
+     * enfant (l'elvis `?:` de la grammaire vendorée enveloppe son jeton).
+     */
+    private fun porteJetonOperation(
+        operation: NoeudArbre,
+        jeton: com.intellij.platform.syntax.SyntaxElementType,
+    ): Boolean {
+        if (operation.jetonsPropres.any { it.genre == jeton }) return true
+        return operation.enfants.any { it.genre == jeton }
     }
 
     /** La plage du nœud couvre-t-elle la position ? */

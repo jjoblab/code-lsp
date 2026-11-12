@@ -307,6 +307,27 @@ internal object Clotures {
                 )
             }
         }
+        // V-A — les membres du COMPAGNON du maillon : la portée IMPLICITE
+        // d'une sous-classe voit les compagnons de ses SUPERTYPES (comme
+        // les siens propres) — `errorIf(…)` nu dans une classe qui étend
+        // `AbstractKotlinParsing` vit au compagnon du maillon. Le compagnon
+        // NOMMÉ reste AUSSI un type imbriqué (la collecte récursive le
+        // porte) ; ses membres ne se prouvent jamais ABSENTS.
+        for (membre in type.membresCompagnon) {
+            if (membre.nom in membres) continue
+            membres[membre.nom] = MembreHerite(
+                nom = membre.nom,
+                genre = if (membre.genre == GenreMembreProjet.FONCTION) {
+                    GenreMembreHerite.FONCTION
+                } else {
+                    GenreMembreHerite.PROPRIETE
+                },
+                typeEcrit = membre.typeRetourNomme,
+                lienJvm = null,
+                typeImbrique = null,
+                proprietaireFqcn = type.fqcn,
+            )
+        }
         // Une classe SANS clause écrite est close par construction (le jeu
         // déclaré + les implicites Any/Object) ; une clause se ferme
         // maillon par maillon.

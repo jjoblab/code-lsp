@@ -53,25 +53,41 @@ internal class VueJvmMembres(private val entrees: List<EntreeClasspathKotlin>) {
     private val zips = arrayOfNulls<ZipFile>(entrees.size)
 
     /** Le cache des membres DÉCLARÉS par FQCN (`null` = classe introuvable). */
-    private val cacheDeclares = HashMap<String, MembresDeclaresJvm?>()
+    private val cacheDeclares = CacheBorneOctets<String, MembresDeclaresJvm?>(
+        BUDGET_OCTETS_DECLARES,
+    ) { cle, valeur -> octetsTexte(cle) + octetsMembresDeclares(valeur) }
 
     /** Le cache des jeux COMPLETS par FQCN (`null` = chaîne non lisible). */
-    private val cacheJeux = HashMap<String, JeuMembresJvm?>()
+    private val cacheJeux = CacheBorneOctets<String, JeuMembresJvm?>(
+        BUDGET_OCTETS_JEUX,
+    ) { cle, valeur -> octetsTexte(cle) + octetsJeu(valeur) }
 
     /** Le cache des infos de chaîne par (FQCN, nom) — vague 2c. */
-    private val cacheMembresChaine = HashMap<Pair<String, String>, MembreChaineJvm?>()
+    private val cacheMembresChaine = CacheBorneOctets<Pair<String, String>, MembreChaineJvm?>(
+        BUDGET_OCTETS_MEMBRES_CHAINE,
+    ) { cle, valeur -> octetsTexte(cle.first) + octetsTexte(cle.second) + 96L + octetsChaine(valeur) }
 
     /** Le cache des imbriquées par FQCN parent (vague 2c — fiche 028/029). */
-    private val cacheImbriques = HashMap<String, List<String>>()
+    private val cacheImbriques = CacheBorneOctets<String, List<String>>(
+        BUDGET_OCTETS_IMBRIQUES,
+    ) { cle, valeur -> octetsTexte(cle) + octetsTextes(valeur) }
 
     /** Le cache des COMPAGNONS par FQCN (vague 2d — fiche 024). */
-    private val cacheCompagnons = HashMap<String, CompagnonJvm?>()
+    private val cacheCompagnons = CacheBorneOctets<String, CompagnonJvm?>(
+        BUDGET_OCTETS_COMPAGNONS,
+    ) { cle, valeur -> octetsTexte(cle) + (valeur?.noms?.sumOf { octetsTexte(it) } ?: 0L) + 48L }
 
     /** Le cache des CHAÎNES de supertypes par FQCN (vague 2d — fiche 033). */
-    private val cacheChaines = HashMap<String, List<String>?>()
+    private val cacheChaines = CacheBorneOctets<String, List<String>?>(
+        BUDGET_OCTETS_CHAINES,
+    ) { cle, valeur -> octetsTexte(cle) + octetsTextes(valeur) }
 
     /** Le cache des jeux DÉTAILLÉS par FQCN (étage 3 vague 3a — fiche 045). */
-    private val cacheJeuxDetailles = HashMap<String, List<MembreDetailleJvm>?>()
+    private val cacheJeuxDetailles = CacheBorneOctets<String, List<MembreDetailleJvm>?>(
+        BUDGET_OCTETS_JEUX_DETAILLES,
+    ) { cle, valeur ->
+        octetsTexte(cle) + (valeur?.sumOf { octetsTexte(it.nom) + octetsTexte(it.typeDetail) + 48L } ?: 0L)
+    }
 
     /**
      * L'ANNUAIRE paresseux des types des entrées (étage 3 vague 3a —
@@ -228,7 +244,7 @@ internal class VueJvmMembres(private val entrees: List<EntreeClasspathKotlin>) {
      */
     internal fun membresDeclares(fqcn: String): MembresDeclaresJvm? {
         synchronized(this) {
-            if (cacheDeclares.containsKey(fqcn)) return cacheDeclares[fqcn]
+            if (cacheDeclares.contient(fqcn)) return cacheDeclares[fqcn]
             val lus = lireMembres(fqcn)
             cacheDeclares[fqcn] = lus
             return lus
@@ -262,7 +278,7 @@ internal class VueJvmMembres(private val entrees: List<EntreeClasspathKotlin>) {
      */
     internal fun jeuComplet(fqcn: String): JeuMembresJvm? {
         synchronized(this) {
-            if (cacheJeux.containsKey(fqcn)) return cacheJeux[fqcn]
+            if (cacheJeux.contient(fqcn)) return cacheJeux[fqcn]
             val jeu = assemblerJeu(fqcn)
             cacheJeux[fqcn] = jeu
             return jeu
@@ -282,7 +298,7 @@ internal class VueJvmMembres(private val entrees: List<EntreeClasspathKotlin>) {
      */
     internal fun jeuDetaille(fqcn: String): List<MembreDetailleJvm>? {
         synchronized(this) {
-            if (cacheJeuxDetailles.containsKey(fqcn)) return cacheJeuxDetailles[fqcn]
+            if (cacheJeuxDetailles.contient(fqcn)) return cacheJeuxDetailles[fqcn]
             val jeu = assemblerJeuDetaille(fqcn)
             cacheJeuxDetailles[fqcn] = jeu
             return jeu
@@ -305,7 +321,7 @@ internal class VueJvmMembres(private val entrees: List<EntreeClasspathKotlin>) {
     internal fun membreChaine(fqcn: String, nom: String): MembreChaineJvm? {
         synchronized(this) {
             val cle = Pair(fqcn, nom)
-            if (cacheMembresChaine.containsKey(cle)) return cacheMembresChaine[cle]
+            if (cacheMembresChaine.contient(cle)) return cacheMembresChaine[cle]
             val membre = chercherMembreChaine(fqcn, nom)
             cacheMembresChaine[cle] = membre
             return membre
@@ -409,7 +425,7 @@ internal class VueJvmMembres(private val entrees: List<EntreeClasspathKotlin>) {
      */
     internal fun compagnonDe(fqcn: String): CompagnonJvm? {
         synchronized(this) {
-            if (cacheCompagnons.containsKey(fqcn)) return cacheCompagnons[fqcn]
+            if (cacheCompagnons.contient(fqcn)) return cacheCompagnons[fqcn]
             val nomCompanion = fqcn + "\$Companion"
             if (!entreeExiste(nomCompanion.replace('.', '/') + ".class")) {
                 cacheCompagnons[fqcn] = null
@@ -445,7 +461,7 @@ internal class VueJvmMembres(private val entrees: List<EntreeClasspathKotlin>) {
      */
     internal fun chainesDe(fqcn: String): List<String>? {
         synchronized(this) {
-            if (cacheChaines.containsKey(fqcn)) return cacheChaines[fqcn]
+            if (cacheChaines.contient(fqcn)) return cacheChaines[fqcn]
             val maillons = LinkedHashSet<String>()
             val visites = HashSet<String>()
             val pile = ArrayDeque<String>()
@@ -762,6 +778,140 @@ internal class VueJvmMembres(private val entrees: List<EntreeClasspathKotlin>) {
         private val IMPLICITS_ENUM: List<String> = IMPLICITS_ANY + listOf(
             "name", "ordinal", "compareTo", "describeConstable", "getDeclaringClass",
         )
+
+        // ── V-A : les BUDGETS D'OCTETS des caches (ADR 0117/0134 — chaque
+        // cache déclare un plafond en octets ESTIMÉS ; la vidange au
+        // plafond est TOTALE : tout se reconstruit à la demande, jamais
+        // une perte de justesse). Les ordres de grandeur visent un appareil
+        // Android modeste : ~10 Mo cumulés maximum pour la vue JVM.
+        private const val BUDGET_OCTETS_DECLARES: Long = 4L * 1024 * 1024
+        private const val BUDGET_OCTETS_JEUX: Long = 2L * 1024 * 1024
+        private const val BUDGET_OCTETS_JEUX_DETAILLES: Long = 2L * 1024 * 1024
+        private const val BUDGET_OCTETS_MEMBRES_CHAINE: Long = 2L * 1024 * 1024
+        private const val BUDGET_OCTETS_IMBRIQUES: Long = 1024L * 1024
+        private const val BUDGET_OCTETS_COMPAGNONS: Long = 512L * 1024
+        private const val BUDGET_OCTETS_CHAINES: Long = 512L * 1024
+
+        /** L'estimation en octets d'une chaîne (en-tête objet + chars UTF-16). */
+        private fun octetsTexte(texte: String?): Long =
+            if (texte == null) 0L else 40L + 2L * texte.length
+
+        /** L'estimation en octets d'une liste de chaînes. */
+        private fun octetsTextes(textes: List<String>?): Long =
+            if (textes == null) 0L else 40L + textes.sumOf { octetsTexte(it) }
+
+        /** L'estimation en octets d'une lecture déclarée (membres + dérivées). */
+        private fun octetsMembresDeclares(declares: MembresDeclaresJvm?): Long {
+            if (declares == null) return 0L
+            val membres = declares.membres.sumOf {
+                octetsTexte(it.nom) + octetsTexte(it.descripteur) + 32L
+            }
+            val derivees = declares.proprietesDerivees.sumOf {
+                octetsTexte(it.nom) + octetsTexte(it.typeFqcn) + 32L
+            }
+            return 64L + membres + derivees +
+                octetsTexte(declares.superFqcn) + octetsTextes(declares.interfaces)
+        }
+
+        /** L'estimation en octets d'un jeu complet. */
+        private fun octetsJeu(jeu: JeuMembresJvm?): Long =
+            if (jeu == null) 0L else 48L + jeu.noms.sumOf { octetsTexte(it) }
+
+        /** L'estimation en octets d'une info de chaîne (signatures). */
+        private fun octetsChaine(membre: MembreChaineJvm?): Long {
+            if (membre == null) return 0L
+            val signatures = membre.signatures.sumOf {
+                octetsTexte(it.nom) + octetsTexte(it.retour) + octetsTextes(it.parametres) + 40L
+            }
+            return 48L + octetsTexte(membre.proprietaire) + signatures
+        }
+    }
+
+    /**
+     * V-A — l'OCCUPATION ESTIMÉE des caches de la vue (observabilité du
+     * budget octets — le banc et l'hôte s'en servent).
+     */
+    internal fun occupationOctetsEstimee(): Long = synchronized(this) {
+        cacheDeclares.octetsEstimes + cacheJeux.octetsEstimes + cacheJeuxDetailles.octetsEstimes +
+            cacheMembresChaine.octetsEstimes + cacheImbriques.octetsEstimes +
+            cacheCompagnons.octetsEstimes + cacheChaines.octetsEstimes
+    }
+
+    /**
+     * V-A — VIDANGE des caches de lecture paresseuse (ADR 0117/0134 : la
+     * réponse à la pression mémoire de l'hôte — tout se RECONSTRUIT à la
+     * demande, jamais une perte de justesse). L'ANNUAIRE des types (une
+     * marche des zips) ne se vidange qu'à la demande explicite.
+     *
+     * @param avecAnnuaire `true` pour vidanger AUSSI l'annuaire des types
+     * (pression CRITIQUE/URGENTE — sa reconstruction re-marche les entrées).
+     */
+    internal fun viderCaches(avecAnnuaire: Boolean) {
+        synchronized(this) {
+            cacheDeclares.vider()
+            cacheJeux.vider()
+            cacheJeuxDetailles.vider()
+            cacheMembresChaine.vider()
+            cacheImbriques.vider()
+            cacheCompagnons.vider()
+            cacheChaines.vider()
+            if (avecAnnuaire) annuaire = null
+        }
+    }
+}
+
+/**
+ * V-A — une table de cache BORNÉE EN OCTETS ESTIMÉS (ADR 0117/0134 : chaque
+ * cache déclare son plafond ; la vidange AU PLAFOND est TOTALE — tout ce qui
+ * s'y trouve se RECONSTRUIT à la demande, jamais une perte de justesse).
+ * L'estimation est CONSCIENTE (en-têtes d'objets + chars UTF-16) : elle
+ * sur-estime légèrement plutôt que de sous-estimer.
+ *
+ * @param K le type de clé ;
+ * @param V le type de valeur (`null` EST une valeur cachable — le témoin
+ * « introuvable » compte dans le budget) ;
+ * @param budgetOctets le plafond en octets estimés ;
+ * @param estimation l'estimation en octets d'une entrée (clé + valeur).
+ */
+internal class CacheBorneOctets<K, V>(
+    private val budgetOctets: Long,
+    private val estimation: (K, V) -> Long,
+) {
+
+    private val table = HashMap<K, V>()
+
+    /** Les octets estimés occupés (observabilité). */
+    internal var octetsEstimes: Long = 0L
+        private set
+
+    /** L'entrée existe-t-elle (témoin « introuvable » compris) ? */
+    internal fun contient(cle: K): Boolean = table.containsKey(cle)
+
+    /** L'entrée cachée (ou `null` si absente — le témoin null EST retourné). */
+    internal operator fun get(cle: K): V? = table[cle]
+
+    /**
+     * Cache l'entrée : au-delà du PLAFOND d'octets estimés, la table se
+     * VIDANGE ENTIÈREMENT avant d'accueillir la nouvelle entrée (tout se
+     * reconstruit — jamais de perte de justesse).
+     */
+    internal operator fun set(cle: K, valeur: V) {
+        if (table.containsKey(cle)) {
+            octetsEstimes -= estimation(cle, table[cle] as V)
+        }
+        val cout = estimation(cle, valeur)
+        if (octetsEstimes + cout > budgetOctets) {
+            table.clear()
+            octetsEstimes = 0L
+        }
+        table[cle] = valeur
+        octetsEstimes += cout
+    }
+
+    /** Vidange explicite (pression mémoire — la reconstruction est à la demande). */
+    internal fun vider() {
+        table.clear()
+        octetsEstimes = 0L
     }
 }
 

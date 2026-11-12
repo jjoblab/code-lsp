@@ -95,6 +95,12 @@ internal class TypeProjet(
      * l'absence d'un sélecteur ne se prouve JAMAIS (muet, D3).
      */
     internal val membresSousRapportes: Boolean = false,
+    /**
+     * V-A — le type porte-t-il un CONSTRUCTEUR SECONDAIRE (`constructor(…) :
+     * this(…)`) ? Le témoin d'arité du constructeur PRIMAIRE n'est plus
+     * fiable : l'appel peut viser un secondaire d'arité différente.
+     */
+    internal val aConstructeurSecondaire: Boolean = false,
 ) {
 
     /**
@@ -689,6 +695,8 @@ internal class ModeleProjet private constructor(
                 membresCompagnon = membresCompagnon,
                 nomCompagnon = nomCompagnon,
                 parametresType = nomsParametresType(noeud),
+                aConstructeurSecondaire = corps?.enfants
+                    .orEmpty().any { it.genre == KtNodeTypes.SECONDARY_CONSTRUCTOR },
             )
             if (estData && nbProprietesCtor > 0) {
                 type = type.avecSynthesesData(nbProprietesCtor)
@@ -758,8 +766,13 @@ internal class ModeleProjet private constructor(
                 ?: return emptyList()
             val noms = mutableListOf<String>()
             for (entree in clause.enfants) {
+                // V-A — le supertype DÉLÉGUÉ (`: X by délégué`) entre AUSSI :
+                // la délegation est une implémentation — les membres du type
+                // écrit restent en portée implicite (`rawLookup` nu d'un
+                // bâtisseur délégué à `SemanticWhitespaceAwareSyntaxBuilder`).
                 if (entree.genre != KtNodeTypes.SUPER_TYPE_ENTRY &&
-                    entree.genre != KtNodeTypes.SUPER_TYPE_CALL_ENTRY
+                    entree.genre != KtNodeTypes.SUPER_TYPE_CALL_ENTRY &&
+                    entree.genre != KtNodeTypes.DELEGATED_SUPER_TYPE_ENTRY
                 ) {
                     continue
                 }

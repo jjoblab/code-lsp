@@ -58,6 +58,14 @@ internal class UniversPreuves(
     /** Les imports du document (calculés une fois). */
     private val imports: List<KtDirectiveImport> = arbre.imports()
 
+    /**
+     * V-A — un IMPORT du document amorce-t-il ce segment racine (un FQCN
+     * importé commence par `racine.`) ? La racine d'un tel chemin qualifié
+     * est un nom de PAQUET, jamais un récepteur inconnu signalable.
+     */
+    internal fun importAmorce(racine: String): Boolean =
+        imports.any { it.nomQualifie()?.startsWith("$racine.") == true }
+
     /** Le cache des CLÔTURES d'héritage par FQCN projet (vague 2c). */
     private val clotures = HashMap<String, ClotureHeritage?>()
 
@@ -928,6 +936,20 @@ internal class UniversPreuves(
             "CharProgression",
             // kotlin.text.
             "StringBuilder", "Regex", "MatchResult", "MatchGroup",
+            // kotlin / kotlin.collections — les TABLEAUX primitifs et les
+            // types des PAQUETS PAR DÉFAUT implicites (V-A : les imports
+            // implicites `kotlin.*`/`kotlin.collections.*` — IntArray,
+            // ByteArray, ArrayDeque, LazyThreadSafetyMode, Charsets… ne
+            // vivent dans AUCUNE facade `*Kt` indexable : la garde KP8 les
+            // couvre, miroir des types de base).
+            "IntArray", "LongArray", "ShortArray", "ByteArray", "DoubleArray",
+            "FloatArray", "CharArray", "BooleanArray",
+            "UByteArray", "UShortArray", "UIntArray", "ULongArray",
+            "UInt", "ULong", "UByte", "UShort",
+            "ArrayDeque", "LazyThreadSafetyMode", "Charsets", "Comparator", "Result",
+            // V-A — les types java.lang des usages machine (Runtime.halt,
+            // AutoCloseable.use…).
+            "Runtime", "AutoCloseable", "ProcessBuilder", "Iterable",
             // kotlin.sequences / kotlin.annotation / kotlin.jvm.
             "Sequence", "Annotation", "Deprecated",
             // kotlin / kotlin.jvm — les ANNOTATIONS STANDARD (vague 2g :
@@ -1008,6 +1030,24 @@ internal class UniversPreuves(
             "MutableIterable" to "kotlin.collections.MutableIterable",
             "StringBuilder" to "kotlin.text.StringBuilder", "Regex" to "kotlin.text.Regex",
             "Sequence" to "kotlin.sequences.Sequence",
+            // V-A — les TABLEAUX primitifs et types des imports IMPLICITES
+            // `kotlin.*`/`kotlin.collections.*`/`kotlin.text.*` (le miroir
+            // TYPÉ du catalogue KP8 — leurs classes existent réellement dans
+            // le stdlib, la vue JVM les lit).
+            "IntArray" to "kotlin.IntArray", "LongArray" to "kotlin.LongArray",
+            "ShortArray" to "kotlin.ShortArray", "ByteArray" to "kotlin.ByteArray",
+            "DoubleArray" to "kotlin.DoubleArray", "FloatArray" to "kotlin.FloatArray",
+            "CharArray" to "kotlin.CharArray", "BooleanArray" to "kotlin.BooleanArray",
+            "UByteArray" to "kotlin.UByteArray", "UShortArray" to "kotlin.UShortArray",
+            "UIntArray" to "kotlin.UIntArray", "ULongArray" to "kotlin.ULongArray",
+            "UInt" to "kotlin.UInt", "ULong" to "kotlin.ULong",
+            "UByte" to "kotlin.UByte", "UShort" to "kotlin.UShort",
+            "ArrayDeque" to "kotlin.collections.ArrayDeque",
+            "LazyThreadSafetyMode" to "kotlin.LazyThreadSafetyMode",
+            "Charsets" to "kotlin.text.Charsets", "Comparator" to "kotlin.Comparator",
+            "Result" to "kotlin.Result",
+            "Runtime" to "java.lang.Runtime", "AutoCloseable" to "java.lang.AutoCloseable",
+            "ProcessBuilder" to "java.lang.ProcessBuilder", "Iterable" to "java.lang.Iterable",
             "Object" to "java.lang.Object", "Thread" to "java.lang.Thread",
             "Runnable" to "java.lang.Runnable", "Class" to "java.lang.Class",
             "System" to "java.lang.System", "Math" to "java.lang.Math", "Void" to "java.lang.Void",

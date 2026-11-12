@@ -199,8 +199,20 @@ internal object DiagnosticsSemantiques {
                 val nom = nomDeDeclaration(noeud)
                 val corps = noeud.enfants.firstOrNull { it.genre == KtNodeTypes.CLASS_BODY }
                 val enteteSaine = entetePropre(noeud, corps)
+
+                // La ZONE DE CONSTRUCTION de la classe : les paramètres NUS
+                // du primaire (sans val/var — les val/var sont des MEMBRES,
+                // gardés par la déclaration documentaire) y sont en portée
+                // (initialisateurs, init, entrées d'enum) — PAS dans les
+                // méthodes (fiche 028).
+                val zone = if (nom != null) parametresPrimaireNus(noeud) else emptySet()
                 if (enteteSaine) {
-                    visiterZone(noeud, corps, contextes, diagnostics, pile, nomsZone)
+                    // V-A — l'EN-TÊTE (dont la clause d'appel du SUPER) voit
+                    // la zone de construction DE LA CLASSE MÊME : `) : KtNoeud(noeud,
+                    // source)` — les arguments du super vivent des paramètres
+                    // nus du PRIMAIRE DE LA CLASSE (fiche 028 — l'oubli
+                    // fabriquait les faux positifs de la famille « source »).
+                    visiterZone(noeud, corps, contextes, diagnostics, pile, zone)
                 }
 
                 // La COUCHE de la déclaration : nommée (modèle + clôture)
@@ -217,13 +229,6 @@ internal object DiagnosticsSemantiques {
                 } else {
                     pile
                 }
-
-                // La ZONE DE CONSTRUCTION de la classe : les paramètres NUS
-                // du primaire (sans val/var — les val/var sont des MEMBRES,
-                // gardés par la déclaration documentaire) y sont en portée
-                // (initialisateurs, init, entrées d'enum) — PAS dans les
-                // méthodes (fiche 028).
-                val zone = if (nom != null) parametresPrimaireNus(noeud) else emptySet()
 
                 if (corps != null) {
                     for (membre in corps.enfants) {
@@ -306,10 +311,40 @@ internal object DiagnosticsSemantiques {
             verifierRetourManquant(noeud, diagnostics)
         }
         val liaison = contextes.liaisonLocale(noeud)
-        marcher(noeud, contextes, diagnostics, liaison, pile, nomsZone, enteteBrisee)
+        // V-A — le RÉCEPTEUR D'EXTENSION d'une fonction (`fun X.alea() { … }`)
+        // : ses membres sont en portée IMPLICITE dans le corps (miroir de
+        // la pile des this) — la couche TYPÉE résout `alias()`/
+        // `nomQualifie()` nus ; un récepteur NON TYPABLE rend la couche
+        // OPAQUE (ses membres sont invisibles : jamais un faux positif).
+        val pileInterne = recepteurExtension(noeud, contextes)?.let { pile.empiler(it) } ?: pile
+        marcher(noeud, contextes, diagnostics, liaison, pileInterne, nomsZone, enteteBrisee)
         // La passe TYPÉE de la famille K4 (fiche 046 — vague 2b) : les cinq
         // familles sémantiques sur la région propre.
         DiagnosticsTypage.verifier(noeud, contextes.univers, liaison, diagnostics)
+    }
+
+    /**
+     * V-A — la COUCHE du RÉCEPTEUR D'EXTENSION d'une fonction (le TYPE
+     * écrit AVANT la liste de paramètres) : typée quand le récepteur
+     * résout (projet, import, catalogue), OPAQUE sinon (les membres d'un
+     * récepteur inconnu ne se prouvent jamais absents).
+     */
+    private fun recepteurExtension(fonction: NoeudArbre, contextes: Contextes): CoucheThis? {
+        if (fonction.genre != KtNodeTypes.FUN) return null
+        val listeParams = fonction.enfants
+            .firstOrNull { it.genre == KtNodeTypes.VALUE_PARAMETER_LIST } ?: return null
+        val recepteur = fonction.enfants
+            .takeWhile { it !== listeParams }
+            .lastOrNull { it.genre == KtNodeTypes.TYPE_REFERENCE }
+            ?: return null
+        val nomType = recepteur.texteCanonique.substringBefore('<').trim().removeSuffix("?").trim()
+        if (nomType.isEmpty()) return null
+        val type = contextes.univers.resoudreTypeEcrit(nomType)
+        return if (type != null) {
+            Couches.deType(contextes.univers, type)
+        } else {
+            CoucheThis(typeInterne = null, cloture = null, opaque = true)
+        }
     }
 
     // ------------------------------------------------------------------
@@ -546,8 +581,15 @@ internal object DiagnosticsSemantiques {
                             .firstOrNull { it.genre == KtNodeTypes.REFERENCE_EXPRESSION }
                             ?.texteCanonique.orEmpty()
                         val pileLambda = if (nomSelecteur in Couches.FONCTIONS_APPLIQUANTES) {
-                            TypageBorne.typeDeLexpression(recepteur, contextes.univers, liaison, pile)
-                                ?.let { pile.empiler(Couches.deType(contextes.univers, it)) }
+                            // V-A — le récepteur TYPÉ prête ses membres ;
+                            // un récepteur NON TYPABLE prête une couche
+                            // OPAQUE (les membres de `this` implicite sont
+                            // invisibles : jamais un faux positif sur le
+                            // corps d'un `apply` du classpath non lisible).
+                            when (val type = TypageBorne.typeDeLexpression(recepteur, contextes.univers, liaison, pile)) {
+                                null -> pile.empiler(CoucheThis(typeInterne = null, cloture = null, opaque = true))
+                                else -> pile.empiler(Couches.deType(contextes.univers, type))
+                            }
                         } else {
                             null
                         }
@@ -614,6 +656,19 @@ internal object DiagnosticsSemantiques {
             KtNodeTypes.REFERENCE_EXPRESSION -> {
                 verifierNomNu(noeud, contextes, diagnostics, liaison, pile, nomsZone, enteteBrisee)
             }
+            KtNodeTypes.CALLABLE_REFERENCE_EXPRESSION -> {
+                // V-A — une RÉFÉRENCE APPELABLE `récepteur::membre` : le
+                // RÉCEPTEUR marche comme nom nu candidat, le MEMBRE se
+                // vérifie comme SÉLECTEUR sur le récepteur typé (l'ancienne
+                // marche génétique le vérifiait comme nom NU — faux positifs
+                // « add »/« ajouter » de la mesure P1).
+                val recepteur = noeud.enfants.firstOrNull()
+                val membre = noeud.enfants.lastOrNull()
+                if (recepteur != null && membre != null && recepteur !== membre) {
+                    marcher(recepteur, contextes, diagnostics, liaison, pile, nomsZone, enteteBrisee)
+                    verifierSelecteur(recepteur, membre, contextes, diagnostics, liaison, pile, enteteBrisee)
+                }
+            }
             KtNodeTypes.LAMBDA_EXPRESSION -> {
                 // Étage 3 vague 3d (fiche 038) : une lambda EN POSITION
                 // dont l'ATTENTE porte un RÉCEPTEUR prête ce récepteur
@@ -677,6 +732,12 @@ internal object DiagnosticsSemantiques {
         // marche standard par sélecteur.
         val racine = segments.first()
         if (racine in nomsZone) return false
+        val racineNode = noeudReferenceRacine(noeud) ?: return false
+        // V-A — les gardes de la marche des noms nus couvrent AUSSI la
+        // racine d'un chemin (`it.name`, `this.layoutInflater`…) : le
+        // contournement par le chemin fabriquait les faux positifs MAJEURS
+        // de la mesure P1 (familles « it » et « this »).
+        if (!nomNuSignalable(racineNode, contextes, liaison, pile)) return false
         if (contextes.univers.resoudreNomNu(racine, contextes.nomsDeclares, liaison, pile) !=
             UniversPreuves.Verdict.SIGNALABLE
         ) {
@@ -730,6 +791,44 @@ internal object DiagnosticsSemantiques {
             }
         }
 
+        // V-A — un PRÉFIXE du chemin est un PAQUET CONNU (projet ou index)
+        // ou une CLASSE RÉSOLUE, ou le chemin AMORCE un import du document :
+        // la RACINE est un nom de paquet/classe, jamais un récepteur
+        // inconnu (`jo.codeide….Classe.ENTRÉE`, `org.jetbrains….KtNodeTypes.FUN`
+        // — familles « racines » de la mesure P1). La FEUILLE reste
+        // faillible uniquement quand le préfixe PARENT est un PAQUET du
+        // PROJET dont elle ne vit pas (miroir de la branche classpath).
+        if (cheminAmorceConnu(segments, contextes)) {
+            val feuilleNom = segments.last()
+            val prefixeParent = segments.dropLast(1).joinToString(".")
+            val appelee = selecteur.genre == KtNodeTypes.CALL_EXPRESSION
+            if (appelee && segments.size >= 3 &&
+                contextes.univers.nomsNusProuvables && !contextes.univers.script &&
+                prefixeParent in contextes.univers.modele.paquetsConnus() &&
+                contextes.univers.cheminClasse(segments.dropLast(1)) == null
+            ) {
+                val vitIci = contextes.univers.modele.appelables(feuilleNom, prefixeParent).isNotEmpty() ||
+                    contextes.univers.modele.type("$prefixeParent.$feuilleNom") != null
+                if (!vitIci) {
+                    selecteur.enfants
+                        .firstOrNull { it.genre == KtNodeTypes.REFERENCE_EXPRESSION }
+                        ?.let { feuille ->
+                            emettreNonResolu(
+                                reference = feuille,
+                                nom = feuilleNom,
+                                forme = FormeReference.NOM_NU,
+                                issue = IssueSelection.INCONNU,
+                                recepteur = null,
+                                contextes = contextes,
+                                diagnostics = diagnostics,
+                            )
+                        }
+                }
+            }
+            arguments.forEach { marcher(it, contextes, diagnostics, liaison, pile, nomsZone, enteteBrisee) }
+            return true
+        }
+
         // Le chemin ne résout pas : la RACINE (récepteur inconnu — miroir
         // kotlinc « unresolved: exo ») est émise ; la FEUILLE APPELÉE ne
         // l'est que pour un chemin de CLASSE QUALIFIÉE (≥ 3 segments :
@@ -752,20 +851,35 @@ internal object DiagnosticsSemantiques {
                         )
                     }
             }
-            noeudReferenceRacine(noeud)?.let { racineNode ->
-                emettreNonResolu(
-                    reference = racineNode,
-                    nom = racine,
-                    forme = FormeReference.NOM_NU,
-                    issue = IssueSelection.INCONNU,
-                    recepteur = null,
-                    contextes = contextes,
-                    diagnostics = diagnostics,
-                )
-            }
+            emettreNonResolu(
+                reference = racineNode,
+                nom = racine,
+                forme = FormeReference.NOM_NU,
+                issue = IssueSelection.INCONNU,
+                recepteur = null,
+                contextes = contextes,
+                diagnostics = diagnostics,
+            )
         }
         arguments.forEach { marcher(it, contextes, diagnostics, liaison, pile, nomsZone, enteteBrisee) }
         return true
+    }
+
+    /**
+     * V-A — le chemin amorce-t-il un PAQUET CONNU ou une CLASSE RÉSOLUE (un
+     * PRÉFIXE propre du chemin — projet, index ou AMORCE d'un import du
+     * document) ? La racine d'un tel chemin est un nom de paquet ou de
+     * classe, jamais un récepteur inconnu signalable.
+     */
+    private fun cheminAmorceConnu(segments: List<String>, contextes: Contextes): Boolean {
+        val univers = contextes.univers
+        for (k in 1 until segments.size) {
+            val prefixe = segments.subList(0, k).joinToString(".")
+            if (prefixe in univers.modele.paquetsConnus()) return true
+            if (univers.index?.paquetConnu(prefixe) == true) return true
+            if (univers.modele.type(prefixe) != null) return true
+        }
+        return univers.importAmorce(segments.first())
     }
 
     /**
@@ -830,6 +944,16 @@ internal object DiagnosticsSemantiques {
         val segments = segmentsTypeQualifie(noeud)
         if (segments.isEmpty()) return
         if (contextes.univers.cheminClasse(segments) != null) return
+        // V-A — `X.Companion` en position de type (récepteur d'extension
+        // `fun Char.Companion.…`) : le préfixe résout comme TYPE et la
+        // feuille est le compagnon IMPLICITE — muet (la présence du
+        // compagnon relève de la vue imbriquée, jamais une absence
+        // prouvable à cet étage).
+        if (segments.size == 2 && segments.last() == "Companion" &&
+            contextes.univers.resoudreTypeEcrit(segments.first()) != null
+        ) {
+            return
+        }
         if (!contextes.univers.nomsNusProuvables) return
         // Le DERNIER segment seul est faillible (le nom de classe) : les
         // segments amont sont des PAQUETS potentiels (E4bis).
@@ -901,9 +1025,6 @@ internal object DiagnosticsSemantiques {
     ) {
         val nom = reference.texteCanonique
         if (nom.isEmpty()) return
-        // Le mot-clé `super` (le parseur l'enveloppe d'un REFERENCE_EXPRESSION
-        // dans SUPER_EXPRESSION — vague 2c, fiche 044 E4) : jamais un nom nu.
-        if (nom == "super") return
         if (contextes.directivesBruisees || enteteBrisee) return
         // Une couche ENGLOBANTE ouverte ou opaque bloque la preuve des noms
         // nus (vague 2c — la clôture ne se clôt pas : chaîne non fermée,
@@ -912,27 +1033,11 @@ internal object DiagnosticsSemantiques {
         // La ZONE DE CONSTRUCTION (paramètres nus du primaire, `field` des
         // accesseurs — fiche 028).
         if (nom in nomsZone) return
-        // `it` IMPLICITE (transverse T — fiche 021) : jamais un nom nu
-        // ordinaire, il NAÎT de l'attente de la lambda englobante. L'attente
-        // DÉMONTRÉE à EXACTEMENT un paramètre le déclare (silence — miroir
-        // exact du typage [TypageBorne.typeDeLexpression], même garde
-        // documentaire : une locale nommée `it` prime) ; une attente
-        // démontrée à une AUTRE arité le condamne (le nom ne peut pas
-        // exister, la preuve tient) ; SANS attente démontrable la preuve
-        // manque (silence D3 — jamais un faux positif sur la lambda d'une
-        // extension classpath dont le récepteur n'est pas typable à cet
-        // étage : `liste.map { it + 1 }`).
-        if (nom == "it" && !contextes.univers.possedeNomDeclare("it")) {
-            val attente =
-                TypageBorne.attenteLambdaAuPoint(
-                    contextes.univers.arbre,
-                    reference.debut,
-                    contextes.univers,
-                    liaison,
-                    pile,
-                )
-            if (attente == null || attente.size == 1) return
-        }
+        // V-A — les gardes des mots-clés et de l'implicite (this/super,
+        // `it`, compagnon implicite) — PARTAGÉES avec la marche des chemins
+        // FQN (le contournement par le chemin `it.name` fabriquait les faux
+        // positifs majeurs de la mesure P1).
+        if (!nomNuSignalable(reference, contextes, liaison, pile)) return
         val verdict = contextes.univers.resoudreNomNu(nom, contextes.nomsDeclares, liaison, pile)
         if (verdict != UniversPreuves.Verdict.SIGNALABLE) return
         emettreNonResolu(
@@ -946,6 +1051,50 @@ internal object DiagnosticsSemantiques {
         )
     }
 
+    /**
+     * V-A — un nom nu est-il SIGNALABLE ? Les gardes de MOTS-CLÉS et de
+     * l'IMPLICITE, partagées par la marche des noms nus et celle des
+     * CHEMINS FQN :
+     *
+     * - `super` et `this` (le parseur les enveloppe de références — fiche
+     *   044 E4 pour `super` ; `this` nu en miroir) : jamais des noms nus ;
+     * - `Companion` (la référence implicite du compagnon — gabarit de
+     *   chaîne `"$Companion"` ou compagnon englobant) : sa présence relève
+     *   du compagnon, jamais une absence prouvable en nom nu ;
+     * - `it` IMPLICITE (transverse T — fiche 021) : il NAÎT de l'attente de
+     *   la lambda englobante — l'attente DÉMONTRÉE à EXACTEMENT un
+     *   paramètre le déclare (silence), SANS attente démontrable la preuve
+     *   manque (silence D3), une attente démontrée à une AUTRE arité le
+     *   condamne (le nom ne peut pas exister, la preuve tient).
+     *
+     * @param reference la référence nue candidate ;
+     * @return `true` si le nom peut être SIGNALABLE (les gardes ne
+     * l'éteignent pas).
+     */
+    private fun nomNuSignalable(
+        reference: NoeudArbre,
+        contextes: Contextes,
+        liaison: MarcheTypee.Liaison,
+        pile: PileThis,
+    ): Boolean {
+        val nom = reference.texteCanonique
+        when (nom) {
+            "super", "this", "Companion" -> return false
+        }
+        if (nom == "it" && !contextes.univers.possedeNomDeclare("it")) {
+            val attente =
+                TypageBorne.attenteLambdaAuPoint(
+                    contextes.univers.arbre,
+                    reference.debut,
+                    contextes.univers,
+                    liaison,
+                    pile,
+                )
+            if (attente == null || attente.size == 1) return false
+        }
+        return true
+    }
+
     /** Vérifie un NOM DE TYPE (position `USER_TYPE`). */
     private fun verifierNomType(
         reference: NoeudArbre,
@@ -957,6 +1106,11 @@ internal object DiagnosticsSemantiques {
         val nom = reference.texteCanonique
         if (nom.isEmpty()) return
         if (contextes.directivesBruisees || enteteBrisee) return
+        // V-A — les PARAMÈTRES DE TYPE des déclarations ENGLOBANTES (classe
+        // ou fonction) : `T` nu en position de type résout par sa
+        // déclaration (`Stack<T>`, `fun <T> … : List<T>`) — l'oubli fabriquait
+        // les faux positifs de la famille « T » de la mesure P1.
+        if (parametreTypeEnglobant(contextes, reference.debut, nom)) return
         val verdict = contextes.univers.resoudreNomType(nom, pile)
         if (verdict != UniversPreuves.Verdict.SIGNALABLE) return
         emettreNonResolu(
@@ -968,6 +1122,36 @@ internal object DiagnosticsSemantiques {
             contextes = contextes,
             diagnostics = diagnostics,
         )
+    }
+
+    /**
+     * V-A — la chaîne des ANCÊTRES couvrant la position (racine → feuille,
+     * chaque nœud CONTIENT la position — miroir local de l'outil de
+     * résolution, pour les paramètres de type).
+     */
+    private fun ancetresCouvrants(racine: NoeudArbre, position: Int): List<NoeudArbre> {
+        val chaine = mutableListOf<NoeudArbre>()
+        var courant: NoeudArbre? = racine
+        while (courant != null && position >= courant.debut && position <= courant.fin) {
+            chaine.add(courant)
+            courant = courant.enfants.firstOrNull { position >= it.debut && position <= it.fin }
+        }
+        return chaine
+    }
+
+    /**
+     * V-A — `nom` est-il un PARAMÈTRE DE TYPE d'une déclaration englobante
+     * (la liste `TYPE_PARAMETER_LIST` d'un FUN/CLASS ancêtre) ?
+     */
+    private fun parametreTypeEnglobant(contextes: Contextes, position: Int, nom: String): Boolean {
+        for (ancetre in ancetresCouvrants(contextes.univers.arbre.noeud, position)) {
+            val liste = ancetre.enfants.firstOrNull { it.genre == KtNodeTypes.TYPE_PARAMETER_LIST }
+                ?: continue
+            for (parametre in liste.enfants.filter { it.genre == KtNodeTypes.TYPE_PARAMETER }) {
+                if (nomDeDeclaration(parametre) == nom) return true
+            }
+        }
+        return false
     }
 
     /** Vérifie un SÉLECTEUR qualifié (callee ou propriété du récepteur). */

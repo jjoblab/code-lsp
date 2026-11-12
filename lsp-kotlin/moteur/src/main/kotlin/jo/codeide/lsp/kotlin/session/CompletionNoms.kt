@@ -45,6 +45,13 @@ internal object CompletionNoms {
     private const val LIMITE_INDEX: Int = 24
 
     /**
+     * V-A — la borne du catalogue KP8 à préfixe VIDE (ordre alphabétique
+     * déterministe) : le plafond d'affichage laisse vivre le TÉMOIN
+     * mots-clés du régime de repli (fiche 043) quand le catalogue s'élargit.
+     */
+    private const val LIMITE_CATALOGUE_VIDE: Int = 80
+
+    /**
      * Les MOTS-CLÉ proposés au régime de nom : le vocabulaire STATEMENT et
      * DÉCLARATION du langage (mots durs et modificateurs utiles à une
      * position d'identifiant — liste FINIE, jamais l'avalanche).
@@ -125,7 +132,17 @@ internal object CompletionNoms {
         }
 
         // 4. Le catalogue KP8 (types bien connus des paquets par défaut).
-        for (nom in UniversPreuves.CATALOGUE_TYPES_DEFAUT) {
+        //    V-A — à préfixe VIDE, la source se BORNE (ordre alphabétique
+        //    déterministe, LIMITE_CATALOGUE_VIDE) : le plafond d'affichage
+        //    doit laisser vivre le TÉMOIN mots-clés du régime de repli
+        //    (fiche 043 — l'élargissement du catalogue par la vague V-A
+        //    repoussait les mots-clés au-delà de la coupe).
+        val catalogue = if (prefixe.isEmpty()) {
+            UniversPreuves.CATALOGUE_TYPES_DEFAUT.sorted().take(LIMITE_CATALOGUE_VIDE)
+        } else {
+            UniversPreuves.CATALOGUE_TYPES_DEFAUT
+        }
+        for (nom in catalogue) {
             poser(nom, NaturePropositionKotlin.CLASSE)
         }
 

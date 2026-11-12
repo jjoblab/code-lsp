@@ -181,6 +181,14 @@ internal object DiagnosticsTypage {
             ?.texteCanonique.orEmpty()
         if (nom.isEmpty()) return
 
+        // V-A — une fonction LOCALE ou MEMBRE du même nom vit dans le
+        // document (portée implicite `this` ou locale) : elle PRIME les
+        // appelables de premier niveau — le témoin d'arité n'est plus
+        // fiable (les arités des méthodes privées homonymes d'autres
+        // fichiers fabriquaient les faux positifs « marcher »/« collecter »
+        // de la mesure P1).
+        if (fonctionNommeeDansDocument(univers, nom)) return
+
         // Les témoins : fonction de premier niveau, constructeur primaire.
         val temoins = temoinsArite(nom, univers, region)
         if (temoins.isEmpty()) return
@@ -251,6 +259,10 @@ internal object DiagnosticsTypage {
             temoins.add(TemoinArite(appelable.parametres, appelable.uri, propre))
         }
         univers.typeProjetEcrit(nom)?.let { type ->
+            // V-A — un CONSTRUCTEUR SECONDAIRE du type : le témoin du
+            // PRIMAIRE n'est plus fiable (l'appel peut viser un secondaire
+            // d'arité différente — silence).
+            if (type.aConstructeurSecondaire) return emptyList()
             if (type.parametresPrimaire.isNotEmpty()) {
                 val propre = type.uri != null && type.uri != "" ||
                     declarationPropreDansDocument(univers, nom, region)
@@ -258,6 +270,30 @@ internal object DiagnosticsTypage {
             }
         }
         return temoins
+    }
+
+    /**
+     * V-A — une FUN NICHEE nommée `nom` est-elle déclarée dans le document
+     * courant (fonction LOCALE dans un bloc, MEMBRE de classe ou d'objet) ?
+     * La portée Kotlin la PRIME sur les appelables de premier niveau : le
+     * témoin d'arité global n'est plus fiable (silence). Une FUN de PREMIER
+     * NIVEAU du document (enfant direct de la racine — script compris)
+     * reste un témoin LÉGITIME (c'est elle qu'on appelle).
+     */
+    private fun fonctionNommeeDansDocument(univers: UniversPreuves, nom: String): Boolean {
+        var trouve = false
+        fun marcher(noeud: NoeudArbre, premierNiveau: Boolean) {
+            if (noeud.genre == KtNodeTypes.FUN) {
+                val n = noeud.jetonsPropres.firstOrNull { it.genre == KtTokens.IDENTIFIER }?.texte
+                if (n == nom && !premierNiveau) trouve = true
+            }
+            // Seuls les enfants DIRECTS de la racine restent de premier
+            // niveau — tout ce qui vit dans un corps (bloc, classe, objet)
+            // est une locale ou un membre qui PRIME les appelables globaux.
+            noeud.enfants.forEach { marcher(it, premierNiveau = false) }
+        }
+        univers.arbre.noeud.enfants.forEach { marcher(it, premierNiveau = true) }
+        return trouve
     }
 
     /**
@@ -317,6 +353,15 @@ internal object DiagnosticsTypage {
         // POSITIONNELLE respecte les ombres internes.
         val typeEcrit = liaison(nom, recepteur.debut)?.trim() ?: return
         if (!typeEcrit.substringBefore('<').trimEnd().endsWith("?")) return
+
+        // V-A — les EXTENSIONS À RÉCEPTEUR NULLABLE : `x.let { }`,
+        // `x.orEmpty()`, `x.isNullOrEmpty()`… sont LÉGALES sur un récepteur
+        // nullable (le récepteur `T.` n'exige pas `T` non nul) — jamais un
+        // accès non sûr prouvable.
+        val selecteur = noeud.enfants.lastOrNull()
+            ?.takeIf { it.genre == KtNodeTypes.REFERENCE_EXPRESSION }
+            ?: selecteurAppel(noeud)
+        if (selecteur != null && selecteur in EXTENSIONS_NULLABLES) return
 
         // Un raffinement de NON-NULLITÉ en position éteint la preuve
         // (garde `!= null`, garde précoce `== null` — fiche 046).
@@ -392,8 +437,17 @@ internal object DiagnosticsTypage {
         val operation = affectation.enfants
             .firstOrNull { it.genre == KtNodeTypes.OPERATION_REFERENCE } ?: return
         if (operation.jetonsPropres.none { it.genre == KtTokens.EQ }) return
-        val cible = affectation.enfants.firstOrNull { it.genre == KtNodeTypes.REFERENCE_EXPRESSION }
-            ?: return
+
+        // V-A — la cible est l'OPÉRANDE GAUCHE de l'affectation (l'enfant
+        // AVANT l'opération) : `cible[clé] = valeur` et `p.x = valeur` ne
+        // sont pas des réaffectations de nom simple (l'ancien premier
+        // REFERENCE enfant élisait la VALEUR DE DROITE — faux positifs
+        // « jeu »/« noms »/« poids » de la mesure P1) ; sous-rapport assumé
+        // pour les cibles qualifiées/indexées (fiche 046).
+        val indexOperation = affectation.enfants.indexOf(operation)
+        if (indexOperation <= 0) return
+        val cible = affectation.enfants[indexOperation - 1]
+        if (cible.genre != KtNodeTypes.REFERENCE_EXPRESSION) return
         val nom = cible.texteCanonique
         if (nom.isEmpty()) return
 
@@ -454,7 +508,19 @@ internal object DiagnosticsTypage {
                     val n = noeud.jetonsPropres.firstOrNull { it.genre == KtTokens.IDENTIFIER }?.texte
                     if (n == nom) {
                         val estVar = noeud.jetonsPropres.any { it.genre == KtTokens.VAR_KEYWORD }
-                        noter(if (estVar) Mutabilite.VAR else Mutabilite.VAL)
+                        if (estVar) {
+                            noter(Mutabilite.VAR)
+                        } else if (aInitialisateur(noeud)) {
+                            // V-A — un `val` AVEC initialisateur : toute
+                            // affectation ultérieure est une réaffectation
+                            // témoin. Un `val` SANS initialisateur
+                            // (`val x: T` affecté dans les branches —
+                            // définition garantie Kotlin) rend l'affectation
+                            // INITIALISATRICE : jamais prouvable fausse.
+                            noter(Mutabilite.VAL)
+                        } else {
+                            noter(Mutabilite.INCONNUE)
+                        }
                     }
                 }
                 KtNodeTypes.VALUE_PARAMETER -> {
@@ -471,6 +537,21 @@ internal object DiagnosticsTypage {
         return mutabilite ?: Mutabilite.INCONNUE
     }
 
+    /**
+     * V-A — une PROPERTY porte-t-elle un INITIALISATEUR (`=`) ? Un `val`
+     * SANS initialisateur se voit affecter sa valeur par DÉFINITION GARANTIE
+     * (`val x: T ; if (…) x = a else x = b`) : l'affectation n'est jamais
+     * une réaffectation témoin.
+     */
+    private fun aInitialisateur(propriete: NoeudArbre): Boolean {
+        return propriete.enfants.any {
+            it.genre != KtNodeTypes.TYPE_REFERENCE &&
+                it.genre != KtNodeTypes.MODIFIER_LIST &&
+                it.genre != KtNodeTypes.PROPERTY_DELEGATE &&
+                it.genre != KtNodeTypes.PROPERTY_ACCESSOR
+        }
+    }
+
     /** Le nom simple ÉCRIT d'une référence de type (nullable déballée). */
     private fun nomTypeEcritDeReference(reference: NoeudArbre): String? {
         var porteur: NoeudArbre =
@@ -483,4 +564,28 @@ internal object DiagnosticsTypage {
             ?: return null
         return utilisateur.texteCanonique.substringBefore('<').ifEmpty { null }
     }
+
+    /**
+     * V-A — le NOM du sélecteur APPELÉ d'une expression qualifiée (la
+     * callee du CALL_EXPRESSION sélecteur), pour les extensions à
+     * récepteur nullable.
+     */
+    private fun selecteurAppel(noeud: NoeudArbre): String? {
+        val selecteur = noeud.enfants.lastOrNull() ?: return null
+        if (selecteur.genre != KtNodeTypes.CALL_EXPRESSION) return null
+        return selecteur.enfants
+            .firstOrNull { it.genre == KtNodeTypes.REFERENCE_EXPRESSION }
+            ?.texteCanonique?.ifEmpty { null }
+    }
+
+    /**
+     * V-A — les EXTENSIONS à RÉCEPTEUR NULLABLE de la bibliothèque standard
+     * : leur récepteur `T?`/`T.` accepte un récepteur nullable — un `.`
+     * dessus n'est JAMAIS un accès non sûr prouvable (catalogue borné,
+     * miroir des implicites MEMBRES_IMPLICITS).
+     */
+    private val EXTENSIONS_NULLABLES: Set<String> = setOf(
+        "let", "run", "also", "apply", "takeIf", "takeUnless",
+        "orEmpty", "isNullOrEmpty", "isNullOrBlank", "ifEmpty", "ifBlank",
+    )
 }
