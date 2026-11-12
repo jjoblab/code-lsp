@@ -19,7 +19,7 @@
 | V-A | Fiabilité & bascule | **LIVRÉE** (12/11/2026) | [execution/V-A-fiabilite.md](execution/V-A-fiabilite.md) | P1 strict **FP=0** (0,000/1000 l.), 542/542 tests, bancs verts |
 | V-I1 | Capacités arbre (ADR 0136 B.2) | **LIVRÉE** (12/11/2026) | [execution/V-I1-capacites-arbre.md](execution/V-I1-capacites-arbre.md) | matrice **22 annoncées / 4 absentes**, 550/550 tests |
 | V-B | Typage palier 2 | **LIVRÉE** (12/11/2026) | [execution/V-B-typage-palier2.md](execution/V-B-typage-palier2.md) | substitution des types (it: élément), P1 strict FP=0, 556/556, SPECIFICATION-TYPES v1 |
-| V-C | Diagnostics élargis (gated) | À FAIRE | — | — |
+| V-C | Diagnostics élargis (gated) | **LIVRÉE** (12/11/2026) | [execution/V-C-diagnostics-elargis.md](execution/V-C-diagnostics-elargis.md) | whenNonExhaustif + suspendHorsContexte + @Suppress servi, mutants 4/4+3/3, P1 strict FP=0, 564/564 |
 | V-D | Complétion smart/chain/DSL | À FAIRE | — | — |
 | V-I2 | Vague palier 2 protocole (ADR 0136 B.3) | À FAIRE | — | — |
 | V-E | Android réel | À FAIRE | — | — |
