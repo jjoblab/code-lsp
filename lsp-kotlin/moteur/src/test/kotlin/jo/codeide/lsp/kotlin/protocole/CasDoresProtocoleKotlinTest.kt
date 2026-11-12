@@ -196,13 +196,36 @@ class CasDoresProtocoleKotlinTest {
             capacites.codeActionProvider.right.codeActionKinds,
             "codeActionKinds = quickfix exactement",
         )
-        // Les NON ANNONCÉES (honnêtes — la matrice Kotlin : ❌) : les
-        // cases restent VIDES dans le protocole (les requêtes restent
-        // tolérantes, jamais d'annonce fantôme).
-        assertNull(capacites.semanticTokensProvider, "semanticTokens NON annoncée (dette D3 documentée — V-I2)")
-        assertNull(capacites.codeLensProvider, "codeLens NON annoncé (V-I2)")
-        assertNull(capacites.callHierarchyProvider, "callHierarchy NON annoncée (V-I2)")
-        assertNull(capacites.typeHierarchyProvider, "typeHierarchy NON annoncée (V-I2)")
+        // V-I2 (ADR 0136 étape B.3) — les CAPACITÉS PALIER 2 passent
+        // ANNONCÉES (annoncées ET servies — les tests
+        // CapacitesPalier2KotlinTest) : la coloration sémantique (légende
+        // contractuelle, KH1 : jamais la variance), les hiérarchies de
+        // types et d'appels, les lentilles d'occurrences. La matrice
+        // passe 26 annoncées / 0 absentes.
+        assertNotNull(capacites.semanticTokensProvider, "semanticTokens annoncée (V-I2)")
+        val legende = capacites.semanticTokensProvider.legend
+        assertEquals(
+            listOf("class", "interface", "enum", "decorator", "method", "property", "parameter", "variable"),
+            legende.tokenTypes,
+            "la légende des types est contractuelle (miroir Java V-G)",
+        )
+        assertEquals(
+            listOf("declaration", "static", "final", "abstract"),
+            legende.tokenModifiers,
+            "la légende des modificateurs est contractuelle",
+        )
+        assertNotNull(capacites.codeLensProvider, "codeLens annoncé (V-I2)")
+        assertEquals(false, capacites.codeLensProvider.resolveProvider, "codeLens : PAS de résolveur différé")
+        assertEquals(
+            true,
+            capacites.callHierarchyProvider.isLeft && capacites.callHierarchyProvider.left,
+            "callHierarchy annoncée (V-I2)",
+        )
+        assertEquals(
+            true,
+            capacites.typeHierarchyProvider.isLeft && capacites.typeHierarchyProvider.left,
+            "typeHierarchy annoncée (V-I2)",
+        )
         // V-I1 (ADR 0136 étape B.2) — les CAPACITÉS ARBRE passent ANNONCÉES
         // (annoncées ET servies — les tests CapacitesArbreKotlinTest).
         assertEquals(

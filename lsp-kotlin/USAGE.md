@@ -21,7 +21,7 @@
 
 ## 2. Surface LSP exacte (matrice paritaire — verrouillée par le cas doré `matrice-paritaire`)
 
-### 2.1 Capacités ANNONCÉES et servies (22)
+### 2.1 Capacités ANNONCÉES et servies (26)
 
 | Famille | Capacités |
 |---|---|
@@ -38,14 +38,16 @@
 | Confort | `inlayHint` |
 | Renommage | `rename` + `prepareRename` |
 | Capacités arbre (V-I1) | `linkedEditingRange` (délimiteurs appariés), `documentColor` (hexadécimaux Android 6/8 chiffres) |
+| Palier 2 (V-I2) | `semanticTokens/full` (légende contractuelle : class, interface, enum, decorator, method, property, parameter, variable — jamais la variance, KH1), `typeHierarchy` (supertypes écrits, sous-types par FQCN), `callHierarchy` (entrants/sortants de premier niveau), `codeLens` (occurrences documentaires bornées) |
 
-### 2.2 Capacités NON annoncées (honnêtes — 4)
+### 2.2 Capacités NON annoncées (honnêtes — 0)
 
-`semanticTokens` (dette D3 — Vague V-I2), `codeLens`, `callHierarchy`,
-`typeHierarchy` (Vague V-I2). Règle : **capacité testée = annoncée ;
-sinon absente** — l'ajout relève de la vague V-I2 (palier 2 — ADR
-0136). Les requêtes non annoncées reçoivent une **réponse vide**
-(convention I9), jamais une erreur.
+**Aucune** (V-I2 — ADR 0136 B.3 : les 4 absentes — `semanticTokens`,
+`codeLens`, `callHierarchy`, `typeHierarchy` — sont passées
+ANNONCÉES+SERVIES une à une, jamais annoncée sans être servie). Règle :
+**capacité testée = annoncée ; sinon absente**. Les requêtes non
+annoncées reçoivent une **réponse vide** (convention I9), jamais une
+erreur.
 
 ### 2.3 Extensions maison
 
