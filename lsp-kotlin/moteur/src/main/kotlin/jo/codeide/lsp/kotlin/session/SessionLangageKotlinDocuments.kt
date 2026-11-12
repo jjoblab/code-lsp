@@ -18,6 +18,7 @@ import jo.codeide.lsp.kotlin.api.EditionTexteKotlin
 import jo.codeide.lsp.kotlin.api.EmplacementKotlin
 import jo.codeide.lsp.kotlin.api.GenreContexteKotlin
 import jo.codeide.lsp.kotlin.api.IndiceKotlin
+import jo.codeide.lsp.kotlin.api.NiveauMemoireKotlin
 import jo.codeide.lsp.kotlin.api.PlagePliableKotlin
 import jo.codeide.lsp.kotlin.api.PlageRenommableKotlin
 import jo.codeide.lsp.kotlin.api.PlanActionKotlin
@@ -1055,6 +1056,24 @@ internal class SessionLangageKotlinDocuments(
     // ------------------------------------------------------------------
 
     /**
+     * V-A — réduit l'empreinte mémoire (ADR 0117/0134 : l'observateur
+     * `onTrimMemory` branché par l'hôte, SPI neutre). Les caches de lecture
+     * paresseuse de la vue JVM se vidangent dès [NiveauMemoireKotlin.FAIBLE]
+     * ; les annuaires et les gels de classement dès
+     * [NiveauMemoireKotlin.CRITIQUE] — tout se RECONSTRUIT à la demande,
+     * la justesse est intacte (documents, époque et index persistants ne
+     * partent jamais).
+     */
+    override fun reduireMemoire(niveau: NiveauMemoireKotlin) {
+        if (verrou.read { fermee }) return
+        val pression = niveau >= NiveauMemoireKotlin.CRITIQUE
+        indexSiPret()?.vueJvm?.viderCaches(avecAnnuaire = pression)
+        if (pression) {
+            arrangementCompletion.reinitialiser()
+        }
+    }
+
+    /**
      * Abandonne TOUT : documents, classpath, vue et scan (le fil dédié du
      * scanneur est interrompu). Les appels postérieurs sont des no-ops
      * silencieux ; la fermeture est idempotente.
@@ -1085,6 +1104,12 @@ internal class SessionLangageKotlinDocuments(
      * racines posées (projet vide — connaissance complète).
      */
     internal fun contributionsAuConsult(uriExclue: String): List<jo.codeide.lsp.kotlin.resolve.ContributionFichier> {
+        // V-A — la fraîcheur inter-fichiers par empreinte STAT (GK-038,
+        // miroir du schéma Java ADR 0025) : une sonde THROTTLEE compare le
+        // disque au scan — un fichier modifié hors éditeur déclenche la
+        // passe delta-only ASYNCHRONE (le consult COURANT sert le snapshot
+        // publié, honnête ; le suivant rejoint l'état frais).
+        sonderFraicheurDisque()
         // Les documents OUVERTS priment leurs doublons du scan (vague 2c —
         // fiche 044 : le frère OUVERT VIVANT, l'arbre frais JAMAIS le disque
         // périmé) : leurs contributions vives d'abord, le scan filtré de
@@ -1112,6 +1137,24 @@ internal class SessionLangageKotlinDocuments(
             .filter { it.fqcn !in fqcnsReels }
             .mapNotNull(::contributionSynthetique)
         return reelles + synthetiques
+    }
+
+    /**
+     * V-A — la SONDE de fraîcheur inter-fichiers (GK-038) : au plus une
+     * par [INTERVAL_SONDE_STAT_MS] — le stat de chaque fichier du scan
+     * coûte des microsecondes, la sonde ne ralentit jamais la frappe. Un
+     * disque qui a bougé déclenche la passe delta-only ASYNCHRONE : le
+     * consult courant sert l'état publié (honnête), le suivant voit l'état
+     * frais (la re-publication est un bloc).
+     */
+    private var derniereSondeStat = 0L
+
+    /** La sonde elle-même (throttle inclus). */
+    private fun sonderFraicheurDisque() {
+        val maintenant = System.currentTimeMillis()
+        if (maintenant - derniereSondeStat < INTERVAL_SONDE_STAT_MS) return
+        derniereSondeStat = maintenant
+        if (scanneur.perimeAuStat()) scanneur.rafraichir()
     }
 
     /**
@@ -1265,5 +1308,15 @@ internal class SessionLangageKotlinDocuments(
     private fun analyser(uri: String, texte: CharSequence): DocumentOuvert {
         val script = uri.endsWith(".kts")
         return DocumentOuvert(texte = texte.toString(), arbre = parseur.arbre(texte, script))
+    }
+
+    internal companion object {
+        /**
+         * V-A — l'intervalle minimum entre deux sondes STAT de fraîcheur
+         * inter-fichiers (GK-038) : le stat de chaque fichier du scan coûte
+         * des microsecondes, la sonde reste un arrière-plan léger — jamais
+         * sur le chemin critique de chaque frappe.
+         */
+        internal const val INTERVAL_SONDE_STAT_MS: Long = 500L
     }
 }

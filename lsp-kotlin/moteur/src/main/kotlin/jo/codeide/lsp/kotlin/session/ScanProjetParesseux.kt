@@ -553,6 +553,33 @@ internal class ScanProjetParesseux(
         }
 
     /**
+     * V-A — la SONDE de fraîcheur inter-fichiers par empreinte STAT
+     * (GK-038, miroir du schéma Java ADR 0025 / `empreinteFichier` : un
+     * stat coûte des microsecondes, un hachage des millisecondes) : le
+     * mtime de chaque fichier du CACHE est comparé au disque. `true` si au
+     * moins un a changé ou disparu — la passe delta-only ([rafraichir])
+     * le re-lit.
+     *
+     * **Résidu documenté** (miroir Java) : une réécriture de MÊME taille
+     * dans la MÊME milliseconde échappe à la sonde (granularité fs) ; les
+     * fichiers CRÉÉS hors éditeur ne se détectent que par l'événement
+     * hôte (`didChangeWatchedFiles`) ou [rafraichirSources] — la sonde
+     * couvre le cas commun : la MODIFICATION externe d'un fichier connu.
+     *
+     * @return `true` si le disque a bougé sous les pieds du scan.
+     */
+    internal fun perimeAuStat(): Boolean {
+        if (ferme) return false
+        for ((chemin, entree) in cacheFichiers) {
+            val fichier = Path.of(chemin)
+            val courant = mtimeDe(fichier)
+            if (courant != entree.modification) return true
+            if (courant == 0L && entree.modification == 0L && !Files.isRegularFile(fichier)) return true
+        }
+        return false
+    }
+
+    /**
      * L'observateur d'un passage de scan : appelé APRÈS chaque fichier traité
      * (la fraction `faits/total` est vraie — la marche précède le parse) ; son
      * retour `false` ANNULE le passage entre deux fichiers (l'acquis est
