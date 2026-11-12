@@ -24,7 +24,7 @@
 | V-I2 | Vague palier 2 protocole (ADR 0136 B.3) | **LIVRÉE** (12/11/2026) | [execution/V-I2-palier2-protocole.md](execution/V-I2-palier2-protocole.md) | semanticTokens borné KH1 + typeHierarchy + callHierarchy + codeLens, matrice 26/0, 586/586 |
 | V-E | Android réel | À FAIRE | — | — |
 | V-F | Actions & refactorings | **LIVRÉE** (12/11/2026) | [execution/V-F-actions-refactorings.md](execution/V-F-actions-refactorings.md) | source.organizeImports (KC-10) + refactor.extract variable (KC-11 Q5) + kinds exacts + codeAction/resolve, cycle P5 ×2, 593/593 — autres refactorings REPORTÉS au journal |
-| V-G | Gradle KTS & catalogue | À FAIRE | — | — |
+| V-G | Gradle KTS & catalogue | **LIVRÉE** (12/11/2026) | [execution/V-G-gradle-kts-catalogue.md](execution/V-G-gradle-kts-catalogue.md) | TOML tolérant + accesseurs libs.… par lecture disque (G4) + navigation kts→toml (G5) + kt.cleCatalogueInconnue (G6), 8 tests — G1/G2/G3 REPORTÉS au journal |
 | V-H | Palier profond | **SOUS ARBITRAGE** (le plan §2 la conditionne à une décision propriétaire — ADR 0124) | — | — |
 | V-I | Protocole, sémantique & usages à l'échelle | **LIVRÉE par étapes** (V-I1 + V-I2, 12/11/2026) | [execution/V-I1-capacites-arbre.md](execution/V-I1-capacites-arbre.md) + [execution/V-I2-palier2-protocole.md](execution/V-I2-palier2-protocole.md) | arbre + palier 2 : matrice 26/0, 586/586 ; l'index d'usages à l'échelle (0132) reste CONDITIONNÉ aux mesures |
 
