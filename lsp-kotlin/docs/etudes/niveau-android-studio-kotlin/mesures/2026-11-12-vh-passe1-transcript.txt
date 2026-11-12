@@ -1,0 +1,93 @@
+banc-mesure-kotlin — passe appareil (2026-11-12 16:59:24)
+hôte : aarch64 / 15 / moto g06
+java : openjdk version "17.0.19" 2026-04-21
+==============================================================
+ banc-mesure-kotlin — passe appareil du gabarit 07 ENRICHI (V-H, ADR 0124)
+ date : 2026-11-12T21:59:27.297067397
+ hôte : Linux aarch64
+ java : Termux 17.0.19
+ commit moteur testé : à consigner (git rev-parse HEAD au moment de l'assemblage du kit)
+==============================================================
+
+--- K7 : sonde d'environnement déporté (confirmation hôte, ADR 0124) ---------
+K7.termux            : NON détecté (passe bureau JVM ?)
+K7.termux_version    : (absente)
+K7.java_exe          : /data/data/com.acside/files/usr/lib/jvm/java-17-openjdk/bin/java
+K7.java_version      : 17.0.19 (OpenJDK 64-Bit Server VM)
+K7.jvm_max_memoire   : 1979 Mo (plafond -Xmx de ce banc)
+K7.coeurs            : 8
+K7.appareil_memtotal : 3821084 kB
+K7.appareil_memdispo : 579756 kB
+K7.appareil_modele   : moto g06
+→ la case Q-K7 de l'ADR 0124 se remplit avec CES lignes (jamais déduites).
+
+--- S : démarrage et indexation ----------------------------------------------
+S1 : démarrage à chaud → première complétion utile…
+S1.chaud_ms          : 212
+S2 : démarrage à froid (sous-process) → première complétion utile…
+    [froid] S2.froid_ms          : 4891
+S2.froid_ms          : 4891
+S3 : sonde pendant indexation (import ko¦)…
+S3.items_pendant     : 5
+S3.items_apres       : 5 (référence : la passe aboutie, guichet prêt)
+
+--- F : latences de frappe (100 itérations par mesure, échauffées) ------------
+F1.membres_p50_p95   : 3 / 9 ms
+F2.noms_p50_p95      : 4 / 13 ms
+F3.signature_p50_p95 : 1 / 4 ms
+F4.survol_p50_p95    : 0 / 2 ms
+F5.diagnostiques_p50_p95 : 1346 / 1531 ms (1803 l.)
+F6.milieu_p50_p95_p99: 22 / 32 / 34 ms
+
+--- C : contention (complétion du fichier A pendant le diagnose du géant) ----
+C1.nominal_p50_ms    : 3
+C1.pendant_p50_p95   : 3 / 6 ms
+C1.facteur           : ×1.00
+C2.interblocage      : non constaté (1 diagnostiques rendus)
+
+--- Q : qualité inter-fichiers (éditer A → diagnostics de B OUVERT) ----------
+Q1.edition→diag_ms   : 97 (rouge sur « cible » : OUI)
+Q1.brut              : [ERREUR] REFERENCE_NON_RESOLUE Référence non résolue : « cible »
+Q2.perimes_servis    : 0 (contrat d'époques : 0 attendu ; le compteur vérifie les époques de session)
+
+--- M : mémoire (double System.gc() avant chaque lecture, -Xmx2g) -----------
+M1.repos_Mo          : 8
+M2.apres_50_edit_Mo  : 12 (delta 4 Mo)
+M3.onTrimMemory      : — (hôte) case à remplir côté hôte, le banc est autonome
+
+--- H : mode profond K2 (ADR 0124 option 2 — cibles <10 s / <2 s / <300 Mo) --
+H1.premier_profond_ms: 27163 (cible < 10 000) — 1 erreurs, provenance « palier 3 »
+H2.chaud_ms          : 27129 (cible < 2 000 ; option 2 sans démon) — 1 erreurs
+H3.tas_banc_delta_Mo : 0 (le sous-process est HORS process : voir /proc/meminfo, consignes §5)
+H.verdict            : À TRANCHER par le propriétaire (ADR 0124 : seuils + Q-K7)
+
+==============================================================================
+ TABLEAU DE RELEVÉ (passe unique — le gabarit 07 §2 exige 3 passes espacées
+ de ≥ 30 s (thermique), la médiane retenue : relancer le banc 3 fois et recopier)
+==============================================================================
+| #  | Mesure | Valeur (p50/p95 ms, ou unité) |
+|----|--------|-------------------------------|
+| S1 | Démarrage à chaud → 1re complétion (ms) | 212 |
+| S2 | Démarrage à froid → 1re complétion (ms) | 4891 |
+| S3 | Pendant indexation : import ko¦ (items) | 5 |
+| F1 | Complétion membres p50/p95 (ms) | 3 / 9 |
+| F2 | Complétion noms p50/p95 (ms) | 4 / 13 |
+| F3 | Aide signature p50/p95 (ms) | 1 / 4 |
+| F4 | Hover p50/p95 (ms) | 0 / 2 |
+| F5 | Diagnostics ~1 800 l. p50/p95 (ms) | 1346 / 1531 |
+| F6 | Complétion milieu géant p50/p95/p99 (ms) | 22 / 32 / 34 |
+| C1 | Complétion pendant diagnose p95 (ms) + facteur | 6 + ×1.00 |
+| C2 | Interblocage | non constaté |
+| Q1 | Édition A → diag B (ms) | 97 |
+| Q2 | Réponses périmées | 0 |
+| M1 | Tas au repos (Mo) | 8 |
+| M2 | Tas après 50 éditions (Mo + delta) | 12 + 4 |
+| M3 | onTrimMemory | — (hôte) |
+| H1 | 1er diagnostic profond (ms, cible < 10 000) | 27163 |
+| H2 | Diagnostic profond chaud (ms, cible < 2 000) | 27129 |
+| H3 | Mémoire additionnelle profonde (Mo, cible < 300) | 0 (tas banc) |
+| K7 | Environnement déporté confirmé | (voir section K7 ci-dessus) |
+
+R5 : valeurs mesurées par ce banc, jamais simulées.
+Recopier les tableaux dans docs/etudes/niveau-android-studio-kotlin/07-gabarit-mesure-appareil.md §4/§7
+et joindre CE transcript brut (jamais retouché).
