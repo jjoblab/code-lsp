@@ -68,16 +68,16 @@
 - les cibles chiffrées (< 10 s / < 2 s / < 300 Mo) restent des CIBLES à
   valider (ADR 0124 : « cible, à valider »).
 
-## 4. La passe appareil 1 — les mesures sont PRODUITES (12/11/2026)
+## 4. La passe appareil témoin — première mesure (12/11/2026, 16:59)
 
-> Suite de la même journée : la passe 1 du gabarit 07 enrichi a été jouée
-> sur l'appareil de référence (kit du commit 10c2a6d, moteur b0bb9ce).
-> Transcripts et lecture chiffrée : `../mesures/2026-11-12-vh-passe1-transcript.txt`
-> (brut, jamais retouché) et `../mesures/2026-11-12-vh-passe1-lecture.md`
-> (PV de lecture — tous les facteurs calculés par code). Le gabarit 07 §7
-> porte le tableau de relevé.
+> La première passe jouée sur l'appareil de référence (kit du commit
+> 10c2a6d, moteur b0bb9ce). Elle est conservée comme PASSE TÉMOIN
+> (transcript : `../mesures/2026-11-12-vh-passe-temoin-1659-transcript.txt`,
+> brut, jamais retouché ; lecture : `../mesures/2026-11-12-vh-passe-temoin-1659-lecture.md`)
+> — la SÉRIE protocolaire des 3 passes (§5 ci-dessous) la remplace
+> comme référence des chiffres officiels.
 
-| Mesure | Cible ADR 0124 | Passe 1 | Facteur |
+| Mesure | Cible ADR 0124 | Témoin 16:59 | Facteur |
 |---|---|---|---|
 | H1 premier diagnostic profond | < 10 000 ms | 27 163 ms | **×2,7 manqué** |
 | H2 diagnostic chaud (option 2, sans démon) | < 2 000 ms | 27 129 ms | **×13,6 manqué** |
@@ -94,19 +94,63 @@
   porte `com.acside` (le bac déporté de l'application elle-même) ; la
   confirmation tient sur la preuve d'exécution (chemin du JDK,
   compilation réelle), pas sur la string de détection — correction de
-  sonde à porter aux passes 2-3 ;
-- **la mesure (a) ÉCHOUE sur la passe 1** (H1 ×2,7, H2 ×13,6 — marges
-  d'inversion nulles, PV §5) : conformément à l'ADR 0124, **rejet motivé
-  de l'option 2 sans démon** ; le palier 2 reste le plafond de fidélité ;
+  sonde à porter aux re-passes ;
+- **la mesure (a) ÉCHOUE sur le témoin** (H1 ×2,7, H2 ×13,6) :
+  conformément à l'ADR 0124, rejet motivé de l'option 2 sans démon ;
+  le palier 2 reste le plafond de fidélité ;
 - **l'option 3 (démon résident) devient la seule voie crédible vers les
   seuils** : son potentiel est CHIFFRÉ (amorçage payé une fois) —
   l'instruire est un acte du propriétaire, ce journal ne la décide pas ;
-- au passage, la même passe a produit la **baseline appareil du chemin
-  de frappe** (F1-F4 p95 ≤ 13 ms, S1 212 ms, Q1 97 ms, zéro périmé —
-  gabarit 07 §4/§6) et un écart propre au document géant (F5 : 1 531 ms
-  p95, ×5,1 — recalibrage proposé au §6).
+- au passage, le témoin a produit la première **baseline appareil du
+  chemin de frappe** (F1-F4 p95 ≤ 13 ms, S1 212 ms, Q1 97 ms, zéro
+  périmé — gabarit 07 §4/§6) et un écart propre au document géant
+  (F5 : 1 531 ms p95, ×5,1 — recalibrage proposé au §6).
+
+## 5. La série protocolaire des 3 passes — la mesure OFFICIELLE (12/11/2026, 17:07-17:25)
+
+> Le protocole du gabarit 07 §2 (3 passes espacées de ≥ 30 s, médiane
+> retenue) est maintenant COMPLET : passes jouées à 17:07, 17:11, 17:25
+> heure appareil (espacements 3 min 37 s puis 14 min 03 s). Transcripts
+> bruts : `../mesures/2026-11-12-vh-passe1-1707-transcript.txt`,
+> `…passe2-1711-transcript.txt`, `…passe3-1725-transcript.txt` ;
+> PV de lecture (médianes et facteurs calculés par code,
+> `scripts/lecture-serie.py`) : `../mesures/2026-11-12-vh-serie-3passes-lecture.md`.
+
+| Mesure | Cible | P1 17:07 | P2 17:11 | P3 17:25 | Médiane | Verdict |
+|---|---|---|---|---|---|---|
+| H1 1er profond (ms) | < 10 000 | 27 308 | 18 985 | 18 647 | **18 985** | **manqué ×1,9** |
+| H2 profond chaud (ms) | < 2 000 | 24 809 | 18 956 | 18 736 | **18 956** | **manqué ×9,5** |
+| H3 mémoire (Mo, tas banc) | < 300 | 0 | 0 | 0 | 0 | non concluant (hors process) |
+| Q-K7 | confirmé | OUI | OUI | OUI | — | **ACQUIS (4 exécutions)** |
+
+- **H2 ≈ H1 confirmé 3/3** (deltas −2 499 / −29 / +89 ms ; ratios
+  0,908 / 0,998 / 1,005 ; témoin : −34 ms, 0,999) : 4 exécutions
+  indépendantes reproduisent la même cause STRUCTURELLE — l'option 2
+  re-paye l'amorçage du sous-process K2 à chaque requête. La lecture
+  du témoin est CONFIRMÉE par la série ;
+- **tendance thermique consignée** : H1 27 308 → 18 647 ms (−32 % ;
+  S2 suit à −45 %, les mesures stables restent stables) — le premier
+  « sursaut » de l'appareil est le cas PIRE ; l'appareil se stabilise
+  vers ~18,6-19 s. La MEILLEURE passe reste ×1,86 / ×9,4 des cibles :
+  aucune inversion possible (PV de série §4) ;
+- **la mesure (a) ÉCHOUE sur la série protocolaire** : rejet motivé de
+  l'option 2 sans démon, CONFIRMÉ PAR LA SÉRIE ; le palier 2 reste le
+  plafond de fidélité ;
+- **l'option 3 (démon résident) reste la seule voie crédible** — son
+  potentiel est borné par la série : l'amorçage de ~18,6-27,3 s (selon
+  thermique appareil) serait payé UNE fois par session ; le temps de
+  compilation SANS amorçage (le « chaud » d'un démon) reste à isoler
+  par une passe dédiée — candidate à la re-passe après décision du
+  propriétaire ;
+- **la baseline appareil du chemin de frappe est ACQUISE SUR MÉDIANE**
+  (F1-F4 p95 ≤ 9 ms, S1 249 ms, F6 p99 28 ms, C1 ×1,00, Q1 72 ms,
+  zéro périmé 3/3, mémoire 8→12 Mo — gabarit 07 §4/§6) ; F5 géant
+  reste hors seuil (médiane p95 1 411 ms, ×4,7 — recalibrage ~1 500 ms
+  ou recentrage du corpus proposé au gabarit §6).
 
 Le verdict final (rejet/instruction de l'option 3) reste au
-propriétaire (ADR 0124 §10) ; les passes 2-3 (médiane du gabarit,
-consigne de charge, relever H3 par /proc/meminfo) restent à jouer mais
-ne peuvent renverser la lecture (PV §5).
+propriétaire (ADR 0124 §10) ; ce qui restait ouvert après le témoin —
+médiane, consigne de charge (toujours non consignée dans les
+transcripts, nuance portée au PV), relever H3 par `/proc/meminfo` —
+se réduit aux deux dernières cases ; la médiane est produite et ne
+change AUCUN verdict.

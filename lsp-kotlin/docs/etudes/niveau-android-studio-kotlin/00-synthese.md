@@ -26,7 +26,7 @@ hôte) ; l'option « pack dex K2 » est rejetée sur les chiffres. Le socle
 |---|---|---|---|---|
 | **1 (existe, à corriger)** | parseur + modèle + typage 2 cas + 10 codes + 6 genres | livré : dex 26 590 méthodes / 4,10 Mo (81 %/68 % des plafonds) | parse 1,8 ms p50 (500 l., JVM) ; reparse 3 000 l. 8,6 ms p50 [mesuré, JVM] | **FP mesuré 28,05/1 000 l. (V0) → cible < 0,5 après V-A** ; FN baselinés |
 | **2 (à construire, V-B)** | arguments de type, nullabilité, types fonctionnels, paramètres de type, variance en lecture, extensions génériques, surcharges, récepteurs implicites, smart casts étendus | [estimé] +300–600 méthodes / +0,15–0,3 Mo — à mesurer à chaque sous-vague (garde E-K8) | même chemin de frappe (cible §0.1 inchangée) | différentiel types vs oracle K2 ≥ 95 % sur le sous-ensemble couvert ; ambiguïté = silence |
-| **3 (à instruire, V-H)** | vérité compilateur K2 HORS frappe : processus déporté (JVM Termux/PRoot — à confirmer hôte Q-K7) ou démon ; pack dex REJETÉ (S1 : 53,6 Mo / 64 507 méthodes) | amorçage K2 mesuré 3 503 ms JVM ; **appareil mesuré 12/11 : amorçage 27,2 s (×2,7 la cible de 10 s), chaud 27,1 s SANS démon (H2 == H1 — l'option 2 re-payé l'amorçage à chaque requête)** ; mémoire appareil : à relever par /proc/meminfo | jamais sur la frappe ; premier diagnostic < 10 s [cible] ; chaud < 2 s [cible] | fidélité compilateur par construction |
+| **3 (à instruire, V-H)** | vérité compilateur K2 HORS frappe : processus déporté (JVM Termux/PRoot — confirmé hôte Q-K7 : com.acside) ou démon ; pack dex REJETÉ (S1 : 53,6 Mo / 64 507 méthodes) | amorçage K2 mesuré 3 503 ms JVM ; **appareil mesuré 12/11 (série 3 passes, médiane) : amorçage 19,0 s (×1,9 la cible de 10 s), chaud 19,0 s SANS démon (H2 ≈ H1 sur 4 exécutions — l'option 2 re-paye l'amorçage à chaque requête)** ; mémoire appareil : à relever par /proc/meminfo | jamais sur la frappe ; premier diagnostic < 10 s [cible] ; chaud < 2 s [cible] | fidélité compilateur par construction |
 
 Cibles de vitesse §0.1 (complétion/hover/signature < 100 ms p95 perçu ;
 diagnostics ~300 ms ; p99 régulier ; rien d'indisponible pendant
@@ -117,13 +117,15 @@ hôte/client/Java au [plan](04-plan-vagues.md).
 2. **Construction du palier profond** (ADR 0124) — **RECOMMANDÉ : décider
    APRÈS les deux mesures** (passe gabarit 07 enrichi + confirmation hôte
    Q-K7) ; l'option pack dex est rejetée sur les chiffres S1.
-   **[MESURES PRODUITES le 12/11/2026 — passe 1 moto g06 : Q-K7 ACQUIS
-   (com.acside, OpenJDK 17.0.19) ; H1 27,2 s (×2,7 la cible), H2 27,1 s
-   (×13,6) — l'option 2 sans démon est REJETÉE sur ses chiffres (amorçage
-   re-payé à chaque requête, cause mesurée : H2 == H1) ; l'option 3
-   (démon résident) reste la seule voie crédible vers les seuils —
-   lecture chiffrée : mesures/2026-11-12-vh-passe1-lecture.md ; verdict
-   final au propriétaire (ADR 0124 §10).]**
+   **[MESURES PRODUITES le 12/11/2026 — SÉRIE protocolaire 3 passes
+   moto g06 (17:07/17:11/17:25, médiane retenue) : Q-K7 ACQUIS
+   (com.acside, OpenJDK 17.0.19) ; H1 médiane 19,0 s (×1,9 la cible),
+   H2 médiane 19,0 s (×9,5) — l'option 2 sans démon est REJETÉE sur
+   ses chiffres (amorçage re-payé à chaque requête, cause mesurée
+   H2 ≈ H1 sur 4 exécutions) ; l'option 3 (démon résident) reste la
+   seule voie crédible vers les seuils — lecture chiffrée :
+   mesures/2026-11-12-vh-serie-3passes-lecture.md ; verdict final au
+   propriétaire (ADR 0124 §10).]**
 3. **Nouvelle enveloppe dex/taille** (ADR 0133) — **RECOMMANDÉ : gel du
    socle (≤ 26 590 / 4,10 Mo) + packs optionnels** ; le plafond 32 768
    méthodes reste non négociable pour le socle tant qu'aucune mesure
