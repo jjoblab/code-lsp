@@ -8,7 +8,8 @@ package jo.codeide.lsp.kotlin.api
 /**
  * Le genre d'un plan d'action (vocabulaire neutre — l'hôte le traduit en
  * `CodeActionKind` LSP : [RAPIDE] vers `quickfix`, [SOURCE] vers
- * `source`).
+ * `source`, [ORGANISER_IMPORTS] vers `source.organizeImports` (V-F —
+ * KC-10), [EXTRAIRE_VARIABLE] vers `refactor.extract` (V-F — KC-11).
  */
 public enum class GenreActionKotlin {
 
@@ -17,6 +18,12 @@ public enum class GenreActionKotlin {
 
     /** Une action de source proposée sur le document (organiser, générer). */
     SOURCE,
+
+    /** V-F — l'organisation des imports (KC-10 : `source.organizeImports`). */
+    ORGANISER_IMPORTS,
+
+    /** V-F — l'extraction de variable (KC-11 Q1/Q5 : `refactor.extract`). */
+    EXTRAIRE_VARIABLE,
 }
 
 /**

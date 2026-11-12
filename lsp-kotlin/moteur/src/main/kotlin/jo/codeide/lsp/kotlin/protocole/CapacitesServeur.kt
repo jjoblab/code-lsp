@@ -158,10 +158,21 @@ public object CapacitesServeur {
     private fun optionsLentilles(): org.eclipse.lsp4j.CodeLensOptions =
         org.eclipse.lsp4j.CodeLensOptions().apply { resolveProvider = false }
 
-    /** Les options d'actions de code (le kind quickfix annoncé). */
+    /**
+     * Les options d'actions de code : les kinds ANNONCÉS — quickfix (les
+     * correctifs sur diagnostics), source.organizeImports (V-F — KC-10),
+     * refactor.extract (V-F — KC-11) — et le RESOLVE annoncé : l'action
+     * rendue est complète, le resolve est l'identité (stable par
+     * contrat).
+     */
     private fun optionsActions(): CodeActionOptions {
         val options = CodeActionOptions()
-        options.codeActionKinds = listOf(CodeActionKind.QuickFix)
+        options.codeActionKinds = listOf(
+            CodeActionKind.QuickFix,
+            CodeActionKind.SourceOrganizeImports,
+            CodeActionKind.RefactorExtract,
+        )
+        options.resolveProvider = true
         return options
     }
 

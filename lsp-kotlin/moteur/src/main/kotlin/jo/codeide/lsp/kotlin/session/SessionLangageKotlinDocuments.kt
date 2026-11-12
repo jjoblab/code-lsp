@@ -1146,7 +1146,7 @@ internal class SessionLangageKotlinDocuments(
         // jamais de scan sous le verrou de session) ; les plans
         // assemblés re-prouvent le document à la requête.
         val (insertion, prefixe, suffixe) = ancrage
-        return ActionsDeclarees.calculer(
+        val rapides = ActionsDeclarees.calculer(
             uri = uri,
             deplacement = deplacement,
             importsCandidats = importsCandidats(uri, deplacement),
@@ -1156,6 +1156,21 @@ internal class SessionLangageKotlinDocuments(
             prefixeImport = prefixe,
             suffixeImport = suffixe,
         )
+        // V-F — les actions de SOURCE et REFACTORING (KC-10/KC-11, ADR
+        // 0131) : l'organisation des imports (le plan n'existe que si le
+        // bloc CHANGE — idempotence I1) et l'extraction de variable
+        // bornée (l'expression du caret, intra-fonction Q5). Calcul PUR
+        // sous verrou de lecture.
+        val sourceEtRefactorings =
+            verrou.read {
+                if (fermee) return@read emptyList()
+                val document = documents[uri] ?: return@read emptyList()
+                listOfNotNull(
+                    ActionsSource.organiserImports(document.arbre, uri, deplacement),
+                    ActionsSource.extraireVariable(document.arbre, uri, deplacement),
+                )
+            }
+        return rapides + sourceEtRefactorings
     }
 
     /**

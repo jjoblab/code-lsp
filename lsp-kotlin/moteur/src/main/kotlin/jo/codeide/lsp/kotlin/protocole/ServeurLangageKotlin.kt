@@ -1115,7 +1115,15 @@ public class ServeurLangageKotlin(
         val rendus = plans.map { plan ->
             val action = CodeAction()
             action.title = plan.titre
-            action.kind = if (plan.genre == GenreActionKotlin.RAPIDE) CodeActionKind.QuickFix else CodeActionKind.Source
+            // V-F — le kind EXACT par genre (KC-11 Q4 : le moteur ne
+            // ment jamais sur le kind — extractions → refactor.extract,
+            // organisation → source.organizeImports).
+            action.kind = when (plan.genre) {
+                GenreActionKotlin.RAPIDE -> CodeActionKind.QuickFix
+                GenreActionKotlin.SOURCE -> CodeActionKind.Source
+                GenreActionKotlin.ORGANISER_IMPORTS -> CodeActionKind.SourceOrganizeImports
+                GenreActionKotlin.EXTRAIRE_VARIABLE -> CodeActionKind.RefactorExtract
+            }
             val edit = WorkspaceEdit()
             val parUri = HashMap<String, MutableList<TextEdit>>()
             for (fichier in plan.editions) {
@@ -1129,6 +1137,16 @@ public class ServeurLangageKotlin(
             Either.forRight<Command, CodeAction>(action)
         }
         return CompletableFuture.completedFuture(rendus)
+    }
+
+    override fun resolveCodeAction(params: CodeAction): CompletableFuture<CodeAction> {
+        garde<CodeAction>()?.let { return it }
+        // V-F — codeAction/resolve (ADR 0131) : l'action rendue par
+        // `codeAction` est DÉJÀ COMPLÈTE (titre + kind + edit — les
+        // plans se re-prouvent à la requête, ADR 0115 : un plan périmé
+        // n'existe pas) ; le resolve est l'IDENTITÉ — le client peut
+        // appeler, la réponse est stable.
+        return CompletableFuture.completedFuture(params)
     }
 
 }
