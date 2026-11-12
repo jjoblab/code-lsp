@@ -78,6 +78,7 @@
 198e0e4a3bd20f32e08a0c0ef9531e1523d421629fb2a46dd339d79e8b8b8fe2  lsp-kotlin/moteur/src/test/kotlin/jo/codeide/lsp/kotlin/session/Fiche020MembresManquantsTest.kt
 1a551c9fe406f51f882593851cc9f718f2de595878af9301383056cd0483469b  lsp-java/moteur/src/test/kotlin/jo/codeide/lsp/java/RefactorisationsVd2Test.kt
 1a5f1347bdfd805e6ecd7322198fb7f6dbba5ea7d3a639b76a97fecf68915330  lsp-kotlin/moteur/src/test/kotlin/jo/codeide/lsp/kotlin/session/Fiche043SessionLangageKotlinCompletionContextuelleTest.kt
+1c9b59e31880cf2e90eae4e8a1cd102b3432263a7ec396269d71d5dd01fb0532  lsp-kotlin/moteur/src/test/kotlin/jo/codeide/lsp/kotlin/session/ModeProfondK2Test.kt
 1cb0c5d700a7c8eedcaa0f6dfa555d0406247df3b36f86e96576855f44a1ca8f  lsp-java/moteur/src/test/kotlin/jo/codeide/lsp/java/SondeInvocation2AndroidJarTest.kt
 1cb71485b6bf676997879c2b986c2a39fbc961cb7f339e8d5eca209119559802  lsp-java/moteur/src/main/kotlin/jo/codeide/lsp/java/diagnostics/TypesDiagnostics.kt
 1d5d997b80b720d71bddec059c2562cba7fb99754a48825d8a8db19ebe1c8cb7  lsp-java/moteur/src/bench/kotlin/jo/codeide/lsp/java/banc/BancUsages.kt
@@ -154,6 +155,7 @@
 426f8e8c2cb6e1ca703086c38bccf21d97d7d3b68b3fbb3970f5b2740a2f0a1f  lsp-java/moteur/src/main/kotlin/jo/codeide/lsp/java/coloration/ColorationSemantique.kt
 4277305fc68da4ee2c94f18f939493d8150ac1647eec0fd13359e431254fe659  lsp-kotlin/spike/src/test/kotlin/spikekotlin/BancS2Test.kt
 42e32ae058b66d68847dcd05ce7c97f032625e482377f06fc5ab05f3b01fda65  lsp-java/moteur/src/main/kotlin/jo/codeide/lsp/java/projetandroid/ModeleAndroidDerive.kt
+44b27793bbd36849872d3c7413c8e0265110808bdb0df8c54ad72d1f6100d2c4  lsp-kotlin/moteur/src/main/kotlin/jo/codeide/lsp/kotlin/session/ModeProfondK2.kt
 44c447416121aa968eb36c467f1a9aaf8d2766c5b91606c7c094d3af9269dcf0  socle/index/src/test/kotlin/jo/codeide/lsp/index/AnalyseurClasspathSystemeTest.kt
 44e79dac1faeea41a69a4e51ce835d58ffc79bbb00f873305e3912c8f438e0b2  lsp-java/moteur/src/test/kotlin/jo/codeide/lsp/java/Fiche001DiagnosticServiceTest.kt
 450fd8c6be4c36f5150373a47ff7eb48549a2c6c7411f3e8f4f583cfcbd374b3  lsp-java/moteur/src/test/kotlin/jo/codeide/lsp/java/completion/CompletionVagueC3Test.kt
