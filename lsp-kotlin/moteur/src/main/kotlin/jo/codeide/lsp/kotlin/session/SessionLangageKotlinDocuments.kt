@@ -235,7 +235,28 @@ internal class SessionLangageKotlinDocuments(
             index = guichet?.vue,
             vueJvm = guichet?.vueJvm,
         )
-        return syntaxeEtImports + semantiques
+        // V-G (ADR 0130 G6) : les diagnostics BORNÉS du catalogue de
+        // versions (clé `libs.…` inconnue — preuve par parse du disque) —
+        // seulement pour un document `.kts` (le catalogue est l'affaire
+        // des scripts Gradle).
+        val catalogue = if (uri.endsWith(".kts")) {
+            repertoireDocument(uri)?.let { repertoire ->
+                AccesCatalogue.diagnostics(document.arbre, repertoire, -1)
+            }.orEmpty()
+        } else {
+            emptyList()
+        }
+        return syntaxeEtImports + semantiques + catalogue
+    }
+
+    /** Le répertoire du document (URI file:) — `null` sinon (document virtuel). */
+    private fun repertoireDocument(uri: String): java.nio.file.Path? {
+        if (!uri.startsWith("file:")) return null
+        return try {
+            java.nio.file.Path.of(java.net.URI(uri)).parent
+        } catch (_: Exception) {
+            null
+        }
     }
 
     /**
@@ -837,6 +858,20 @@ internal class SessionLangageKotlinDocuments(
      * + plage du nom).
      */
     override fun definition(uri: String, deplacement: Int): List<jo.codeide.lsp.kotlin.api.EmplacementKotlin> {
+        // V-G (ADR 0130 G5) : la navigation kts → TOML d'un accès
+        // `libs.…` (l'entrée du catalogue, ou l'entrée [versions]
+        // référencée) — AVANT la navigation standard (l'accès catalogue
+        // est une convention Gradle, pas une expression Kotlin).
+        if (uri.endsWith(".kts")) {
+            val versCatalogue = verrou.read {
+                if (fermee) return@read null
+                val document = documents[uri] ?: return@read null
+                repertoireDocument(uri)?.let { repertoire ->
+                    AccesCatalogue.definitionCatalogue(document.arbre, repertoire, null, deplacement)
+                }
+            }
+            if (versCatalogue != null) return listOf(versCatalogue)
+        }
         return verrou.read {
             if (fermee) return@read emptyList()
             val document = documents[uri] ?: return@read emptyList()

@@ -38,6 +38,9 @@ public enum class CodeDiagnosticKotlin(public val code: String) {
     /** Erreur de syntaxe : marqueur d'erreur du parseur, message amont repris. */
     SYNTAXE("kt.syntax"),
 
+    /** V-G (ADR 0130 G6) : clé `libs.…` inconnue du catalogue de versions (preuve par parse, jamais sans catalogue). */
+    CLE_CATALOGUE_INCONNUE("kt.cleCatalogueInconnue"),
+
     /** Import inutilisé : nom effectif absent des identifiants du fichier. */
     IMPORT_INUTILISE("kt.unusedImport"),
 

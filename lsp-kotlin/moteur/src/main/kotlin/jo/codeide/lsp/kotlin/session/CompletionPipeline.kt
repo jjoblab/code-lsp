@@ -73,6 +73,30 @@ internal object CompletionPipeline {
         val arbre = document.arbre
         val contexte = CompletionContextes.auPoint(arbre, deplacement)
 
+        // V-G (ADR 0130 G4) — le CATALOGUE de versions : un accès
+        // `libs.<préfixe>|` dans un `.kts` propose les SEGMENTS suivants
+        // du catalogue lu du DISQUE (lecture TOML directe, PAS les
+        // accesseurs générés) — le contexte EXCLUSIF précède les régimes
+        // (l'accès catalogue est une convention Gradle, pas une
+        // expression Kotlin) ; sans catalogue ou hors `libs.` : muet.
+        if (uri.endsWith(".kts")) {
+            val repertoire = repertoireDocument(uri)
+            val segments = AccesCatalogue.segmentsAuPoint(arbre, repertoire, deplacement)
+            if (segments.isNotEmpty()) {
+                return ReponseCompletionKotlin(
+                    genre = GenreContexteKotlin.MEMBRE,
+                    propositions = segments.map { segment ->
+                        jo.codeide.lsp.kotlin.api.PropositionKotlin(
+                            libelle = segment,
+                            nature = jo.codeide.lsp.kotlin.api.NaturePropositionKotlin.PROPRIETE,
+                            detail = "catalogue de versions",
+                        )
+                    },
+                    totalDisponible = segments.size,
+                )
+            }
+        }
+
         // L'univers, la liaison de la RÉGION contenant le point et la pile
         // des this — les régimes les partagent (une seule construction).
         fun univers(): UniversPreuves {
@@ -205,6 +229,16 @@ internal object CompletionPipeline {
             propositions = arrangees.propositions,
             totalDisponible = arrangees.totalDisponible,
         )
+    }
+
+    /** Le répertoire du document (URI file:) — `null` sinon (document virtuel). */
+    private fun repertoireDocument(uri: String): java.nio.file.Path? {
+        if (!uri.startsWith("file:")) return null
+        return try {
+            java.nio.file.Path.of(java.net.URI(uri)).parent
+        } catch (_: Exception) {
+            null
+        }
     }
 
     /**
