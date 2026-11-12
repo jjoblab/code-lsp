@@ -108,8 +108,55 @@ public object CapacitesServeur {
         capacites.setLinkedEditingRangeProvider(true)
         capacites.setColorProvider(true)
         capacites.setDocumentOnTypeFormattingProvider(optionsFormatageFrappé())
+        // V-I2 — les CAPACITÉS PALIER 2 (ADR 0136 étape B.3 : fondées sur
+        // la résolution bornée ADR 0123) : la coloration sémantique (légende
+        // contractuelle — le jeton ne porte JAMAIS la variance, KH1), les
+        // hiérarchies de types et d'appels, les lentilles d'occurrences.
+        // Chaque capacité est ANNONCÉE parce que SERVIE et TESTÉE (règle
+        // « testée = annoncée », USAGE §2.2 — les 4 absentes passent
+        // « annoncée+servie » une à une, miroir du critère 0136).
+        capacites.setSemanticTokensProvider(optionsJetonsSemantiques())
+        capacites.setCodeLensProvider(optionsLentilles())
+        capacites.setCallHierarchyProvider(true)
+        capacites.setTypeHierarchyProvider(true)
         return capacites
     }
+
+    /**
+     * V-I2 — la LÉGENDE des jetons sémantiques : l'ordre contractuel des
+     * types (le miroir de la légende Java V-G) et des modificateurs —
+     * l'index de la valeur entière d'un jeton dans le vecteur encodé.
+     */
+    public val LEGENDE_TYPES_SEMANTIQUES: List<String> = listOf(
+        "class", "interface", "enum", "decorator", "method", "property", "parameter", "variable",
+    )
+
+    /** La LÉGENDE des modificateurs sémantiques (l'ordre du bitfield). */
+    public val LEGENDE_MODIFICATEURS_SEMANTIQUES: List<String> = listOf(
+        "declaration", "static", "final", "abstract",
+    )
+
+    /**
+     * V-I2 — les options de jetons sémantiques : la légende + le mode
+     * PLEIN document SANS delta (la coloration Kotlin se calcule entière —
+     * le delta relève d'une mesure de latence au gabarit 07, pas d'un
+     * survendre).
+     */
+    private fun optionsJetonsSemantiques(): org.eclipse.lsp4j.SemanticTokensWithRegistrationOptions {
+        val legende = org.eclipse.lsp4j.SemanticTokensLegend(
+            LEGENDE_TYPES_SEMANTIQUES,
+            LEGENDE_MODIFICATEURS_SEMANTIQUES,
+        )
+        return org.eclipse.lsp4j.SemanticTokensWithRegistrationOptions(legende).apply {
+            full = org.eclipse.lsp4j.jsonrpc.messages.Either.forRight(
+                org.eclipse.lsp4j.SemanticTokensServerFull(false),
+            )
+        }
+    }
+
+    /** V-I2 — les options de lentilles : PAS de résolveur (la lentille est complète). */
+    private fun optionsLentilles(): org.eclipse.lsp4j.CodeLensOptions =
+        org.eclipse.lsp4j.CodeLensOptions().apply { resolveProvider = false }
 
     /** Les options d'actions de code (le kind quickfix annoncé). */
     private fun optionsActions(): CodeActionOptions {

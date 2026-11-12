@@ -745,6 +745,285 @@ public class ServeurLangageKotlin(
         return CompletableFuture.completedFuture(rendues)
     }
 
+    // ----------------------------------------------------------------- //
+    // Capacités palier 2 — semanticTokens, hiérarchies, codeLens (V-I2,
+    // ADR 0136 B.3 : fondées sur la résolution bornée ADR 0123 — le jeton
+    // ne porte JAMAIS la variance ni la nullabilité inférées, KH1).
+    // ----------------------------------------------------------------- //
+
+    override fun semanticTokensFull(params: org.eclipse.lsp4j.SemanticTokensParams): CompletableFuture<org.eclipse.lsp4j.SemanticTokens> {
+        garde<org.eclipse.lsp4j.SemanticTokens>()?.let { return it }
+        // V-I2 — la coloration SÉMANTIQUE bornée : la réponse est le
+        // VECTEUR ENCODÉ EN DELTAS RELATIFS (5 entiers par jeton :
+        // deltaLigne, deltaColonne, longueur, type, modificateurs —
+        // miroir exact du vecteur Java V-G). Document absent ou guichet
+        // muet : data VIDE (I9 — jamais null, jamais d'exception).
+        val uri = params.textDocument.uri
+        val jetons = calculFraiche(uri) { _ -> session?.jetonsSemantiques(uri).orEmpty() }.orEmpty()
+        val instantane = etats.instantane(uri)
+        val repere = instantane?.let { ConvertisseurLsp.repere(it.texte) }
+        val donnees = ArrayList<Int>(jetons.size * 5)
+        var lignePrecedente = 0
+        var colonnePrecedente = 0
+        for (jeton in jetons) {
+            val position = repere?.position(jeton.offset) ?: Position(0, 0)
+            val ligne = position.line
+            val colonne = position.character
+            donnees.add(ligne - lignePrecedente)
+            donnees.add(if (ligne == lignePrecedente) colonne - colonnePrecedente else colonne)
+            donnees.add(jeton.longueur)
+            donnees.add(CapacitesServeur.LEGENDE_TYPES_SEMANTIQUES.indexOf(nomTypeLsp(jeton.genre)).let { if (it < 0) 0 else it })
+            donnees.add(bitfieldModificateurs(jeton))
+            lignePrecedente = ligne
+            colonnePrecedente = colonne
+        }
+        return CompletableFuture.completedFuture(org.eclipse.lsp4j.SemanticTokens(donnees))
+    }
+
+    override fun codeLens(params: org.eclipse.lsp4j.CodeLensParams): CompletableFuture<List<org.eclipse.lsp4j.CodeLens>> {
+        garde<List<org.eclipse.lsp4j.CodeLens>>()?.let { return it }
+        // V-I2 — les LENTILLES d'occurrences paresseuses : chaque
+        // déclaration top-level porte le compte de ses usages dans le
+        // document (périmètre BORNÉ) — le command reste À LA CHARGE du
+        // client (le titre « N usages » et la navigation relèvent du
+        // client, miroir du contrat LSP).
+        val uri = params.textDocument.uri
+        val lentilles = calculFraiche(uri) { _ -> session?.lentilles(uri).orEmpty() }.orEmpty()
+        val instantane = etats.instantane(uri)
+        val repere = instantane?.let { ConvertisseurLsp.repere(it.texte) }
+        val rendues = lentilles.map { lentille ->
+            org.eclipse.lsp4j.CodeLens(
+                repere?.let { it.plage(lentille.plage) } ?: org.eclipse.lsp4j.Range(
+                    Position(0, 0),
+                    Position(0, 0),
+                ),
+            ).apply {
+                data = mapOf("nom" to lentille.nom, "usages" to lentille.usages)
+            }
+        }
+        return CompletableFuture.completedFuture(rendues)
+    }
+
+    override fun resolveCodeLens(params: org.eclipse.lsp4j.CodeLens): CompletableFuture<org.eclipse.lsp4j.CodeLens> {
+        garde<org.eclipse.lsp4j.CodeLens>()?.let { return it }
+        // PAS de résolution différée : la lentille est complète (le
+        // resolveProvider est annoncé faux).
+        return CompletableFuture.completedFuture(params)
+    }
+
+    override fun prepareTypeHierarchy(
+        params: org.eclipse.lsp4j.TypeHierarchyPrepareParams,
+    ): CompletableFuture<List<org.eclipse.lsp4j.TypeHierarchyItem>> {
+        garde<List<org.eclipse.lsp4j.TypeHierarchyItem>>()?.let { return it }
+        // V-I2 — la PRÉPARATION : la déclaration du type projet sous le
+        // point (un maillon classpath ne se prépare pas — D3, la liste
+        // VIDE est le repli honnête).
+        val uri = params.textDocument.uri
+        val item = calculFraiche(uri) { texte ->
+            val repere = ConvertisseurLsp.repere(texte)
+            session?.preparerHierarchieTypes(uri, repere.offset(params.position))
+        }
+        val rendu = item?.let {
+            // Le constructeur 5-args de lsp4j : (name, kind, uri, range,
+            // selectionRange) — le 3e argument EST l'uri.
+            org.eclipse.lsp4j.TypeHierarchyItem(
+                it.nom,
+                ConvertisseurLsp.kindSymbole(genreSymboleDe(it.genre)),
+                it.uri,
+                org.eclipse.lsp4j.Range(Position(0, 0), Position(0, 0)),
+                org.eclipse.lsp4j.Range(Position(0, 0), Position(0, 0)),
+            )
+        }
+        return CompletableFuture.completedFuture(listOfNotNull(rendu))
+    }
+
+    override fun typeHierarchySupertypes(
+        params: org.eclipse.lsp4j.TypeHierarchySupertypesParams,
+    ): CompletableFuture<List<org.eclipse.lsp4j.TypeHierarchyItem>> {
+        garde<List<org.eclipse.lsp4j.TypeHierarchyItem>>()?.let { return it }
+        // V-I2 — les SUPERTYPES : la clause ÉCRITE résolue — les maillons
+        // du projet naviguent, les maillons classpath rendent l'affichage
+        // borné (item au nom simple, sans uri navigable).
+        val itemLsp = params.item
+        val uriDocument = itemLsp.uri ?: return CompletableFuture.completedFuture(emptyList())
+        val items = calculFraiche(uriDocument) { _ ->
+            session?.supertypesHierarchie(
+                uriDocument,
+                jo.codeide.lsp.kotlin.api.ItemHierarchieKotlinApi(
+                    itemLsp.name.orEmpty(),
+                    uriDocument,
+                    jo.codeide.lsp.kotlin.parse.kt.PlageTexte(0, 0),
+                    itemLsp.kind?.toString().orEmpty(),
+                ),
+            ).orEmpty()
+        }.orEmpty()
+        return CompletableFuture.completedFuture(items.map { rendreItemHierarchie(it) })
+    }
+
+    override fun typeHierarchySubtypes(
+        params: org.eclipse.lsp4j.TypeHierarchySubtypesParams,
+    ): CompletableFuture<List<org.eclipse.lsp4j.TypeHierarchyItem>> {
+        garde<List<org.eclipse.lsp4j.TypeHierarchyItem>>()?.let { return it }
+        // V-I2 — les SOUS-TYPES : les types du modèle dont la clause
+        // ÉCRITE résout vers l'item (preuve par FQCN, miroir
+        // d'implementations).
+        val itemLsp = params.item
+        val uriDocument = itemLsp.uri ?: return CompletableFuture.completedFuture(emptyList())
+        val items = calculFraiche(uriDocument) { _ ->
+            session?.sousTypesHierarchie(
+                uriDocument,
+                jo.codeide.lsp.kotlin.api.ItemHierarchieKotlinApi(
+                    itemLsp.name.orEmpty(),
+                    uriDocument,
+                    jo.codeide.lsp.kotlin.parse.kt.PlageTexte(0, 0),
+                    itemLsp.kind?.toString().orEmpty(),
+                ),
+            ).orEmpty()
+        }.orEmpty()
+        return CompletableFuture.completedFuture(items.map { rendreItemHierarchie(it) })
+    }
+
+    override fun prepareCallHierarchy(
+        params: org.eclipse.lsp4j.CallHierarchyPrepareParams,
+    ): CompletableFuture<List<org.eclipse.lsp4j.CallHierarchyItem>> {
+        garde<List<org.eclipse.lsp4j.CallHierarchyItem>>()?.let { return it }
+        // V-I2 — la PRÉPARATION d'appels : la déclaration de l'appelable
+        // de premier niveau sous le point.
+        val uri = params.textDocument.uri
+        val item = calculFraiche(uri) { texte ->
+            val repere = ConvertisseurLsp.repere(texte)
+            session?.preparerHierarchieAppels(uri, repere.offset(params.position))
+        }
+        val rendu = item?.let {
+            // Le constructeur 5-args de lsp4j : (name, kind, uri, range,
+            // selectionRange) — le kind d'un appelable est Function.
+            org.eclipse.lsp4j.CallHierarchyItem(
+                it.nom,
+                org.eclipse.lsp4j.SymbolKind.Function,
+                it.uri,
+                org.eclipse.lsp4j.Range(Position(0, 0), Position(0, 0)),
+                org.eclipse.lsp4j.Range(Position(0, 0), Position(0, 0)),
+            ).apply { detail = it.detail }
+        }
+        return CompletableFuture.completedFuture(listOfNotNull(rendu))
+    }
+
+    override fun callHierarchyIncomingCalls(
+        params: org.eclipse.lsp4j.CallHierarchyIncomingCallsParams,
+    ): CompletableFuture<List<org.eclipse.lsp4j.CallHierarchyIncomingCall>> {
+        garde<List<org.eclipse.lsp4j.CallHierarchyIncomingCall>>()?.let { return it }
+        // V-I2 — les APPELS ENTRANTS : les appelants dont le corps appelle
+        // le nom — les flèches FROM portent les plages des appels.
+        val itemLsp = params.item
+        val uriDocument = itemLsp.uri ?: return CompletableFuture.completedFuture(emptyList())
+        val aretes = calculFraiche(uriDocument) { _ ->
+            session?.appelsEntrants(
+                uriDocument,
+                jo.codeide.lsp.kotlin.api.ItemAppelKotlinApi(
+                    itemLsp.name,
+                    uriDocument,
+                    jo.codeide.lsp.kotlin.parse.kt.PlageTexte(0, 0),
+                    itemLsp.detail.orEmpty(),
+                ),
+            ).orEmpty()
+        }.orEmpty()
+        return CompletableFuture.completedFuture(aretes.map { rendreAreteAppel(it) })
+    }
+
+    override fun callHierarchyOutgoingCalls(
+        params: org.eclipse.lsp4j.CallHierarchyOutgoingCallsParams,
+    ): CompletableFuture<List<org.eclipse.lsp4j.CallHierarchyOutgoingCall>> {
+        garde<List<org.eclipse.lsp4j.CallHierarchyOutgoingCall>>()?.let { return it }
+        // V-I2 — les APPELS SORTANTS : les appelables appelés NU dans le
+        // corps de la déclaration — les flèches TO portent les plages.
+        val itemLsp = params.item
+        val uriDocument = itemLsp.uri ?: return CompletableFuture.completedFuture(emptyList())
+        val aretes = calculFraiche(uriDocument) { _ ->
+            session?.appelsSortants(
+                uriDocument,
+                jo.codeide.lsp.kotlin.api.ItemAppelKotlinApi(
+                    itemLsp.name,
+                    uriDocument,
+                    jo.codeide.lsp.kotlin.parse.kt.PlageTexte(0, 0),
+                    itemLsp.detail.orEmpty(),
+                ),
+            ).orEmpty()
+        }.orEmpty()
+        return CompletableFuture.completedFuture(aretes.map { rendreAreteSortante(it) })
+    }
+
+    /** Le nom LSP d'un genre de jeton sémantique (l'index de la légende). */
+    private fun nomTypeLsp(genre: jo.codeide.lsp.kotlin.api.GenreJetonSemantiqueKotlin): String = when (genre) {
+        jo.codeide.lsp.kotlin.api.GenreJetonSemantiqueKotlin.CLASSE -> "class"
+        jo.codeide.lsp.kotlin.api.GenreJetonSemantiqueKotlin.INTERFACE -> "interface"
+        jo.codeide.lsp.kotlin.api.GenreJetonSemantiqueKotlin.ENUM -> "enum"
+        jo.codeide.lsp.kotlin.api.GenreJetonSemantiqueKotlin.ANNOTATION -> "decorator"
+        jo.codeide.lsp.kotlin.api.GenreJetonSemantiqueKotlin.METHODE -> "method"
+        jo.codeide.lsp.kotlin.api.GenreJetonSemantiqueKotlin.PROPRIETE -> "property"
+        jo.codeide.lsp.kotlin.api.GenreJetonSemantiqueKotlin.PARAMETRE -> "parameter"
+        jo.codeide.lsp.kotlin.api.GenreJetonSemantiqueKotlin.VARIABLE -> "variable"
+    }
+
+    /** Le bitfield des modificateurs d'un jeton (l'ordre de la légende). */
+    private fun bitfieldModificateurs(jeton: jo.codeide.lsp.kotlin.api.JetonSemantiqueKotlin): Int {
+        var bits = 0
+        if (jeton.declaration) bits = bits or (1 shl 0)
+        if (jeton.statique) bits = bits or (1 shl 1)
+        if (jeton.final) bits = bits or (1 shl 2)
+        if (jeton.abstrait) bits = bits or (1 shl 3)
+        return bits
+    }
+
+    /** Le genre neutre d'un genre de hiérarchie écrit (« CLASSE »…). */
+    private fun genreSymboleDe(genreEcrit: String): jo.codeide.lsp.kotlin.api.GenreSymboleKotlin = when {
+        genreEcrit.contains("INTERFACE") -> jo.codeide.lsp.kotlin.api.GenreSymboleKotlin.INTERFACE
+        genreEcrit.contains("ENUM") -> jo.codeide.lsp.kotlin.api.GenreSymboleKotlin.ENUM
+        genreEcrit.contains("OBJET") -> jo.codeide.lsp.kotlin.api.GenreSymboleKotlin.OBJET
+        else -> jo.codeide.lsp.kotlin.api.GenreSymboleKotlin.CLASSE
+    }
+
+    /** L'item LSP d'une item de hiérarchie du moteur. */
+    private fun rendreItemHierarchie(
+        item: jo.codeide.lsp.kotlin.api.ItemHierarchieKotlinApi,
+    ): org.eclipse.lsp4j.TypeHierarchyItem =
+        org.eclipse.lsp4j.TypeHierarchyItem(
+            item.nom,
+            ConvertisseurLsp.kindSymbole(genreSymboleDe(item.genre)),
+            item.uri,
+            org.eclipse.lsp4j.Range(Position(0, 0), Position(0, 0)),
+            org.eclipse.lsp4j.Range(Position(0, 0), Position(0, 0)),
+        )
+
+    /** L'arête LSP d'un appel ENTRANT (l'appelant + les plages FROM). */
+    private fun rendreAreteAppel(
+        arete: jo.codeide.lsp.kotlin.api.AreteAppelKotlinApi,
+    ): org.eclipse.lsp4j.CallHierarchyIncomingCall =
+        org.eclipse.lsp4j.CallHierarchyIncomingCall(
+            org.eclipse.lsp4j.CallHierarchyItem(
+                arete.item.nom,
+                org.eclipse.lsp4j.SymbolKind.Function,
+                arete.item.uri,
+                org.eclipse.lsp4j.Range(Position(0, 0), Position(0, 0)),
+                org.eclipse.lsp4j.Range(Position(0, 0), Position(0, 0)),
+            ).apply { detail = arete.item.detail },
+            arete.plagesAppel.map { org.eclipse.lsp4j.Range(Position(0, 0), Position(0, 0)) },
+        )
+
+    /** L'arête LSP d'un appel SORTANT (l'appelé + les plages TO). */
+    private fun rendreAreteSortante(
+        arete: jo.codeide.lsp.kotlin.api.AreteAppelKotlinApi,
+    ): org.eclipse.lsp4j.CallHierarchyOutgoingCall =
+        org.eclipse.lsp4j.CallHierarchyOutgoingCall(
+            org.eclipse.lsp4j.CallHierarchyItem(
+                arete.item.nom,
+                org.eclipse.lsp4j.SymbolKind.Function,
+                arete.item.uri,
+                org.eclipse.lsp4j.Range(Position(0, 0), Position(0, 0)),
+                org.eclipse.lsp4j.Range(Position(0, 0), Position(0, 0)),
+            ).apply { detail = arete.item.detail },
+            arete.plagesAppel.map { org.eclipse.lsp4j.Range(Position(0, 0), Position(0, 0)) },
+        )
+
     override fun inlayHint(params: InlayHintParams): CompletableFuture<List<InlayHint>> {
         garde<List<InlayHint>>()?.let { return it }
         val uri = params.textDocument.uri
@@ -767,13 +1046,6 @@ public class ServeurLangageKotlin(
             rendu
         }
         return CompletableFuture.completedFuture(rendus)
-    }
-
-    override fun semanticTokensFull(params: SemanticTokensParams): CompletableFuture<SemanticTokens> {
-        garde<SemanticTokens>()?.let { return it }
-        // NON annoncée (matrice Kotlin : ❌ — distinction non fiable au
-        // niveau parseur, D3) — la requête reste TOLÉRANTE (data vide).
-        return CompletableFuture.completedFuture(SemanticTokens())
     }
 
     // ----------------------------------------------------------------- //
@@ -859,47 +1131,4 @@ public class ServeurLangageKotlin(
         return CompletableFuture.completedFuture(rendus)
     }
 
-    // ----------------------------------------------------------------- //
-    // Les requêtes NON annoncées (tolérantes — matrice honnête)
-    // ----------------------------------------------------------------- //
-
-    override fun codeLens(params: CodeLensParams): CompletableFuture<List<CodeLens>> {
-        garde<List<CodeLens>>()?.let { return it }
-        return CompletableFuture.completedFuture(emptyList())
-    }
-
-    override fun resolveCodeLens(unresolved: CodeLens): CompletableFuture<CodeLens> {
-        garde<CodeLens>()?.let { return it }
-        return CompletableFuture.completedFuture(unresolved)
-    }
-
-    override fun prepareTypeHierarchy(params: TypeHierarchyPrepareParams): CompletableFuture<List<TypeHierarchyItem>> {
-        garde<List<TypeHierarchyItem>>()?.let { return it }
-        return CompletableFuture.completedFuture(emptyList())
-    }
-
-    override fun typeHierarchySupertypes(params: TypeHierarchySupertypesParams): CompletableFuture<List<TypeHierarchyItem>> {
-        garde<List<TypeHierarchyItem>>()?.let { return it }
-        return CompletableFuture.completedFuture(emptyList())
-    }
-
-    override fun typeHierarchySubtypes(params: TypeHierarchySubtypesParams): CompletableFuture<List<TypeHierarchyItem>> {
-        garde<List<TypeHierarchyItem>>()?.let { return it }
-        return CompletableFuture.completedFuture(emptyList())
-    }
-
-    override fun prepareCallHierarchy(params: CallHierarchyPrepareParams): CompletableFuture<List<CallHierarchyItem>> {
-        garde<List<CallHierarchyItem>>()?.let { return it }
-        return CompletableFuture.completedFuture(emptyList())
-    }
-
-    override fun callHierarchyIncomingCalls(params: CallHierarchyIncomingCallsParams): CompletableFuture<List<CallHierarchyIncomingCall>> {
-        garde<List<CallHierarchyIncomingCall>>()?.let { return it }
-        return CompletableFuture.completedFuture(emptyList())
-    }
-
-    override fun callHierarchyOutgoingCalls(params: CallHierarchyOutgoingCallsParams): CompletableFuture<List<CallHierarchyOutgoingCall>> {
-        garde<List<CallHierarchyOutgoingCall>>()?.let { return it }
-        return CompletableFuture.completedFuture(emptyList())
-    }
 }

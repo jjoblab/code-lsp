@@ -724,4 +724,106 @@ public interface SessionLangageKotlin : AutoCloseable {
      * rien, ne lève jamais.
      */
     override fun close()
+
+    /**
+     * Rend les JETONS SÉMANTIQUES du document (vague V-I2 — ADR 0136 étape
+     * B.3 : `textDocument/semanticTokens/full`, borné KH1/ADR 0123) : les
+     * identifiants PORTANTS classés par preuve — déclarations de types
+     * (genre du modèle), fonctions, propriétés, paramètres, locales ;
+     * références résolues. La LÉGENDE est l'ordre contractuel de
+     * [GenreJetonSemantiqueKotlin] (`class`, `interface`, `enum`,
+     * `decorator`, `method`, `property`, `parameter`, `variable`) et les
+     * modificateurs (`declaration`, `static`, `final`, `abstract`) — le
+     * jeton ne porte JAMAIS la variance ni la nullabilité inférées.
+     *
+     * @param uri l'identifiant du document ;
+     * @return les jetons en ordre d'offset croissant ; liste VIDE pour un
+     * document inconnu/fermé ou sans preuve — jamais `null`, jamais
+     * d'exception.
+     */
+    public fun jetonsSemantiques(uri: String): List<JetonSemantiqueKotlin>
+
+    /**
+     * Prépare l'ITEM de HIÉRARCHIE DE TYPES sous le point (vague V-I2 —
+     * ADR 0136 B.3 : `textDocument/prepareTypeHierarchy`) : la
+     * DÉCLARATION du type nommé (référence ou nom de déclaration) —
+     * types du PROJET seuls (un maillon du classpath ne se prépare pas,
+     * D3 : l'incertain rend VIDE).
+     *
+     * @param uri l'identifiant du document ;
+     * @param deplacement l'offset du caret ;
+     * @return l'item de départ (nom, uri, plage de déclaration, genre) ;
+     * `null` sans type projet prouvé.
+     */
+    public fun preparerHierarchieTypes(uri: String, deplacement: Int): ItemHierarchieKotlinApi?
+
+    /**
+     * Les SUPERTYPES DIRECTS de l'item (vague V-I2 : `supertypes`) : la
+     * clause ÉCRITE de sa déclaration, résolue — les maillons du projet
+     * naviguent, les maillons du classpath rendent une item au FQCN SANS
+     * uri (affichage borné honnête).
+     *
+     * @param uri l'identifiant du document de départ ;
+     * @param item l'item préparée ;
+     * @return les items supertypes ; VIDE sans clause prouvable.
+     */
+    public fun supertypesHierarchie(uri: String, item: ItemHierarchieKotlinApi): List<ItemHierarchieKotlinApi>
+
+    /**
+     * Les SOUS-TYPES DIRECTS de l'item (vague V-I2 : `subtypes`) : les
+     * types du modèle dont la clause ÉCRITE résout vers l'item (preuve
+     * par FQCN, miroir de `implementations`).
+     *
+     * @param uri l'identifiant du document de départ ;
+     * @param item l'item préparée ;
+     * @return les items sous-types ; VIDE sans preuve.
+     */
+    public fun sousTypesHierarchie(uri: String, item: ItemHierarchieKotlinApi): List<ItemHierarchieKotlinApi>
+
+    /**
+     * Prépare l'ITEM de HIÉRARCHIE D'APPELS sous le point (vague V-I2 —
+     * ADR 0136 B.3 : `textDocument/prepareCallHierarchy`) : la
+     * DÉCLARATION de l'appelable (fonction de premier niveau du projet).
+     *
+     * @param uri l'identifiant du document ;
+     * @param deplacement l'offset du caret ;
+     * @return l'item de départ (nom, uri, plage, signature écrite) ;
+     * `null` sans appelable prouvé.
+     */
+    public fun preparerHierarchieAppels(uri: String, deplacement: Int): ItemAppelKotlinApi?
+
+    /**
+     * Les APPELS ENTRANTS de l'item (vague V-I2 : `incomingCalls`) : les
+     * appelables du projet dont le CORPS appelle le nom — chaque arête
+     * porte l'appelant et les plages des appels dans son fichier.
+     *
+     * @param uri l'identifiant du document de départ ;
+     * @param item l'item préparée ;
+     * @return les arêtes entrantes ; VIDE sans appelant prouvé.
+     */
+    public fun appelsEntrants(uri: String, item: ItemAppelKotlinApi): List<AreteAppelKotlinApi>
+
+    /**
+     * Les APPELS SORTANTS de l'item (vague V-I2 : `outgoingCalls`) : les
+     * appelables du projet appelés NU dans le CORPS de la déclaration.
+     *
+     * @param uri l'identifiant du document de départ ;
+     * @param item l'item préparée ;
+     * @return les arêtes sortantes ; VIDE sans appelé prouvé.
+     */
+    public fun appelsSortants(uri: String, item: ItemAppelKotlinApi): List<AreteAppelKotlinApi>
+
+    /**
+     * Rend les LENTILLES du document (vague V-I2 — ADR 0136 B.3 :
+     * `textDocument/codeLens`, occurrences par re-parse paresseux,
+     * périmètre BORNÉ) : chaque déclaration de premier niveau (classe,
+     * objet, fonction, propriété) porte le COMPTE de ses usages dans le
+     * document — la lentille honnête documentaire.
+     *
+     * @param uri l'identifiant du document ;
+     * @return les lentilles (plage de déclaration, nom, compte d'usages) ;
+     * liste VIDE pour un document inconnu/fermé — jamais `null`, jamais
+     * d'exception.
+     */
+    public fun lentilles(uri: String): List<LentilleDocumentKotlin>
 }

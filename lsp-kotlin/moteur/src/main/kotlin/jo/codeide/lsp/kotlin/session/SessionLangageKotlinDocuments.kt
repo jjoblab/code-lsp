@@ -458,6 +458,194 @@ internal class SessionLangageKotlinDocuments(
     }
 
     /**
+     * V-I2 — les JETONS SÉMANTIQUES (semanticTokens/full, borné KH1) : la
+     * coloration de l'arbre + la résolution bornée (document inconnu,
+     * fermé ou guichet muet = vide — la coloration exige l'univers).
+     */
+    override fun jetonsSemantiques(uri: String): List<jo.codeide.lsp.kotlin.api.JetonSemantiqueKotlin> {
+        val document =
+            verrou.read {
+                if (fermee) return@read null
+                documents[uri]
+            } ?: return emptyList()
+        val guichet = indexSiPret() ?: return emptyList()
+        val univers = construireUnivers(document, uri, guichet.vue, guichet.vueJvm) ?: return emptyList()
+        return verrou.read {
+            if (fermee) return@read emptyList()
+            ColorationSemantique.jetons(document.arbre, univers)
+        }
+    }
+
+    /**
+     * V-I2 — la PRÉPARATION de hiérarchie de TYPES : la déclaration du
+     * type projet sous le point (sans preuve : `null`, D3).
+     */
+    override fun preparerHierarchieTypes(
+        uri: String,
+        deplacement: Int,
+    ): jo.codeide.lsp.kotlin.api.ItemHierarchieKotlinApi? {
+        val document =
+            verrou.read {
+                if (fermee) return@read null
+                documents[uri]
+            } ?: return null
+        val guichet = indexSiPret() ?: return null
+        val univers = construireUnivers(document, uri, guichet.vue, guichet.vueJvm) ?: return null
+        return verrou.read {
+            if (fermee) return@read null
+            val item = HierarchiesEtLens.preparerType(document.arbre, univers, uri, deplacement)
+            item?.let {
+                jo.codeide.lsp.kotlin.api.ItemHierarchieKotlinApi(it.nom, uri, it.plage, it.genre)
+            }
+        }
+    }
+
+    /**
+     * V-I2 — les SUPERTYPES de l'item (la clause ÉCRITE résolue ; les
+     * maillons classpath rendent une item au FQCN sans uri).
+     */
+    override fun supertypesHierarchie(
+        uri: String,
+        item: jo.codeide.lsp.kotlin.api.ItemHierarchieKotlinApi,
+    ): List<jo.codeide.lsp.kotlin.api.ItemHierarchieKotlinApi> {
+        val document =
+            verrou.read {
+                if (fermee) return@read null
+                documents[uri]
+            } ?: return emptyList()
+        val guichet = indexSiPret() ?: return emptyList()
+        val univers = construireUnivers(document, uri, guichet.vue, guichet.vueJvm) ?: return emptyList()
+        return verrou.read {
+            if (fermee) return@read emptyList()
+            val interne = ItemHierarchieKotlin(item.nom, item.uri, item.plage, item.genre)
+            HierarchiesEtLens.supertypes(document.arbre, univers, interne).map {
+                jo.codeide.lsp.kotlin.api.ItemHierarchieKotlinApi(it.nom, it.uri, it.plage, it.genre)
+            }
+        }
+    }
+
+    /**
+     * V-I2 — les SOUS-TYPES de l'item (les types du modèle dont la clause
+     * ÉCRITE résout vers l'item — preuve par FQCN).
+     */
+    override fun sousTypesHierarchie(
+        uri: String,
+        item: jo.codeide.lsp.kotlin.api.ItemHierarchieKotlinApi,
+    ): List<jo.codeide.lsp.kotlin.api.ItemHierarchieKotlinApi> {
+        val document =
+            verrou.read {
+                if (fermee) return@read null
+                documents[uri]
+            } ?: return emptyList()
+        val guichet = indexSiPret() ?: return emptyList()
+        val univers = construireUnivers(document, uri, guichet.vue, guichet.vueJvm) ?: return emptyList()
+        return verrou.read {
+            if (fermee) return@read emptyList()
+            val interne = ItemHierarchieKotlin(item.nom, item.uri, item.plage, item.genre)
+            HierarchiesEtLens.sousTypes(document.arbre, univers, interne).map {
+                jo.codeide.lsp.kotlin.api.ItemHierarchieKotlinApi(it.nom, it.uri, it.plage, it.genre)
+            }
+        }
+    }
+
+    /**
+     * V-I2 — la PRÉPARATION de hiérarchie d'APPELS : la déclaration de
+     * l'appelable de premier niveau sous le point.
+     */
+    override fun preparerHierarchieAppels(
+        uri: String,
+        deplacement: Int,
+    ): jo.codeide.lsp.kotlin.api.ItemAppelKotlinApi? {
+        val document =
+            verrou.read {
+                if (fermee) return@read null
+                documents[uri]
+            } ?: return null
+        val guichet = indexSiPret() ?: return null
+        val univers = construireUnivers(document, uri, guichet.vue, guichet.vueJvm) ?: return null
+        return verrou.read {
+            if (fermee) return@read null
+            val item = HierarchiesEtLens.preparerAppel(document.arbre, univers, uri, deplacement)
+            item?.let {
+                jo.codeide.lsp.kotlin.api.ItemAppelKotlinApi(it.nom, uri, it.plage, it.detail)
+            }
+        }
+    }
+
+    /**
+     * V-I2 — les APPELS ENTRANTS de l'item (les appelants du projet dont
+     * le corps appelle le nom NU).
+     */
+    override fun appelsEntrants(
+        uri: String,
+        item: jo.codeide.lsp.kotlin.api.ItemAppelKotlinApi,
+    ): List<jo.codeide.lsp.kotlin.api.AreteAppelKotlinApi> {
+        val document =
+            verrou.read {
+                if (fermee) return@read null
+                documents[uri]
+            } ?: return emptyList()
+        val guichet = indexSiPret() ?: return emptyList()
+        val univers = construireUnivers(document, uri, guichet.vue, guichet.vueJvm) ?: return emptyList()
+        return verrou.read {
+            if (fermee) return@read emptyList()
+            val interne = ItemAppelKotlin(item.nom, item.uri, item.plage, item.detail)
+            HierarchiesEtLens.appelsEntrants(document.arbre, univers, interne).map { arete ->
+                jo.codeide.lsp.kotlin.api.AreteAppelKotlinApi(
+                    jo.codeide.lsp.kotlin.api.ItemAppelKotlinApi(
+                        arete.item.nom, arete.item.uri, arete.item.plage, arete.item.detail,
+                    ),
+                    arete.plagesAppel,
+                )
+            }
+        }
+    }
+
+    /**
+     * V-I2 — les APPELS SORTANTS de l'item (les appelables du projet
+     * appelés NU dans le corps de la déclaration).
+     */
+    override fun appelsSortants(
+        uri: String,
+        item: jo.codeide.lsp.kotlin.api.ItemAppelKotlinApi,
+    ): List<jo.codeide.lsp.kotlin.api.AreteAppelKotlinApi> {
+        val document =
+            verrou.read {
+                if (fermee) return@read null
+                documents[uri]
+            } ?: return emptyList()
+        val guichet = indexSiPret() ?: return emptyList()
+        val univers = construireUnivers(document, uri, guichet.vue, guichet.vueJvm) ?: return emptyList()
+        return verrou.read {
+            if (fermee) return@read emptyList()
+            val interne = ItemAppelKotlin(item.nom, item.uri, item.plage, item.detail)
+            HierarchiesEtLens.appelsSortants(document.arbre, univers, interne).map { arete ->
+                jo.codeide.lsp.kotlin.api.AreteAppelKotlinApi(
+                    jo.codeide.lsp.kotlin.api.ItemAppelKotlinApi(
+                        arete.item.nom, arete.item.uri, arete.item.plage, arete.item.detail,
+                    ),
+                    arete.plagesAppel,
+                )
+            }
+        }
+    }
+
+    /**
+     * V-I2 — les LENTILLES du document (codeLens paresseux, périmètre
+     * BORNÉ : chaque déclaration top-level porte son compte d'usages
+     * documentaire).
+     */
+    override fun lentilles(uri: String): List<jo.codeide.lsp.kotlin.api.LentilleDocumentKotlin> {
+        return verrou.read {
+            if (fermee) return@read emptyList()
+            val document = documents[uri] ?: return@read emptyList()
+            HierarchiesEtLens.lentilles(document.arbre, uri).map { (plage, nom, usages) ->
+                jo.codeide.lsp.kotlin.api.LentilleDocumentKotlin(plage, nom, usages)
+            }
+        }
+    }
+
+    /**
      * Rend les éditions de ré-indentation du document entier (étage 5
      * vague 5a — fiche 019 : le formateur borné repris R6, ré-indentation
      * canonique seule ; le refus sur arbre en erreur et les intouchables
