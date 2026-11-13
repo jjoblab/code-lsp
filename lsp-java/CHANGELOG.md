@@ -6,7 +6,17 @@
 > chaque version (validation, pièges, référentiels) vit dans l'en-tête de
 > version cité. Format : **Ajouté / Modifié / Corrigé**.
 
-## 1.13.0 — V-H : répartiteur au protocole (02/11/2026, NON PUBLIÉE, tête)
+## 1.14.0 — alignement de version avec le pack langue Kotlin (12/11/2026, PUBLIÉE v1.14.0)
+
+> Entrée de rattrapage (13/11/2026) : la 1.14.0 a republié le moteur Java à
+> l'identique — aucun diff Java entre v1.13.0 et v1.14.0 (vérifié au dépôt),
+> l'incrément portait le pack langue Kotlin (`jo-codeide-lsp-kotlin` 1.14.0 :
+> plan « niveau Android Studio » complet, vagues V-A → V-H). La 1.13.0
+> ci-dessous, marquée « NON PUBLIÉE, tête » au moment de son écriture, A ÉTÉ
+> PUBLIÉE par la suite (registre GitHub Packages : `jo-codeide-lsp-java`
+> 1.13.0 présent, run Publication n° 13).
+
+## 1.13.0 — V-H : répartiteur au protocole (02/11/2026, PUBLIÉE v1.13.0)
 
 - **Ajouté** : `OrdonnanceurMoteur.soumettrePrioritaire` — 3 voies
   FRAPPE/NAVIGATION/CONFORT câblées sur 29 méthodes de document ; supersession

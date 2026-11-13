@@ -406,6 +406,33 @@ plugins {
 // perd ni n'échoue aucune future, la complétion rend ses membres PENDANT
 // la tempête, péremption honnête, arrêt propre). §7.29, ADR 0010 à jour,
 // PV mesures/2026-11-02-vh-repartition.txt.
+
+// 1.14.1 (13/11/2026) — banc de mesure appareil du gabarit 07 ENRICHI
+// (V-H, ADR 0124) : SÉRIE PROTOCOLAIRE des 3 passes (moto g06,
+// 17:07/17:11/17:25, espacements ≥ 30 s, médiane retenue — gabarit 07
+// §2 COMPLET). Aucun code moteur : les changements depuis 1.14.0 sont
+// exclusivement banc/tests/docs/scripts (zéro src/main — patch). Livré :
+// BancMesureAppareil (750 l. : sections K7/S/F/C/Q/M/H, sonde
+// d'environnement déporté, tableau de relevé auto) + kit
+// scripts/kit-mesure-kotlin.sh (archive 57 Mo, sha256 consigné) +
+// CONSIGNES-MESURE-APPAREIL.md + 4 transcripts bruts (témoin 16:59 +
+// série) + 2 PV de lecture (médianes et facteurs calculés par code,
+// scripts/lecture-*.py). VERDICT V-H sur la série : H1 médiane
+// 18 985 ms (×1,9 la cible < 10 s), H2 médiane 18 956 ms (×9,5 la
+// cible < 2 s) — H2 ≈ H1 confirmé 3/3 (amorçage du sous-process K2
+// RE-PAYÉ à chaque requête : pas de « chaud » sans démon) ; rejet
+// motivé de l'option 2 sans démon CONFIRMÉ PAR LA SÉRIE, l'option 3
+// (démon résident) reste la seule voie crédible — verdict final au
+// propriétaire (ADR 0124 §10). Au passage : baseline appareil du
+// chemin de frappe ACQUISE SUR MÉDIANE (F1-F4 p95 ≤ 9 ms vs 100,
+// S1 249 ms vs 3 s, F6 p99 28 ms, C1 ×1,00, Q1 72 ms, zéro périmé
+// 3/3, tas 8→12 Mo) ; F5 géant 1 803 l. hors seuil (médiane p95
+// 1 411 ms, ×4,7 — recalibrage ~1 500 ms proposé au gabarit §6).
+// Q-K7 ACQUIS (4 exécutions, com.acside, OpenJDK 17.0.19 aarch64).
+// Re-baseline complétion b0bb9ce incluse (rang attendu de V-D, ADR
+// 0126, tolérance d'arrondi 5e-4). Validation locale : ./gradlew
+// clean build — 1 572 tests / 0 échec (793 java + 613 kotlin + 166
+// socle ; 80 ignorés = gates corpus/environnement, raison affichée).
 allprojects {
-    version = "1.14.0"
+    version = "1.14.1"
 }

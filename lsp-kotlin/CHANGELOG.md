@@ -7,6 +7,40 @@
 > (`lsp-kotlin/docs/etudes/moteur-kotlin/`) et l'en-tête de version du module.
 > Format : **Ajouté / Modifié / Corrigé**.
 
+## 1.14.1 — série appareil des 3 passes du gabarit 07 : le dossier d'arbitrage V-H COMPLET (13/11/2026, PUBLIÉE v1.14.1)
+
+- **Ajouté — V-H : le banc de mesure appareil du gabarit 07 ENRICHI**
+  (ADR 0124) : `BancMesureAppareil` (750 l. — sections K7/S/F/C/Q/M/H,
+  sonde d'environnement déporté, tableau de relevé auto) + kit
+  `scripts/kit-mesure-kotlin.sh` (archive 57 Mo, sha256 consigné) +
+  `CONSIGNES-MESURE-APPAREIL.md` + transcripts bruts (jamais retouchés).
+- **Ajouté — la SÉRIE PROTOCOLAIRE des 3 passes** (moto g06, 12/11,
+  17:07/17:11/17:25, espacements ≥ 30 s, **médiane retenue** — gabarit 07
+  §2 COMPLET) + la passe témoin 16:59 (conservée hors série) : 4
+  transcripts + 2 PV de lecture (`mesures/`, médianes et facteurs
+  calculés par code, `scripts/lecture-*.py`).
+- **Mesuré — le verdict V-H sur médiane** : H1 **18 985 ms** (×1,9 la
+  cible < 10 s), H2 **18 956 ms** (×9,5 la cible < 2 s) — **H2 ≈ H1
+  confirmé 3/3** (ratios 0,908/0,998/1,005) : l'option 2 RE-PAYE
+  l'amorçage du sous-process K2 à chaque requête, pas de « chaud » sans
+  démon. Rejet motivé de l'option 2 sans démon CONFIRMÉ PAR LA SÉRIE ;
+  l'option 3 (démon résident) reste la seule voie crédible — verdict
+  final au propriétaire (ADR 0124 §10).
+- **Mesuré — la baseline appareil du chemin de frappe ACQUISE SUR
+  MÉDIANE** : F1-F4 p95 ≤ 9 ms (cible 100, marges ×11 à ×50), S1 249 ms
+  (cible 3 s), F6 p99 28 ms (aucune fige), C1 facteur ×1,00, Q1 72 ms,
+  zéro réponse périmée 3/3, tas 8→12 Mo. F5 géant 1 803 l. : médiane
+  p95 1 411 ms (×4,7 la cible 300 ms — recalibrage ~1 500 ms proposé).
+  Q-K7 ACQUIS (4 exécutions, `com.acside`, OpenJDK 17.0.19 aarch64).
+- **Modifié** : re-baseline complétion après V-D (rang attendu des
+  arguments nommés, ADR 0126 — effet attendu du peseur TYPE ATTENDU) +
+  tolérance d'arrondi (5e-4) de la comparaison à la baseline — aucune
+  régression (top1 0,938 / MRR 0,958 re-signés par la procédure dédiée).
+- Aucun code moteur : les changements sont exclusivement
+  banc/tests/docs/scripts (zéro `src/main` — version patch). Validation :
+  1 572 tests / 0 échec (793 java + 613 kotlin + 166 socle ; 80 ignorés —
+  gates corpus/environnement avec raison) ; CI verte.
+
 ## 1.14.0 — le plan « niveau Android Studio » COMPLET : vagues V-A → V-H (12/11/2026, PUBLIÉE v1.14.0)
 
 - **Ajouté — V-I1/V-I2 : le protocole étendu** (ADR 0136 B.2/B.3) : les
