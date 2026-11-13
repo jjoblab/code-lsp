@@ -12,6 +12,7 @@
 // envisagé quand P1 sera résolu.
 plugins {
     kotlin("jvm")
+    `maven-publish`
     kotlin("plugin.serialization")
 }
 
@@ -51,4 +52,43 @@ tasks.test {
     useJUnit()
     // Tas borné comme à l'origine (machine CI 4 Go — convention d'origine).
     maxHeapSize = "640m"
+}
+
+// ---------------------------------------------------------------------------
+// Publication GitHub Packages (MIGRATION host du 13/11/2026 — miroir :java) :
+// le POM de l'AAR :host référence jo.codeide.lsp.model:jo-codeide-lsp-model —
+// consommateur final : CodeIDE (bascule code-lsp) ; substitution en-build par
+// la racine (resolutionStrategy) pour la résolution locale.
+// ---------------------------------------------------------------------------
+val depotGithubPackages = uri("https://maven.pkg.github.com/jjoblab/code-lsp")
+val utilisateurPackages =
+    providers.gradleProperty("github.packages.user")
+        .orElse(providers.environmentVariable("GITHUB_ACTOR"))
+val jetonPackages =
+    providers.gradleProperty("github.packages.pat")
+        .orElse(providers.environmentVariable("GITHUB_TOKEN"))
+
+publishing {
+    repositories {
+        maven {
+            name = "GitHubPackages"
+            url = depotGithubPackages
+            credentials {
+                username = utilisateurPackages.orNull ?: ""
+                password = jetonPackages.orNull ?: ""
+            }
+        }
+    }
+    publications {
+        create<MavenPublication>("socle") {
+            from(components["java"])
+            groupId = "jo.codeide.lsp.model"
+            artifactId = "jo-codeide-lsp-model"
+            version = project.version.toString()
+
+            pom {
+                name.set("Modèle LSP de CodeIDE (socle)")
+            }
+        }
+    }
 }

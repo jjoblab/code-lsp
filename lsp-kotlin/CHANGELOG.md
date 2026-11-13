@@ -7,6 +7,20 @@
 > (`lsp-kotlin/docs/etudes/moteur-kotlin/`) et l'en-tête de version du module.
 > Format : **Ajouté / Modifié / Corrigé**.
 
+## 1.15.0 — colorPresentation servi (V-I1) + accueil de la migration :host/:xml (13/11/2026, PUBLIÉE v1.15.0)
+
+- **Corrigé — V-I1 : l'annonce `colorProvider` n'est plus un stub** : la
+  garde L0 de l'hôte (CapacitesLspPariteTest, TABLE_KOTLIN) avait révélé
+  `colorPresentation` annoncé mais non servi — le service est livré
+  (miroir de la parité des tables). Le digeste structurel du corpus
+  (fiche 010) est RE-SIGNÉ (le fichier de test rejoint le corpus).
+- **Modifié — MIGRATION :host/:xml (décision propriétaire du 13/11)** :
+  les modules `:lsp:host` et `:lsp:xml` de codeide-lsp migrent dans CE
+  dépôt (`lsp-host/`, `lsp-xml/moteur/` — registres PROVENANCE) ;
+  codeide-lsp est archivé et rendu privé après bascule CodeIDE. Le pack
+  Kotlin est consommé par l'hôte par SA COORDONNÉE publiée (substitution
+  en-build par la racine, POM inchangé pour CodeIDE).
+
 ## 1.14.1 — série appareil des 3 passes du gabarit 07 : le dossier d'arbitrage V-H COMPLET (13/11/2026, PUBLIÉE v1.14.1)
 
 - **Ajouté — V-H : le banc de mesure appareil du gabarit 07 ENRICHI**

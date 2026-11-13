@@ -8,6 +8,14 @@
 plugins {
     kotlin("jvm") version "2.2.10" apply false
     kotlin("plugin.serialization") version "2.2.10" apply false
+    // MIGRATION host (13/11/2026) : le module :host est une bibliothèque
+    // Android (AAR). L'AGP est déclaré ici apply false POUR LE CLASSPATH —
+    // même pattern que codeide-lsp/CodeIDE : l'AGP 9.4.1 embarque KGP
+    // 2.2.10 (même version que la racine) ; déclarer les DEUX ici garantit
+    // que AGP+KGP partagent le MÊME classloader de build (sinon le KGP de
+    // la racine charge sans les classes AGP et l'application du plugin
+    // échoue : NoClassDefFoundError com/android/build/gradle/api/BaseVariant).
+    id("com.android.library") version "9.4.1" apply false
 }
 
 // Version du dépôt (ADR 0002 : réécriture intégrale — nouvelles bases).
@@ -434,5 +442,30 @@ plugins {
 // clean build — 1 572 tests / 0 échec (793 java + 613 kotlin + 166
 // socle ; 80 ignorés = gates corpus/environnement, raison affichée).
 allprojects {
-    version = "1.14.1"
+    version = "1.15.0"
+
+    // MIGRATION host (13/11/2026) — résolution LOCALE des packs du DÉPÔT :
+    // le module :host référence les packs par leurs coordonnées PUBLIÉES
+    // (le POM de l'AAR doit les porter pour CodeIDE). La substitution
+    // dirigée ci-dessous remplace ces coordonnées par les PROJECTS du build
+    // pour TOUTE résolution locale (CI incluse) : :host teste TOUJOURS le
+    // code présent du dépôt, jamais le binaire du registre — même recette
+    // que la consommation composite de CodeIDE (freres.sources), mais
+    // INTERNE au build (miroir du mécanisme de l'ancien dépôt codeide-lsp).
+    // Le compagnon ecj-art n'est PAS substitué (artefact compagnon, pas
+    // l'artefact par défaut du module — cf. lsp-host/build.gradle.kts).
+    configurations.all {
+        resolutionStrategy.dependencySubstitution {
+            substitute(module("jo.codeide.lsp.java:jo-codeide-lsp-java"))
+                .using(project(":java"))
+            substitute(module("jo.codeide.lsp.kotlin:jo-codeide-lsp-kotlin"))
+                .using(project(":kotlin"))
+            substitute(module("jo.codeide.lsp.xml:jo-codeide-lsp-xml"))
+                .using(project(":xml"))
+            substitute(module("jo.codeide.lsp.model:jo-codeide-lsp-model"))
+                .using(project(":model"))
+            substitute(module("jo.codeide.lsp.index:jo-codeide-lsp-index"))
+                .using(project(":index"))
+        }
+    }
 }

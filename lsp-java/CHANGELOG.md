@@ -6,6 +6,16 @@
 > chaque version (validation, pièges, référentiels) vit dans l'en-tête de
 > version cité. Format : **Ajouté / Modifié / Corrigé**.
 
+## 1.15.0 — republication à l'identique (13/11/2026, PUBLIÉE v1.15.0)
+
+> Entrée de rattrapage : la 1.15.0 republie le moteur Java à l'identique
+> (aucun diff Java) — l'incrément porte la MIGRATION des modules :host et
+> :xml depuis codeide-lsp (décision propriétaire du 13/11/2026 : code-lsp
+> devient le dépôt unique des LSP, codeide-lsp est archivé et rendu
+> privé) et le correctif colorPresentation du pack Kotlin. Le moteur est
+> consommé par l'hôte migré par sa coordonnée publiée (substitution
+> en-build ; compagnon ecj-art en scope runtime dans le POM de l'hôte).
+
 ## 1.14.0 — alignement de version avec le pack langue Kotlin (12/11/2026, PUBLIÉE v1.14.0)
 
 > Entrée de rattrapage (13/11/2026) : la 1.14.0 a republié le moteur Java à

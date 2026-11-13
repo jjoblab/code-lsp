@@ -2,6 +2,10 @@
 # 30/10/2026, voie PRODUCTION de lsp-java/docs/BASCULE-CODEIDE.md §3.2.1) ;
 # étendue au pack langue Kotlin le 03/11/2026 (Q-K4 — ADR 0136, GK-028 ;
 # arbitrage propriétaire : mécanisme miroir :java, façade unique).
+# Étendue le 13/11/2026 à la MIGRATION des modules :host/:xml/:model/:index
+# (décision propriétaire : « migrer le lsp xml de codeide-lsp vers code-lsp
+# ainsi que les modules qui lui sont nécessaires comme host » — codeide-lsp
+# est archivé et rendu privé après bascule CodeIDE).
 #
 # Déclenchement : push d'un TAG v* (la CI standard ci.yml ne couvre que les
 # branches — un tag ne la déclenche PAS). Publication APRÈS vérification
@@ -14,13 +18,21 @@
 #   patché, :ecj-art — runtime compileOnly du moteur, EPL-2.0)
 #   jo.codeide.lsp.kotlin:jo-codeide-lsp-kotlin:<version>    (pack langue,
 #   :kotlin — code neuf + grammaire vendorée + descripteur D6, Apache-2.0)
-# Le tag porte la version du dépôt (ex. v1.0.0) ; la version PUBLIÉE reste
+#   jo.codeide.lsp.xml:jo-codeide-lsp-xml:<version>          (pack langue,
+#   :xml — MIGRATION codeide-lsp, parseur maison, zéro dépendance)
+#   jo.codeide.lsp.host:jo-codeide-lsp-host:<version>         (AAR hôte,
+#   :host — MIGRATION codeide-lsp, orchestre java/kotlin/xml + cel-lsp ;
+#   compagnon ecj-art en scope runtime dans son POM)
+#   jo.codeide.lsp.model:jo-codeide-lsp-model:<version>      (socle modèle)
+#   jo.codeide.lsp.index:jo-codeide-lsp-index:<version>      (socle index)
+# Le tag porte la version du dépôt (ex. v1.15.0) ; la version PUBLIÉE reste
 # celle de build.gradle.kts (allprojects) — serverInfo.version et dépôt
 # synchronisés par construction (fiche 059 I7 ; descripteur D6 côté Kotlin).
 #
 # Jetons : GITHUB_ACTOR + GITHUB_TOKEN automatiques d'Actions — permissions
 # packages:write ci-dessous (le jeton de workflow par défaut suffit, AUCUN
-# secret personnel à créer).
+# secret personnel à créer). La SONDE d'existence (garde 409) authentifie
+# en lecture par le même jeton.
 name: Publication
 
 on:
@@ -49,16 +61,86 @@ jobs:
       - name: Gradle
         uses: gradle/actions/setup-gradle@v4
 
+      # MIGRATION host/xml (13/11/2026) : le module :host (AAR Android)
+      # exige le SDK Android (compileSdk 37.2) et le dépôt frère
+      # codeide-tooling en build composite (protocole v8) — mêmes rites
+      # que le job « Build et tests » de ci.yml.
+      - name: Récupérer codeide-tooling (build composite)
+        run: git clone --depth 1 https://github.com/jjoblab/codeide-tooling.git ../codeide-tooling
+
+      - name: Accepter les licences du SDK Android
+        run: yes | sdkmanager --licenses >/dev/null || true
+
+      - name: SDK Android 37.2 + local.properties
+        run: |
+          SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android-sdk}}"
+          if [ ! -d "$SDK/platforms/android-37.2" ]; then
+            SDMGR="$SDK/cmdline-tools/latest/bin/sdkmanager"
+            if [ ! -x "$SDMGR" ]; then
+              echo "cmdline-tools absents — téléchargement"
+              curl -sSLo /tmp/tools.zip \
+                https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+              rm -rf /tmp/outils "$SDK/cmdline-tools/latest"
+              mkdir -p /tmp/outils
+              unzip -q /tmp/tools.zip -d /tmp/outils
+              mkdir -p "$SDK/cmdline-tools"
+              mv /tmp/outils/cmdline-tools "$SDK/cmdline-tools/latest"
+              SDMGR="$SDK/cmdline-tools/latest/bin/sdkmanager"
+            fi
+            yes | "$SDMGR" --sdk_root="$SDK" --licenses >/dev/null || true
+            "$SDMGR" --sdk_root="$SDK" "platforms;android-37.2" >/dev/null
+          fi
+          echo "sdk.dir=$SDK" > local.properties
+          ls "$SDK/platforms/android-37.2/android.jar"
+
       # Vérification AVANT publication : build = compilation + tests de tous
       # les modules (les bancs JavaExec restent hors du cycle `build`, même
       # contrat que le job « Build et tests » de ci.yml).
       - name: Vérification (build + tests)
         run: ./gradlew build --no-daemon --stacktrace
 
-      # Publication des deux artefacts vers maven.pkg.github.com/jjoblab/code-lsp.
-      # `publish` couvre toutes les publications déclarées (moteur + compagnon).
+      # Garde 409 (miroir codeide-lsp) : GitHub Packages REFUSE la republication
+      # d'une version existante (409 Conflict, jamais écrasée). Chaque artefact
+      # de la version est sondé : seuls les MANQUANTS sont publiés — un re-run
+      # de workflow (échec partiel, re-déclenchement manuel) reste idempotent.
+      # Les tâches par publication évitent l'attrapera-tout `publish` : une
+      # version complète sonde « tout existe » et ne publie RIEN.
+      - name: Sonder les artefacts existants (garde 409)
+        id: existant
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          VERSION=$(grep -oP '^\s*version = "\K[^"]+' build.gradle.kts | head -1)
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          declare -A TACHES=(
+            ["jo/codeide/lsp/java/jo-codeide-lsp-java"]="/java:publishMoteurPublicationToGitHubPackagesRepository"
+            ["jo/codeide/lsp/java/jo-codeide-lsp-java-ecj-art"]="/ecj-art:publishCompagnonEcjArtPublicationToGitHubPackagesRepository"
+            ["jo/codeide/lsp/kotlin/jo-codeide-lsp-kotlin"]="/kotlin:publishMoteurPublicationToGitHubPackagesRepository"
+            ["jo/codeide/lsp/xml/jo-codeide-lsp-xml"]="/xml:publishPackPublicationToGitHubPackagesRepository"
+            ["jo/codeide/lsp/host/jo-codeide-lsp-host"]="/host:publishMavenPublicationToGitHubPackagesRepository"
+            ["jo/codeide/lsp/model/jo-codeide-lsp-model"]="/model:publishSoclePublicationToGitHubPackagesRepository"
+            ["jo/codeide/lsp/index/jo-codeide-lsp-index"]="/index:publishSoclePublicationToGitHubPackagesRepository"
+          )
+          manquantes=""
+          for chemin in "${!TACHES[@]}"; do
+            artefact=$(basename "$chemin")
+            url="https://maven.pkg.github.com/jjoblab/code-lsp/${chemin}/${VERSION}/${artefact}-${VERSION}.pom"
+            code=$(curl -sL -o /dev/null -w '%{http_code}' -u "x-access-token:${GITHUB_TOKEN}" "${url}")
+            echo "sonde ${artefact} ${VERSION} -> ${code}"
+            if [ "${code}" != "200" ]; then
+              manquantes="${manquantes} ${TACHES[$chemin]}"
+            fi
+          done
+          echo "modules=${manquantes# }" >> "$GITHUB_OUTPUT"
+
+      # Publication des artefacts MANQUANTS vers maven.pkg.github.com/jjoblab/code-lsp.
       - name: Publication
-        run: ./gradlew publish --no-daemon --stacktrace
+        if: steps.existant.outputs.modules != ''
+        run: ./gradlew ${{ steps.existant.outputs.modules }} --no-daemon --stacktrace
         env:
           GITHUB_ACTOR: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Tout était déjà publié (idempotence)
+        if: steps.existant.outputs.modules == ''
+        run: echo "Tous les artefacts ${{ steps.existant.outputs.version }} existent déjà — rien à publier."
