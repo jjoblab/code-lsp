@@ -697,6 +697,31 @@ public class ServeurLangageKotlin(
         return CompletableFuture.completedFuture(rendues)
     }
 
+    override fun colorPresentation(params: org.eclipse.lsp4j.ColorPresentationParams): CompletableFuture<List<org.eclipse.lsp4j.ColorPresentation>> {
+        garde<List<org.eclipse.lsp4j.ColorPresentation>>()?.let { return it }
+        // V-I1 — la PRÉSENTATION de couleur (ADR 0136 étape B.2) : le
+        // color picker édite la couleur via cette requête — l'édition
+        // rendue est le LITTÉRAL hexadécimal Android à 8 chiffres
+        // (0xAARRGGBB, la forme servie par couleursDocument), recalculée
+        // des canaux normalisés [0, 1].
+        val a = couleurCanal(params.color.alpha)
+        val r = couleurCanal(params.color.red)
+        val g = couleurCanal(params.color.green)
+        val b = couleurCanal(params.color.blue)
+        val litre = "0x${a}${r}${g}${b}"
+        val rendu =
+            org.eclipse.lsp4j.ColorPresentation(litre).apply {
+                textEdit = org.eclipse.lsp4j.TextEdit(params.range, litre)
+            }
+        return CompletableFuture.completedFuture(listOf(rendu))
+    }
+
+    /** Canal [0, 1] → hexadécimal 2 chiffres (borné, jamais négatif). */
+    private fun couleurCanal(canaland: Double): String {
+        val borne = canaland.coerceIn(0.0, 1.0)
+        return String.format("%02X", (borne * 255).toInt())
+    }
+
     override fun linkedEditingRange(
         params: org.eclipse.lsp4j.LinkedEditingRangeParams,
     ): CompletableFuture<org.eclipse.lsp4j.LinkedEditingRanges> {

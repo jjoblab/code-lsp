@@ -369,4 +369,51 @@ class CasDoresProtocoleKotlinTest {
         )
         assertTrue("Additionne deux entiers." in (contenu), "la KDoc accompagne : $contenu")
     }
+
+    // ── Présentation de couleur (bout-en-bout, V-I1 — garde hôte L0) ──
+
+    /** Le color picker édite par `colorPresentation` : l'édition rendue est
+     *  le littéral hexadécimal Android 0xAARRGGBB, recalculé des canaux
+     *  normalisés — jamais un stub (l'hôte codeide-lsp vérifie annonce ⇒
+     *  surcharge, la garde L0 « couleurs de document »). */
+    @Test
+    fun `couleurs---colorPresentation-rend-le-litteral-argb`() {
+        val serveur = ServeurLangageKotlin(fabriqueSession = { _ ->
+            jo.codeide.lsp.kotlin.api.ServiceMoteurLangageKotlin.unique.creerSession()
+        })
+        val boucle = BoucleLocale(serveur)
+        boucle.demarrer()
+        boucle.client.initialize(parametres()).join()
+        boucle.client.initialized(org.eclipse.lsp4j.InitializedParams())
+        val uri = "file:///couleurs.kt"
+        val source = "val primaire = 0xFF1A73E8\n"
+        boucle.client.textDocumentService.didOpen(
+            DidOpenTextDocumentParams(TextDocumentItem(uri, "kotlin", 0, source)),
+        )
+        // Le picker sélectionne le littéral et exige sa présentation.
+        val presentation =
+            boucle.client.textDocumentService.colorPresentation(
+                org.eclipse.lsp4j.ColorPresentationParams(
+                    TextDocumentIdentifier(uri),
+                    org.eclipse.lsp4j.Color(0x1A / 255.0, 0x73 / 255.0, 0xE8 / 255.0, 1.0),
+                    Range(Position(0, 16), Position(0, 26)),
+                ),
+            ).join()
+        assertEquals(1, presentation.size, "une présentation exacte, jamais vide")
+        assertEquals(
+            "0xFF1A73E8",
+            presentation[0].label,
+            "l'édition est le littéral Android 0xAARRGGBB",
+        )
+        assertEquals(
+            Range(Position(0, 16), Position(0, 26)),
+            presentation[0].textEdit?.range,
+            "la plage de l'édition est celle du littéral sélectionné",
+        )
+        assertEquals(
+            "0xFF1A73E8",
+            presentation[0].textEdit?.newText,
+            "le texte de l'édition est le littéral recalculé",
+        )
+    }
 }
