@@ -113,13 +113,13 @@ jobs:
           VERSION=$(grep -oP '^\s*version = "\K[^"]+' build.gradle.kts | head -1)
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           declare -A TACHES=(
-            ["jo/codeide/lsp/java/jo-codeide-lsp-java"]="/java:publishMoteurPublicationToGitHubPackagesRepository"
-            ["jo/codeide/lsp/java/jo-codeide-lsp-java-ecj-art"]="/ecj-art:publishCompagnonEcjArtPublicationToGitHubPackagesRepository"
-            ["jo/codeide/lsp/kotlin/jo-codeide-lsp-kotlin"]="/kotlin:publishMoteurPublicationToGitHubPackagesRepository"
-            ["jo/codeide/lsp/xml/jo-codeide-lsp-xml"]="/xml:publishPackPublicationToGitHubPackagesRepository"
-            ["jo/codeide/lsp/host/jo-codeide-lsp-host"]="/host:publishMavenPublicationToGitHubPackagesRepository"
-            ["jo/codeide/lsp/model/jo-codeide-lsp-model"]="/model:publishSoclePublicationToGitHubPackagesRepository"
-            ["jo/codeide/lsp/index/jo-codeide-lsp-index"]="/index:publishSoclePublicationToGitHubPackagesRepository"
+            ["jo/codeide/lsp/java/jo-codeide-lsp-java"]=":java:publishMoteurPublicationToGitHubPackagesRepository"
+            ["jo/codeide/lsp/java/jo-codeide-lsp-java-ecj-art"]=":ecj-art:publishCompagnonEcjArtPublicationToGitHubPackagesRepository"
+            ["jo/codeide/lsp/kotlin/jo-codeide-lsp-kotlin"]=":kotlin:publishMoteurPublicationToGitHubPackagesRepository"
+            ["jo/codeide/lsp/xml/jo-codeide-lsp-xml"]=":xml:publishPackPublicationToGitHubPackagesRepository"
+            ["jo/codeide/lsp/host/jo-codeide-lsp-host"]=":host:publishMavenPublicationToGitHubPackagesRepository"
+            ["jo/codeide/lsp/model/jo-codeide-lsp-model"]=":model:publishSoclePublicationToGitHubPackagesRepository"
+            ["jo/codeide/lsp/index/jo-codeide-lsp-index"]=":index:publishSoclePublicationToGitHubPackagesRepository"
           )
           manquantes=""
           for chemin in "${!TACHES[@]}"; do
