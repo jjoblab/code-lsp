@@ -965,8 +965,28 @@ public class MoteurJava(
         // Périmètre MODULE (V-F2) : prologue : sonde de régime sans verrou à chaud, lecture libre.
         if (!regimePlein()) return null
         val cible = resoudrePourOffset(chemin, source, offset) ?: return null
-        return ServiceSurvolRiche.survol(cible.arbre, cible.sourceArbre, cible.position)
+        // Chantier A (14/11/2026) : les sources ATTACHÉES du classpath
+        // (sources/android-<api> du SDK, src.zip du JDK) complètent la
+        // javadoc des symboles BINAIRES — découvertes UNE fois, cachées.
+        return ServiceSurvolRiche.survol(cible.arbre, cible.sourceArbre, cible.position, sourcesAttachees())
     }
+
+    /**
+     * Sources attachées du classpath (chantier A — javadoc du classpath au
+     * survol) : paresseuses, découvertes au premier survol d'un symbole
+     * binaire ; null tant qu'aucun canal n'est posé (contrat honnête R5 —
+     * le périmètre de documentation retombe sur l'unité seule).
+     *
+     * @return le service, ou null si aucun canal de sources n'existe.
+     */
+    private val sourcesAttacheesCache: jo.codeide.lsp.java.classpath.SourcesAttachees? by lazy {
+        val service = jo.codeide.lsp.java.classpath.SourcesAttachees(jars, jdkHome)
+        if (service.actif) service else null
+    }
+
+    /** Le service de sources attachées (null si aucun canal découvert). */
+    @Suppress("UNUSED_PARAMETER")
+    private fun sourcesAttachees(): jo.codeide.lsp.java.classpath.SourcesAttachees? = sourcesAttacheesCache
 
     /**
      * Définition de la référence au caret (étage N4 — cahier fiche 049) :

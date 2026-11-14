@@ -25,6 +25,8 @@ import org.eclipse.jdt.internal.compiler.ast.PrefixExpression
 import org.eclipse.jdt.internal.compiler.ast.QualifiedNameReference
 import org.eclipse.jdt.internal.compiler.ast.ReturnStatement
 import org.eclipse.jdt.internal.compiler.ast.SingleNameReference
+import org.eclipse.jdt.internal.compiler.ast.SingleTypeReference
+import org.eclipse.jdt.internal.compiler.ast.QualifiedTypeReference
 import org.eclipse.jdt.internal.compiler.ast.TypeDeclaration
 import org.eclipse.jdt.internal.compiler.lookup.BlockScope
 import org.eclipse.jdt.internal.compiler.lookup.ClassScope
@@ -377,6 +379,9 @@ public object LectureAst {
     /** Base des visiteurs résilients : chaque visite est protégée. */
     public abstract class VisiteurResilient : ASTVisitor() {
         override fun visit(singleNameReference: SingleNameReference, scope: BlockScope?): Boolean = protege { visiteReferenceSimple(singleNameReference, scope) }
+        override fun visit(singleTypeReference: SingleTypeReference, scope: BlockScope?): Boolean = protege { visiteReferenceType(singleTypeReference, scope) }
+        override fun visit(qualifiedTypeReference: QualifiedTypeReference, scope: BlockScope?): Boolean = protege { visiteReferenceType(qualifiedTypeReference, scope) }
+        override fun visit(singleTypeReference: SingleTypeReference, scope: ClassScope?): Boolean = protege { visiteReferenceType(singleTypeReference, null) }
         override fun visit(qualifiedNameReference: QualifiedNameReference, scope: BlockScope?): Boolean = protege { visiteReferenceQualifiee(qualifiedNameReference, scope) }
         override fun visit(fieldReference: FieldReference, scope: BlockScope?): Boolean = protege { visiteReferenceChamp(fieldReference, scope) }
         override fun visit(messageSend: MessageSend, scope: BlockScope?): Boolean = protege { visiteEnvoi(messageSend, scope) }
@@ -418,6 +423,7 @@ public object LectureAst {
 
         // --- points d'extension (tout retourne « descendre » par défaut) ---
         public open fun visiteReferenceSimple(node: SingleNameReference, scope: BlockScope?): Boolean = true
+        public open fun visiteReferenceType(node: org.eclipse.jdt.internal.compiler.ast.TypeReference, scope: BlockScope?): Boolean = true
         public open fun visiteReferenceQualifiee(node: QualifiedNameReference, scope: BlockScope?): Boolean = true
         public open fun visiteReferenceChamp(node: FieldReference, scope: BlockScope?): Boolean = true
         public open fun visiteEnvoi(node: MessageSend, scope: BlockScope?): Boolean = true

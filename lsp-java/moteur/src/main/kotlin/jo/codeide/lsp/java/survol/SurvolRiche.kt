@@ -52,9 +52,13 @@ public data class SurvolRiche(
  * référence vue AVANT ou APRÈS sa déclaration la retrouve également — le
  * balayage de l'arbre est complet, pas séquentiel au texte.
  *
- * Le périmètre de la documentation est la MÊME unité : les symboles
- * binaires (jrt, jars) ne portent jamais de javadoc ici — le moteur ne
- * devine pas ce qu'il n'a pas lu (périmètre « honnête », R5).
+ * Le périmètre HISTORIQUE de la documentation était la MÊME unité (les
+ * symboles binaires ne portaient jamais de javadoc — périmètre « honnête »,
+ * R5). Chantier A (14/11/2026) : le périmètre s'ÉTEND aux SOURCES
+ * ATTACHÉES du classpath (dossier `sources/android-<api>` du SDK, `src.zip`
+ * du JDK) — la javadoc d'`android.app.Activity` ou de `java.lang.String`
+ * est lue dans les sources réelles, JAMAIS fabriquée (R5 tenu : pas de
+ * sources posées ⇒ documentation null, exactement comme avant).
  */
 public object ServiceSurvolRiche {
 
@@ -64,14 +68,22 @@ public object ServiceSurvolRiche {
      * @param arbre l'arbre RÉSOLU (bindings vivants).
      * @param source le texte source dans le système de l'arbre.
      * @param offset la position interrogée.
+     * @param sourcesAttachees les sources attachées du classpath (null =
+     *   périmètre historique unité-seule, miroir du contrat d'avant le
+     *   chantier A).
      * @return le survol (signature + documentation), ou null si aucun nœud
      *   résolu ne couvre l'offset.
      */
-    public fun survol(arbre: CompilationUnitDeclaration?, source: String, offset: Int): SurvolRiche? {
+    public fun survol(
+        arbre: CompilationUnitDeclaration?,
+        source: String,
+        offset: Int,
+        sourcesAttachees: jo.codeide.lsp.java.classpath.SourcesAttachees? = null,
+    ): SurvolRiche? {
         if (arbre == null) return null
         val registre = RegistreDeclarations()
         LectureAst.traverserResilient(arbre, registre)
-        val collecteur = CollecteurSurvol(source, offset, registre)
+        val collecteur = CollecteurSurvol(source, offset, registre, sourcesAttachees)
         LectureAst.traverserResilient(arbre, collecteur)
         return collecteur.meilleur
     }
@@ -169,12 +181,28 @@ public object ServiceSurvolRiche {
         private val source: String,
         private val offset: Int,
         private val registre: RegistreDeclarations,
+        private val sourcesAttachees: jo.codeide.lsp.java.classpath.SourcesAttachees? = null,
     ) : VisiteurResilient() {
         var meilleur: SurvolRiche? = null
         private var prioriteMeilleur = -1
 
         override fun visiteReferenceSimple(node: SingleNameReference, scope: org.eclipse.jdt.internal.compiler.lookup.BlockScope?): Boolean {
             considerer(node.sourceStart, node.sourceEnd, candidatReference(String(node.token), node.binding), PRIORITE_REFERENCE)
+            return true
+        }
+
+        override fun visiteReferenceType(node: org.eclipse.jdt.internal.compiler.ast.TypeReference, scope: org.eclipse.jdt.internal.compiler.lookup.BlockScope?): Boolean {
+            // Chantier A : la référence de TYPE (extends, implements, types
+            // des déclarations) — le binding résolu rend la signature du
+            // type ET sa javadoc de sources attachées. La PLAGE du nœud est
+            // celle du DERNIER segment (java.app.Activity → « Activity ») —
+            // le caret sur un segment de paquet ne doit pas capturer.
+            val nom = node.getLastToken()?.let(::String) ?: return true
+            val binding = try { node.resolvedType } catch (_: Throwable) { null }
+            val candidat = (binding as? org.eclipse.jdt.internal.compiler.lookup.ReferenceBinding)?.let {
+                SurvolRiche(LectureAst.lisible(it) ?: return true, javadocSourcesAttachees(it))
+            }
+            considerer(node.sourceStart, node.sourceEnd, candidat, PRIORITE_REFERENCE)
             return true
         }
 
@@ -269,7 +297,11 @@ public object ServiceSurvolRiche {
 
                 is FieldBinding -> {
                     val type = LectureAst.lisible(binding.type) ?: return null
-                    SurvolRiche("$type $nom", registre.champs[binding]?.let { javadocDe(source, it.declarationSourceStart) })
+                    SurvolRiche(
+                        "$type $nom",
+                        registre.champs[binding]?.let { javadocDe(source, it.declarationSourceStart) }
+                            ?: javadocSourcesAttachees(binding),
+                    )
                 }
 
                 is MethodBinding -> SurvolRiche(signatureMethode(binding) ?: return null, documentationDeMethode(binding))
@@ -279,18 +311,72 @@ public object ServiceSurvolRiche {
                     SurvolRiche("$type $nom", null)
                 }
 
-                is ReferenceBinding -> SurvolRiche(LectureAst.lisible(binding) ?: return null, null)
+                is ReferenceBinding -> SurvolRiche(
+                    LectureAst.lisible(binding) ?: return null,
+                    javadocSourcesAttachees(binding),
+                )
 
                 else -> null
             }
         }
 
-        /** Documentation d'une méthode par son binding (registre, puis original). */
+        /**
+         * Documentation d'une méthode par son binding (registre, puis
+         * original), puis sources attachées (chantier A).
+         */
         private fun documentationDeMethode(binding: MethodBinding): String? {
             val declaration = registre.methodes[binding]
                 ?: binding.original()?.let { registre.methodes[it] }
-                ?: return null
-            return javadocDe(source, declaration.declarationSourceStart)
+            if (declaration != null) return javadocDe(source, declaration.declarationSourceStart)
+            return javadocSourcesAttachees(binding)
+        }
+
+        /**
+         * Javadoc d'un TYPE binaire dans les sources attachées (chantier A) :
+         * le FQCN du binding déclarant, lu dans le canal découverte — null
+         * si les sources ne sont pas posées (contrat honnête R5 tenu).
+         */
+        private fun javadocSourcesAttachees(binding: ReferenceBinding): String? {
+            val canal = sourcesAttachees ?: return null
+            val fqcn = fqcnDe(binding) ?: return null
+            return canal.javadocType(fqcn)?.let { NettoyeurJavadocMarkdown.nettoyer(it) }
+        }
+
+        /**
+         * Javadoc d'une MÉTHODE binaire dans les sources attachées
+         * (chantier A) : sélecteur + FQCN du déclarant.
+         */
+        private fun javadocSourcesAttachees(binding: MethodBinding): String? {
+            val canal = sourcesAttachees ?: return null
+            val declarant = binding.declaringClass ?: return null
+            val fqcn = fqcnDe(declarant) ?: return null
+            return canal.javadocMethode(fqcn, String(binding.selector))?.let { NettoyeurJavadocMarkdown.nettoyer(it) }
+        }
+
+        /**
+         * Javadoc d'un CHAMP binaire dans les sources attachées
+         * (chantier A) : nom + FQCN du déclarant.
+         */
+        private fun javadocSourcesAttachees(binding: FieldBinding): String? {
+            val canal = sourcesAttachees ?: return null
+            val declarant = binding.declaringClass ?: return null
+            val fqcn = fqcnDe(declarant) ?: return null
+            return canal.javadocChamp(fqcn, String(binding.name))?.let { NettoyeurJavadocMarkdown.nettoyer(it) }
+        }
+
+        /** Le FQCN d'un binding de type (lecture défensive des noms longs). */
+        private fun fqcnDe(binding: ReferenceBinding): String? {
+            // Le nom long du binding : java.lang.String → "java.lang.String"
+            // (miroir de LectureAst.lisible mais en QUALIFIÉ — la clé des
+            // canaux de sources attachées).
+            return try {
+                val constantPool = binding.constantPoolName()
+                if (constantPool != null) String(constantPool).replace('/', '.') else null
+            } catch (_: Throwable) {
+                null
+            } ?: runCatching {
+                binding.compoundName?.joinToString(".") { String(it) }
+            }.getOrNull()
         }
 
         /** Retient le candidat s'il couvre le caret et bat la priorité courante. */
