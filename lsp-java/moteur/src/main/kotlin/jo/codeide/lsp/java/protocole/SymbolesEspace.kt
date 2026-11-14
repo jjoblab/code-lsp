@@ -80,8 +80,10 @@ public class SymbolesEspace(
      *   matche JAMAIS (la requête est prise au sérieux, pas nettoyée).
      * @param limite le plafond de réponses (garde-fou mémoire).
      * @return les symboles trouvés, par préfixe d'abord (l'ordre le plus
-     *   prévisible pour un humain), puis camel-humps (jamais null,
-     *   jamais d'exception).
+     *   prévisible pour un humain), puis camel-humps ORDONNÉS par
+     *   pertinence (P7 : le nom le plus court d'abord — « AM » veut
+     *   ActionMode avant ActivityManager ; miroir du rangement
+     *   IntelliJ), jamais null, jamais d'exception.
      */
     public fun rechercher(requete: String, limite: Int = 200): List<SymbolInformation> {
         if (requete.isEmpty()) return emptyList()
@@ -92,13 +94,16 @@ public class SymbolesEspace(
             if (resultats.size >= limite) break
             if (type.nom.lowercase().startsWith(requete.lowercase())) resultats.add(type)
         }
-        // 2. Camel-humps pour le RESTE de la limite.
+        // 2. Camel-humps pour le RESTE de la limite, ORDONNÉS par
+        //    pertinence (P7) : le plus court d'abord — l'ordre du balayage
+        //    est un artefact du système de fichiers, pas un choix.
         if (resultats.size < limite && requete.length > 1) {
-            for (type in index) {
-                if (resultats.size >= limite) break
-                if (type in resultats) continue
-                if (correspondHumps(type.nom, requete)) resultats.add(type)
-            }
+            val vus = resultats.toHashSet()
+            index.asSequence()
+                .filter { it !in vus && correspondHumps(it.nom, requete) }
+                .sortedWith(compareBy({ it.nom.length }, { it.nom }))
+                .take(limite - resultats.size)
+                .forEach(resultats::add)
         }
         return resultats.map(::informationDe)
     }
@@ -331,17 +336,23 @@ public class SymbolesEspace(
         runCatching { annuaire.typesParPrefixe(requete, limite) }
             .getOrDefault(emptyList())
             .filterTo(entrees) { it.nomSimple.lowercase().startsWith(prefixe) }
-        // 2. Camel-humps pour le reste (P1) : parcours borné de l'index.
+        // 2. Camel-humps pour le reste (P1), ORDONNÉS par pertinence
+        //    (P7 : le plus court d'abord, miroir des sources) : parcours
+        //    borné de l'index, tri, puis dédoublonnage.
         if (entrees.size < limite && requete.length > 1) {
+            val vus = entrees.mapTo(HashSet()) { it.fqcn }
             runCatching {
                 annuaire.typesParPredicat(
                     { nom -> correspondHumps(nom, requete) },
                     PLAFOND_HUMPS_BIBLIOTHEQUES,
                 )
             }.getOrDefault(emptyList())
-                .filterTo(entrees) { cand -> entrees.none { it.fqcn == cand.fqcn } }
+                .filter { it.fqcn !in vus }
+                .sortedWith(compareBy({ it.nomSimple.length }, { it.nomSimple }))
+                .take(limite - entrees.size)
+                .forEach { entrees.add(it); vus.add(it.fqcn) }
         }
-        return entrees.take(limite).map(::symboleBibliotheque)
+        return entrees.map(::symboleBibliotheque)
     }
 
     /**
