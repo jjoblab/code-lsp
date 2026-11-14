@@ -241,6 +241,13 @@ public object CapacitesServeur {
         capacites.setHoverProvider(true)
         capacites.setSignatureHelpProvider(SignatureHelpOptions(listOf("(", ",")))
 
+        // CHANTIER I (14/11/2026) — documentLink : les références
+        // {@link} de la javadoc du document deviennent des liens cliquables
+        // (définition source du projet, ou jdt://decompiled/ pour binaire).
+        capacites.setDocumentLinkProvider(
+            org.eclipse.lsp4j.DocumentLinkOptions().apply { resolveProvider = false },
+        )
+
         // Navigation (étage N4 — fiches 005/009/049/060/062 ; fiche 054
         // pour les références et le surlignage).
         capacites.setDefinitionProvider(true)

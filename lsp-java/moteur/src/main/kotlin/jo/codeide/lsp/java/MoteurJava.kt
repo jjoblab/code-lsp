@@ -1898,6 +1898,18 @@ public class MoteurJava(
             as? jo.codeide.lsp.java.classpath.EnvironnementNoms.Localisation.Source)?.fichier
     }
 
+    /**
+     * Le fichier SOURCE du projet d'un FQCN (CHANTIER I — documentLink) :
+     * le pont public vers la localisation de l'annuaire — la cible d'un
+     * `{@link Foo}` quand `Foo` vit dans les sources du projet. Null pour
+     * un binaire (jar/jrt : le lien prend alors la forme
+     * `jdt://decompiled/`) ou un type introuvable (pas de lien fabriqué).
+     *
+     * @param fqcn le nom entièrement qualifié en points.
+     * @return le fichier `.java` déclarant, ou null.
+     */
+    public fun fichierSourceDe(fqcn: String): java.nio.file.Path? = localiserSource(fqcn)
+
     /** Le service de suppression hiérarchique (dépendances du moteur). */
     private fun serviceSuppressionHierarchique(
         arbre: org.eclipse.jdt.internal.compiler.ast.CompilationUnitDeclaration,

@@ -504,6 +504,12 @@ public class ServeurLangageJava(
         private const val COMMANDE_SOURCE_DECOMPILEE = "codeide.decompiledSource"
 
         /**
+         * Le plafond de liens documentLink rendus (chantier I — garde-fou
+         * mémoire : un fichier à la javadoc dense ne déborde pas).
+         */
+        private const val PLAFOND_LIENS = 500
+
+        /**
          * Kill-switch du préchauffage/progression (V-G — repli documenté) :
          * `jo.codeide.lsp.java.progression.disabled=true` coupe le fil
          * d'indexation et son `workDoneProgress` (comportement d'avant V-G).
@@ -1492,6 +1498,75 @@ public class ServeurLangageJava(
             val repere = ConvertisseurLsp.repere(texte)
             surbrillances.map { ConvertisseurLsp.surlignage(it, repere) }
         }
+    }
+
+    /**
+     * CHANTIER I (14/11/2026) — `textDocument/documentLink` : les
+     * références `{@link Foo}` / `{@link Foo#bar()}` / `{@link pkg.Foo}`
+     * de la javadoc du document deviennent des LIENS vers la définition —
+     * le fichier source du projet quand il y vit (URI fichier), la forme
+     * `jdt://decompiled/<fqcn>` quand c'est un binaire (le client appelle
+     * decompiledSource — fiche 049). Un lien NON résolu est OMIS (jamais
+     * fabriqué — R5). La résolution du nom simple passe par les IMPORTS
+     * de l'unité (java.app.Activity depuis `import android.app.Activity`),
+     * sinon le nom qualifié direct, sinon l'annuaire par nom simple.
+     */
+    override fun documentLink(params: org.eclipse.lsp4j.DocumentLinkParams): CompletableFuture<List<org.eclipse.lsp4j.DocumentLink>> {
+        garde<List<org.eclipse.lsp4j.DocumentLink>>()?.let { return it }
+        val uri = params.textDocument.uri
+        return repartirDocument<List<org.eclipse.lsp4j.DocumentLink>>(uri, voieConfort, { emptyList() }) { chemin, texte ->
+            liensJavadoc(chemin, texte, uri)
+        }
+    }
+
+    /**
+     * Les liens `{@link}` d'un texte Java (chantier I) : scan borné des
+     * commentaires javadoc, résolution du premier segment (type) par
+     * imports puis annuaire. Le LIEN couvre le NOM du type dans le tag.
+     */
+    private fun liensJavadoc(chemin: String, texte: String, uri: String): List<org.eclipse.lsp4j.DocumentLink> {
+        val moteur = moteurPour(chemin) ?: return emptyList()
+        val liens = ArrayList<org.eclipse.lsp4j.DocumentLink>()
+        val repere = ConvertisseurLsp.repere(texte)
+        // Les imports de l'unité : nom simple → FQCN.
+        val imports = Regex("(?m)^\\s*import\\s+(?:static\\s+)?([\\w.]+)\\s*;")
+            .findAll(texte)
+            .associate { it.groupValues[1].substringAfterLast('.') to it.groupValues[1] }
+        var curseur = 0
+        while (true) {
+            val ouverture = texte.indexOf("{@link", curseur) ?: -1
+            if (ouverture < 0) break
+            // Le nom : jusqu'à '}', '#' ou blanc.
+            var i = ouverture + "{@link".length
+            while (i < texte.length && texte[i].isWhitespace()) i++
+            val debutNom = i
+            while (i < texte.length && (texte[i].isJavaIdentifierPart() || texte[i] == '.')) i++
+            val nom = texte.substring(debutNom, i)
+            curseur = if (i < texte.length && texte[i] == '}') i + 1 else i
+            if (nom.isEmpty()) continue
+            // Résolution : qualifié direct, import, ou annuaire par nom simple.
+            val fqcn = when {
+                nom.contains('.') -> nom
+                imports.containsKey(nom) -> imports[nom]
+                else -> null
+            } ?: runCatching {
+                moteur.annuairePublic()?.fqcnPourNomSimple(nom)?.firstOrNull { !it.contains('$') }
+            }.getOrNull() ?: continue
+            // La cible : source du projet, sinon décompilée binaire.
+            val cible = runCatching { moteur.fichierSourceDe(fqcn)?.toUri()?.toString() }.getOrNull()
+                ?: "jdt://decompiled/${fqcn.replace('.', '/')}"
+            liens.add(
+                org.eclipse.lsp4j.DocumentLink(
+                    org.eclipse.lsp4j.Range(
+                        repere.position(debutNom),
+                        repere.position(debutNom + nom.length),
+                    ),
+                    cible,
+                ),
+            )
+            if (liens.size >= PLAFOND_LIENS) break
+        }
+        return liens
     }
 
     override fun documentSymbol(params: DocumentSymbolParams): CompletableFuture<List<Either<SymbolInformation, DocumentSymbol>>> {
