@@ -69,22 +69,38 @@ public class SymbolesEspace(
     }
 
     /**
-     * Recherche les types du projet par préfixe de nom simple.
+     * Récherche les types du projet par nom simple — P1 (15/11/2026) :
+     * PRÉFIXE ou CAMEL-HUMPS. « MaVue » matche `MaVueActivite` par
+     * préfixe ; « MVA » (les initiales des bosses) matche
+     * `MaVueActivite` par camel-humps — le « Go to Class » d'IntelliJ
+     * accepte les deux depuis toujours.
      *
-     * @param requete le préfixe (vide → liste VIDE, convention I9 ;
-     *   insensible à la casse — « MaVue » et « mavue » matchent).
+     * @param requete la requête (vide → liste VIDE, convention I9 ;
+     *   insensible à la casse). Un caractère non lettre/chiffre NE
+     *   matche JAMAIS (la requête est prise au sérieux, pas nettoyée).
      * @param limite le plafond de réponses (garde-fou mémoire).
-     * @return les symboles trouvés (jamais null, jamais d'exception).
+     * @return les symboles trouvés, par préfixe d'abord (l'ordre le plus
+     *   prévisible pour un humain), puis camel-humps (jamais null,
+     *   jamais d'exception).
      */
     public fun rechercher(requete: String, limite: Int = 200): List<SymbolInformation> {
         if (requete.isEmpty()) return emptyList()
         val index = cache ?: balayer().also { cache = it }
-        val prefixe = requete.lowercase()
-        return index.asSequence()
-            .filter { it.nom.lowercase().startsWith(prefixe) }
-            .take(limite)
-            .map { type -> informationDe(type) }
-            .toList()
+        val resultats = ArrayList<TypeDeclare>(limite.coerceAtMost(64))
+        // 1. Le préfixe (ordre du balayage — stable).
+        for (type in index) {
+            if (resultats.size >= limite) break
+            if (type.nom.lowercase().startsWith(requete.lowercase())) resultats.add(type)
+        }
+        // 2. Camel-humps pour le RESTE de la limite.
+        if (resultats.size < limite && requete.length > 1) {
+            for (type in index) {
+                if (resultats.size >= limite) break
+                if (type in resultats) continue
+                if (correspondHumps(type.nom, requete)) resultats.add(type)
+            }
+        }
+        return resultats.map(::informationDe)
     }
 
     /** Le [SymbolInformation] LSP d'un type déclaré. */
@@ -297,8 +313,9 @@ public class SymbolesEspace(
      * (contrat LSP 3.17 : « servers should postpone computing location
      * to the resolve request »).
      *
-     * @param requete le préfixe (vide → liste VIDE, I9 ; insensible à
-     *   la casse).
+     * @param requete la requête (vide → liste VIDE, I9 ; insensible à
+     *   la casse) — PRÉFIXE ou CAMEL-HUMPS (P1 : « RAF » matche
+     *   RunnableActivityFactory).
      * @param limite le plafond de réponses.
      * @return les symboles bibliothèque non résolus (jamais null).
      */
@@ -309,12 +326,22 @@ public class SymbolesEspace(
         if (requete.isEmpty()) return emptyList()
         val annuaire = annuaireClasspath?.invoke() ?: return emptyList()
         val prefixe = requete.lowercase()
-        return runCatching {
-            annuaire.typesParPrefixe(requete, limite)
-        }.getOrDefault(emptyList())
-            .filter { it.nomSimple.lowercase().startsWith(prefixe) }
-            .take(limite)
-            .map { entree -> symboleBibliotheque(entree) }
+        val entrees = ArrayList<jo.codeide.lsp.java.classpath.EntreeType>(limite.coerceAtMost(64))
+        // 1. Le préfixe (voie indexée — la moins chère).
+        runCatching { annuaire.typesParPrefixe(requete, limite) }
+            .getOrDefault(emptyList())
+            .filterTo(entrees) { it.nomSimple.lowercase().startsWith(prefixe) }
+        // 2. Camel-humps pour le reste (P1) : parcours borné de l'index.
+        if (entrees.size < limite && requete.length > 1) {
+            runCatching {
+                annuaire.typesParPredicat(
+                    { nom -> correspondHumps(nom, requete) },
+                    PLAFOND_HUMPS_BIBLIOTHEQUES,
+                )
+            }.getOrDefault(emptyList())
+                .filterTo(entrees) { cand -> entrees.none { it.fqcn == cand.fqcn } }
+        }
+        return entrees.take(limite).map(::symboleBibliotheque)
     }
 
     /**
@@ -366,8 +393,58 @@ public class SymbolesEspace(
         return symbole
     }
 
+    // ----------------------------------------------------------------- //
+    // P1 (15/11/2026) — camel-humps : « MVA » matche MaVueActivite.      //
+    // ----------------------------------------------------------------- //
+
+    /**
+     * Le matching camel-humps (P1) : la requête matche le nom si CHAQUE
+     * caractère de la requête consomme, DANS L'ORDRE, un caractère du
+     * nom qui débute un SEGMENT (une « bosse » : une majuscule, ou un
+     * caractère suivant `_`/`$`, ou la première lettre). Une requête
+     * d'un seul caractère ne matche QUE par préfixe (l'appelant ne
+     * demande les humps que pour 2+ caractères : une seule lettre
+     * matcherait trop de monde par initiale).
+     *
+     * Exemples : « MVA » → MaVueActivite (M|aVue|A… : M début, V bosse,
+     * A bosse) ; « mL » → maListe ; « RAF » → RunnableActivityFactory.
+     * Insensible à la casse ; les segments se terminent aussi sur un
+     * CHIFFRE (« V2C » → Vue2Controleur : V, 2, C consommables).
+     */
+    private fun correspondHumps(nom: String, requete: String): Boolean {
+        var iNom = 0
+        for (caractere in requete) {
+            val cible = caractere.lowercaseChar()
+            var consomme = false
+            while (iNom < nom.length) {
+                val courant = nom[iNom]
+                iNom++
+                if (courant.lowercaseChar() == cible && estDebutSegment(nom, iNom - 1)) {
+                    consomme = true
+                    break
+                }
+            }
+            if (!consomme) return false
+        }
+        return true
+    }
+
+    /** Le caractère à [indice] débute-t-il une bosse (segment) du nom ? */
+    private fun estDebutSegment(nom: String, indice: Int): Boolean {
+        if (indice == 0) return true
+        val precedent = nom[indice - 1]
+        return precedent == '_' || precedent == '$' ||
+            (precedent.isLowerCase() && nom[indice].isUpperCase()) ||
+            (precedent.isDigit() && !nom[indice].isDigit())
+    }
+
     private companion object {
         /** Les mots-clés déclarants de types de premier niveau. */
         private val MOTS_TYPES: Set<String> = setOf("class", "interface", "enum", "record")
+
+        /** Le plafond d'entrees parcourues pour les humps bibliothèque
+         *  (P1 — l'index complet peut compter des dizaines de milliers
+         *  d'entrees ; le filtre fine boucle dessus, le plafond borne). */
+        private const val PLAFOND_HUMPS_BIBLIOTHEQUES = 5000
     }
 }

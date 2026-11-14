@@ -226,6 +226,37 @@ public class AnnuaireClasspath(
     }
 
     /**
+     * Parcours des types du classpath par PRÉDICAT de nom simple (P1 —
+     * camel-humps de `workspace/symbol` : la requête « MVA » ne démarre
+     * pas `MaVueActivite`, le préfixe ne la voit pas). La marche est
+     * BORNÉE par [plafond] entrées rendues — l'appelant garde la main
+     * sur le coût (l'index peut compter des dizaines de milliers de
+     * clés, la traversée est intégrale au pire).
+     *
+     * @param predicat le filtre sur le nom SIMPLE (jamais en erreur —
+     *   l'appelant le fournit, il est simple par contrat).
+     * @param plafond borne du nombre d'entrées rendues (≤ 0 → vide).
+     * @return les entrées dont le nom simple satisfait le prédicat,
+     *   dans l'ordre de l'index.
+     */
+    public fun typesParPredicat(
+        predicat: (nomSimple: String) -> Boolean,
+        plafond: Int,
+    ): List<EntreeType> {
+        if (plafond <= 0) return emptyList()
+        garantirIndex()
+        val resultats = ArrayList<EntreeType>(plafond.coerceAtMost(256))
+        for ((_, entrees) in indexParNom) {
+            if (resultats.size >= plafond) break
+            for (entree in entrees) {
+                if (resultats.size >= plafond) break
+                if (predicat(entree.nomSimple)) resultats.add(entree)
+            }
+        }
+        return resultats
+    }
+
+    /**
      * FQCN portant EXACTEMENT un nom simple (proposition d'auto-import —
      * fiche 008 : la complétion de type traverse le classpath).
      *
