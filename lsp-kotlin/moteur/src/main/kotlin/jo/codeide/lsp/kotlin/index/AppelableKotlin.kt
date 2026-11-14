@@ -95,6 +95,18 @@ internal interface VueAppelables {
      */
     fun nomsTopParPrefixe(prefixe: String, limite: Int): List<String>
 
+    /**
+     * Les APPELABLES de premier niveau d'un PAQUET portant un PRÉFIXE
+     * (complétion d'import — les fonctions top-level `Text` du paquet
+     * `androidx.compose.material3`) : la marche part des noms du préfixe
+     * et ne retient que les appelables DU paquet demandé.
+     *
+     * @param prefixe préfixe sensible à la casse (vide = tout le paquet) ;
+     * @param paquet le paquet complet (`androidx.compose.material3`) ;
+     * @param limite nombre maximum d'appelables rendus (anti-déluge).
+     */
+    fun topDansPaquet(prefixe: String, paquet: String, limite: Int): List<AppelableKotlin>
+
     /** Extensions dont le récepteur EST ce FQCN. */
     fun extensionsSur(recepteur: String): List<AppelableKotlin>
 

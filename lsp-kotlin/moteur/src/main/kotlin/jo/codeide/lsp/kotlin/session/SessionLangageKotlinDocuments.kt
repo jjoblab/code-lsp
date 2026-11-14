@@ -904,7 +904,12 @@ internal class SessionLangageKotlinDocuments(
             val externes = contributionsAuConsult(uri).flatMap { contribution ->
                 contribution.types.map { it.nomSimple to (it.uri ?: contribution.uri) }
             }
-            NavigationDocuments.definition(document, uri, autres, scanPublie, deplacement, externes)
+            // L'univers des preuves pour la résolution CLASSPATH (miroir
+            // signature/survol) : la définition d'un appelable IMPORTÉ
+            // (`padding`, `Text`) ouvre le jar porteur, jamais le silence.
+            val guichet = indexSiPret()
+            val univers = universDePreuves(document, uri, guichet?.vue, guichet?.vueJvm)
+            NavigationDocuments.definition(document, uri, autres, scanPublie, deplacement, externes, univers)
         }
     }
 

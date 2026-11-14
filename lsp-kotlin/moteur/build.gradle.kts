@@ -426,3 +426,19 @@ publishing {
         }
     }
 }
+
+// ---------------------------------------------------------------------------
+// SONDE Android Compose (test utilisateur — 13/11/2026) : diagnostic manuel
+// des pannes de complétion/signature sur le projet Android réel. Usage :
+//   ./gradlew :kotlin:sondeAndroid
+// ---------------------------------------------------------------------------
+tasks.register<JavaExec>("sondeAndroid") {
+    group = "verification"
+    description = "Sonde de diagnostic : complétions/signature sur le projet Android Compose réel."
+    mainClass.set("jo.codeide.lsp.kotlin.banc.SondeAndroidComposeKt")
+    classpath = bancSourceSet.runtimeClasspath
+    javaLauncher.set(
+        javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(VERSION_JDK)) },
+    )
+    jvmArgs("-Xmx2g", "-XX:+UseSerialGC")
+}

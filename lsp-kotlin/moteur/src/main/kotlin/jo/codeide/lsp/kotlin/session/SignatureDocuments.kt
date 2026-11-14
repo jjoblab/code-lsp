@@ -198,8 +198,13 @@ internal object SignatureDocuments {
 
         // Les APPELABLES de premier niveau du CLASSPATH (index réel — le
         // stdlib `listOf` ; la documentation reste MUETTE, bytecode D3).
+        // La visibilité suit la PORTÉE Kotlin : le paquet du document,
+        // les paquets IMPORTÉS par le document (`androidx.compose
+        // .material3.Text` — l'import écrit rend l'appelable visible,
+        // miroir du comportement IDE) et les paquets par défaut.
+        val visibles = paquetsVisibles(cible, univers)
         val top = univers.index?.topParNom(nom)
-            ?.filter { it.paquet == univers.paquet || it.paquet in UniversPreuves.PAQUETS_DEFAUT }
+            ?.filter { it.paquet in visibles }
             .orEmpty()
         if (top.isNotEmpty()) {
             return top.map { appelable ->
@@ -355,6 +360,42 @@ internal object SignatureDocuments {
     /** Le nom SIMPLE d'un FQCN (`java.lang.CharSequence` → `CharSequence`). */
     private fun nomSimple(fqcn: String): String =
         fqcn.substringAfterLast('.').substringAfterLast('$')
+
+    // ------------------------------------------------------------------
+    // La visibilité des appelables du classpath.
+    // ------------------------------------------------------------------
+
+    /**
+     * Les PAQUETS VISIBLES du document pour un appelable de premier
+     * niveau du classpath : le paquet du document, les paquets IMPORTÉS
+     * (directs et jokers — `import androidx.compose.material3.Text`
+     * rend `androidx.compose.material3` visible, `import java.util.*`
+     * rend `java.util` visible) et les paquets importés PAR DÉFAUT de la
+     * spécification Kotlin.
+     *
+     * @param cible le document ouvert visé (ses directives d'import) ;
+     * @param univers l'univers des preuves (le paquet du document) ;
+     * @return l'ensemble des paquets où un appelable est visible.
+     */
+    private fun paquetsVisibles(cible: DocumentOuvert, univers: UniversPreuves): Set<String> {
+        val visibles = HashSet<String>(UniversPreuves.PAQUETS_DEFAUT)
+        visibles.add(univers.paquet)
+        for (directive in cible.arbre.imports()) {
+            val chemin = directive.nomQualifie() ?: continue
+            if (directive.estJoker()) {
+                // `import androidx.compose.material3.*` : le PAQUET est
+                // visible tout entier.
+                visibles.add(chemin)
+            } else {
+                // `import androidx.compose.material3.Text` : le paquet
+                // PORTEUR (le chemin moins la feuille) devient visible
+                // pour SES appelables — la feuille peut être une fonction
+                // top-level (`Text`), pas seulement un type.
+                visibles.add(chemin.substringBeforeLast('.', ""))
+            }
+        }
+        return visibles
+    }
 
     // ------------------------------------------------------------------
     // La KDoc des candidates (fiche 018).

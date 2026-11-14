@@ -236,6 +236,32 @@ internal class VueJvmMembres(private val entrees: List<EntreeClasspathKotlin>) {
     }
 
     /**
+     * Le FICHIER porteur d'un FQCN des entrées (navigation classpath —
+     * test utilisateur Android) : la première entrée (ordre de préséance)
+     * qui porte un class-file à ce nom gagne.
+     *
+     * @param fqcn le nom pleinement qualifié (`androidx.compose.material3.TextKt`) ;
+     * @return le fichier jar/aar sur disque ; `null` si aucune entrée ne
+     * porte la classe.
+     */
+    internal fun fichierPorteur(fqcn: String): File? {
+        val cible = fqcn.replace('.', '/') + ".class"
+        synchronized(this) {
+            for (i in entrees.indices) {
+                val zip = zipDe(i) ?: continue
+                val entreeZip = try {
+                    zip.getEntry(cible)
+                } catch (_: Exception) {
+                    null
+                } ?: continue
+                if (entreeZip.isDirectory) continue
+                return File(entrees[i].chemin)
+            }
+            return null
+        }
+    }
+
+    /**
      * Les membres DÉCLARÉS d'un FQCN des entrées (sans héritage).
      *
      * @param fqcn le nom pleinement qualifié (`android.widget.TextView`) ;

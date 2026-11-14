@@ -100,9 +100,19 @@ internal object SurvolDocuments {
         // (println) ») : l'index porte nom, paramètres et retour — la
         // signature dépouillée + le package déclarant entre parenthèses
         // (miroir du rendu des membres JVM, propriétaire déclarant).
+        // La visibilité suit la PORTÉE Kotlin : paquet du document, paquets
+        // IMPORTÉS (l'import écrit rend l'appelable visible, miroir du
+        // correctif signature) et paquets par défaut.
         univers?.index?.let { index ->
-            val visible = index.topParNom(nom)
-                .firstOrNull { it.paquet == univers.paquet || it.paquet in UniversPreuves.PAQUETS_DEFAUT }
+            val visibles = HashSet<String>(UniversPreuves.PAQUETS_DEFAUT)
+            visibles.add(univers.paquet)
+            for (directive in cible.arbre.imports()) {
+                val chemin = directive.nomQualifie() ?: continue
+                visibles.add(
+                    if (directive.estJoker()) chemin else chemin.substringBeforeLast('.', ""),
+                )
+            }
+            val visible = index.topParNom(nom).firstOrNull { it.paquet in visibles }
             if (visible != null) {
                 val parametres = visible.parametres.joinToString(", ") { parametre ->
                     if (parametre.type == null) {

@@ -51,6 +51,22 @@ internal sealed class TypeValeur {
  */
 internal object TypageBorne {
 
+    /**
+     * Les FQCN JVM/Kotlin des Map (le socle des propriétés builtins
+     * `values`/`keys` — le récepteur doit être un Map pour les typer).
+     */
+    private val TYPES_MAP_BUILTINS: Set<String> = setOf(
+        "kotlin.collections.Map",
+        "kotlin.collections.MutableMap",
+        "java.util.Map",
+        "java.util.HashMap",
+        "java.util.SortedMap",
+        "java.util.NavigableMap",
+        "java.util.TreeMap",
+        "java.util.LinkedHashMap",
+    )
+
+
     // ------------------------------------------------------------------
     // Le typage d'une expression.
     // ------------------------------------------------------------------
@@ -216,12 +232,29 @@ internal object TypageBorne {
                             }
                     }
                     is TypeValeur.Jvm -> {
+                        // Les PROPRIÉTÉS BUILTINS des Map (fiche 038 :
+                        // `values`/`keys`) : la vue JVM ne rend que le type
+                        // BRUT — le type KOTLIN générique se déduit des
+                        // ARGUMENTS écrits du récepteur (Map<K, V>.values →
+                        // MutableSet<V>, .keys → MutableSet<K>).
+                        val mape = univers.mapeJvm(typeRecepteur.fqcn)
+                        if (nomMembre == "values" && mape in TYPES_MAP_BUILTINS && typeRecepteur.arguments.size >= 2) {
+                            return TypeValeur.Jvm(
+                                "kotlin.collections.MutableSet",
+                                listOf(typeRecepteur.arguments[1]),
+                            )
+                        }
+                        if (nomMembre == "keys" && mape in TYPES_MAP_BUILTINS && typeRecepteur.arguments.size >= 2) {
+                            return TypeValeur.Jvm(
+                                "kotlin.collections.MutableSet",
+                                listOf(typeRecepteur.arguments[0]),
+                            )
+                        }
                         // Le RETOUR/CHAMP d'un membre de bibliothèque (vague
                         // 2c — `layoutInflater.inflate(…)` : le getter type
                         // LayoutInflater, sa méthode type View) puis
                         // l'IMBRIQUÉE `$` (`Peinture.Capitaine` type
                         // `Peinture$Capitaine`).
-                        val mape = univers.mapeJvm(typeRecepteur.fqcn)
                         univers.vueJvm?.typeDuMembre(mape, nomMembre)?.let { return TypeValeur.Jvm(it) }
                         univers.vueJvm?.possedeImbrique(mape, nomMembre)
                             ?.takeIf { it }

@@ -242,6 +242,20 @@ internal class IndexAppelablesKotlin : VueAppelables {
         snapshot.aliasParNom[nom] ?: emptyList()
 
     /** Le package est-il CONNU de l'index (au moins un appelable/alias public) ? */
+    override fun topDansPaquet(prefixe: String, paquet: String, limite: Int): List<AppelableKotlin> {
+        val rendus = mutableListOf<AppelableKotlin>()
+        for (nom in nomsTopParPrefixe(prefixe, Int.MAX_VALUE)) {
+            if (rendus.size >= limite) break
+            for (appelable in snapshot.parNom[nom].orEmpty()) {
+                if (appelable.paquet == paquet) {
+                    rendus.add(appelable)
+                    break
+                }
+            }
+        }
+        return rendus
+    }
+
     override fun paquetConnu(paquet: String): Boolean = paquet in snapshot.paquets
 
     /** Le FQCN complet désigne-t-il un TYPEALIAS public du classpath ? */

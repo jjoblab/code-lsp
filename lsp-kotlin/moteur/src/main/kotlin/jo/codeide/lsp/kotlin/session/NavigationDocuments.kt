@@ -14,10 +14,12 @@ import jo.codeide.lsp.kotlin.parse.NoeudArbre
 import jo.codeide.lsp.kotlin.parse.kt.FabriqueKt
 import jo.codeide.lsp.kotlin.parse.kt.KtClasse
 import jo.codeide.lsp.kotlin.parse.kt.KtDeclaration
+import jo.codeide.lsp.kotlin.parse.kt.KtFichier
 import jo.codeide.lsp.kotlin.parse.kt.KtFonction
 import jo.codeide.lsp.kotlin.parse.kt.KtPropriete
 import jo.codeide.lsp.kotlin.parse.kt.KtTypealias
 import jo.codeide.lsp.kotlin.parse.kt.PlageTexte
+import jo.codeide.lsp.kotlin.resolve.UniversPreuves
 import org.jetbrains.kotlin.kmp.lexer.KtTokens
 import org.jetbrains.kotlin.kmp.parser.KtNodeTypes
 
@@ -46,6 +48,38 @@ import org.jetbrains.kotlin.kmp.parser.KtNodeTypes
 internal object NavigationDocuments {
 
     /**
+     * Le jeton nom du PARAMÈTRE de la fonction englobante portant ce nom
+     * (la portée paramètre précède TOUTE autre résolution — un usage dans
+     * une fonction désigne son paramètre avant toute propriété homonyme).
+     *
+     * @param fichier l'arbre du document ;
+     * @param deplacement l'offset de l'usage ;
+     * @param nom le nom cherché ;
+     * @return le jeton du nom du paramètre ; `null` si aucune fonction
+     * englobante ne porte ce paramètre.
+     */
+    private fun parametreEnglobant(fichier: KtFichier, deplacement: Int, nom: String): JetonBrut? {
+        // La chaîne des ancêtres du point : les fonctions FUN couvrantes,
+        // de la PLUS PROCHE à la plus externe.
+        var courant: NoeudArbre = fichier.noeud
+        val fonctions = mutableListOf<NoeudArbre>()
+        while (deplacement >= courant.debut && deplacement < courant.fin) {
+            val enfant = courant.enfants.firstOrNull { it.debut <= deplacement && deplacement < it.fin } ?: break
+            if (enfant.genre == KtNodeTypes.FUN) fonctions.add(enfant)
+            courant = enfant
+        }
+        // La plus proche d'abord (l'ombrage des portées imbriquées).
+        for (fonction in fonctions.asReversed()) {
+            val liste = fonction.enfants.firstOrNull { it.genre == KtNodeTypes.VALUE_PARAMETER_LIST } ?: continue
+            for (parametre in liste.enfants.filter { it.genre == KtNodeTypes.VALUE_PARAMETER }) {
+                val jeton = parametre.jetonsPropres.firstOrNull { it.genre == KtTokens.IDENTIFIER && it.texte == nom }
+                if (jeton != null) return jeton
+            }
+        }
+        return null
+    }
+
+    /**
      * Rend les emplacements de DÉFINITION du nom sous le point.
      *
      * @param cible le document ouvert visé ;
@@ -65,9 +99,18 @@ internal object NavigationDocuments {
         scan: ScanSources?,
         deplacement: Int,
         externes: List<Pair<String, String>> = emptyList(),
+        univers: UniversPreuves? = null,
     ): List<EmplacementKotlin> {
         val identifiant = jetonIdentifierA(cible.arbre.noeud, deplacement) ?: return emptyList()
         val nom = identifiant.texte
+
+        // 0. Le PARAMÈTRE de la fonction englobante portant ce nom (la
+        // portée la plus proche l'emporte — comportement IDE : `repository`
+        // dans `EcranNoteRepository(repository: NoteRepository)` désigne
+        // SON paramètre, jamais une propriété homonyme d'un autre fichier).
+        parametreEnglobant(cible.arbre, deplacement, nom)?.let { jeton ->
+            return listOf(EmplacementKotlin(uri = uriCible, plage = PlageTexte(jeton.debut, jeton.fin)))
+        }
 
         // 1. Le document courant : le SITE de déclaration désigné d'abord
         // (le caret SUR le nom d'une déclaration), puis la première
@@ -106,6 +149,36 @@ internal object NavigationDocuments {
         for ((nomSimple, uriExterne) in externes) {
             if (nomSimple == nom && uriExterne.isNotEmpty()) {
                 return listOf(EmplacementKotlin(uri = uriExterne, plage = PlageTexte(0, 0)))
+            }
+        }
+
+        // 5. Les APPELABLES de premier niveau du CLASSPATH (miroir
+        // signature/survol) : un nom IMPORTÉ (`padding`, `Text`) ou visible
+        // par défaut désigne la FAÇADE DE FICHIER du jar porteur — l'URI
+        // `jar:…!/TextKt.class` (comportement IDE : la définition d'une
+        // bibliothèque ouvre le jar décompilé). La visibilité suit la
+        // portée Kotlin : paquet du document, paquets importés, défauts.
+        if (univers != null) {
+            val visibles = HashSet<String>(UniversPreuves.PAQUETS_DEFAUT)
+            visibles.add(univers.paquet)
+            for (directive in cible.arbre.imports()) {
+                val chemin = directive.nomQualifie() ?: continue
+                visibles.add(
+                    if (directive.estJoker()) chemin else chemin.substringBeforeLast('.', ""),
+                )
+            }
+            val appelable = univers.index?.topParNom(nom)
+                ?.firstOrNull { it.paquet in visibles }
+            if (appelable != null) {
+                val jar = univers.vueJvm?.fichierPorteur(appelable.conteneur)
+                if (jar != null) {
+                    return listOf(
+                        EmplacementKotlin(
+                            uri = "jar:file:${jar.absolutePath}!/${appelable.conteneur.replace('.', '/')}.class",
+                            plage = PlageTexte(0, 0),
+                        ),
+                    )
+                }
             }
         }
         return emptyList()

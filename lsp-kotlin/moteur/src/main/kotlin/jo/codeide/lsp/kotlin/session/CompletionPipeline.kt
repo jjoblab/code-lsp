@@ -127,7 +127,7 @@ internal object CompletionPipeline {
         var ouvertsOverride: Set<String> = emptySet()
         if (contexte.genre == GenreContexteKotlin.IMPORT) {
             genreEffectif = GenreContexteKotlin.IMPORT
-            candidats = CompletionImports.collecter(contexte.cheminImport.orEmpty(), vueJvm)
+            candidats = CompletionImports.collecter(contexte.cheminImport.orEmpty(), vueJvm, index)
             typesAttendus = emptySet()
             citeesDuQuand = emptySet()
         } else {

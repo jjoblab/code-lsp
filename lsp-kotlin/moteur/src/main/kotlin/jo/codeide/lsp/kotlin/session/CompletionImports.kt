@@ -6,6 +6,7 @@ package jo.codeide.lsp.kotlin.session
 
 import jo.codeide.lsp.kotlin.api.NaturePropositionKotlin
 import jo.codeide.lsp.kotlin.api.PropositionKotlin
+import jo.codeide.lsp.kotlin.index.VueAppelables
 import jo.codeide.lsp.kotlin.resolve.VueJvmMembres
 
 /**
@@ -35,9 +36,17 @@ internal object CompletionImports {
      * (`android.wid` — vide si rien n'est tapé) ;
      * @param vueJvm la vue JVM des entrées (`null` = pas d'annuaire :
      * liste vide honnête) ;
-     * @return les propositions (sous-paquets puis types du paquet).
+     * @param index l'index des appelables Kotlin (`null` = sans classpath
+     * Kotlin : seuls sous-paquets et types sont proposés) ;
+     * @return les propositions (sous-paquets, types puis appelables du
+     * paquet — les fonctions top-level `Text` s'importent comme les
+     * types, comportement IDE).
      */
-    internal fun collecter(cheminTape: String, vueJvm: VueJvmMembres?): List<PropositionKotlin> {
+    internal fun collecter(
+        cheminTape: String,
+        vueJvm: VueJvmMembres?,
+        index: VueAppelables? = null,
+    ): List<PropositionKotlin> {
         if (vueJvm == null) return emptyList()
         // Le parent et le préfixe : sans point, TOUT le chemin tapé est le
         // préfixe du niveau racine (parent vide).
@@ -71,6 +80,30 @@ internal object CompletionImports {
                 fqcnImport = fqcn,
             )
         }
+
+        // 3. Les APPELABLES de premier niveau du paquet (les fonctions
+        // top-level `Text` de `TextKt` ne sont PAS des types — l'index
+        // des appelables les porte ; l'import `androidx.compose
+        // .material3.Text` est la forme écrite par l'IDE, fqcnImport
+        // éditable compris).
+        if (index != null && parent.isNotEmpty()) {
+            for (appelable in index.topDansPaquet(prefixe, parent, LIMITE_APPELABLES)) {
+                if (appelable.nom in propositions) continue
+                propositions[appelable.nom] = PropositionKotlin(
+                    libelle = appelable.nom,
+                    nature = if (appelable.genre == jo.codeide.lsp.kotlin.index.GenreAppelable.PROPRIETE) {
+                        NaturePropositionKotlin.PROPRIETE
+                    } else {
+                        NaturePropositionKotlin.FONCTION
+                    },
+                    detail = "${appelable.conteneur} (${appelable.paquet})",
+                    fqcnImport = "${appelable.paquet}.${appelable.nom}",
+                )
+            }
+        }
         return propositions.values.toList()
     }
+
+    /** La borne de la marche des appelables du paquet (anti-déluge). */
+    private const val LIMITE_APPELABLES: Int = 200
 }
