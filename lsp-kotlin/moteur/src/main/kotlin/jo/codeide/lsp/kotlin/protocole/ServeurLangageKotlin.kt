@@ -456,7 +456,11 @@ public class ServeurLangageKotlin(
             if (proposition.texteInsertion != null && proposition.texteInsertion.contains("$")) {
                 item.insertTextFormat = InsertTextFormat.Snippet
             }
-            proposition.fqcnImport?.let { fqcn -> item.data = mapOf("import" to fqcn) }
+            proposition.fqcnImport?.let { fqcn ->
+                // data = {import, uri} : le RESOLVE en tire l'édition
+                // d'import (chantier A — auto-import à la complétion).
+                item.data = mapOf("import" to fqcn, "uri" to uri)
+            }
             item
         }
         return CompletableFuture.completedFuture(Either.forRight(liste))
@@ -464,8 +468,66 @@ public class ServeurLangageKotlin(
 
     override fun resolveCompletionItem(unresolved: CompletionItem): CompletableFuture<CompletionItem> {
         garde<CompletionItem>()?.let { return it }
-        // Aucune résolution différée : l'item est complet tel quel.
+        // CHANTIER A (parité Android Studio — auto-import à la complétion)
+        // : l'item porte `data = {import: fqcn}` quand sa sélection exige un
+        // import ; le RESOLVE rend l'additionalTextEdit qui INSÈRE la
+        // directive — le client applique les deux (symbole + import), le
+        // comportement « choisir Text ajoute l'import » de l'IDE.
+        val donnees = unresolved.data
+        if (donnees is Map<*, *>) {
+            val fqcn = donnees["import"] as? String
+            if (!fqcn.isNullOrEmpty()) {
+                val uri = donnees["uri"] as? String
+                if (uri != null) {
+                    val instantane = etats.instantane(uri)
+                    if (instantane != null) {
+                        val edition = editionImport(fqcn, instantane.texte)
+                        if (edition != null) {
+                            unresolved.additionalTextEdits = listOf(edition)
+                        }
+                    }
+                }
+            }
+        }
         return CompletableFuture.completedFuture(unresolved)
+    }
+
+    /**
+     * L'édition LSP qui INSÈRE la directive d'import du FQCN dans le texte
+     * (chantier A) : après le dernier import existant, sinon après la
+     * directive de package (ligne suivante), sinon en tête. La position
+     * est calculée sur le texte de l'instantané du document visé.
+     *
+     * @param fqcn l'import à écrire (`androidx.compose.material3.Text`) ;
+     * @param texte le texte VIVANT du document au moment du resolve ;
+     * @return l'édition `import fqcn\n` ; `null` si l'import y figure déjà.
+     */
+    private fun editionImport(fqcn: String, texte: CharSequence): TextEdit? {
+        // Déjà importé (exact) : rien à faire — le client appliquerait un
+        // doublon.
+        val motifExact = Regex("(?m)^import\\s+$fqcn\\s*$")
+        if (motifExact.containsMatchIn(texte)) return null
+        // Le point d'insertion : fin du DERNIER import, sinon fin de la
+        // directive package, sinon offset 0 (avant tout).
+        var insertion = 0
+        var apresPackage = false
+        val lignes = texte.split('\n')
+        var debutLigne = 0
+        for (ligne in lignes) {
+            val plage = debutLigne..(debutLigne + ligne.length)
+            when {
+                ligne.trimStart().startsWith("import ") && plage.last <= texte.length -> {
+                    insertion = debutLigne + ligne.length + 1
+                }
+                ligne.trimStart().startsWith("package ") && !apresPackage -> {
+                    insertion = debutLigne + ligne.length + 1
+                    apresPackage = true
+                }
+            }
+            debutLigne += ligne.length + 1
+        }
+        val position = ConvertisseurLsp.repere(texte.toString()).position(insertion.coerceIn(0, texte.length))
+        return TextEdit(Range(position, position), "import $fqcn\n")
     }
 
     override fun signatureHelp(params: SignatureHelpParams): CompletableFuture<SignatureHelp> {
