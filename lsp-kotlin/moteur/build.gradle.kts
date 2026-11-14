@@ -469,3 +469,4 @@ tasks.register<JavaExec>("sondeChoixCandidate") {
     jvmArgs("-Xmx2g", "-XX:+UseSerialGC")
 }
 
+

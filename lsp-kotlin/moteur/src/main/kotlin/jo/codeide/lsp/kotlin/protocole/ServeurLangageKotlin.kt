@@ -1235,6 +1235,7 @@ public class ServeurLangageKotlin(
                 GenreActionKotlin.SOURCE -> CodeActionKind.Source
                 GenreActionKotlin.ORGANISER_IMPORTS -> CodeActionKind.SourceOrganizeImports
                 GenreActionKotlin.EXTRAIRE_VARIABLE -> CodeActionKind.RefactorExtract
+                GenreActionKotlin.EXTRAIRE_FONCTION -> CodeActionKind.RefactorExtract
                 GenreActionKotlin.REECRIRE -> CodeActionKind.RefactorRewrite
                 GenreActionKotlin.INLINER_VARIABLE -> CodeActionKind.RefactorInline
             }

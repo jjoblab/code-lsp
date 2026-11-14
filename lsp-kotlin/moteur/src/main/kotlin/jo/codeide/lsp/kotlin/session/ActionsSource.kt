@@ -581,6 +581,141 @@ internal object ActionsSource {
     }
 
     // ------------------------------------------------------------------
+    // CHANTIER H — refactor.extract : l'extraction de FONCTION.
+    // ------------------------------------------------------------------
+
+    /**
+     * Le plan d'EXTRACTION DE FONCTION (chantier H — parité Android
+     * Studio « Extract Function », complément de l'extraction de
+     * variable KC-11) : l'expression englobante du caret devient le
+     * CORPS d'une nouvelle fonction privée INSÉRÉE après la fonction
+     * porteuse, l'expression est REMPLACÉE par l'APPEL.
+     *
+     * Les bornes conservatrices (D3 — jamais de plan sur doute) :
+     *  - l'expression vit dans UNE instruction du corps d'une FUN
+     *    (intra-fonction, miroir KC-11 Q5) ;
+     *  - l'expression est SANS CAPTURE : aucune REFERENCE_EXPRESSION
+     *    ne vise un nom LOCAL de la fonction porteuse (paramètres,
+     *    locales) — une capture exigerait des PARAMÈTRES, un chantier
+     *    de typage complet. Les références à des noms de PREMIER
+     *    NIVEAU (déclarations du fichier) sont légales : elles restent
+     *    résolues depuis la nouvelle fonction ;
+     *  - le nom LIBRE : extraitFonction, extraitFonction2, … ;
+     *  - l'expression n'est pas L'INSTRUCTION entière (le corps de la
+     *    nouvelle fonction serait l'instruction — sans point
+     *    d'insertion lisible).
+     *
+     * @param arbre l'arbre du document ;
+     * @param uri l'identifiant du document ;
+     * @param deplacement l'offset du caret (dans l'expression) ;
+     * @return le plan ; `null` si une borne refuse.
+     */
+    internal fun extraireFonction(
+        arbre: KtFichier,
+        uri: String,
+        deplacement: Int,
+    ): PlanActionKotlin? {
+        // La FUN porteuse et l'instruction du caret (intra-fonction).
+        val parents = parentDe(arbre.noeud, deplacement)
+        val fonction = parents.firstOrNull { it.genre == KtNodeTypes.FUN } ?: return null
+        val bloc = parents.firstOrNull { it.genre == KtNodeTypes.BLOCK } ?: return null
+        // L'instruction porteuse : l'ENFANT DIRECT du bloc qui contient
+        // la position (la liste va du plus profond à la racine — on
+        // cherche le parent IMMÉDIATEMENT sous le bloc, pas une
+        // sous-expression).
+        val instr = parents.lastOrNull { parent ->
+            parent !== bloc && bloc.enfants.any { enfant -> enfant === parent }
+        } ?: return null
+
+        // L'expression : le parent EXPR le plus PROFOND qui contient le
+        // caret (la liste va du plus profond à la racine — le premier
+        // CALL/BINARY/DOT trouvé est l'expression SOUS le caret, miroir
+        // IntelliJ : l'ampoule extrait ce que le caret désigne).
+        val expr = parents.firstOrNull {
+            (it.genre == KtNodeTypes.CALL_EXPRESSION ||
+                it.genre == KtNodeTypes.BINARY_EXPRESSION ||
+                it.genre == KtNodeTypes.DOT_QUALIFIED_EXPRESSION) &&
+                it.debut >= instr.debut && it.fin <= instr.fin
+        } ?: return null
+        if (expr.debut == instr.debut && expr.fin == instr.fin) return null
+
+        // La preuve de NON-CAPTURE : aucune référence de l'expression
+        // ne vise un LOCAL de la porteuse (paramètre ou locale).
+        val locaux = nomsLocauxDe(fonction)
+        if (expr.contientReference(locaux)) return null
+
+        // Le nom LIBRE (premier absent du document).
+        var rang = 0
+        var nom = "extraitFonction"
+        while (contientMot(arbre.source, nom)) {
+            rang++
+            nom = "extraitFonction$rang"
+        }
+
+        // L'indentation de la fonction porteuse (la nouvelle vit au
+        // MÊME niveau — après sa fermeture).
+        val source = arbre.source
+        val debutLigne = source.lastIndexOf('\n', fonction.debut).let { if (it < 0) 0 else it + 1 }
+        val indent = source.substring(debutLigne, fonction.debut).takeWhile { it == ' ' || it == '\t' }
+        val texteExpression = source.substring(expr.debut, expr.fin)
+
+        // Les éditions : le REMPLACEMENT de l'expression par l'appel
+        // (l'instruction vit AVANT l'insertion de la fonction), puis
+        // l'INSERTION de la fonction après la fermeture de la porteuse
+        // — en ordre du document, plages disjointes.
+        return PlanActionKotlin(
+            titre = "Extraire « $texteExpression » dans une fonction",
+            genre = GenreActionKotlin.EXTRAIRE_FONCTION,
+            editions = listOf(
+                EditionFichierKotlin(
+                    uri = uri,
+                    editions = listOf(
+                        EditionTexteKotlin(
+                            plage = PlageTexte(expr.debut, expr.fin),
+                            texte = "$nom()",
+                        ),
+                        EditionTexteKotlin(
+                            plage = PlageTexte(fonction.fin, fonction.fin),
+                            texte = "\n\n$indent/** Le corps extrait de l'expression sélectionnée. */\n" +
+                                "${indent}private fun $nom() = $texteExpression",
+                        ),
+                    ),
+                ),
+            ),
+        )
+    }
+
+    /**
+     * Les NOMS LOCAUX d'une fonction (chantier H) : les paramètres et
+     * les locales — les noms qu'une fonction extraite ne peut PAS
+     * capturer sans paramètre.
+     */
+    private fun nomsLocauxDe(fonction: NoeudArbre): Set<String> {
+        val noms = mutableSetOf<String>()
+        fun marcher(noeud: NoeudArbre) {
+            if (noeud.genre == KtNodeTypes.VALUE_PARAMETER ||
+                noeud.genre == KtNodeTypes.PROPERTY
+            ) {
+                noeud.jetonsPropres.firstOrNull { it.genre == KtTokens.IDENTIFIER }
+                    ?.let { noms.add(it.texte) }
+            }
+            noeud.enfants.forEach(::marcher)
+        }
+        marcher(fonction)
+        return noms
+    }
+
+    /**
+     * Le sous-arbre CONTIENT-IL une référence à l'un de ces noms
+     * (chantier H — la preuve de non-capture) ?
+     */
+    private fun NoeudArbre.contientReference(noms: Set<String>): Boolean {
+        if (noms.isEmpty()) return false
+        if (genre == KtNodeTypes.REFERENCE_EXPRESSION && texteCanonique in noms) return true
+        return enfants.any { it.contientReference(noms) }
+    }
+
+    // ------------------------------------------------------------------
     // Aides de preuve.
     // ------------------------------------------------------------------
 

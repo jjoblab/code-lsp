@@ -37,6 +37,12 @@ public enum class GenreActionKotlin {
      * de l'extraction KC-11).
      */
     INLINER_VARIABLE,
+
+    /**
+     * Chantier H — l'extraction de FONCTION (`refactor.extract` — le
+     * complément fonction de KC-11).
+     */
+    EXTRAIRE_FONCTION,
 }
 
 /**

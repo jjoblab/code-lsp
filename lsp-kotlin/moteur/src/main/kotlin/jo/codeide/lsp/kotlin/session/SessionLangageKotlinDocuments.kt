@@ -1244,6 +1244,7 @@ internal class SessionLangageKotlinDocuments(
                 listOfNotNull(
                     ActionsSource.organiserImports(document.arbre, uri, deplacement),
                     ActionsSource.extraireVariable(document.arbre, uri, deplacement),
+                    ActionsSource.extraireFonction(document.arbre, uri, deplacement),
                     ActionsSource.changerMutabilite(document.arbre, uri, deplacement),
                     ActionsSource.inlineVariable(document.arbre, uri, deplacement),
                 )
