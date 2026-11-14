@@ -206,6 +206,16 @@ internal object TypageBorne {
                             return TypeValeur.Jvm("kotlin.collections.${retourSubstitue.substringBefore('<')}", extraireArguments(retourSubstitue))
                         }
                     }
+                // Session 5 — l'INFÉRENCE des FABRIQUES stdlib depuis les
+                // ARGUMENTS DE VALEUR (la limite connue du rapport test :
+                // `= mutableMapOf("cle" to Note())` sans type écrit ne
+                // typait pas `values`). Borné aux fabriques simples :
+                // listOf/mutableListOf/setOf/mutableSetOf prennent le type
+                // de leur PREMIER argument ; mapOf/mutableMapOf prennent
+                // K du premier `to` et V de sa droite. Le premier argument
+                // MUET (vide ou non typé) rend null — conservateur, jamais
+                // de type inventé.
+                infirerFabriqueStdlib(nom, noeud, univers, liaison, pile)?.let { return it }
                 null
             }
             KtNodeTypes.DOT_QUALIFIED_EXPRESSION, KtNodeTypes.SAFE_ACCESS_EXPRESSION -> {
@@ -1160,6 +1170,71 @@ internal object TypageBorne {
             if (arguments.isNotEmpty()) return arguments
         }
         return emptyList()
+    }
+
+    /**
+     * Session 5 — l'INFÉRENCE des FABRIQUES stdlib depuis les ARGUMENTS
+     * DE VALEUR (la limite connue du rapport test : `val notes =
+     * mutableMapOf("cle" to Note())` sans type écrit ne typait pas
+     * `notes.values`). Borné aux fabriques SIMPLES :
+     *  - listOf/mutableListOf/setOf/mutableSetOf : le type du PREMIER
+     *    argument de valeur ;
+     *  - mapOf/mutableMapOf : K du PREMIER `a to b` (sa gauche), V de sa
+     *    droite.
+     * Le premier argument MUET (appel vide, argument non typé) rend null
+     * — conservateur, jamais de type inventé (ADR 0107).
+     */
+    private fun infirerFabriqueStdlib(
+        nom: String,
+        appel: NoeudArbre,
+        univers: UniversPreuves,
+        liaison: MarcheTypee.Liaison,
+        pile: PileThis,
+    ): TypeValeur? {
+        val liste = appel.enfants.firstOrNull { it.genre == KtNodeTypes.VALUE_ARGUMENT_LIST }
+            ?: appel.enfants.firstOrNull { it.genre == KtNodeTypes.CALL_EXPRESSION }
+                ?.enfants?.firstOrNull { it.genre == KtNodeTypes.VALUE_ARGUMENT_LIST }
+            ?: return null
+        val valeurs = liste.enfants.filter { it.genre == KtNodeTypes.VALUE_ARGUMENT }
+        val premier = valeurs.firstOrNull()?.enfants?.firstOrNull() ?: return null
+        // Le nom SIMPLE d'un type (Jvm ou Projet — `Note` du projet type
+        // `MutableMap<String, Note>` aussi bien que `String` stdlib).
+        fun nomSimpleDe(expression: NoeudArbre): String? {
+            val type = typeDeLexpression(expression, univers, liaison, pile) ?: return null
+            return when (type) {
+                is TypeValeur.Jvm -> type.fqcn.substringAfterLast('.')
+                is TypeValeur.Projet -> type.type.nomSimple
+            }
+        }
+        return when (nom) {
+            "listOf", "mutableListOf", "setOf", "mutableSetOf" -> {
+                val element = nomSimpleDe(premier) ?: return null
+                val fqcn = if (nom.startsWith("mutable")) {
+                    if (nom.endsWith("ListOf")) "kotlin.collections.MutableList" else "kotlin.collections.MutableSet"
+                } else {
+                    if (nom.endsWith("ListOf")) "kotlin.collections.List" else "kotlin.collections.Set"
+                }
+                TypeValeur.Jvm(fqcn, listOf(element))
+            }
+            "mapOf", "mutableMapOf" -> {
+                // Le premier argument doit être un `a to b` — le `to` est
+                // un IDENTIFIER (pas un opérateur) : lu par le TEXTE du
+                // jeton de l'OPERATION_REFERENCE.
+                val binaire = premier.takeIf { it.genre == KtNodeTypes.BINARY_EXPRESSION } ?: return null
+                val operation = binaire.enfants.firstOrNull { it.genre == KtNodeTypes.OPERATION_REFERENCE }
+                    ?: return null
+                if (operation.jetonsPropres.none { it.texte == "to" }) return null
+                val gauche = binaire.enfants.firstOrNull { it.genre != KtNodeTypes.OPERATION_REFERENCE }
+                    ?: return null
+                val droite = binaire.enfants.lastOrNull { it.genre != KtNodeTypes.OPERATION_REFERENCE }
+                    ?: return null
+                val k = nomSimpleDe(gauche) ?: return null
+                val v = nomSimpleDe(droite) ?: return null
+                val fqcn = if (nom == "mutableMapOf") "kotlin.collections.MutableMap" else "kotlin.collections.Map"
+                TypeValeur.Jvm(fqcn, listOf(k, v))
+            }
+            else -> null
+        }
     }
 
     /**
