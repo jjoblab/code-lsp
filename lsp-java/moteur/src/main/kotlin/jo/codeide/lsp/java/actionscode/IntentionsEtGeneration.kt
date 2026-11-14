@@ -330,7 +330,14 @@ public class ServiceIntentions(
         }
         // Constructeur/equals/hashCode/toString : le caret porte le NOM du type.
         typeAuNom(position)?.let { type ->
-            if (champsInstance(type).isNotEmpty()) {
+            // P5 (15/11/2026) — la garde constructeur : un type qui a DÉJÀ
+            // un constructeur (quelconque — la forme générée dépend des
+            // champs, pas de lui) ne voit plus l'action ; la générer
+            // produirait un DOUBLON de constructeur par défaut ou une
+            // surcharge accidentelle. IntelliJ fait de même (l'action
+            // LISTE les constructeurs existants ; ici on ne génère que
+            // la forme « tous les champs », la garde la plus honnête).
+            if (champsInstance(type).isNotEmpty() && !aConstructeur(type)) {
                 resultat.add(ActionCode("source.generate.constructor", "Générer le constructeur", ModCommande.Differee("generer.constructeur", listOf(type.declarationSourceStart.toString()))))
             }
             if (!declare(type, "equals") || !declare(type, "hashCode")) {
@@ -558,6 +565,17 @@ public class ServiceIntentions(
     /** Vrai ssi le type déclare déjà un membre de ce sélecteur. */
     private fun declare(type: TypeDeclaration, selecteur: String): Boolean =
         type.methods?.any { String(it.selector) == selecteur } == true
+
+    /** Vrai ssi le type a DÉJÀ un constructeur EXPLICITE (garde P5).
+     *  MESURÉ : ecj SYNTHÉTISE le constructeur par défaut dans l'AST
+     *  (type.methods contient un ConstructorDeclaration même sans
+     *  constructeur écrit, sa plage recouvre le nom de la classe) —
+     *  le drapeau ASTNode.IsDefaultConstructor (bit 128 de `bits`)
+     *  seul le distingue. */
+    private fun aConstructeur(type: TypeDeclaration): Boolean =
+        type.methods?.any {
+            it.isConstructor() && (it.bits and org.eclipse.jdt.internal.compiler.ast.ASTNode.IsDefaultConstructor) == 0
+        } == true
 
     /** Vrai ssi le champ est statique (modificateurs ecj). */
     private fun estStatique(champ: FieldDeclaration): Boolean =

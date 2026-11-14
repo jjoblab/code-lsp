@@ -1991,8 +1991,10 @@ public class ServeurLangageJava(
             fun demande(kind: String): Boolean =
                 only == null || only.isEmpty() || correspondKind(kind, only)
             // Les diagnostics du contexte voyagent en forme moteur (le
-            // service N6 consomme les diagnostics moteur).
-            val diagnosticsMoteur = params.context.diagnostics.mapNotNull { diagnostic ->
+            // service N6 consomme les diagnostics moteur). P5 : la liste
+            // peut être ABSENTE du fil (un client qui omet diagnostics —
+            // lsp4j la rend null) — vide honnête, jamais de NPE.
+            val diagnosticsMoteur = (params.context.diagnostics ?: emptyList()).mapNotNull { diagnostic ->
                 diagnosticVersMoteur(diagnostic)
             }
             // V-F1 : les actions vivent sous le protocole d'époque du document
