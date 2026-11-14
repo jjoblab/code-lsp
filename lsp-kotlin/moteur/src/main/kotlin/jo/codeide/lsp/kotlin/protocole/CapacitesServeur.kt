@@ -8,14 +8,17 @@ import java.util.Properties
 import org.eclipse.lsp4j.CodeActionKind
 import org.eclipse.lsp4j.CodeActionOptions
 import org.eclipse.lsp4j.CompletionOptions
+import org.eclipse.lsp4j.jsonrpc.messages.Either
 import org.eclipse.lsp4j.DocumentOnTypeFormattingOptions
 import org.eclipse.lsp4j.InitializeResult
 import org.eclipse.lsp4j.PositionEncodingKind
 import org.eclipse.lsp4j.RenameOptions
+import org.eclipse.lsp4j.SaveOptions
 import org.eclipse.lsp4j.ServerCapabilities
 import org.eclipse.lsp4j.ServerInfo
 import org.eclipse.lsp4j.SignatureHelpOptions
 import org.eclipse.lsp4j.TextDocumentSyncKind
+import org.eclipse.lsp4j.TextDocumentSyncOptions
 
 /**
  * Les capabilities du serveur + la réponse `initialize` — la règle matrice
@@ -81,8 +84,23 @@ public object CapacitesServeur {
         // Encodage des positions : UTF-16 (valeur exacte annoncée à
         // initialize — un String JVM EST une suite d'unités UTF-16).
         capacites.setPositionEncoding(PositionEncodingKind.UTF16)
-        // Synchronisation PLEIN TEXTE (matrice Kotlin : « complète »).
-        capacites.setTextDocumentSync(TextDocumentSyncKind.Full)
+        // Synchronisation PLEIN TEXTE (matrice Kotlin : « complète ») —
+        // chantier F : la SAUVEGARDE porte le TEXTE (SaveOptions) et le
+        // serveur PARTICIPE à la sauvegarde (willSaveWaitUntil : les
+        // éditions d'organisation des imports sont rendues AVANT
+        // l'écriture disque — « Optimize imports on the fly » IJ).
+        val sauvegarde = SaveOptions()
+        sauvegarde.includeText = true
+        val synchronisation = TextDocumentSyncOptions()
+        synchronisation.openClose = true
+        synchronisation.change = TextDocumentSyncKind.Full
+        synchronisation.save = Either.forRight(sauvegarde)
+        synchronisation.willSave = false
+        synchronisation.willSaveWaitUntil = true
+        // L'appel EXPLICITE : la propriété synthétique Kotlin voit le
+        // setter Either seul (les surcharges polymorphes Java se
+        // résolvent à l'appel de méthode, pas à l'affectation).
+        capacites.setTextDocumentSync(synchronisation)
         // Navigation.
         capacites.setHoverProvider(true)
         capacites.setDefinitionProvider(true)

@@ -9,6 +9,7 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executors
 import jo.codeide.lsp.kotlin.api.ClasspathKotlin
 import jo.codeide.lsp.kotlin.api.GenreActionKotlin
+import jo.codeide.lsp.kotlin.api.PlanActionKotlin
 import jo.codeide.lsp.kotlin.api.GenreIndiceKotlin
 import jo.codeide.lsp.kotlin.api.GenrePlagePliable
 import jo.codeide.lsp.kotlin.api.GenreSurlignageKotlin
@@ -77,6 +78,7 @@ import org.eclipse.lsp4j.SymbolInformation
 import org.eclipse.lsp4j.TextDocumentIdentifier
 import org.eclipse.lsp4j.TextDocumentPositionParams
 import org.eclipse.lsp4j.TextEdit
+import org.eclipse.lsp4j.WillSaveTextDocumentParams
 import org.eclipse.lsp4j.TypeDefinitionParams
 import org.eclipse.lsp4j.TypeHierarchyItem
 import org.eclipse.lsp4j.TypeHierarchyPrepareParams
@@ -339,6 +341,29 @@ public class ServeurLangageKotlin(
         etats.sauver(params.textDocument.uri, null)
         params.text?.let { session?.modifier(params.textDocument.uri, it) }
         publicateur?.demander(params.textDocument.uri)
+    }
+
+    override fun willSaveWaitUntil(params: WillSaveTextDocumentParams): CompletableFuture<List<TextEdit>> {
+        garde<List<TextEdit>>()?.let { return it }
+        // Chantier F — « Optimize imports on the fly » : AVANT l'écriture
+        // disque, le serveur rend les éditions d'ORGANISATION des imports
+        // (KC-10 — le MÊME organisateur que l'action de code source : tri
+        // stable, inutilisés PROUVÉS retirés, doublons fusionnés). Le
+        // bloc PROPRE ne rend RIEN (idempotence I1 — une sauvegarde ne
+        // doit JAMAIS réécrire un document propre).
+        val uri = params.textDocument.uri
+        val plan = calculFraiche(uri) { texte ->
+            val plans: List<PlanActionKotlin> = session?.actions(uri, 0).orEmpty()
+            plans.firstOrNull { it.genre == GenreActionKotlin.ORGANISER_IMPORTS }
+        } ?: return CompletableFuture.completedFuture(emptyList())
+        // La traduction : les éditions du plan rendues en TextEdit LSP.
+        val instantane = etats.instantane(uri) ?: return CompletableFuture.completedFuture(emptyList())
+        val repere = ConvertisseurLsp.repere(instantane.texte)
+        return CompletableFuture.completedFuture(
+            plan.editions.flatMap { fichier ->
+                ConvertisseurLsp.editions(fichier.editions, repere)
+            },
+        )
     }
 
     override fun didClose(params: DidCloseTextDocumentParams) {
