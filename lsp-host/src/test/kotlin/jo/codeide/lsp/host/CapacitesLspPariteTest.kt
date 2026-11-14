@@ -459,9 +459,11 @@ class CapacitesLspPariteTest {
                 "définition" to "oui",
                 "définition de type" to "oui",
                 "implémentations" to "oui",
-                // Pack 1.14.x (V-F, ADR 0131) : kinds LSP exacts des actions
-                // de code — quickfix + source.organizeImports + refactor.extract.
-                "actions de code" to "quickfix,source.organizeImports,refactor.extract",
+                // Pack 1.14.x (V-F, ADR 0131) + chantiers D/E (parité IDE,
+                // 14/11) : kinds LSP exacts des actions de code — quickfix
+                // + source.organizeImports + refactor.extract + les
+                // refactor.rewrite/inline des chantiers D/E.
+                "actions de code" to "quickfix,source.organizeImports,refactor.extract,refactor.rewrite,refactor.inline",
                 "symboles de document" to "oui",
                 "surlignage" to "oui",
                 "références" to "oui",
