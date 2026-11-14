@@ -402,7 +402,6 @@
 9264f502aedca14e85a789aee682a11578962516ae2e6d62681472cbb4b0185c  lsp-java/moteur/src/test/kotlin/jo/codeide/lsp/java/gabarits/Fiche029GabaritsTest.kt
 926a4bb29b2ed389fbf3ff2f401e2de4fedc874f6fddf9cb2e7d9acb542d7657  socle/model/src/main/kotlin/jo/codeide/lsp/model/ConvertisseurModeleLsp.kt
 92a337168551087e51abf373949ef1a84c1477abdde48e5affa8c22aaf8d7850  lsp-kotlin/moteur/src/test/kotlin/jo/codeide/lsp/kotlin/session/Fiche038ReproductionVague5Test.kt
-92a6e576ea0647327788bf5a26044b7be77eaf7393aa40ccf448673c10bb21a2  lsp-host/src/test/kotlin/jo/codeide/lsp/host/CapacitesLspPariteTest.kt
 92eec630ae8fd44864dfa30e9942c56c3927b12db8ffd260502641c15a820a44  lsp-java/moteur/src/test/kotlin/jo/codeide/lsp/java/Fiche012ConcurrenceMoteurTest.kt
 937fc79d2c7966fca39add117ad8ff2180530d409ff99ac871b833c3f1a844ea  lsp-java/moteur/src/main/kotlin/jo/codeide/lsp/java/actionscode/CorrecteursEtendus.kt
 949ea0a82ba60364814039fb3d7f5713c9929066b1aef29068a0ce66e234b24e  lsp-xml/moteur/src/test/kotlin/jo/lspxml/session/SessionP3Test.kt
@@ -635,6 +634,7 @@ eb241422656e40fff6c41ed5148c39938513d06701a76ddf0b07541680781d06  lsp-host/src/m
 eb8ab454fa64f6002255bb02ff3cceac6f5b984716d0796635b56681d38d296f  lsp-kotlin/moteur/src/test/kotlin/jo/codeide/lsp/kotlin/session/BancFideliteK2Test.kt
 eba0da0ba4a017ea320ad8a285621440fdb180b284ed9a1663076a473522424c  socle/index/src/test/kotlin/jo/codeide/lsp/index/CacheSegmentsTest.kt
 ebe4763870fe904b033c5f1e156e45461096bd2c5474b52b785e9eaf94b4a6e0  lsp-java/moteur/src/test/kotlin/jo/codeide/lsp/java/completion/Fiche020BindingCompletionTest.kt
+ec399989e586974a6c45f67ade68eb4821da44d7ad2f9e793e034a1cd1777c50  lsp-host/src/test/kotlin/jo/codeide/lsp/host/CapacitesLspPariteTest.kt
 ec6810a1474b87bf070d9560f8b27a2a8f9fc15eb969d4de817d7d358f11f21a  lsp-java/moteur/src/main/kotlin/jo/codeide/lsp/java/EnvironnementCompilation.kt
 ecc7b1e5beb25cf6f8afe0bb1bf28d5e4dff15523aa46b75a3d5291492e44ba9  lsp-xml/moteur/src/main/kotlin/jo/lspxml/resolution/ReferencesXml.kt
 ee0a3492c08299be39a6945de7c779809c87927fd24273b6e5665cefd267a33f  lsp-kotlin/moteur/src/test/kotlin/jo/codeide/lsp/kotlin/session/TypagePalier2KotlinTest.kt

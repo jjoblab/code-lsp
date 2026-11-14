@@ -226,9 +226,13 @@ class CapacitesLspPariteTest {
                 { c ->
                     c.textDocumentSync?.let { sync ->
                         "synchronisation" to
-                            when (sync.left) {
-                                TextDocumentSyncKind.Full -> "complète"
-                                TextDocumentSyncKind.Incremental -> "incrémentale"
+                            when {
+                                // Chantier F — la forme OPTIONS porte le
+                                // kind dans son champ change.
+                                sync.isRight && sync.right.change == TextDocumentSyncKind.Full -> "complète + options (F)"
+                                sync.isRight && sync.right.change == TextDocumentSyncKind.Incremental -> "incrémentale + options"
+                                sync.left == TextDocumentSyncKind.Full -> "complète"
+                                sync.left == TextDocumentSyncKind.Incremental -> "incrémentale"
                                 else -> "autre"
                             }
                     }
@@ -453,7 +457,9 @@ class CapacitesLspPariteTest {
          */
         private val TABLE_KOTLIN: Map<String, String> =
             linkedMapOf(
-                "synchronisation" to "complète",
+                // Chantier F — la forme OPTIONS (sync Full + save.includeText
+                // + willSaveWaitUntil : organisation des imports à la sauvegarde).
+                "synchronisation" to "complète + options (F)",
                 "complétion" to "déclencheurs .(",
                 "survol" to "oui",
                 "définition" to "oui",
