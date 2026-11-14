@@ -171,6 +171,8 @@ public object CapacitesServeur {
             CodeActionKind.QuickFix,
             CodeActionKind.SourceOrganizeImports,
             CodeActionKind.RefactorExtract,
+            // Chantier D — la mutabilité (intention « Convertir en var »).
+            CodeActionKind.RefactorRewrite,
         )
         options.resolveProvider = true
         return options

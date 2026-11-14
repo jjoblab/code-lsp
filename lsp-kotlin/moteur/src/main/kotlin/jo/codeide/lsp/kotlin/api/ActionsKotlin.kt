@@ -9,7 +9,8 @@ package jo.codeide.lsp.kotlin.api
  * Le genre d'un plan d'action (vocabulaire neutre — l'hôte le traduit en
  * `CodeActionKind` LSP : [RAPIDE] vers `quickfix`, [SOURCE] vers
  * `source`, [ORGANISER_IMPORTS] vers `source.organizeImports` (V-F —
- * KC-10), [EXTRAIRE_VARIABLE] vers `refactor.extract` (V-F — KC-11).
+ * KC-10), [EXTRAIRE_VARIABLE] vers `refactor.extract` (V-F — KC-11),
+ * [REECRIRE] vers `refactor.rewrite` (chantier D — la mutabilité).
  */
 public enum class GenreActionKotlin {
 
@@ -24,6 +25,12 @@ public enum class GenreActionKotlin {
 
     /** V-F — l'extraction de variable (KC-11 Q1/Q5 : `refactor.extract`). */
     EXTRAIRE_VARIABLE,
+
+    /**
+     * Chantier D — la RÉÉCRITURE de la mutabilité (`refactor.rewrite` —
+     * intention « Convertir en var » de l'IDE).
+     */
+    REECRIRE,
 }
 
 /**

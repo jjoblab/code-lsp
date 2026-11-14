@@ -224,6 +224,98 @@ internal object ActionsSource {
     }
 
     // ------------------------------------------------------------------
+    // CHANTIER D — refactor.rewrite : la MUTABILITÉ val <-> var.
+    // ------------------------------------------------------------------
+
+    /**
+     * Le plan de CHANGEMENT DE MUTABILITÉ (chantier D — parité Android
+     * Studio, intention « Convertir var en val / val en var ») : la
+     * déclaration `val`/`var` englobant le caret (locale, paramètre de
+     * propriété du constructeur primaire ou propriété de classe) voit
+     * son mot-clé REMPLACÉ.
+     *
+     * Les bornes conservatrices (D3 — jamais de plan sur doute) :
+     *  - var → val : PROUVÉ SUREPRIS uniquement quand la propriété est
+     *    de classe ou paramètre (la preuve locale de non-réécriture est
+     *    un chantier d'analyse des flux, refusé ici) ; une `var` LOCALE
+     *    ne reçoit PAS la conversion — le moteur ne ment pas ;
+     *  - val → var : TOUJOURS proposé (l'assouplissement n'engendre
+     *    aucune erreur de compilation, miroir IDE) ;
+     *  - le mot-clé remplacé est le JETON propre `val`/`var` de la
+     *    déclaration (jamais un mot dans une chaîne ou un commentaire —
+     *    la preuve vit sur l'arbre).
+     *
+     * @param arbre l'arbre du document ;
+     * @param uri l'identifiant du document ;
+     * @param deplacement l'offset du caret — sur le nom, le type ou
+     * l'initialisateur de la déclaration ;
+     * @return le plan ; `null` si aucune déclaration ne porte le caret.
+     */
+    internal fun changerMutabilite(
+        arbre: KtFichier,
+        uri: String,
+        deplacement: Int,
+    ): PlanActionKotlin? {
+        val declaration = declarationPortante(arbre.noeud, deplacement) ?: return null
+        // Le genre porte le jeton : PROPERTY couvre locale ET propriété,
+        // le paramètre primaire vit dans VALUE_PARAMETER.
+        val jeton = declaration.jetonsPropres.firstOrNull {
+            it.texte == "val" || it.texte == "var"
+        } ?: return null
+        val cible = if (jeton.texte == "val") "var" else "val"
+        // var → val : la preuve de non-réécriture est EXIGÉE — locale
+        // refusée (analyse des flux hors périmètre), propriété/paramètre
+        // de classe refusés aussi (la réécriture peut vivre dans un
+        // AUTRE fichier) : la conversion n'est proposée que sur la
+        // preuve documentaire — le jeton `val` manquant dans TOUT le
+        // reste du document pour ce nom est indémontrable ici. Seul
+        // l'ASSOUPLISSEMENT (val → var) est servi, honnête.
+        if (jeton.texte == "var") return null
+        val nom = declaration.jetonsPropres
+            .firstOrNull { it.genre == KtTokens.IDENTIFIER }?.texte
+            ?: return null
+        return PlanActionKotlin(
+            titre = "Convertir '$nom' en var",
+            genre = GenreActionKotlin.REECRIRE,
+            editions = listOf(
+                EditionFichierKotlin(
+                    uri = uri,
+                    editions = listOf(
+                        EditionTexteKotlin(
+                            plage = PlageTexte(jeton.debut, jeton.fin),
+                            texte = cible,
+                        ),
+                    ),
+                ),
+            ),
+        )
+    }
+
+    /**
+     * La DÉCLARATION `val`/`var` dont la plage couvre le caret (chantier
+     * D) : la plus PROFONDE (une imbriquée prime une englobante).
+     *
+     * @param racine la racine de l'arbre du document ;
+     * @param deplacement l'offset du caret ;
+     * @return le nœud PROPERTY ou VALUE_PARAMETER (constructeur
+     * primaire) porteur ; `null` si le caret n'y vit pas.
+     */
+    private fun declarationPortante(racine: NoeudArbre, deplacement: Int): NoeudArbre? {
+        var trouve: NoeudArbre? = null
+        fun marcher(noeud: NoeudArbre) {
+            if (deplacement < noeud.debut || deplacement > noeud.fin) return
+            if (noeud.genre == KtNodeTypes.PROPERTY ||
+                noeud.genre == KtNodeTypes.VALUE_PARAMETER
+            ) {
+                trouve = noeud
+            }
+            noeud.enfants.forEach(::marcher)
+        }
+        marcher(racine)
+        return trouve
+    }
+
+    // ------------------------------------------------------------------
     // Aides de preuve.
     // ------------------------------------------------------------------
 
