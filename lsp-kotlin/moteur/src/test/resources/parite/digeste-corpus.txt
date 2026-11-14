@@ -298,7 +298,6 @@
 6709122fba526427a1c1067dfaded24fd88c8819510075b4235776a00e2c209d  lsp-kotlin/moteur/src/main/kotlin/jo/codeide/lsp/kotlin/resolve/ClotureHeritage.kt
 670e0aa4d60361712ac221fa2ae94b91b40a18ccf450b71475de17407bd66518  lsp-java/moteur/src/test/kotlin/jo/codeide/lsp/java/LatenceActionsVdTest.kt
 6806dc36d335d5d20405eb5dc974a26bf0b7037dcc9cd309431a73170e5ce447  lsp-kotlin/moteur/src/main/kotlin/jo/codeide/lsp/kotlin/api/NavigationKotlin.kt
-6832c9db022310f88210953e2e939b85222a9a6a5fc4a827a49c04d519b564b8  lsp-host/src/main/kotlin/jo/codeide/lsp/host/XmlLanguageServer.kt
 68f54b29fea74f5b573dd220f0a32bd6d270d8d39145b04406b174f690ab2460  lsp-xml/moteur/src/main/kotlin/jo/lspxml/api/IndexationXml.kt
 6968d90f101562e531027bc7d04a4e4bfd2eba1c066617b051add3bfc335aa13  lsp-kotlin/spike/src/test/kotlin/spikekotlin/BancS0Test.kt
 699025c0a4f6352e914769a60a800a9c6e472a3cfcf2d6b0c5874613e364c69c  lsp-java/moteur/src/main/kotlin/jo/codeide/lsp/java/inlay/ServiceInlay.kt
@@ -434,6 +433,7 @@
 97395c3ea7b1d93ea01d41d9fab5bc2f6b5b783390c1ff174348082e63b31eda  lsp-kotlin/moteur/src/main/kotlin/jo/codeide/lsp/kotlin/protocole/ConvertisseurLsp.kt
 9759d83e09375eb656c18a8726ac4369b24e6ee0a2eaf153a643dc4b90af1b9b  lsp-java/moteur/src/main/kotlin/jo/codeide/lsp/java/navigation/ServiceDecompilation.kt
 97999b8f746d2754be4423da393c6fcc1a63d90e01ecd67dc3f196cc7614cdfa  lsp-java/moteur/src/main/kotlin/jo/codeide/lsp/java/interne/CacheParse.kt
+984d26f3328fe94c31762fdf39db06642dd783fee46f4ede230bb0a00c08252a  lsp-host/src/main/kotlin/jo/codeide/lsp/host/XmlLanguageServer.kt
 9855255e80bfc865ceccda4b59aacc8d5bd9682dca7a6450c445bfd1d54d9a77  lsp-java/moteur/src/main/kotlin/jo/codeide/lsp/java/gabarits/GabaritsVivants.kt
 98e11ec9366338df059d59fd758dde132bef9e5287fae338ad1a80f4f303bdd9  lsp-kotlin/moteur/src/main/kotlin/jo/codeide/lsp/kotlin/protocole/CapacitesServeur.kt
 9984c84af5a86a556e448b485ad2cbc42c9af30382cedd776e1d74bc26335df9  socle/index/src/test/kotlin/jo/codeide/lsp/index/TypesEtatIndexEtendusTest.kt
