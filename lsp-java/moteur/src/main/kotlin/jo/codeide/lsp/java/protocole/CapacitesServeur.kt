@@ -248,6 +248,17 @@ public object CapacitesServeur {
             org.eclipse.lsp4j.DocumentLinkOptions().apply { resolveProvider = false },
         )
 
+        // CHANTIER J (14/11/2026) — pull diagnostics : le client moderne
+        // peut TIRER les diagnostics (documentDiagnostic) au lieu d'attendre
+        // la publication push — la même diagnose moteur, à la demande ;
+        // la publication push reste le chemin par défaut (fiche 059).
+        capacites.setDiagnosticProvider(
+            org.eclipse.lsp4j.DiagnosticRegistrationOptions().apply {
+                setInterFileDependencies(false)
+                setWorkspaceDiagnostics(false)
+            },
+        )
+
         // Navigation (étage N4 — fiches 005/009/049/060/062 ; fiche 054
         // pour les références et le surlignage).
         capacites.setDefinitionProvider(true)

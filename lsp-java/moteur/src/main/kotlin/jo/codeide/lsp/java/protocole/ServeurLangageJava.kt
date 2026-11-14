@@ -1569,6 +1569,44 @@ public class ServeurLangageJava(
         return liens
     }
 
+    /**
+     * CHANTIER J (14/11/2026) — `textDocument/documentDiagnostic` : le
+     * mode PULL des diagnostics (LSP 3.17) — le client moderne TIRE les
+     * diagnostics au lieu d'attendre la publication push (qui reste le
+     * chemin par défaut, fiche 059 inchangée). La MÊME diagnose moteur
+     * que le publicateur (`moteur.diagnose`), calculée À LA DEMANDE sur
+     * le texte VIVANT du document (overlay puis disque, convention I9) ;
+     * le résultat voyage en `RelatedFullDocumentDiagnosticReport` (les
+     * diagnostics du document, sans rapport lié — le serveur ne pose pas
+     * d'identifier de rapport : chaque tir est complet).
+     */
+    override fun diagnostic(params: org.eclipse.lsp4j.DocumentDiagnosticParams): CompletableFuture<org.eclipse.lsp4j.DocumentDiagnosticReport> {
+        garde<org.eclipse.lsp4j.DocumentDiagnosticReport>()?.let { return it }
+        val uri = params.textDocument.uri
+        val document = documentDe(uri)
+            ?: return CompletableFuture.completedFuture(rapportDiagnosticVide())
+        val (chemin, texte) = document
+        val moteur = moteurPour(chemin)
+            ?: return CompletableFuture.completedFuture(rapportDiagnosticVide())
+        // Voie CONFORT (V-H) : le pull ne patiente jamais derrière la
+        // frappe ; la diagnose est le même calcul que le publicateur.
+        return repartirDocument<org.eclipse.lsp4j.DocumentDiagnosticReport>(uri, voieConfort, { rapportDiagnosticVide() }) { _, _ ->
+            val diagnostics = runCatching { moteur.diagnose(chemin, texte) }.getOrDefault(emptyList())
+            val repere = ConvertisseurLsp.repere(texte)
+            org.eclipse.lsp4j.DocumentDiagnosticReport(
+                org.eclipse.lsp4j.RelatedFullDocumentDiagnosticReport().apply {
+                    items = diagnostics.map { ConvertisseurLsp.diagnostic(it, repere).lsp }
+                },
+            )
+        }
+    }
+
+    /** Le rapport pull VIDE (document inconnu, moteur absent — I9). */
+    private fun rapportDiagnosticVide(): org.eclipse.lsp4j.DocumentDiagnosticReport =
+        org.eclipse.lsp4j.DocumentDiagnosticReport(
+            org.eclipse.lsp4j.RelatedFullDocumentDiagnosticReport().apply { items = emptyList() },
+        )
+
     override fun documentSymbol(params: DocumentSymbolParams): CompletableFuture<List<Either<SymbolInformation, DocumentSymbol>>> {
         garde<List<Either<SymbolInformation, DocumentSymbol>>>()?.let { return it }
         val uri = params.textDocument.uri
