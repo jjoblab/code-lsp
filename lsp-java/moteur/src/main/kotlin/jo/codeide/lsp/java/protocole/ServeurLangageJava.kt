@@ -496,6 +496,14 @@ public class ServeurLangageJava(
 
     private companion object {
         /**
+         * La commande du lien « source décompilée » (CHANTIER H — le
+         * hover d'un symbole binaire porte un Command LSP que le client
+         * rejoue sur executeCommand ; la source servie est la MÊME que
+         * l'extension decompiledSource — fiche 054).
+         */
+        private const val COMMANDE_SOURCE_DECOMPILEE = "codeide.decompiledSource"
+
+        /**
          * Kill-switch du préchauffage/progression (V-G — repli documenté) :
          * `jo.codeide.lsp.java.progression.disabled=true` coupe le fil
          * d'indexation et son `workDoneProgress` (comportement d'avant V-G).
@@ -834,6 +842,38 @@ public class ServeurLangageJava(
 
     override fun executeCommand(params: ExecuteCommandParams): CompletableFuture<Any> {
         garde<Any>()?.let { return it }
+        // CHANTIER H (14/11/2026) — la commande du lien « source
+        // décompilée » du hover : le client reçoit le Command LSP
+        // (`codeide.decompiledSource`, argument = FQCN) et le rejoue ici
+        // — la MÊME source que l'extension `decompiledSource` (attachée
+        // ou décompilée, fiche 054). Une commande inconnue reste REFUSÉE
+        // (contrat inchangé).
+        if (params.command == COMMANDE_SOURCE_DECOMPILEE) {
+            // L'argument FQCN : sur le fil lsp4j il revient en JsonPrimitive
+            // (Gson) — lu par SON API, jamais par un cast de String (le
+            // miroir des lectures data du resolve).
+            val brut = params.arguments?.firstOrNull()
+            val fqcn = when (brut) {
+                is String -> brut
+                is com.google.gson.JsonPrimitive -> brut.takeIf { it.isString }?.asString
+                else -> null
+            } ?: return refuse(ResponseErrorCode.InvalidParams, "FQCN absent de la commande")
+            // La MÊME voie que l'extension decompiledSource (fiche 054) :
+            // moteurs VIVANTS sondés, DÉFAUT d'abord — jamais de
+            // construction forcée.
+            val env = envVivant
+            var source: String? = null
+            if (env != null) {
+                for (moteur in env.moteursVivants()) {
+                    source = runCatching { moteur.decompiledSource(fqcn) }.getOrNull()
+                    if (source != null) break
+                }
+            }
+            if (source == null) {
+                return refuse(ResponseErrorCode.InternalError, "source introuvable : $fqcn")
+            }
+            return CompletableFuture.completedFuture(mapOf("fqcn" to fqcn, "source" to source))
+        }
         return refuse(ResponseErrorCode.MethodNotFound, "commande inconnue : ${params.command}")
     }
 
@@ -1049,16 +1089,24 @@ public class ServeurLangageJava(
      *  seul, MARKDOWN « ```java\n » + javadoc sinon). CHANTIER D : l'origine
      *  (fichier déclarant ≠ document courant) s'écrit en tête — « **Défini
      *  dans** fichier » — le saut reste textDocument/definition, la ligne
-     *  INFORME (miroir du chantier L Kotlin : même libellé, même position). */
+     *  INFORME (miroir du chantier L Kotlin : même libellé, même position).
+     *  CHANTIER H : le hover d'un symbole BINAIRE porte le LIEN « source
+     *  décompilée » — une ligne markdown finale qui informe l'accès ; le
+     *  CLIENT CodeIDE la transforme en bouton (l'extension decompiledSource
+     *  sert le contenu, fiche 054 ; un client standard l'affiche comme du
+     *  texte informatif — aucune casse). */
     private fun survolLsp(survol: jo.codeide.lsp.java.survol.SurvolRiche): Hover {
         val origine = survol.origine?.let { "**Défini dans** `$it`\n\n" } ?: ""
-        val valeur = if (survol.documentation != null) {
-            MarkupContent("markdown", "${origine}```java\n${survol.signature}\n```\n${survol.documentation}")
-        } else if (origine.isNotEmpty()) {
-            // SANS javadoc mais AVEC origine : le markdown porte la ligne
-            // d'origine + la signature en bloc (jamais du plaintext — la
-            // ligne d'origine est du markdown).
-            MarkupContent("markdown", "${origine}```java\n${survol.signature}\n```")
+        // Chantier H — la ligne d'accès à la source décompilée (symbole
+        // binaire uniquement) : la convention maison `x-codeide.decompile`
+        // porte le FQCN ; le client qui la connaît rend le bouton, les
+        // autres l'ignorent (texte final du bloc markdown).
+        val lienDecompilee = survol.fqcnBinaire?.let {
+            "\n\n---\n*Source décompilée : `x-codeide.decompile://${it}`*"
+        } ?: ""
+        val valeur = if (survol.documentation != null || origine.isNotEmpty() || lienDecompilee.isNotEmpty()) {
+            val javadoc = survol.documentation ?: ""
+            MarkupContent("markdown", "${origine}```java\n${survol.signature}\n```\n${javadoc}${lienDecompilee}")
         } else {
             MarkupContent("plaintext", survol.signature)
         }

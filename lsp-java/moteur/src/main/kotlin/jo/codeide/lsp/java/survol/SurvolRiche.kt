@@ -49,6 +49,15 @@ public data class SurvolRiche(
      * hover n'invente jamais d'origine — miroir du chantier L Kotlin).
      */
     public val origine: String? = null,
+    /**
+     * Le FQCN du type BINAIRE survolé (chantier H — 14/11/2026) : le
+     * hover d'un symbole du classpath porte le Command « Afficher la
+     * source décompilée » (executeCommand codeide.decompiledSource — la
+     * MÊME source que l'extension decompiledSource, fiche 054). Null
+     * pour un symbole du projet (la définition LSP suffit — pas de
+     * source à décompiler).
+     */
+    public val fqcnBinaire: String? = null,
 )
 
 /**
@@ -214,6 +223,7 @@ public object ServiceSurvolRiche {
                     nomLongDe(it) ?: LectureAst.lisible(it) ?: return true,
                     javadocSourcesAttachees(it),
                     origineSourcesAttachees(it),
+                    fqcnDe(it),
                 )
             }
             considerer(node.sourceStart, node.sourceEnd, candidat, PRIORITE_REFERENCE)
@@ -236,7 +246,15 @@ public object ServiceSurvolRiche {
             val signature = binding?.let { signatureMethode(it) } ?: LectureAst.lisible(node.resolvedType)
             val documentation = binding?.let { documentationDeMethode(it) }
             val origine = binding?.let { origineMethodeBinaire(it) }
-            considerer(node.sourceStart, node.sourceEnd, signature?.let { SurvolRiche(it, documentation, origine) }, PRIORITE_APPEL)
+            // Chantier H : le FQCN du déclarant binaire (le hover porte
+            // le Command « source décompilée »).
+            val fqcnBinaire = binding?.declaringClass?.let { fqcnDe(it) }
+            considerer(
+                node.sourceStart,
+                node.sourceEnd,
+                signature?.let { SurvolRiche(it, documentation, origine, fqcnBinaire) },
+                PRIORITE_APPEL,
+            )
             return true
         }
 
