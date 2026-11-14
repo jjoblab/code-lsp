@@ -148,6 +148,57 @@ public object GabaritsPostfixes {
                     ItemPostfixe(cle, "if ($texteRecepteur) {\n    \$0\n}", listOf(suppression), PERTINENCE),
                 )
             }
+
+            // CHANTIER F (14/11/2026) — catalogue étendu, miroir des
+            // postfixes Java d'IntelliJ. Chaque garde reste TYPAÉE : une
+            // template ne sort jamais là où elle ne compilerait pas.
+            "while" -> if (estBooleen) {
+                items.add(
+                    ItemPostfixe(cle, "while ($texteRecepteur) {\n    \$0\n}", listOf(suppression), PERTINENCE),
+                )
+            }
+
+            "notnull" -> if (estReference) {
+                items.add(
+                    ItemPostfixe(cle, "if ($texteRecepteur != null) {\n    \$0\n}", listOf(suppression), PERTINENCE),
+                )
+            }
+
+            "null" -> if (estReference) {
+                items.add(
+                    ItemPostfixe(cle, "if ($texteRecepteur == null) {\n    \$0\n}", listOf(suppression), PERTINENCE),
+                )
+            }
+
+            "syserr" -> items.add(
+                ItemPostfixe(cle, "System.err.println($texteRecepteur);\$0", listOf(suppression), PERTINENCE),
+            )
+
+            "return" -> items.add(
+                ItemPostfixe(cle, "return $texteRecepteur;\$0", listOf(suppression), PERTINENCE),
+            )
+
+            "assert" -> items.add(
+                ItemPostfixe(cle, "assert $texteRecepteur;\$0", listOf(suppression), PERTINENCE),
+            )
+
+            "throw" -> if (typeResolu != null && (typeResolu.endsWith("Throwable") || typeResolu.endsWith("Exception") || typeResolu.endsWith("Error"))) {
+                items.add(
+                    ItemPostfixe(cle, "throw new ${'$'}{1:$typeResolu}(\$0);", listOf(suppression), PERTINENCE),
+                )
+            }
+
+            "for" -> if (estReference || typeResolu == null) {
+                // Tableau T[] ou Iterable : la forme renforcée compile dans
+                // les deux cas ; type inconnu = garde souple (la complétion
+                // ne disparaît pas sur code en cours de frappe).
+                val nomElement = nomDerive(typeAffichable ?: texteRecepteur).let {
+                    if (it.endsWith("s")) it.dropLast(1) else it
+                }
+                items.add(
+                    ItemPostfixe(cle, "for (${'$'}{1:$nomElement} : $texteRecepteur) {\n    \$0\n}", listOf(suppression), PERTINENCE),
+                )
+            }
         }
         return items
     }

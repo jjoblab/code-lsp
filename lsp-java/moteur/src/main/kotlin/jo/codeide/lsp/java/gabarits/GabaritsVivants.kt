@@ -41,13 +41,27 @@ public object GabaritsVivants {
     /** Pertinence d'une clé partielle — reste discrète. */
     public const val PERTINENCE_PARTIELLE: Int = 100
 
-    /** Le catalogue (clé → snippet). */
+    /** Le catalogue (clé → snippet). CHANTIER G (14/11/2026) : étendu aux
+     *  gabarits vivants Java standard d'IntelliJ (psvm/main, serr, ifn,
+     *  inn, St, inst, lazy…) — servis UNIQUEMENT en position
+     *  d'instruction (garde inchangée). */
     private val CATALOGUE: List<GabaritVivant> = listOf(
         GabaritVivant("sout", "System.out.println(\$0);"),
         GabaritVivant("soutv", "System.out.println(\"${'$'}{1:var} = \" + ${'$'}{1:var});"),
         GabaritVivant("souf", "System.out.printf(\$0);"),
         GabaritVivant("fori", "for (int ${'$'}{1:i} = 0; ${'$'}{1:i} < ${'$'}{2:max}; ${'$'}{1:i}++) {\n    \$0\n}"),
         GabaritVivant("try", "try {\n    \$0\n} catch (${'$'}{1:Exception} ${'$'}{2:e}) {\n}"),
+        // Chantier G — l'extension miroir IntelliJ (live templates Java).
+        GabaritVivant("psvm", "public static void main(String[] args) {\n    \$0\n}"),
+        GabaritVivant("main", "public static void main(String[] args) {\n    \$0\n}"),
+        GabaritVivant("serr", "System.err.println(\$0);"),
+        GabaritVivant("ifn", "if (${'$'}{1:var} == null) {\n    \$0\n}"),
+        GabaritVivant("inn", "if (${'$'}{1:var} != null) {\n    \$0\n}"),
+        GabaritVivant("St", "String ${'$'}{1:var} = \"\$0\";"),
+        GabaritVivant("inst", "if (${'$'}{1:obj} instanceof ${'$'}{2:Type}) {\n    \$0\n}"),
+        GabaritVivant("iter", "for (${'$'}{1:Type} ${'$'}{2:elem} : ${'$'}{3:collection}) {\n    \$0\n}"),
+        GabaritVivant("itar", "for (int ${'$'}{1:i} = 0; ${'$'}{1:i} < ${'$'}{2:array}.length; ${'$'}{1:i}++) {\n    \$0\n}"),
+        GabaritVivant("thr", "throw new \$0;"),
     )
 
     /**
