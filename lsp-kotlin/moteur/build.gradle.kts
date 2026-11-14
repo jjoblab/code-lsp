@@ -457,3 +457,14 @@ tasks.register<JavaExec>("sondeTypageInfere") {
     )
     jvmArgs("-Xmx2g", "-XX:+UseSerialGC")
 }
+
+tasks.register<JavaExec>("sondeChoixCandidate") {
+    group = "verification"
+    description = "Sonde : récepteurs d'extension décodés dans l'index (chantier B)."
+    mainClass.set("jo.codeide.lsp.kotlin.banc.SondeChoixCandidateKt")
+    classpath = bancSourceSet.runtimeClasspath
+    javaLauncher.set(
+        javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(VERSION_JDK)) },
+    )
+    jvmArgs("-Xmx2g", "-XX:+UseSerialGC")
+}

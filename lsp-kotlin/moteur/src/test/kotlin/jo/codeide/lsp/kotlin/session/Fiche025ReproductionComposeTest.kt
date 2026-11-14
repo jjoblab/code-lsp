@@ -248,11 +248,18 @@ class Fiche025ReproductionComposeTest {
         val uri = "file:///compose-survol-println.kt"
         session.ouvrir(uri, source)
         // Le SURVOL d'un appelable top-level du classpath : la signature
-        // dépouillée de l'index + le package déclarant.
+        // dépouillée de l'index ; le package déclarant vit en
+        // DOCUMENTATION depuis le chantier B (quick-doc parité — la
+        // signature reste du code pur, le paquet et les surcharges
+        // l'accompagnent).
         val survol = session.survol(uri, source.indexOf("println"))
         assertTrue(
-            survol != null && survol.signature.contains("println") && survol.signature.contains("kotlin.io"),
+            survol != null && survol.signature.contains("println"),
             "le survol de println rend la signature de l'index : ${survol?.signature}",
+        )
+        assertTrue(
+            survol?.documentation?.contains("kotlin.io") == true,
+            "le package déclarant accompagne la signature (chantier B) : ${survol?.documentation}",
         )
         session.close()
     }

@@ -112,7 +112,18 @@ internal object SurvolDocuments {
                     if (directive.estJoker()) chemin else chemin.substringBeforeLast('.', ""),
                 )
             }
-            val visible = index.topParNom(nom).firstOrNull { it.paquet in visibles }
+            val visiblesMemeNom = index.topParNom(nom).filter { it.paquet in visibles }
+            // CHANTIER B : la candidate dont le RÉCEPTEUR d'extension
+            // correspond au type du récepteur au caret PRIME (miroir
+            // quick-doc — `nombres.map` rend List.map, pas la première
+            // candidate alphabétique Result.map) ; sans démonstration, la
+            // première candidate reste (comportement d'avant).
+            val typeAuCaret = typeRecepteurAuCaret(cible, univers, identifiant.debut)
+            val visible = visiblesMemeNom.firstOrNull { candidate ->
+                typeAuCaret != null &&
+                    candidate.recepteur != null &&
+                    recepteurCompatible(candidate.recepteur, typeAuCaret)
+            } ?: visiblesMemeNom.firstOrNull()
             if (visible != null) {
                 val parametres = visible.parametres.joinToString(", ") { parametre ->
                     if (parametre.type == null) {
@@ -123,9 +134,20 @@ internal object SurvolDocuments {
                 }
                 val genre = if (visible.genre == jo.codeide.lsp.kotlin.index.GenreAppelable.PROPRIETE) "val" else "fun"
                 val retour = visible.typeRetour?.let { ": $it" }.orEmpty()
+                // CHANTIER B (parité quick-doc Android Studio) : le
+                // récepteur d'EXTENSION s'écrit avant le nom (`fun
+                // Modifier.padding(…)`) et les SURCHARGES se comptent —
+                // le quick-doc rend la famille, pas seulement la première
+                // candidate.
+                val recepteur = visible.recepteur?.let { "${it.substringAfterLast('.')}." } ?: ""
+                val surcharges = if (visiblesMemeNom.size > 1) {
+                    " — ${visiblesMemeNom.size} surcharges"
+                } else {
+                    ""
+                }
                 return SurvolKotlin(
-                    signature = "$genre ${visible.nom}($parametres)$retour (${visible.paquet})",
-                    documentation = null,
+                    signature = "$genre ${recepteur}${visible.nom}($parametres)$retour",
+                    documentation = "(${visible.paquet})$surcharges",
                 )
             }
         }
@@ -163,6 +185,51 @@ internal object SurvolDocuments {
      * @return le survol ; `null` si la référence ne résout pas à un membre
      * de bibliothèque (silence honnête D3).
      */
+    /**
+     * Le TYPE du récepteur d'un sélecteur qualifié au caret (chantier B) :
+     * `nombres.map` rend le type de `nombres` — la matière du choix de la
+     * candidate d'extension ; `null` hors sélecteur qualifié ou récepteur
+     * non typable (silence, la première candidate reste).
+     */
+    private fun typeRecepteurAuCaret(
+        cible: DocumentOuvert,
+        univers: UniversPreuves,
+        deplacement: Int,
+    ): TypeValeur? {
+        val qualifiee = qualifieeCouvrante(cible.arbre.noeud, deplacement) ?: return null
+        val recepteur = qualifiee.enfants.firstOrNull() ?: return null
+        if (recepteur.fin > deplacement) return null
+        val region = regionContenant(cible.arbre.noeud, deplacement)
+        val liaison = MarcheTypee.Liaison(arbre = cible.arbre, univers = univers, region = region)
+        val pile = Couches.aPosition(cible.arbre, univers, liaison, deplacement)
+        return TypageBorne.typeDeLexpression(recepteur, univers, liaison, pile)
+    }
+
+    /**
+     * Le récepteur d'extension candidat est-il COMPATIBLE avec le type au
+     * caret (chantier B) : égalité du FQCN/nom simple OU hiérarchie des
+     * BUILTINS (`List` reçoit les extensions de `Iterable` — le récepteur
+     * décodé de map est kotlin.collections.Iterable) ; la sur-tolérance
+     * n'engage que le CHOIX d'une candidate, jamais une preuve.
+     */
+    private fun recepteurCompatible(recepteurCandidat: String, type: TypeValeur): Boolean {
+        val fqcn = when (type) {
+            is TypeValeur.Jvm -> type.fqcn
+            is TypeValeur.Projet -> type.type.fqcn
+        }
+        if (recepteurCandidat == fqcn ||
+            recepteurCandidat.substringAfterLast('.') == fqcn.substringAfterLast('.')
+        ) {
+            return true
+        }
+        // La hiérarchie des builtins : le type au caret REÇOIT les
+        // extensions portées par ses ancêtres (List → Iterable).
+        return UniversPreuves.HIERARCHIE_BUILTINS[fqcn].orEmpty().any { ancetre ->
+            ancetre == recepteurCandidat ||
+                ancetre.substringAfterLast('.') == recepteurCandidat.substringAfterLast('.')
+        }
+    }
+
     private fun survolMembreHerite(
         cible: DocumentOuvert,
         univers: UniversPreuves,
