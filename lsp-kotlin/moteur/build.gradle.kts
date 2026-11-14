@@ -442,3 +442,18 @@ tasks.register<JavaExec>("sondeAndroid") {
     )
     jvmArgs("-Xmx2g", "-XX:+UseSerialGC")
 }
+
+// ---------------------------------------------------------------------------
+// SONDE typage inféré (chantier parité Android Studio — 14/11/2026) : que
+// rend l'index pour les fabriques stdlib génériques.
+// ---------------------------------------------------------------------------
+tasks.register<JavaExec>("sondeTypageInfere") {
+    group = "verification"
+    description = "Sonde : fabriques stdlib génériques dans l'index des appelables."
+    mainClass.set("jo.codeide.lsp.kotlin.banc.SondeTypageInfereKt")
+    classpath = bancSourceSet.runtimeClasspath
+    javaLauncher.set(
+        javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(VERSION_JDK)) },
+    )
+    jvmArgs("-Xmx2g", "-XX:+UseSerialGC")
+}

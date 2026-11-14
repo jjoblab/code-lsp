@@ -164,7 +164,20 @@ internal object MarcheTypee {
                             if (initialiseur != null) {
                                 when (val type = TypageBorne.typeDeLexpression(initialiseur, univers, this)) {
                                     is TypeValeur.Projet -> typeNomme = type.type.nomSimple
-                                    is TypeValeur.Jvm -> typeNomme = type.fqcn
+                                    is TypeValeur.Jvm -> {
+                                        // Les ARGUMENTS DE TYPE voyagent avec le
+                                        // FQCN (chantier typage inféré — parité
+                                        // IDE) : `val m = mutableMapOf<Long, Note>()`
+                                        // lie `kotlin.collections.MutableMap<Long,
+                                        // Note>` — resoudreTypeEcrit dépose les
+                                        // arguments sur le Jvm rendu, la matière
+                                        // de la substitution (values → MutableSet<Note>).
+                                        typeNomme = if (type.arguments.isEmpty()) {
+                                            type.fqcn
+                                        } else {
+                                            type.fqcn + "<" + type.arguments.joinToString(", ") + ">"
+                                        }
+                                    }
                                     null -> Unit
                                 }
                             }

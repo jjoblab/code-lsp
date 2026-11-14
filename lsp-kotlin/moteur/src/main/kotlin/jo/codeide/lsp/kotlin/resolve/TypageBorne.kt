@@ -189,6 +189,23 @@ internal object TypageBorne {
                 univers.modele.appelables(nom, univers.paquet)
                     .firstNotNullOfOrNull { it.typeRetourNomme }
                     ?.let { return univers.resoudreTypeEcrit(it) }
+                // Le RETOUR d'un APPELABLE du classpath (chantier typage
+                // inféré — parité IDE) : une fabrique stdlib visible
+                // (`mutableMapOf<Long, Note>()`) rend son retour générique
+                // SUBSTITUÉ par les arguments de type ÉCRITS de l'appel
+                // (`MutableMap<K, V>` → `MutableMap<Long, Note>`) ; sans
+                // arguments écrits, le retour NU (paramètres de type
+                // tels quels) ne se substitue pas — conservateur.
+                univers.index?.topParNom(nom)
+                    ?.firstOrNull { it.paquet in paquetsVisiblesPour(univers) }
+                    ?.let { appelable ->
+                        val retour = appelable.typeRetour ?: return@let
+                        val ecrits = argumentsTypeEcrits(noeud)
+                        if (ecrits.isEmpty()) return@let
+                        substituerTypeRetour(retour, ecrits)?.let { retourSubstitue ->
+                            return TypeValeur.Jvm("kotlin.collections.${retourSubstitue.substringBefore('<')}", extraireArguments(retourSubstitue))
+                        }
+                    }
                 null
             }
             KtNodeTypes.DOT_QUALIFIED_EXPRESSION, KtNodeTypes.SAFE_ACCESS_EXPRESSION -> {
@@ -1104,6 +1121,72 @@ internal object TypageBorne {
      * écrit du récepteur (`(T) -> R` + `List<Client>` → `["Client"]`).
      * Les autres textes restent tels quels.
      */
+    /**
+     * Les paquets VISIBLES pour un appelable top-level du classpath au
+     * point courant (chantier typage inféré) : paquet du document, paquets
+     * IMPORTÉS (miroir signature/survol/définition) et paquets par défaut.
+     */
+    private fun paquetsVisiblesPour(univers: UniversPreuves): Set<String> {
+        val visibles = HashSet<String>(UniversPreuves.PAQUETS_DEFAUT)
+        visibles.add(univers.paquet)
+        for (directive in univers.arbre.imports()) {
+            val chemin = directive.nomQualifie() ?: continue
+            visibles.add(
+                if (directive.estJoker()) chemin else chemin.substringBeforeLast('.', ""),
+            )
+        }
+        return visibles
+    }
+
+    /**
+     * Les arguments de type ÉCRITS d'un appel (`mutableMapOf<Long, Note>`)
+     * — la liste TYPE_ARGUMENT_LIST du CALL, rendue en noms simples ; vide
+     * si l'appel n'écrit pas ses arguments de type.
+     */
+    private fun argumentsTypeEcrits(appel: NoeudArbre): List<String> {
+        // L'appel nu porte la liste ENFANT ; l'appel qualifié la porte sur
+        // son sélecteur CALL enfant.
+        val porteurs = listOf(appel) + appel.enfants.filter {
+            it.genre == KtNodeTypes.CALL_EXPRESSION || it.genre == KtNodeTypes.REFERENCE_EXPRESSION
+        }
+        for (porteur in porteurs) {
+            val liste = porteur.enfants.firstOrNull { it.genre == KtNodeTypes.TYPE_ARGUMENT_LIST }
+                ?: porteur.enfants.firstOrNull { it.genre == KtNodeTypes.VALUE_ARGUMENT_LIST }
+                    ?.enfants?.firstOrNull { it.genre == KtNodeTypes.TYPE_ARGUMENT_LIST }
+                ?: continue
+            val arguments = liste.enfants
+                .filter { it.genre == KtNodeTypes.TYPE_PROJECTION }
+                .mapNotNull { it.texteCanonique.trim().removePrefix("*").ifEmpty { null } }
+            if (arguments.isNotEmpty()) return arguments
+        }
+        return emptyList()
+    }
+
+    /**
+     * La SUBSTITUTION des paramètres de type d'un retour générique par les
+     * arguments écrits (`MutableMap<K, V>` + [Long, Note] →
+     * `MutableMap<Long, Note>`) ; `null` si le retour n'est pas générique
+     * ou si l'arité ne correspond pas (conservateur).
+     */
+    private fun substituerTypeRetour(retour: String, arguments: List<String>): String? {
+        if (!retour.contains('<')) return null
+        val parametres = retour.substringAfter('<').removeSuffix(">").split(',').map { it.trim() }
+        if (parametres.size != arguments.size) return null
+        val substitues = parametres.mapIndexed { indice, parametre ->
+            if (parametre.length == 1 && parametre[0] in 'A'..'Z') arguments[indice] else parametre
+        }
+        return retour.substringBefore('<') + "<" + substitues.joinToString(", ") + ">"
+    }
+
+    /**
+     * Les ARGUMENTS de type d'un FQCN générique rendu (`MutableMap<Long,
+     * Note>` → [Long, Note]) — la forme interne de [TypeValeur.Jvm].
+     */
+    private fun extraireArguments(typeRendu: String): List<String> {
+        if (!typeRendu.contains('<')) return emptyList()
+        return typeRendu.substringAfter('<').removeSuffix(">").split(',').map { it.trim() }
+    }
+
     private fun substituerParametresDeType(parametres: List<String>, arguments: List<String>): List<String> {
         var rang = 0
         return parametres.map { parametre ->
