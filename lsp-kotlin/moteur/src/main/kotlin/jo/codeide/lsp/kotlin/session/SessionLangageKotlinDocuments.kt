@@ -1218,6 +1218,20 @@ internal class SessionLangageKotlinDocuments(
             prefixeImport = prefixe,
             suffixeImport = suffixe,
         )
+        // Chantier G — le quickfix @Suppress : le diagnostic couvrant
+        // le caret devient une SUPPRESSION sur la déclaration englobante
+        // (parité IntelliJ « Suppress… »). Les diagnostics vivent HORS
+        // verrou (consultations d'index) ; l'arbre est relu sous verrou
+        // de lecture APRÈS la passe.
+        val suppressions: PlanActionKotlin? =
+            diagnostics(uri).takeIf { it.isNotEmpty() }?.let { diags ->
+                verrou.read {
+                    if (fermee) return@read null
+                    documents[uri]?.let { document ->
+                        ActionsSource.supprimerDiagnostic(document.arbre, uri, deplacement, diags)
+                    }
+                }
+            }
         // V-F — les actions de SOURCE et REFACTORING (KC-10/KC-11, ADR
         // 0131) : l'organisation des imports (le plan n'existe que si le
         // bloc CHANGE — idempotence I1) et l'extraction de variable
@@ -1234,7 +1248,7 @@ internal class SessionLangageKotlinDocuments(
                     ActionsSource.inlineVariable(document.arbre, uri, deplacement),
                 )
             }
-        return rapides + sourceEtRefactorings
+        return rapides + listOfNotNull(suppressions) + sourceEtRefactorings
     }
 
     /**

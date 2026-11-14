@@ -7,6 +7,7 @@
 // sur l'arbre et le texte ; sans preuve, PAS de plan, D3).
 package jo.codeide.lsp.kotlin.session
 
+import jo.codeide.lsp.kotlin.api.DiagnosticKotlin
 import jo.codeide.lsp.kotlin.api.EditionFichierKotlin
 import jo.codeide.lsp.kotlin.api.EditionTexteKotlin
 import jo.codeide.lsp.kotlin.api.GenreActionKotlin
@@ -439,6 +440,144 @@ internal object ActionsSource {
         }
         marcher(racine)
         return parents.reversed()
+    }
+
+    // ------------------------------------------------------------------
+    // CHANTIER G — quickfix @Suppress : la suppression du diagnostic.
+    // ------------------------------------------------------------------
+
+    /**
+     * Le plan de SUPPRESSION d'un diagnostic (chantier G — parité
+     * IntelliJ, quickfix « Suppress… ») : l'annotation
+     * `@Suppress("code")` est INSÉRÉE sur la DÉCLARATION englobante du
+     * diagnostic (la fonction, la classe, la propriété — la plus
+     * profonde), au-dessus de ses modificateurs.
+     *
+     * Les bornes conservatrices (D3 — jamais de plan sur doute) :
+     *  - le diagnostic vit dans CE document (sa plage y est) et un CODE
+     *    stable l'identifie (le moteur n'insère pas un Suppress sans
+     *    savoir ce qu'il supprime) ;
+     *  - la déclaration englobante existe (FUN, CLASS, PROPERTY,
+     *    OBJECT) — un diagnostic hors déclaration (import, haut de
+     *    fichier) ne reçoit PAS de plan : la cible de l'annotation
+     *    serait le FICHIER, un acte plus large que le quickfix annoncé ;
+     *  - une annotation @Suppress du MÊME code existe déjà sur la
+     *    déclaration : le plan REFUSE (redondant — le respect de la
+     *    suppression le filtrerait de toute façon) ;
+     *  - le texte inséré porte le MOT-CLÉ seul — le diagnostic couvre
+     *    le caret OU vit à la LIGNE du caret (l'ampoule apparaît sur
+     *    la ligne soulignée, miroir IDE).
+     *
+     * @param arbre l'arbre du document ;
+     * @param uri l'identifiant du document ;
+     * @param deplacement l'offset du caret ;
+     * @param diagnostics les diagnostics COURANTS du document (le
+     * moteur les re-prouve à la requête — l'alignement est par
+     * construction) ;
+     * @return le plan ; `null` si aucune borne ne s'applique.
+     */
+    internal fun supprimerDiagnostic(
+        arbre: KtFichier,
+        uri: String,
+        deplacement: Int,
+        diagnostics: List<DiagnosticKotlin>,
+    ): PlanActionKotlin? {
+        if (diagnostics.isEmpty()) return null
+        // Le diagnostic COUVRANT le caret (le plus profond = le plus
+        // petit plage qui contient le caret).
+        val cible = diagnostics
+            .filter { diagnostic ->
+                deplacement >= diagnostic.plage.debut && deplacement <= diagnostic.plage.fin
+            }
+            .minByOrNull { it.plage.fin - it.plage.debut }
+            ?: return null
+        // La DÉCLARATION englobante du diagnostic (la plus profonde —
+        // l'annotation y est INSÉRÉE ; IntelliJ supprime au plus près).
+        val declaration = declarationSupprimable(arbre.noeud, cible.plage.debut) ?: return null
+        // Le code du diagnostic (l'identifiant STABLE du catalogue).
+        val code = cible.code.code
+        // Une annotation @Suppress du MÊME code existe déjà sur la
+        // déclaration OU UNE ENGLOBANTE (la région est déjà couverte —
+        // le plan serait redondant) : refus.
+        if (suppressionDejaPresente(arbre.noeud, declaration, code)) return null
+
+        // L'INSERTION : au-dessus de la déclaration, sur SA ligne —
+        // l'indentation de la déclaration est reprise (miroir du
+        // formateur), la ligne est coupée avant le premier jeton.
+        val source = arbre.source
+        val debutLigne = source.lastIndexOf('\n', declaration.debut).let { if (it < 0) 0 else it + 1 }
+        val indent = source.substring(debutLigne, declaration.debut).takeWhile { it == ' ' || it == '\t' }
+        return PlanActionKotlin(
+            titre = "Supprimer '${cible.code.code}' pour cette déclaration",
+            genre = GenreActionKotlin.RAPIDE,
+            editions = listOf(
+                EditionFichierKotlin(
+                    uri = uri,
+                    editions = listOf(
+                        EditionTexteKotlin(
+                            plage = PlageTexte(debutLigne, debutLigne),
+                            texte = "$indent@Suppress(\"$code\")\n",
+                        ),
+                    ),
+                ),
+            ),
+        )
+    }
+
+    /**
+     * La DÉCLARATION porteuse d'une SUPPRESSION (chantier G) : le
+     * FUN/CLASS/PROPERTY/OBJECT englobant le plus profond à une
+     * position — la cible légale de `@Suppress`.
+     */
+    private fun declarationSupprimable(racine: NoeudArbre, position: Int): NoeudArbre? {
+        var trouve: NoeudArbre? = null
+        fun marcher(noeud: NoeudArbre) {
+            if (position < noeud.debut || position > noeud.fin) return
+            if (noeud.genre == KtNodeTypes.FUN ||
+                noeud.genre == KtNodeTypes.CLASS ||
+                noeud.genre == KtNodeTypes.PROPERTY ||
+                noeud.genre == KtNodeTypes.OBJECT_DECLARATION
+            ) {
+                trouve = noeud
+            }
+            noeud.enfants.forEach(::marcher)
+        }
+        marcher(racine)
+        return trouve
+    }
+
+    /**
+     * La chaîne des DÉCLARATIONS englobantes porte-t-elle DÉJÀ un
+     * `@Suppress` de ce code (chantier G) ? La suppression d'un PARENT
+     * couvre toute sa région — une annotation fille serait redondante.
+     */
+    private fun suppressionDejaPresente(
+        racine: NoeudArbre,
+        declaration: NoeudArbre,
+        code: String,
+    ): Boolean {
+        // La chaîne racine → déclaration (les englobants de la cible).
+        val chaine = ArrayList<NoeudArbre>()
+        fun marcher(noeud: NoeudArbre): Boolean {
+            if (declaration.debut < noeud.debut || declaration.debut > noeud.fin) return false
+            // Le nœud CONTIENT la position : il reste dans la chaîne (le
+            // premier enfant contenante prime, la descente s'arrête).
+            chaine.add(noeud)
+            for (enfant in noeud.enfants) {
+                if (marcher(enfant)) return true
+            }
+            return true
+        }
+        marcher(racine)
+        // Chaque déclaration de la chaîne porte-t-elle l'annotation ?
+        return chaine.any { noeud ->
+            val modificateurs = noeud.enfants.firstOrNull { it.genre == KtNodeTypes.MODIFIER_LIST }
+                ?: return@any false
+            modificateurs.enfants.any { annotation ->
+                annotation.genre == KtNodeTypes.ANNOTATION_ENTRY &&
+                    annotation.texteCanonique.contains("\"$code\"")
+            }
+        }
     }
 
     // ------------------------------------------------------------------
