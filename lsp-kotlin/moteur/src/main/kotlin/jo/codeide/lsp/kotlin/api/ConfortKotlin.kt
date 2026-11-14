@@ -58,6 +58,14 @@ public class PlagePliableKotlin(
 public class SurvolKotlin(
     public val signature: String,
     public val documentation: String?,
+    /**
+     * L'ORIGINE de la déclaration survolée (chantier L — « aller à la
+     * source » du hover) : le CHEMIN lisible du fichier déclarant quand
+     * il diffère du document courant (`Autre.kt`, `scan/src/…`) ; `null`
+     * quand la déclaration vit dans le document même ou dans le
+     * classpath (pas de source à nommer).
+     */
+    public val origine: String? = null,
 )
 
 /**

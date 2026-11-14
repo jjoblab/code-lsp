@@ -59,7 +59,7 @@ internal object SurvolDocuments {
      */
     internal fun survol(
         cible: DocumentOuvert,
-        autres: List<DocumentOuvert>,
+        autres: List<Pair<String, DocumentOuvert>>,
         scan: ScanSources?,
         deplacement: Int,
         univers: UniversPreuves? = null,
@@ -78,10 +78,12 @@ internal object SurvolDocuments {
         val courante = declarationsCourantes.firstOrNull { it.nom() == nom }
         rendu(courante, cible.arbre.noeud.commentaires)?.let { return it }
 
-        // 2. Autres documents ouverts (ordre d'ouverture).
-        for (document in autres) {
+        // 2. Autres documents ouverts (ordre d'ouverture) — CHANTIER L :
+        // l'ORIGINE voyage (le hover rend « Défini dans … » — le saut à
+        // la source reste textDocument/definition, le lien INFORMATIF).
+        for ((uriAutre, document) in autres) {
             val declaration = declarationsRecursives(document.arbre).firstOrNull { it.nom() == nom }
-            rendu(declaration, document.arbre.noeud.commentaires)?.let { return it }
+            rendu(declaration, document.arbre.noeud.commentaires, origineLisible(uriAutre))?.let { return it }
         }
 
         // 3. Déclarations externes du scan (L1).
@@ -92,7 +94,12 @@ internal object SurvolDocuments {
             // la sert plus (signature seule, jamais d'exception) ; une URI
             // non-fichier (fixture) ne se vérifie pas : la KDoc reste.
             val documentation = externe.documentation?.takeIf { fichierDeclarantLisible(externe.uri) }
-            return SurvolKotlin(signature = externe.signature, documentation = documentation)
+            // CHANTIER L — l'origine du scan (chemin déclarant lisible).
+            return SurvolKotlin(
+                signature = externe.signature,
+                documentation = documentation,
+                origine = origineLisible(externe.uri),
+            )
         }
 
         // 3-bis. Les APPELABLES de premier niveau du CLASSPATH (vague 2e —
@@ -370,10 +377,14 @@ internal object SurvolDocuments {
      * @return le survol ; `null` si la déclaration est absente ou tronquée
      * sans nom (conservateur — elle ne se rend pas).
      */
-    private fun rendu(declaration: KtDeclaration?, commentaires: List<JetonBrut>): SurvolKotlin? {
+    private fun rendu(
+        declaration: KtDeclaration?,
+        commentaires: List<JetonBrut>,
+        origine: String? = null,
+    ): SurvolKotlin? {
         val signature = renduSignature(declaration ?: return null) ?: return null
         val documentation = DocumentationKotlin.kdocDe(declaration, commentaires)
-        return SurvolKotlin(signature = signature, documentation = documentation)
+        return SurvolKotlin(signature = signature, documentation = documentation, origine = origine)
     }
 
     /**
@@ -568,3 +579,13 @@ internal object SurvolDocuments {
         return resultat
     }
 }
+
+    /**
+     * Le CHEMIN LISIBLE d'une URI (chantier L — la ligne « Défini dans »
+     * du hover) : le SEGMENT FINAL d'une URI fichier (`src/Autre.kt`),
+     * TEL QUEL pour une URI non-fichier. `null` si vide.
+     */
+    private fun origineLisible(uri: String): String? {
+        val segment = uri.substringAfterLast('/')
+        return segment.ifEmpty { null }
+    }

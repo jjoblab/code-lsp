@@ -730,7 +730,7 @@ internal class SessionLangageKotlinDocuments(
             } ?: return null
         val autres = verrou.read {
             if (fermee) return@read emptyList()
-            documents.entries.filter { it.key != uri }.map { it.value }
+            documents.entries.filter { it.key != uri }.map { it.key to it.value }
         }
         val guichet = indexSiPret()
         val univers = construireUnivers(document, uri, guichet?.vue, guichet?.vueJvm)

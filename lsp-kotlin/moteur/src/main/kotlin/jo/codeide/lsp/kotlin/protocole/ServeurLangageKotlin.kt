@@ -483,10 +483,23 @@ public class ServeurLangageKotlin(
         return CompletableFuture.completedFuture(survol?.let(::survolLsp))
     }
 
-    /** Le Hover LSP d'un survol moteur (markdown ```kotlin + KDoc sinon plaintext). */
+    /**
+     * Le Hover LSP d'un survol moteur (markdown ```kotlin + KDoc sinon
+     * plaintext). CHANTIER L — l'ORIGINE (fichier déclarant ≠ document
+     * courant) s'écrit en tête : « **Défini dans** chemin » — le saut
+     * reste textDocument/definition, la ligne INFORME.
+     */
     private fun survolLsp(survol: jo.codeide.lsp.kotlin.api.SurvolKotlin): Hover {
+        val origine = survol.origine?.let { "**Défini dans** `$it`\n\n" } ?: ""
         val valeur = if (survol.documentation != null) {
-            MarkupContent("markdown", "```kotlin\n${survol.signature}\n```\n${survol.documentation}")
+            MarkupContent(
+                "markdown",
+                "${origine}```kotlin\n${survol.signature}\n```\n${survol.documentation}",
+            )
+        } else if (origine.isNotEmpty()) {
+            // SANS KDoc mais AVEC origine : le markdown porte la ligne
+            // d'origine + la signature en bloc.
+            MarkupContent("markdown", "${origine}```kotlin\n${survol.signature}\n```")
         } else {
             MarkupContent("plaintext", survol.signature)
         }
