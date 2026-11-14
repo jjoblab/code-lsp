@@ -58,6 +58,15 @@ public data class SurvolRiche(
      * source à décompiler).
      */
     public val fqcnBinaire: String? = null,
+    /**
+     * Le MODULE du document survolé (P3 — 15/11/2026) : quand le même
+     * FQCN vit dans plusieurs classpaths (une plateforme par module),
+     * la source décompilée doit venir du moteur DU module — pas du
+     * moteur défaut. Le serveur remplit ce champ (il connaît le chemin
+     * du document, le survol ne le connaît pas) ; le lien hover et la
+     * commande l'emportent. Null pour le module défaut.
+     */
+    public val module: String? = null,
 )
 
 /**

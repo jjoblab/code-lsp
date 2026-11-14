@@ -318,6 +318,22 @@ public class EnvironnementCompilation(
     }
 
     /**
+     * Le MODULE d'un document par le ROUTAGE (P3 — 15/11/2026) : la clé
+     * normalisée du module qui portera le document (null pour le défaut).
+     * Le routeur est relu à chaque appel (instantané courant du modèle),
+     * un routeur fautif replie sur le défaut sans propager l'exception.
+     *
+     * @param chemin le chemin du document.
+     * @return la clé du module (null = défaut, jamais d'exception).
+     */
+    public fun moduleDe(chemin: String): String? =
+        try {
+            normaliser(routeurFichierModule?.invoke(chemin))
+        } catch (_: Exception) {
+            null
+        }
+
+    /**
      * Rend le moteur du fichier par le ROUTAGE (fiche 047) : le routeur est
      * relu à CHAQUE requête (instantané courant du modèle), un routeur
      * fautif replie sur le contexte défaut sans propager l'exception.

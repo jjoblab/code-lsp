@@ -855,24 +855,36 @@ public class ServeurLangageJava(
         // ou décompilée, fiche 054). Une commande inconnue reste REFUSÉE
         // (contrat inchangé).
         if (params.command == COMMANDE_SOURCE_DECOMPILEE) {
-            // L'argument FQCN : sur le fil lsp4j il revient en JsonPrimitive
-            // (Gson) — lu par SON API, jamais par un cast de String (le
-            // miroir des lectures data du resolve).
-            val brut = params.arguments?.firstOrNull()
-            val fqcn = when (brut) {
+            // Les arguments : FQCN en tête, MODULE en second (P3 —
+            // optionnel, null/absent = défaut). Sur le fil lsp4j ils
+            // reviennent en JsonPrimitive (Gson) — lus par SON API, jamais
+            // par un cast de String (le miroir des lectures data du
+            // resolve).
+            fun lire(i: Int): String? = when (val brut = params.arguments?.getOrNull(i)) {
                 is String -> brut
                 is com.google.gson.JsonPrimitive -> brut.takeIf { it.isString }?.asString
                 else -> null
-            } ?: return refuse(ResponseErrorCode.InvalidParams, "FQCN absent de la commande")
-            // La MÊME voie que l'extension decompiledSource (fiche 054) :
-            // moteurs VIVANTS sondés, DÉFAUT d'abord — jamais de
-            // construction forcée.
+            }
+            val fqcn = lire(0)
+                ?: return refuse(ResponseErrorCode.InvalidParams, "FQCN absent de la commande")
+            val module = lire(1)
+            // P3 — le BON moteur : celui du MODULE d'abord (le document
+            // survolé y vivait), la sonde défaut ensuite (repli légitime :
+            // module inconnu, module sans moteur vivant, FQCN absent de
+            // son classpath). La MÊME voie que l'extension decompiledSource
+            // (fiche 054) : moteurs VIVANTS, jamais de construction forcée.
             val env = envVivant
             var source: String? = null
             if (env != null) {
-                for (moteur in env.moteursVivants()) {
-                    source = runCatching { moteur.decompiledSource(fqcn) }.getOrNull()
-                    if (source != null) break
+                if (!module.isNullOrEmpty()) {
+                    val moteurModule = runCatching { env.moteur(module) }.getOrNull()
+                    source = runCatching { moteurModule?.decompiledSource(fqcn) }.getOrNull()
+                }
+                if (source == null) {
+                    for (moteur in env.moteursVivants()) {
+                        source = runCatching { moteur.decompiledSource(fqcn) }.getOrNull()
+                        if (source != null) break
+                    }
                 }
             }
             if (source == null) {
@@ -1084,9 +1096,13 @@ public class ServeurLangageJava(
         // répartiteur (le fil de lecture ne porte plus que la soumission).
         return repartirDocument<Hover>(uri, voieNavigation, { null }) { chemin, texte ->
             guetterLenteur("hover") {
+                // P3 : le module du document survolé voyage avec le survol
+                // (le lien décompile l'emporte — la commande sonde le
+                // moteur du module AVANT le défaut).
+                val module = envVivant?.moduleDe(chemin)
                 avecMoteurFrais(chemin) { moteur ->
                     moteur?.survolRiche(chemin, texte, offsetDe(texte, params.position))
-                }?.let(::survolLsp)
+                }?.let { survolLsp(it.copy(module = module)) }
             }
         }
     }
@@ -1107,8 +1123,13 @@ public class ServeurLangageJava(
         // binaire uniquement) : la convention maison `x-codeide.decompile`
         // porte le FQCN ; le client qui la connaît rend le bouton, les
         // autres l'ignorent (texte final du bloc markdown).
+        // P3 : le lien embarque AUSSI le module quand le document survolé
+        // n'est pas du défaut — `x-codeide.decompile://<module>/<fqcn>` ;
+        // la commande sonde le moteur du module avant le défaut (le même
+        // FQCN peut vivre dans plusieurs classpaths).
         val lienDecompilee = survol.fqcnBinaire?.let {
-            "\n\n---\n*Source décompilée : `x-codeide.decompile://${it}`*"
+            val cible = if (survol.module.isNullOrEmpty()) it else "${survol.module}/${it}"
+            "\n\n---\n*Source décompilée : `x-codeide.decompile://$cible`*"
         } ?: ""
         val valeur = if (survol.documentation != null || origine.isNotEmpty() || lienDecompilee.isNotEmpty()) {
             val javadoc = survol.documentation ?: ""
