@@ -76,6 +76,7 @@ import org.eclipse.lsp4j.WillSaveTextDocumentParams
 import org.eclipse.lsp4j.TypeHierarchyItem
 import org.eclipse.lsp4j.WorkspaceEdit
 import org.eclipse.lsp4j.WorkspaceSymbolParams
+import org.eclipse.lsp4j.WorkspaceSymbol
 import org.eclipse.lsp4j.CallHierarchyItem
 import org.eclipse.lsp4j.CallHierarchyIncomingCall
 import org.eclipse.lsp4j.CallHierarchyIncomingCallsParams
@@ -331,7 +332,17 @@ public class ServeurLangageJava(
         if (env != null) {
             publicateur = PublicateurDiagnostics(clientOuRefus(), etats, env::moteurPourFichier, plagesVisibles)
             serviceRenommage = ServiceRenommage(env::moteurPourFichier, capsEspaceDeTravail)
-            symbolesEspace = SymbolesEspace(racines = { env.racinesSources() })
+            // CHANTIER B : l'annuaire du classpath rejoint la recherche de
+            // symboles — le moteur du CONTEXTE DÉFAUT (celui qui porte la
+            // plateforme h4) ouvre son annuaire paresseux ; l'échec
+            // silencieux retombe sur les sources seules (comportement
+            // historique inchangé).
+            symbolesEspace = SymbolesEspace(
+                racines = { env.racinesSources() },
+                annuaireClasspath = {
+                    runCatching { env.moteurPourFichier("").annuairePublic() }.getOrNull()
+                },
+            )
             moteur = null
 
             // LIVE-REPUBLISH (motif ContextListener du vendord — le
@@ -841,10 +852,45 @@ public class ServeurLangageJava(
     override fun symbol(params: WorkspaceSymbolParams): CompletableFuture<Either<List<SymbolInformation>, List<org.eclipse.lsp4j.WorkspaceSymbol>>> {
         garde<Either<List<SymbolInformation>, List<org.eclipse.lsp4j.WorkspaceSymbol>>>()?.let { return it }
         // Fiche 056 : requête vide → liste VIDE (I9) ; moteur non prêt →
-        // liste VIDE sans exception ; la réponse prend la forme GAUCHE
-        // (liste) — jamais null.
-        val resultat = symbolesEspace?.rechercher(params.query ?: "") ?: emptyList()
-        return CompletableFuture.completedFuture(Either.forLeft(resultat))
+        // liste VIDE sans exception. CHANTIER B (14/11/2026) : les types
+        // des BIBLIOTHÈQUES du classpath rejoignent les sources du projet
+        // — la réponse prend la forme DROITE (WorkspaceSymbol) SEULEMENT
+        // quand des symboles non résolus existent (la forme GAUCHE reste
+        // le contrat des sources seules, fiche 056 inchangée quand
+        // l'annuaire ne connaît rien — compatibilité client).
+        val requete = params.query ?: ""
+        val sources = symbolesEspace?.rechercher(requete) ?: emptyList()
+        val bibliotheques = symbolesEspace?.rechercherBibliotheques(requete) ?: emptyList()
+        if (bibliotheques.isEmpty()) {
+            return CompletableFuture.completedFuture(Either.forLeft(sources))
+        }
+        // Forme DROITE : les sources CONVERTIES en WorkspaceSymbol résolus
+        // (location directe) + les bibliothèques NON résolues (data.fqcn —
+        // le client appelle workspaceSymbol/resolve sur le CHOISI).
+        val tout = ArrayList<org.eclipse.lsp4j.WorkspaceSymbol>(sources.size + bibliotheques.size)
+        for (info in sources) {
+            tout.add(
+                org.eclipse.lsp4j.WorkspaceSymbol().apply {
+                    name = info.name
+                    kind = info.kind
+                    containerName = info.containerName
+                    location = org.eclipse.lsp4j.jsonrpc.messages.Either.forLeft(info.location)
+                },
+            )
+        }
+        tout.addAll(bibliotheques)
+        return CompletableFuture.completedFuture(Either.forRight(tout))
+    }
+
+    override fun resolveWorkspaceSymbol(unresolved: WorkspaceSymbol): CompletableFuture<WorkspaceSymbol> {
+        garde<WorkspaceSymbol>()?.let { return it }
+        // CHANTIER B — le resolve des symboles BIBLIOTHÈQUE : la location
+        // `jdt://decompiled/<fqcn>` est matérialisée ICI, à la demande
+        // (le contenu suit par l'extension decompiledSource — fiche 049).
+        // Un symbole inconnu (sans payload fqcn) revient TEL QUEL — jamais
+        // d'invention, jamais d'exception.
+        val resolu = runCatching { symbolesEspace?.resoudreBibliotheque(unresolved) }.getOrNull()
+        return CompletableFuture.completedFuture(resolu ?: unresolved)
     }
 
     // ----------------------------------------------------------------- //

@@ -2114,6 +2114,22 @@ public class MoteurJava(
     }
 
     /**
+     * L'annuaire du classpath du moteur (CHANTIER B — 14/11/2026) : le
+     * pont public vers l'annuaire de l'environnement de noms (jars, jrt,
+     * synthétiques), pour la recherche de symboles bibliothèques
+     * (`workspace/symbol`). L'appel peut construire l'annuaire au
+     * PREMIER usage (coût froid assumé une fois — le même que la
+     * complétion de type) ; un moteur disposé rend null (honnête).
+     *
+     * @return l'annuaire vivant, ou null (environnement libéré).
+     */
+    public fun annuairePublic(): jo.codeide.lsp.java.classpath.AnnuaireClasspath? {
+        return verrouCompilation.withLock {
+            runCatching { environnementNoms().annuaire }.getOrNull()
+        }
+    }
+
+    /**
      * Les éditions d'ORGANISATION des imports (vague V-D — ADR 0027 :
      * exposer organizeImports, l'API moteur existante M3) : le bloc trié
      * remplace la plage du bloc existant (ou s'insère à l'ancre).

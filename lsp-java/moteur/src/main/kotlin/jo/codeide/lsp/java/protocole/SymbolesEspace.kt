@@ -36,7 +36,15 @@ import org.eclipse.lsp4j.SymbolKind
  *
  * @param racines les racines sources du projet (vides = moteur non prêt).
  */
-public class SymbolesEspace(private val racines: () -> List<Path>) {
+public class SymbolesEspace(
+    private val racines: () -> List<Path>,
+    /** L'annuaire du classpath (CHANTIER B — 14/11/2026) : quand le
+     *  contexte défaut porte des bibliothèques, les types du CLASSPATH
+     *  rejoignent la recherche (miroir du « Go to Class » IntelliJ qui
+     *  traverse projet ET bibliothèques). Null = sources seules
+     *  (comportement historique inchangé). */
+    private val annuaireClasspath: (() -> jo.codeide.lsp.java.classpath.AnnuaireClasspath?)? = null,
+) {
 
     /** Un type déclaré, extrait lexicalement d'un fichier source. */
     private data class TypeDeclare(
@@ -272,6 +280,91 @@ public class SymbolesEspace(private val racines: () -> List<Path>) {
     private fun lireSansEchec(fichier: Path): String? = runCatching {
         Files.readString(fichier)
     }.getOrNull()
+
+    // ----------------------------------------------------------------- //
+    // CHANTIER B (14/11/2026) — les bibliothèques du classpath rejoignent //
+    // la recherche (« Go to Class » complet, miroir IntelliJ).            //
+    // ----------------------------------------------------------------- //
+
+    /**
+     * Recherche les types des BIBLIOTHÈQUES du classpath par préfixe de
+     * nom simple (chantier B) : l'annuaire du contexte défaut (jars +
+     * image jrt) est interrogé, chaque entrée devient un
+     * [org.eclipse.lsp4j.WorkspaceSymbol] non résolu — la `location`
+     * n'est PAS calculée à la liste (coût) : elle voyage sous forme
+     * `jdt://decompiled/<fqcn>` dans le champ data, matérialisée par
+     * `workspaceSymbol/resolve` quand l'utilisateur CHOISIT l'entrée
+     * (contrat LSP 3.17 : « servers should postpone computing location
+     * to the resolve request »).
+     *
+     * @param requete le préfixe (vide → liste VIDE, I9 ; insensible à
+     *   la casse).
+     * @param limite le plafond de réponses.
+     * @return les symboles bibliothèque non résolus (jamais null).
+     */
+    public fun rechercherBibliotheques(
+        requete: String,
+        limite: Int = 50,
+    ): List<org.eclipse.lsp4j.WorkspaceSymbol> {
+        if (requete.isEmpty()) return emptyList()
+        val annuaire = annuaireClasspath?.invoke() ?: return emptyList()
+        val prefixe = requete.lowercase()
+        return runCatching {
+            annuaire.typesParPrefixe(requete, limite)
+        }.getOrDefault(emptyList())
+            .filter { it.nomSimple.lowercase().startsWith(prefixe) }
+            .take(limite)
+            .map { entree -> symboleBibliotheque(entree) }
+    }
+
+    /**
+     * Le [org.eclipse.lsp4j.WorkspaceSymbol] non résolu d'une entrée du
+     * classpath : nom simple, kind dérivé du genre binaire, containerName
+     * = le paquet, et le FQCN sous `data` — la cible du resolve.
+     */
+    private fun symboleBibliotheque(entree: jo.codeide.lsp.java.classpath.EntreeType): org.eclipse.lsp4j.WorkspaceSymbol {
+        val annuaire = annuaireClasspath?.invoke()
+        val genre = runCatching { annuaire?.genreDe(entree.fqcn) }.getOrNull()
+        val symbole = org.eclipse.lsp4j.WorkspaceSymbol()
+        symbole.name = entree.nomSimple
+        symbole.kind = when (genre) {
+            jo.codeide.lsp.java.classpath.GenreType.INTERFACE -> SymbolKind.Interface
+            jo.codeide.lsp.java.classpath.GenreType.ENUM -> SymbolKind.Enum
+            jo.codeide.lsp.java.classpath.GenreType.ANNOTATION -> SymbolKind.Interface
+            else -> SymbolKind.Class
+        }
+        symbole.containerName = entree.fqcn.substringBeforeLast('.', "")
+        // La payload du resolve : FQCN + URI decompiled — jamais une
+        // location calculée à la liste.
+        symbole.data = com.google.gson.JsonObject().apply {
+            addProperty("fqcn", entree.fqcn)
+        }
+        return symbole
+    }
+
+    /**
+     * La résolution d'un symbole bibliothèque (chantier B —
+     * `workspaceSymbol/resolve`) : la location est matérialisée ICI, à
+     * la demande — l'URI `jdt://decompiled/<fqcn>` du type, plage
+     * VIDE (le client appelle ensuite l'extension `decompiledSource`
+     * DÉJÀ LIVRÉE pour le contenu — miroir exact de la définition
+     * binaire de la fiche 049).
+     *
+     * @param symbole le symbole non résolu rendu par [rechercherBibliotheques].
+     * @return le symbole résolu (location posée), ou null (payload
+     *   inconnue — jamais d'invention).
+     */
+    public fun resoudreBibliotheque(symbole: org.eclipse.lsp4j.WorkspaceSymbol): org.eclipse.lsp4j.WorkspaceSymbol? {
+        val donnees = symbole.data as? com.google.gson.JsonObject ?: return null
+        val fqcn = donnees.get("fqcn")?.takeIf { it.isJsonPrimitive }?.asString ?: return null
+        symbole.location = org.eclipse.lsp4j.jsonrpc.messages.Either.forLeft(
+            org.eclipse.lsp4j.Location(
+                "jdt://decompiled/${fqcn.replace('.', '/')}",
+                org.eclipse.lsp4j.Range(org.eclipse.lsp4j.Position(0, 0), org.eclipse.lsp4j.Position(0, 0)),
+            ),
+        )
+        return symbole
+    }
 
     private companion object {
         /** Les mots-clés déclarants de types de premier niveau. */
