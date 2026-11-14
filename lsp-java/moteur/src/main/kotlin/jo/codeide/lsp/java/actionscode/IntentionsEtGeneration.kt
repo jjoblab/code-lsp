@@ -146,6 +146,20 @@ public class ServiceIntentions(
         intentionConstante(position)?.let { resultat.add(it) }
         intentionReferenceMethode(position)?.let { resultat.add(it) }
         intentionVar(position)?.let { resultat.add(it) }
+        // P4 — l'entourage (surround with) : le caret dans une
+        // instruction TERMINÉE propose les quatre formes de contrôle.
+        // Éditions EAGER (voie textuelle — pas d'arbre, pas de différée).
+        val entourage = ServiceEntourage(source)
+        entourage.instructionAuCaret(position)?.let { instruction ->
+            val si: List<EditionTexte> = entourage.entourerSi(instruction)
+            val essai: List<EditionTexte> = entourage.entourerEssai(instruction)
+            val pour: List<EditionTexte> = entourage.entourerPour(instruction)
+            val tantQue: List<EditionTexte> = entourage.entourerTantQue(instruction)
+            resultat.add(action("refactor.rewrite", "Entourer de if / else", *si.toTypedArray()))
+            resultat.add(action("refactor.rewrite", "Entourer de try / catch", *essai.toTypedArray()))
+            resultat.add(action("refactor.rewrite", "Entourer de for", *pour.toTypedArray()))
+            resultat.add(action("refactor.rewrite", "Entourer de while", *tantQue.toTypedArray()))
+        }
         return resultat
     }
 
