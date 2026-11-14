@@ -634,7 +634,11 @@ internal class XmlLanguageServer(
         override fun rangeFormatting(params: DocumentRangeFormattingParams): CompletableFuture<List<TextEdit>> {
             val uri = params.textDocument.uri
             val document = documents[uri] ?: return CompletableFuture.completedFuture(emptyList())
-            val taille = params.options?.takeIf { it.tabSize > 0 }?.tabSize ?: INDENTATION_DEFAUT
+            val taille = jo.lspxml.format.StyleFormattageXml.depuisOptions(
+                params.options?.properties?.get("style"),
+                params.options?.properties?.get("indentSize")?.toIntOrNull(),
+                params.options?.takeIf { it.tabSize > 0 }?.tabSize,
+            )
             val debut = document.convertisseur.decalageDe(params.range.start)
             val fin = document.convertisseur.decalageDe(params.range.end)
             val editions =
@@ -832,9 +836,20 @@ internal class XmlLanguageServer(
             return CompletableFuture.completedFuture(edits)
         }
 
-        /** Taille d'indentation demandée (options du client, défaut 4). */
+        /**
+         * Taille d'indentation demandée (options du client, défaut 4).
+         * Session 5 : le STYLE des FormattingOptions — clé « style »
+         * (« android » = 4 espaces, la convention Android Studio ;
+         * « custom » = indentSize libre borné 1..16) ; la mesure
+         * `indentSize` surcharge tout, le tabSize reste le repli (le
+         * contrat S3 « options du client » est inchangé).
+         */
         private fun optionsIndentation(params: DocumentFormattingParams): Int =
-            params.options?.takeIf { it.tabSize > 0 }?.tabSize ?: INDENTATION_DEFAUT
+            jo.lspxml.format.StyleFormattageXml.depuisOptions(
+                params.options?.properties?.get("style"),
+                params.options?.properties?.get("indentSize")?.toIntOrNull(),
+                params.options?.takeIf { it.tabSize > 0 }?.tabSize,
+            )
 
         /** Erreur TYPOÉE « sans cible » (miroir Java/Kotlin — data FR). */
         private fun sansCible(

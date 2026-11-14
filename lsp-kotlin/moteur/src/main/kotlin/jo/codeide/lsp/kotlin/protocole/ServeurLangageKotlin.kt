@@ -7,6 +7,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executors
+import jo.codeide.lsp.kotlin.format.StyleFormattageKotlin
 import jo.codeide.lsp.kotlin.api.ClasspathKotlin
 import jo.codeide.lsp.kotlin.api.GenreActionKotlin
 import jo.codeide.lsp.kotlin.api.PlanActionKotlin
@@ -802,7 +803,13 @@ public class ServeurLangageKotlin(
     override fun formatting(params: DocumentFormattingParams): CompletableFuture<List<TextEdit>> {
         garde<List<TextEdit>>()?.let { return it }
         val uri = params.textDocument.uri
-        val taille = params.options?.tabSize ?: 4
+        // Session 5 : le STYLE des options LSP — officiel (4, défaut),
+        // android (2), custom (indentSize libre borné 1..16).
+        val taille = StyleFormattageKotlin.depuisOptions(
+            params.options?.properties?.get("style"),
+            params.options?.properties?.get("indentSize")?.toIntOrNull(),
+            params.options?.tabSize,
+        )
         val editions = calculFraiche(uri) { _ ->
             session?.formatage(uri, taille).orEmpty()
         }.orEmpty()
@@ -812,7 +819,12 @@ public class ServeurLangageKotlin(
     override fun rangeFormatting(params: DocumentRangeFormattingParams): CompletableFuture<List<TextEdit>> {
         garde<List<TextEdit>>()?.let { return it }
         val uri = params.textDocument.uri
-        val taille = params.options?.tabSize ?: 4
+        // Session 5 : le style des options, miroir du document entier.
+        val taille = StyleFormattageKotlin.depuisOptions(
+            params.options?.properties?.get("style"),
+            params.options?.properties?.get("indentSize")?.toIntOrNull(),
+            params.options?.tabSize,
+        )
         val editions = calculFraiche(uri) { texte ->
             val repere = ConvertisseurLsp.repere(texte)
             val debut = repere.offset(params.range.start)
