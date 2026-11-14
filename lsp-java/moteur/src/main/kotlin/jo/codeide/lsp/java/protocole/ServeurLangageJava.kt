@@ -1099,16 +1099,29 @@ public class ServeurLangageJava(
         // revient comme JsonObject (Gson) — lu par SON API, jamais par un
         // cast de Map.
         val donnees = unresolved.data as? com.google.gson.JsonObject
-            ?: return CompletableFuture.completedFuture(unresolved)
-        val fqn = donnees.get("importFqn")?.takeIf { it.isJsonPrimitive }?.asString
-            ?: return CompletableFuture.completedFuture(unresolved)
-        val statique = donnees.get("importStatique")?.takeIf { it.isJsonPrimitive }?.asBoolean ?: false
-        val uri = donnees.get("uri")?.takeIf { it.isJsonPrimitive }?.asString
-            ?: return CompletableFuture.completedFuture(unresolved)
+        val fqnImport = donnees?.get("importFqn")?.takeIf { it.isJsonPrimitive }?.asString
+        val uri = donnees?.get("uri")?.takeIf { it.isJsonPrimitive }?.asString
+
+        // CHANTIER C (14/11/2026) — la DOCUMENTATION au resolve (miroir du
+        // chantier K Kotlin) : la javadoc de l'item proposé est calculée
+        // ICI, à la demande (le popup ne paie que l'item choisi). Sources :
+        // les sources ATTACHÉES du classpath (chantier A) pour un type du
+        // classpath ; null honnête sinon (jamais fabriquée, R5). Le FQCN
+        // exploitable : l'import différé, sinon le DÉTAIL de l'item quand
+        // c'est un FQCN (types du classpath sans import nécessaire).
+        val documentation = documentationAuResolve(unresolved, fqnImport)
+
+        if (fqnImport == null || uri == null) {
+            if (documentation == null) return CompletableFuture.completedFuture(unresolved)
+            return CompletableFuture.completedFuture(avecDocumentation(unresolved, documentation))
+        }
+        val statique = donnees?.get("importStatique")?.takeIf { it.isJsonPrimitive }?.asBoolean ?: false
         val document = documentDe(uri) ?: return CompletableFuture.completedFuture(unresolved)
         val (chemin, texte) = document
-        val edition = jo.codeide.lsp.java.imports.ImportsDifferes.edition(texte, fqn, statique)
-            ?: return CompletableFuture.completedFuture(unresolved)
+        val edition = jo.codeide.lsp.java.imports.ImportsDifferes.edition(texte, fqnImport, statique)
+            ?: return CompletableFuture.completedFuture(
+                avecDocumentation(unresolved, documentation ?: return CompletableFuture.completedFuture(unresolved)),
+            )
         val repere = ConvertisseurLsp.repere(texte)
         val editionImport = org.eclipse.lsp4j.TextEdit(
             repere.plage(jo.codeide.lsp.java.diagnostics.Plage(edition.offset, edition.offset + edition.longueur)),
@@ -1122,9 +1135,70 @@ public class ServeurLangageJava(
         enrichi.insertText = unresolved.insertText
         enrichi.insertTextFormat = unresolved.insertTextFormat
         enrichi.data = unresolved.data
+        if (documentation != null) enrichi.documentation =
+            org.eclipse.lsp4j.jsonrpc.messages.Either.forRight(documentation)
         enrichi.additionalTextEdits = (unresolved.additionalTextEdits ?: emptyList()) + editionImport
         return CompletableFuture.completedFuture(enrichi)
     }
+
+    /**
+     * La documentation (MarkupContent markdown) au resolve (chantier C) :
+     * la javadoc des sources attachées du FQCN de l'item — l'import
+     * différé D'ABORD (types hors paquet), puis le détail quand c'est un
+     * FQCN pleinement qualifié (`android.app.Activity` — détail des types
+     * du classpath). Null honnête : sans canal, sans FQCN, sans javadoc.
+     */
+    private fun documentationAuResolve(item: CompletionItem, fqnImport: String?): org.eclipse.lsp4j.MarkupContent? {
+        val fqn = fqnImport ?: run {
+            val detail = item.detail ?: return null
+            // Un FQCN : segments en points, dernier segment capitalisé,
+            // aucun espace (les signatures « int foo(int) » sont écartées).
+            if (!detail.contains('.') || detail.contains(' ') || detail.contains('(')) return null
+            if (detail.substringAfterLast('.').firstOrNull()?.isUpperCase() != true) return null
+            detail
+        }
+        val javadoc = sourcesAttacheesServeur()?.javadocType(fqn) ?: return null
+        val nettoyeee = jo.codeide.lsp.java.survol.NettoyeurJavadocMarkdown.nettoyer(javadoc) ?: return null
+        return org.eclipse.lsp4j.MarkupContent("markdown", nettoyeee)
+    }
+
+    /** L'item enrichi de sa documentation (chantier C), le reste inchangé. */
+    private fun avecDocumentation(item: CompletionItem, documentation: org.eclipse.lsp4j.MarkupContent): CompletionItem {
+        val enrichi = CompletionItem()
+        enrichi.label = item.label
+        enrichi.kind = item.kind
+        enrichi.detail = item.detail
+        enrichi.filterText = item.filterText
+        enrichi.insertText = item.insertText
+        enrichi.insertTextFormat = item.insertTextFormat
+        enrichi.data = item.data
+        enrichi.additionalTextEdits = item.additionalTextEdits
+        enrichi.documentation = org.eclipse.lsp4j.jsonrpc.messages.Either.forRight(documentation)
+        return enrichi
+    }
+
+    /**
+     * Les sources attachées du serveur (chantier C) : la première pose de
+     * contexte les découvre (les jars plateforme du contexte DÉFAUT) —
+     * paresseux, jamais deux constructions (une par serveur). En régime
+     * FIGÉ (sans environnement d'hôte) : aucun canal (null honnête).
+     */
+    private fun sourcesAttacheesServeur(): jo.codeide.lsp.java.classpath.SourcesAttachees? {
+        return runCatching {
+            sourcesAttacheesRef.get()?.let { return it }
+            val jars = envVivant?.jarsDefaut() ?: emptyList()
+            val nouveau = jo.codeide.lsp.java.classpath.SourcesAttachees(jars)
+            if (!nouveau.actif) {
+                nouveau.close()
+                return null
+            }
+            sourcesAttacheesRef.set(nouveau)
+            nouveau
+        }.getOrNull()
+    }
+
+    /** La référence des sources attachées du serveur (construction unique). */
+    private val sourcesAttacheesRef = java.util.concurrent.atomic.AtomicReference<jo.codeide.lsp.java.classpath.SourcesAttachees?>()
 
     override fun signatureHelp(params: SignatureHelpParams): CompletableFuture<SignatureHelp> {
         garde<SignatureHelp>()?.let { return it }
