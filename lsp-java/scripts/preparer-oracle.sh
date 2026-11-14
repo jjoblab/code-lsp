@@ -20,11 +20,15 @@
 # Usage :
 #   bash lsp-java/scripts/preparer-oracle.sh
 # Variables d'environnement :
-#   CODEIDE_LSP_DIR   — checkout codeide-lsp EXISTANT (le commit épinglé est
-#                       VÉRIFIÉ ; refus sinon) — évite le clonage réseau
-#   ORACLE_DIR        — répertoire cible (défaut : .oracle à la racine)
-#   ORACLE_JDK_HOME   — JDK 21 AVEC javac (défaut : JAVA_HOME, puis les JDK
-#                       provisionnés par Gradle dans ~/.gradle/jdks)
+#   CODEIDE_LSP_DIR    — checkout codeide-lsp EXISTANT (le commit épinglé est
+#                        VÉRIFIÉ ; refus sinon) — évite le clonage réseau
+#   ORACLE_DIR         — répertoire cible (défaut : .oracle à la racine)
+#   ORACLE_JDK_HOME    — JDK 21 AVEC javac (défaut : JAVA_HOME, puis les JDK
+#                        provisionnés par Gradle dans ~/.gradle/jdks)
+#   ORACLE_GIT_TOKEN   — PAT lecture pour cloner codeide-lsp (PRIVÉ depuis
+#                        l'archivage du 13/11/2026 — la CI passe secrets
+#                        .ORACLE_TOKEN ; sans token l'URL publique anonyme
+#                        reste essayée, dépôt public = aucun changement)
 # ============================================================================
 set -euo pipefail
 
@@ -62,6 +66,10 @@ JDK="$(trouver_jdk)" || {
 echap "JDK : $JDK"
 
 # --- 2. Les checkouts épinglés (clone si absent, PLACEMENT au pin, vérification) -----
+# MIGRATION du 13/11 (codeide-lsp archivé et PRIVÉ) : le clonage anonyme ne
+# passe plus — ORACLE_GIT_TOKEN (CI : secrets.ORACLE_TOKEN, une PAT lecture)
+# authentifie clone ET fetch ; sans token, l'URL publique reste essayée
+# (le dépôt redeviendrait public = aucun changement requis).
 obtenir_checkout() {
     local nom="$1" commit="$2" url="$3"
     local dossier="$TRAVAIL/$nom"
@@ -72,7 +80,13 @@ obtenir_checkout() {
     fi
     if [ ! -d "$dossier/.git" ]; then
         echap "clonage $nom ($url)…" >&2
-        git clone "$url" "$dossier"
+        if [ -n "${ORACLE_GIT_TOKEN:-}" ]; then
+            local authentique
+            authentique="$(printf '%s' "$url" | sed 's#^\(https://\)#\1x-access-token:'"$ORACLE_GIT_TOKEN"'@#')"
+            git clone "$authentique" "$dossier"
+        else
+            git clone "$url" "$dossier"
+        fi
     fi
     if [ "$gere_par_script" = "1" ]; then
         # NOTRE clone (dans .oracle/travail) : on le PLACE au commit épinglé —

@@ -185,6 +185,11 @@ jobs:
       - name: Gradle
         uses: gradle/actions/setup-gradle@v4
       - name: Construction de l'oracle vendored (commit épinglé cb809e14)
+        # MIGRATION du 13/11 : codeide-lsp est PRIVÉ — le clone s'authentifie
+        # par ORACLE_GIT_TOKEN (PAT lecture, secret ORACLE_TOKEN) ; sans
+        # secret, le clone public anonyme reste tenté (dépôt re-public = OK).
+        env:
+          ORACLE_GIT_TOKEN: ${{ secrets.ORACLE_TOKEN }}
         run: bash lsp-java/scripts/preparer-oracle.sh
       - name: Banc de parité croisée (:java:benchParite)
         run: ./gradlew :java:benchParite --no-daemon --stacktrace
