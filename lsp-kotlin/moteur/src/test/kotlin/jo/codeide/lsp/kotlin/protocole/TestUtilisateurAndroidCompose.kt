@@ -342,9 +342,11 @@ class TestUtilisateurAndroidCompose {
         )
 
         // ── 10. workspace/symbol ───────────────────────────────────────
+        // Chantier J — la forme DROITE (WorkspaceSymbol) : les symboles
+        // bibliothèque y portent leur FQCN en data (resolve différé).
         val symbolesEspace = serveur.symbol(
             org.eclipse.lsp4j.WorkspaceSymbolParams("NoteRepository"),
-        ).get(15, TimeUnit.SECONDS)?.left
+        ).get(15, TimeUnit.SECONDS)?.right
         verif(
             "workspaceSymbol NoteRepository",
             symbolesEspace != null && symbolesEspace.isNotEmpty(),

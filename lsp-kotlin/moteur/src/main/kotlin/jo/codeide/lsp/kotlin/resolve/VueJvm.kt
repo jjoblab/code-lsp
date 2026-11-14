@@ -285,6 +285,54 @@ internal class VueJvmMembres(private val entrees: List<EntreeClasspathKotlin>) {
      * @param fqcn le nom pleinement qualifié ;
      * @return `true` si une entrée porte un class-file lisible à ce nom.
      */
+    /**
+     * Les FQCN des CLASSES de premier niveau dont le nom SIMPLE porte le
+     * préfixe (chantier J — Go to Class incluant bibliothèques) : balayage
+     * BORNÉ de l'index central de chaque zip (les entrées `.class` de
+     * premier niveau — les imbriquées `Outer$Inner.class` sont exclues).
+     *
+     * @param prefixe le préfixe du nom simple (VIDE interdit — la borne
+     * anti-noyade vit chez l'appelant) ;
+     * @param limite le plafond de rendus ;
+     * @return les FQCN correspondants, ordre du zip.
+     */
+    internal fun nomsClassesParPrefixe(prefixe: String, limite: Int): List<String> {
+        if (prefixe.isEmpty() || limite <= 0) return emptyList()
+        val rendus = mutableListOf<String>()
+        for ((indice, entree) in entrees.withIndex()) {
+            if (rendus.size >= limite) break
+            val zip = zipOuNul(indice) ?: continue
+            val entreesZip = zip.entries().asSequence()
+            for (element in entreesZip) {
+                if (rendus.size >= limite) break
+                val nom = element.name
+                if (!nom.endsWith(".class")) continue
+                if (nom.endsWith("/package-info.class") || nom.endsWith("/module-info.class")) continue
+                val dernierSlash = nom.lastIndexOf('/')
+                val nomSimple = nom.substring(dernierSlash + 1, nom.length - ".class".length)
+                if (nomSimple.isEmpty() || '$' in nomSimple) continue
+                if (!nomSimple.startsWith(prefixe)) continue
+                val paquet = if (dernierSlash > 0) nom.substring(0, dernierSlash).replace('/', '.') else ""
+                rendus.add(if (paquet.isEmpty()) nomSimple else "$paquet.$nomSimple")
+            }
+        }
+        return rendus
+    }
+
+    /** Le zip d'une entrée, ouvert paresseusement (ou `null` si absent). */
+    private fun zipOuNul(indice: Int): ZipFile? {
+        zips[indice]?.let { return it }
+        return try {
+            val fichier = java.io.File(entrees[indice].chemin)
+            if (!fichier.isFile) return null
+            val zip = ZipFile(fichier)
+            zips[indice] = zip
+            zip
+        } catch (_: Throwable) {
+            null
+        }
+    }
+
     internal fun possedeClasse(fqcn: String): Boolean = membresDeclares(fqcn) != null
 
     /**

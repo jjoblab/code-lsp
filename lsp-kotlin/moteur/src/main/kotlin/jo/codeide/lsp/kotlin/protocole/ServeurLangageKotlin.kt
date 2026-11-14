@@ -401,6 +401,10 @@ public class ServeurLangageKotlin(
         // Requête vide → tout ; sans correspondance → liste VIDE (I9) ;
         // la réponse prend la forme GAUCHE (liste) — jamais null.
         val symboles = session?.symbolesEspace(params.query ?: "").orEmpty()
+        // CHANTIER J — la forme DROITE (WorkspaceSymbol) : les symboles
+        // BIBLIOTHÈQUE (classpath) y portent leur FQCN en `data` — leur
+        // location se résout à la demande (workspaceSymbol/resolve) ;
+        // les symboles du PROJET portent leur location directement.
         val rendus = symboles.map { symbole ->
             // La plage du nom si le document est OUVERT (le repère y
             // vit), la position d'origine sinon (le client n'ouvre pas).
@@ -409,14 +413,43 @@ public class ServeurLangageKotlin(
                     ConvertisseurLsp.repere(instantane.texte).plage(plage)
                 }
             } ?: Range(Position(0, 0), Position(0, 0))
-            SymbolInformation(
-                symbole.nom,
-                ConvertisseurLsp.kindSymbole(symbole.genre),
-                Location(symbole.uri, plage),
-                symbole.uri,
-            )
+            val rendu = org.eclipse.lsp4j.WorkspaceSymbol()
+            rendu.name = symbole.nom
+            rendu.kind = ConvertisseurLsp.kindSymbole(symbole.genre)
+            // BIBLIOTHÈQUE : sans location (le jar n'a pas
+            // d'offsets) — le FQCN en data pour le resolve.
+            if (symbole.fqcn != null) {
+                rendu.containerName = symbole.fqcn.substringBeforeLast('.', "")
+                rendu.data = symbole.fqcn
+            } else {
+                rendu.setLocation(
+                    org.eclipse.lsp4j.jsonrpc.messages.Either.forLeft(
+                        Location(symbole.uri, plage),
+                    ),
+                )
+            }
+            rendu
         }
-        return CompletableFuture.completedFuture(Either.forLeft(rendus))
+        return CompletableFuture.completedFuture(Either.forRight(rendus))
+    }
+
+    override fun resolveWorkspaceSymbol(symbole: org.eclipse.lsp4j.WorkspaceSymbol): CompletableFuture<org.eclipse.lsp4j.WorkspaceSymbol> {
+        garde<org.eclipse.lsp4j.WorkspaceSymbol>()?.let { return it }
+        // CHANTIER J — la résolution DIFFÉRÉE : le FQCN de `data` se
+        // cherche dans les documents OUVERTS (la source du projet peut
+        // définir la classe) ; sinon le symbole reste SANS location —
+        // honnête (le jar ne porte pas d'offsets, jamais d'invention).
+        val fqcn = symbole.data as? String ?: return CompletableFuture.completedFuture(symbole)
+        val nomSimple = fqcn.substringAfterLast('.')
+        val candidats = session?.symbolesEspace(nomSimple).orEmpty()
+            .filter { it.fqcn == null && it.nom == nomSimple && it.plageNom != null }
+        val trouve = candidats.firstOrNull() ?: return CompletableFuture.completedFuture(symbole)
+        val instantane = etats.instantane(trouve.uri)
+            ?: return CompletableFuture.completedFuture(symbole)
+        val plage = ConvertisseurLsp.repere(instantane.texte).plage(trouve.plageNom!!)
+        symbole.location = org.eclipse.lsp4j.jsonrpc.messages.Either
+            .forLeft<Location, org.eclipse.lsp4j.WorkspaceSymbolLocation>(Location(trouve.uri, plage))
+        return CompletableFuture.completedFuture(symbole)
     }
 
     // ----------------------------------------------------------------- //

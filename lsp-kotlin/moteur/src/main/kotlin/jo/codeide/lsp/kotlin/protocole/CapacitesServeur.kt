@@ -109,7 +109,11 @@ public object CapacitesServeur {
         capacites.setReferencesProvider(true)
         capacites.setDocumentHighlightProvider(true)
         capacites.setDocumentSymbolProvider(true)
-        capacites.setWorkspaceSymbolProvider(true)
+        // CHANTIER J — le resolve DIFFÉRÉ des symboles bibliothèque
+        // (workspaceSymbol/resolve remplit la location à la demande).
+        capacites.setWorkspaceSymbolProvider(
+            org.eclipse.lsp4j.WorkspaceSymbolOptions(true),
+        )
         capacites.setSelectionRangeProvider(true)
         // Édition assistée.
         capacites.setCompletionProvider(CompletionOptions(false, listOf(".", "(")))

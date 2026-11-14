@@ -18,6 +18,7 @@ import jo.codeide.lsp.kotlin.api.DiagnosticKotlin
 import jo.codeide.lsp.kotlin.api.EditionTexteKotlin
 import jo.codeide.lsp.kotlin.api.EmplacementKotlin
 import jo.codeide.lsp.kotlin.api.GenreContexteKotlin
+import jo.codeide.lsp.kotlin.api.GenreSymboleKotlin
 import jo.codeide.lsp.kotlin.api.IndiceKotlin
 import jo.codeide.lsp.kotlin.api.NiveauMemoireKotlin
 import jo.codeide.lsp.kotlin.api.PlagesLieesKotlin
@@ -1305,7 +1306,30 @@ internal class SessionLangageKotlinDocuments(
             if (fermee) return@read emptyList()
             scanPublie?.contributions?.filter { it.uri !in urisOuvertes }.orEmpty()
         }
-        return SymbolesEspaceDocuments.symboles(documentsVivants, scan, requete)
+        val duProjet = SymbolesEspaceDocuments.symboles(documentsVivants, scan, requete)
+        // CHANTIER J — les classes de la BIBLIOTHÈQUE (le classpath posé)
+        // se proposent aussi : Go to Class/Symbol incluant bibliothèques.
+        // Bornes : requête NON VIDE (un balayage sans préfixe noierait le
+        // dialogue), préfixe (miroir nomsTopParPrefixe), et PAS de doublon
+        // avec les symboles du projet (le même nom simple reste UN item).
+        if (requete.isEmpty()) return duProjet
+        val guichet = indexSiPret() ?: return duProjet
+        val nomsDuProjet = duProjet.map { it.nom }.toSet()
+        // Les CLASSES du classpath (balayage BORNÉ de l'index central des
+        // zips — les imbriquées `$` exclues, package/module-info aussi).
+        val deBibliotheque = guichet.vueJvm.nomsClassesParPrefixe(requete, 20)
+            .mapNotNull { fqcn ->
+                val nomSimple = fqcn.substringAfterLast('.')
+                if (nomSimple in nomsDuProjet) return@mapNotNull null
+                SymboleEspaceKotlin(
+                    nom = nomSimple,
+                    genre = GenreSymboleKotlin.CLASSE,
+                    uri = "classpath:$fqcn",
+                    plageNom = null,
+                    fqcn = fqcn,
+                )
+            }
+        return duProjet + deBibliotheque
     }
 
     /**

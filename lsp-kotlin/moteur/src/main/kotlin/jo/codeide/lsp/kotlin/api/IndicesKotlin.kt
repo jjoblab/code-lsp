@@ -64,6 +64,13 @@ public class SymboleEspaceKotlin(
     public val genre: GenreSymboleKotlin,
     public val uri: String,
     public val plageNom: PlageTexte?,
+    /**
+     * Le FQCN du symbole BIBLIOTHÈQUE (chantier J — les classes du
+     * classpath se proposent dans workspace/symbol, leur location se
+     * résout à la demande par workspaceSymbol/resolve) ; `null` pour
+     * un symbole du PROJET (uri + plageNom suffisent).
+     */
+    public val fqcn: String? = null,
 )
 
 /**

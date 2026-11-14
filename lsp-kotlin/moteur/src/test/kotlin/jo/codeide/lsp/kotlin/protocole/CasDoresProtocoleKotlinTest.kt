@@ -182,7 +182,13 @@ class CasDoresProtocoleKotlinTest {
         assertTrue(capacites.referencesProvider.isLeft && capacites.referencesProvider.left, "references")
         assertTrue(capacites.documentHighlightProvider.isLeft && capacites.documentHighlightProvider.left, "documentHighlight")
         assertTrue(capacites.documentSymbolProvider.isLeft && capacites.documentSymbolProvider.left, "documentSymbol")
-        assertTrue(capacites.workspaceSymbolProvider.isLeft && capacites.workspaceSymbolProvider.left, "workspaceSymbol")
+        // CHANTIER J — le provider est en forme OPTIONS (le resolve
+        // différé des symboles bibliothèque y est annoncé).
+        assertTrue(
+            capacites.workspaceSymbolProvider.isRight &&
+                capacites.workspaceSymbolProvider.right.resolveProvider == true,
+            "workspaceSymbol (options + resolveProvider)",
+        )
         assertTrue(capacites.selectionRangeProvider.isLeft && capacites.selectionRangeProvider.left, "selectionRange")
         assertTrue(capacites.foldingRangeProvider.isLeft && capacites.foldingRangeProvider.left, "foldingRange")
         assertTrue(capacites.documentFormattingProvider.isLeft && capacites.documentFormattingProvider.left, "formatting")
