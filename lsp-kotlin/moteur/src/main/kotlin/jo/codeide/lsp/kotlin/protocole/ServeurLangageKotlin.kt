@@ -1211,6 +1211,7 @@ public class ServeurLangageKotlin(
                 GenreActionKotlin.ORGANISER_IMPORTS -> CodeActionKind.SourceOrganizeImports
                 GenreActionKotlin.EXTRAIRE_VARIABLE -> CodeActionKind.RefactorExtract
                 GenreActionKotlin.REECRIRE -> CodeActionKind.RefactorRewrite
+                GenreActionKotlin.INLINER_VARIABLE -> CodeActionKind.RefactorInline
             }
             val edit = WorkspaceEdit()
             val parUri = HashMap<String, MutableList<TextEdit>>()

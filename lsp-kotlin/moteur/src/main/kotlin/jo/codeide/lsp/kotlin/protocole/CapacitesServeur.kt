@@ -173,6 +173,8 @@ public object CapacitesServeur {
             CodeActionKind.RefactorExtract,
             // Chantier D — la mutabilité (intention « Convertir en var »).
             CodeActionKind.RefactorRewrite,
+            // Chantier E — l'inline de variable.
+            CodeActionKind.RefactorInline,
         )
         options.resolveProvider = true
         return options

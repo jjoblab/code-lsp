@@ -316,6 +316,132 @@ internal object ActionsSource {
     }
 
     // ------------------------------------------------------------------
+    // CHANTIER E — refactor.inline : l'INLINE de variable.
+    // ------------------------------------------------------------------
+
+    /**
+     * Le plan d'INLINE de la variable englobant le caret (chantier E —
+     * parité Android Studio, « Inline Variable ») : chaque USAGE du nom
+     * dans la fonction englobante est REMPLACÉ par l'initialisateur, la
+     * DÉCLARATION est RETIRÉE.
+     *
+     * Les bornes conservatrices (D3 — jamais de plan sur doute) :
+     *  - `val` LOCALE SEULE (jamais `var` — l'inline changerait la
+     *    sémantique de réécriture ; jamais une propriété de classe —
+     *    l'usage peut vivre dans un autre fichier) ;
+     *  - l'initialisateur est SANS EFFET DE BORD DÉMONTRABLE : un
+     *    LITTÉRAL (nombre, chaîne, booléen, null) ou une RÉFÉRENCE
+     *    SIMPLE (identifiant nu) — un appel ou une binaire pourrait
+     *    lancer ou répéter un calcul : refusé ;
+     *  - l'AMBIGUÏTÉ refuse : une SECONDE déclaration du même nom dans
+     *    la fonction (l'ombre n'est pas arbitrée), aucun usage (une
+     *    variable morte n'est pas un inline).
+     *
+     * @param arbre l'arbre du document ;
+     * @param uri l'identifiant du document ;
+     * @param deplacement l'offset du caret — sur la déclaration ;
+     * @return le plan ; `null` si une borne refuse.
+     */
+    internal fun inlineVariable(
+        arbre: KtFichier,
+        uri: String,
+        deplacement: Int,
+    ): PlanActionKotlin? {
+        val declaration = declarationPortante(arbre.noeud, deplacement) ?: return null
+        if (declaration.genre != KtNodeTypes.PROPERTY) return null
+        // `val` seul — le jeton prouve la non-mutabilité.
+        val jetonVal = declaration.jetonsPropres.firstOrNull { it.texte == "val" }
+            ?: return null
+        val jetonNom = declaration.jetonsPropres.firstOrNull { it.genre == KtTokens.IDENTIFIER }
+            ?: return null
+        val nom = jetonNom.texte
+
+        // LOCALE seule : la déclaration vit dans un CORPS de fonction
+        // (un PROPERTY dont un parent est un BLOCK sous FUN).
+        val parents = parentDe(arbre.noeud, declaration.debut)
+        if (parents.none { it.genre == KtNodeTypes.BLOCK }) return null
+        val fonction = parents.firstOrNull { it.genre == KtNodeTypes.FUN } ?: return null
+
+        // L'INITIALISATEUR : le dernier enfant EXPRESSION de la
+        // déclaration — littéral ou référence simple seule.
+        val initialiseur = declaration.enfants.lastOrNull {
+            it.genre != KtNodeTypes.TYPE_REFERENCE && it.genre != KtNodeTypes.MODIFIER_LIST
+        } ?: return null
+        val texteInitialisateur = arbre.source
+            .substring(initialiseur.debut, initialiseur.fin).trim()
+        val estLitteral = texteInitialisateur.startsWith("\"") ||
+            texteInitialisateur.matches(Regex("-?[0-9][0-9_]*((\\.[0-9]+)?[fFLdD]?)?|true|false|null"))
+        val estReferenceSimple = initialiseur.genre == KtNodeTypes.REFERENCE_EXPRESSION
+        if (!estLitteral && !estReferenceSimple) return null
+
+        // Les USAGES : les identifiants du nom dans la fonction, HORS
+        // déclaration — et l'AMBIGUÏTÉ : une seconde DÉCLARATION du même
+        // nom refuse le plan.
+        val usages = ArrayList<PlageTexte>()
+        var secondeDeclaration = false
+        fun marcher(noeud: NoeudArbre) {
+            if (noeud.genre == KtNodeTypes.PROPERTY) {
+                val jeton = noeud.jetonsPropres.firstOrNull { it.genre == KtTokens.IDENTIFIER }
+                if (jeton != null && jeton.texte == nom && noeud !== declaration) {
+                    secondeDeclaration = true
+                }
+            }
+            if (noeud !== declaration &&
+                noeud.genre == KtNodeTypes.REFERENCE_EXPRESSION &&
+                noeud.texteCanonique == nom
+            ) {
+                usages.add(PlageTexte(noeud.debut, noeud.fin))
+            }
+            noeud.enfants.forEach(::marcher)
+        }
+        marcher(fonction)
+        if (secondeDeclaration) return null
+        if (usages.isEmpty()) return null
+
+        // Les éditions : le RETRAIT de la LIGNE de déclaration (du
+        // début de ligne à la fin de ligne incluse — l'indent ne
+        // survit pas), puis chaque usage remplacé — en ordre du
+        // document, plages disjointes.
+        val source = arbre.source
+        val debutLigne = source.lastIndexOf('\n', declaration.debut).let { if (it < 0) 0 else it + 1 }
+        var finLigne = source.indexOf('\n', declaration.fin)
+        if (finLigne < 0) finLigne = source.length else finLigne += 1
+        val editions = ArrayList<EditionTexteKotlin>()
+        editions.add(
+            EditionTexteKotlin(plage = PlageTexte(debutLigne, finLigne), texte = ""),
+        )
+        for (usage in usages) {
+            editions.add(EditionTexteKotlin(plage = usage, texte = texteInitialisateur))
+        }
+        return PlanActionKotlin(
+            titre = "Inline '$nom' (${usages.size} usage${if (usages.size > 1) "s" else ""})",
+            genre = GenreActionKotlin.INLINER_VARIABLE,
+            editions = listOf(EditionFichierKotlin(uri = uri, editions = editions)),
+        )
+    }
+
+    /**
+     * La chaîne des PARENTS d'un nœud à une position (chantier E) — du
+     * plus proche à la racine.
+     */
+    private fun parentDe(racine: NoeudArbre, deplacement: Int): List<NoeudArbre> {
+        val parents = ArrayList<NoeudArbre>()
+        fun marcher(noeud: NoeudArbre): Boolean {
+            if (deplacement < noeud.debut || deplacement > noeud.fin) return false
+            // Le nœud CONTIENT la position : il reste dans la chaîne —
+            // la feuille contenante est le nœud le plus profond (elle
+            // retourne vrai, la chaîne ne se déroule pas).
+            parents.add(noeud)
+            for (enfant in noeud.enfants) {
+                if (marcher(enfant)) return true
+            }
+            return true
+        }
+        marcher(racine)
+        return parents.reversed()
+    }
+
+    // ------------------------------------------------------------------
     // Aides de preuve.
     // ------------------------------------------------------------------
 

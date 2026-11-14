@@ -31,6 +31,12 @@ public enum class GenreActionKotlin {
      * intention « Convertir en var » de l'IDE).
      */
     REECRIRE,
+
+    /**
+     * Chantier E — l'INLINE de variable (`refactor.inline` — l'inverse
+     * de l'extraction KC-11).
+     */
+    INLINER_VARIABLE,
 }
 
 /**

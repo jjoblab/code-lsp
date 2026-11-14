@@ -468,3 +468,13 @@ tasks.register<JavaExec>("sondeChoixCandidate") {
     )
     jvmArgs("-Xmx2g", "-XX:+UseSerialGC")
 }
+
+tasks.register<JavaExec>("sondeArbreVal") {
+    group = "verification"
+    mainClass.set("jo.codeide.lsp.kotlin.banc.SondeArbreValKt")
+    classpath = bancSourceSet.runtimeClasspath
+    javaLauncher.set(
+        javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(VERSION_JDK)) },
+    )
+    jvmArgs("-Xmx1g", "-XX:+UseSerialGC")
+}

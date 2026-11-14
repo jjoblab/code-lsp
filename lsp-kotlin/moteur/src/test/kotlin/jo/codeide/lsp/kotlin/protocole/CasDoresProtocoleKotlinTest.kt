@@ -191,19 +191,23 @@ class CasDoresProtocoleKotlinTest {
         assertTrue(capacites.renameProvider.isRight, "rename (options avec préparation)")
         assertTrue(capacites.renameProvider.right.prepareProvider, "rename.prepareProvider")
         assertTrue(capacites.codeActionProvider.isRight, "codeAction (options)")
-        // V-F (ADR 0131/KC-10/KC-11) — les kinds EXACTS annoncés :
-        // quickfix (correctifs sur diagnostics), source.organizeImports
-        // (organisateur d'imports), refactor.extract (extraction de
-        // variable bornée) ; le RESOLVE est annoncé (l'action rendue est
-        // complète — identité stable).
+        // V-F (ADR 0131/KC-10/KC-11) + chantiers D/E (parité IDE) — les
+        // kinds EXACTS annoncés : quickfix (correctifs sur diagnostics),
+        // source.organizeImports (organisateur d'imports),
+        // refactor.extract (extraction de variable bornée),
+        // refactor.rewrite (mutabilité val → var), refactor.inline
+        // (inline de variable) ; le RESOLVE est annoncé (l'action rendue
+        // est complète — identité stable).
         assertEquals(
             listOf(
                 org.eclipse.lsp4j.CodeActionKind.QuickFix,
                 org.eclipse.lsp4j.CodeActionKind.SourceOrganizeImports,
                 org.eclipse.lsp4j.CodeActionKind.RefactorExtract,
+                org.eclipse.lsp4j.CodeActionKind.RefactorRewrite,
+                org.eclipse.lsp4j.CodeActionKind.RefactorInline,
             ),
             capacites.codeActionProvider.right.codeActionKinds,
-            "codeActionKinds = quickfix + source.organizeImports + refactor.extract exactement",
+            "codeActionKinds = quickfix + source.organizeImports + refactor.extract + refactor.rewrite + refactor.inline exactement",
         )
         assertEquals(true, capacites.codeActionProvider.right.resolveProvider, "codeAction.resolveProvider (V-F)")
         // V-I2 (ADR 0136 étape B.3) — les CAPACITÉS PALIER 2 passent
