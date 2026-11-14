@@ -116,7 +116,10 @@ public object CapacitesServeur {
         )
         capacites.setSelectionRangeProvider(true)
         // Édition assistée.
-        capacites.setCompletionProvider(CompletionOptions(false, listOf(".", "(")))
+        // resolveProvider TRUE (chantier K — la KDoc se résout à la
+        // demande ; le chantier A y résout déjà l'édition d'import : le
+        // contrat LSP est enfin annoncé).
+        capacites.setCompletionProvider(CompletionOptions(true, listOf(".", "(")))
         capacites.setSignatureHelpProvider(SignatureHelpOptions(listOf("(", ",")))
         capacites.setCodeActionProvider(optionsActions())
         capacites.setDocumentFormattingProvider(true)

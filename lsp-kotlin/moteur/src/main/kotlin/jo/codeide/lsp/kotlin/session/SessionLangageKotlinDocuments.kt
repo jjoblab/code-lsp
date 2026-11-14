@@ -740,6 +740,21 @@ internal class SessionLangageKotlinDocuments(
         }
     }
 
+    override fun documentationSymbole(uri: String, nom: String): String? {
+        // CHANTIER K — resolve différé : la KDoc de la déclaration
+        // TOP-LEVEL du document portant ce nom (la complétion marque
+        // l'item ; le client résout À LA DEMANDE — jamais de charge
+        // inutile aux items non consultés).
+        return verrou.read {
+            if (fermee) return@read null
+            val document = documents[uri] ?: return@read null
+            val declaration = document.arbre.declarations()
+                .firstOrNull { it.nom() == nom } ?: return@read null
+            jo.codeide.lsp.kotlin.documentation.DocumentationKotlin
+                .kdocDe(declaration, document.arbre.noeud.commentaires)
+        }
+    }
+
     /**
      * Construit l'univers des preuves d'un document (vague 2c — survol et
      * quick-fix d'import consultent la même matière que la passe de

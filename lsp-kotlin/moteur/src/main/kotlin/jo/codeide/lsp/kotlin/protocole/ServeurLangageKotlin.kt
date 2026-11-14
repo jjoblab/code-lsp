@@ -533,11 +533,18 @@ public class ServeurLangageKotlin(
             if (proposition.texteInsertion != null && proposition.texteInsertion.contains("$")) {
                 item.insertTextFormat = InsertTextFormat.Snippet
             }
-            proposition.fqcnImport?.let { fqcn ->
-                // data = {import, uri} : le RESOLVE en tire l'édition
-                // d'import (chantier A — auto-import à la complétion).
-                item.data = mapOf("import" to fqcn, "uri" to uri)
+            // data = {import?, symbole?, uri} : le RESOLVE en tire
+            // l'édition d'import (chantier A — auto-import) et la KDoc
+            // de la déclaration du document (chantier K — doc différée).
+            val donnees = mutableMapOf<String, Any>("uri" to uri)
+            proposition.fqcnImport?.let { fqcn -> donnees["import"] = fqcn }
+            // CHANTIER K — la proposition dont le LIBELLÉ est une
+            // déclaration TOP-LEVEL du document porte son nom : la KDoc
+            // se résout à la demande (documentationSymbole).
+            if (session?.documentationSymbole(uri, proposition.libelle) != null) {
+                donnees["symbole"] = proposition.libelle
             }
+            if (donnees.size > 1) item.data = donnees
             item
         }
         return CompletableFuture.completedFuture(Either.forRight(liste))
@@ -552,6 +559,21 @@ public class ServeurLangageKotlin(
         // comportement « choisir Text ajoute l'import » de l'IDE.
         val donnees = unresolved.data
         if (donnees is Map<*, *>) {
+            // CHANTIER K — la KDoc de la déclaration du document (doc
+            // différée : la complétion marque, le resolve rend).
+            val symbole = donnees["symbole"] as? String
+            if (!symbole.isNullOrEmpty()) {
+                val uriDoc = donnees["uri"] as? String
+                if (uriDoc != null) {
+                    val doc = session?.documentationSymbole(uriDoc, symbole)
+                    if (!doc.isNullOrEmpty()) {
+                        unresolved.documentation =
+                            org.eclipse.lsp4j.jsonrpc.messages.Either.forRight(
+                                org.eclipse.lsp4j.MarkupContent("markdown", doc),
+                            )
+                    }
+                }
+            }
             val fqcn = donnees["import"] as? String
             if (!fqcn.isNullOrEmpty()) {
                 val uri = donnees["uri"] as? String

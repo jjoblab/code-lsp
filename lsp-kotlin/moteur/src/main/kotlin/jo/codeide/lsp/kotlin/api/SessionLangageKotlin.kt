@@ -217,6 +217,18 @@ public interface SessionLangageKotlin : AutoCloseable {
     public fun survol(uri: String, deplacement: Int): SurvolKotlin?
 
     /**
+     * La DOCUMENTATION d'une déclaration par NOM (chantier K — resolve
+     * différé de la complétion) : la KDoc de la déclaration TOP-LEVEL du
+     * document portant EXACTEMENT ce nom ; `null` si le document ne
+     * déclare pas ce nom ou si la déclaration n'a pas de KDoc.
+     *
+     * @param uri le document où la proposition est née ;
+     * @param nom le nom de la déclaration candidate ;
+     * @return la KDoc rendue ; `null` sinon.
+     */
+    public fun documentationSymbole(uri: String, nom: String): String?
+
+    /**
      * Rend les propositions de COMPLÉTION au point demandé (étage 3 —
      * ADR 0113 : le pipeline complet — classification du caret, régimes
      * de collecte membre/nom/import/contextuelle, arrangement honnête ;
