@@ -405,7 +405,10 @@ class CapacitesLspPariteTest {
          */
         private val TABLE_JAVA: Map<String, String> =
             linkedMapOf(
-                "synchronisation" to "complète",
+                // Chantier E (14/11/2026) : la forme OPTIONS (save.includeText
+                // + willSaveWaitUntil — organisation des imports à la
+                // sauvegarde, miroir du chantier F Kotlin).
+                "synchronisation" to "complète + options (F)",
                 "complétion" to "déclencheurs .@",
                 "survol" to "oui",
                 "définition" to "oui",

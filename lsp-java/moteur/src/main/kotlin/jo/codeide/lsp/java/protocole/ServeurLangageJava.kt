@@ -72,6 +72,7 @@ import org.eclipse.lsp4j.SignatureInformation
 import org.eclipse.lsp4j.SymbolInformation
 import org.eclipse.lsp4j.TextDocumentPositionParams
 import org.eclipse.lsp4j.TextEdit
+import org.eclipse.lsp4j.WillSaveTextDocumentParams
 import org.eclipse.lsp4j.TypeHierarchyItem
 import org.eclipse.lsp4j.WorkspaceEdit
 import org.eclipse.lsp4j.WorkspaceSymbolParams
@@ -688,6 +689,39 @@ public class ServeurLangageJava(
         etats.changer(identifiant.uri, texte, identifiant.version.toLong())
         serviceRenommage?.ouvrirDocument(identifiant.uri, identifiant.version.toLong())
         publicateur?.demander(identifiant.uri)
+    }
+
+    override fun willSaveWaitUntil(params: WillSaveTextDocumentParams): CompletableFuture<List<TextEdit>> {
+        garde<List<TextEdit>>()?.let { return it }
+        // CHANTIER E (14/11/2026) — « Optimize imports on the fly »
+        // d'IntelliJ (miroir du chantier F Kotlin) : AVANT l'écriture
+        // disque, le serveur rend les éditions d'ORGANISATION des imports
+        // (le MÊME organisateur que l'action de code source.organizeImports
+        // — tri stable, inutilisés retirés, doublons fusionnés). Le bloc
+        // PROPRE ne rend RIEN (idempotence — une sauvegarde ne doit
+        // JAMAIS réécrire un document propre). Un document jamais ouvert
+        // ou un moteur non prêt rend une liste VIDE (honnête, I9).
+        val uri = params.textDocument.uri
+        val document = documentDe(uri) ?: return CompletableFuture.completedFuture(emptyList())
+        val (chemin, texte) = document
+        val moteur = moteurPour(chemin) ?: return CompletableFuture.completedFuture(emptyList())
+        val editions = runCatching { moteur.organiserImportsEditions(chemin, texte) }.getOrNull()
+            ?: return CompletableFuture.completedFuture(emptyList())
+        if (editions.isEmpty()) return CompletableFuture.completedFuture(emptyList())
+        // Idempotence : une édition qui RECOPIE le texte existant (bloc
+        // déjà propre) ne voyage PAS — une sauvegarde ne réécrit jamais
+        // un document propre (miroir du chantier F Kotlin).
+        val changeantes = editions.filter { edition ->
+            texte.substring(edition.offset, edition.offset + edition.longueur) != edition.texte
+        }
+        if (changeantes.isEmpty()) return CompletableFuture.completedFuture(emptyList())
+        val repere = ConvertisseurLsp.repere(texte)
+        return CompletableFuture.completedFuture(changeantes.map { edition ->
+            TextEdit(
+                repere.plage(jo.codeide.lsp.java.diagnostics.Plage(edition.offset, edition.offset + edition.longueur)),
+                edition.texte,
+            )
+        })
     }
 
     override fun didSave(params: DidSaveTextDocumentParams) {

@@ -14,10 +14,12 @@ import org.eclipse.lsp4j.DocumentOnTypeFormattingOptions
 import org.eclipse.lsp4j.InitializeResult
 import org.eclipse.lsp4j.PositionEncodingKind
 import org.eclipse.lsp4j.RenameOptions
+import org.eclipse.lsp4j.SaveOptions
 import org.eclipse.lsp4j.ServerCapabilities
 import org.eclipse.lsp4j.ServerInfo
 import org.eclipse.lsp4j.SignatureHelpOptions
 import org.eclipse.lsp4j.TextDocumentSyncKind
+import org.eclipse.lsp4j.TextDocumentSyncOptions
 import org.eclipse.lsp4j.jsonrpc.json.MessageJsonHandler
 import org.eclipse.lsp4j.jsonrpc.messages.Either
 import org.eclipse.lsp4j.SemanticTokensLegend
@@ -203,7 +205,17 @@ public object CapacitesServeur {
 
         // Synchronisation plein texte (fiche 059 : didChange full-sync,
         // didSave sans texte → republier depuis le buffer vivant).
-        capacites.setTextDocumentSync(TextDocumentSyncKind.Full)
+        // CHANTIER E (14/11/2026) : la sauvegarde porte le TEXTE
+        // (SaveOptions.includeText) et le serveur PARTICIPE à la
+        // sauvegarde (willSaveWaitUntil : les éditions d'ORGANISATION des
+        // imports sont rendues AVANT l'écriture disque — « Optimize
+        // imports on the fly » d'IntelliJ, miroir du chantier F Kotlin).
+        val synchronisation = TextDocumentSyncOptions()
+        synchronisation.openClose = true
+        synchronisation.change = TextDocumentSyncKind.Full
+        synchronisation.save = Either.forRight(SaveOptions().apply { includeText = true })
+        synchronisation.willSaveWaitUntil = true
+        capacites.setTextDocumentSync(Either.forRight(synchronisation))
 
         // Encodage des positions (fiche 055 : valeur exacte UTF-16).
         capacites.setPositionEncoding(PositionEncodingKind.UTF16)
