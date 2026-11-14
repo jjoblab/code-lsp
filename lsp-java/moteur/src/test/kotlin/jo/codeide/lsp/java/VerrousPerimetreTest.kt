@@ -65,10 +65,19 @@ class VerrousPerimetreTest {
 
         // Chauffe : la première diagnose construit l'environnement et remplit
         // le mémo (elle prend le verrou elle-même — aucun fil ne le détient) ;
-        // la complétion est chauffée de la même façon (sonde à chaud).
+        // la complétion est chauffée de la même façon (sonde à chaud). La
+        // SECONDE diagnose (frappe identique) touche le MÉMO : le compteur
+        // fastDiagnoseHits vaut 1 AVANT les fils concurrents — la sonde
+        // `fastDiagnoseHits >= 1` du fil « sondes » ne dépend PLUS de
+        // l'ordre d'exécution des fils (sur un runner chargé, l'ancienne
+        // forme lisait 0 quand le fil sondes passait avant le fil mémo).
         assertTrue(
             moteur.diagnose(chemin, source).none { it.severite == jo.codeide.lsp.java.diagnostics.Severite.ERREUR },
             "fixture saine : 0 erreur",
+        )
+        assertTrue(
+            moteur.diagnose(chemin, source).none { it.severite == jo.codeide.lsp.java.diagnostics.Severite.ERREUR },
+            "fixture saine : 0 erreur (le second passage prouve le HIT mémo)",
         )
         moteur.completer(chemin, source, source.indexOf("unChamp"))
 
