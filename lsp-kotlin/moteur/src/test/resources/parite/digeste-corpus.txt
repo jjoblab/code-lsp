@@ -1,7 +1,6 @@
 002889bebe073e9d539fe2cf53dd6b2b9d3811afdef69bd9eee2e244b55959fa  lsp-xml/moteur/src/test/kotlin/jo/lspxml/catalog/CataloguePlateformeTest.kt
 00765f99f405f965b9547f036dc4fab34d8ee74e58d30cfae612975baee61b21  lsp-java/moteur/src/test/kotlin/jo/codeide/lsp/java/survol/Fiche021SurvolJavadocTest.kt
 00c41f389cd592b26f78abdec22dbfd6d75856b9c376f02b3e9f02eee35fa786  lsp-kotlin/moteur/src/main/kotlin/jo/codeide/lsp/kotlin/session/CompletionContextes.kt
-00d28dec378cfb2ac7c8f4e1509ff4ea8cc03513e5ee11cfaa0de03cebb52d3f  lsp-host/src/test/kotlin/jo/codeide/lsp/host/CapacitesLspPariteTest.kt
 00e921bd20557e0d796b5f09b6075922da6b258b324d8da5289f0873a32661df  lsp-kotlin/moteur/src/main/kotlin/jo/codeide/lsp/kotlin/session/CompletionMembres.kt
 00eea954ab73db57724441ed3299a471cacc412e1445361695ccd3e7c1015894  lsp-java/moteur/src/test/kotlin/jo/codeide/lsp/java/inlay/Fiche030VarTypeHintsTest.kt
 015cbdbc320df28d591f956b3e7df2de13358f820dc7e434fa1b8b6b58eb08b9  lsp-java/moteur/src/test/kotlin/jo/codeide/lsp/java/Fiche042StubsIntrinsequesTest.kt
@@ -400,6 +399,7 @@
 9264f502aedca14e85a789aee682a11578962516ae2e6d62681472cbb4b0185c  lsp-java/moteur/src/test/kotlin/jo/codeide/lsp/java/gabarits/Fiche029GabaritsTest.kt
 926a4bb29b2ed389fbf3ff2f401e2de4fedc874f6fddf9cb2e7d9acb542d7657  socle/model/src/main/kotlin/jo/codeide/lsp/model/ConvertisseurModeleLsp.kt
 92a337168551087e51abf373949ef1a84c1477abdde48e5affa8c22aaf8d7850  lsp-kotlin/moteur/src/test/kotlin/jo/codeide/lsp/kotlin/session/Fiche038ReproductionVague5Test.kt
+92a6e576ea0647327788bf5a26044b7be77eaf7393aa40ccf448673c10bb21a2  lsp-host/src/test/kotlin/jo/codeide/lsp/host/CapacitesLspPariteTest.kt
 92eec630ae8fd44864dfa30e9942c56c3927b12db8ffd260502641c15a820a44  lsp-java/moteur/src/test/kotlin/jo/codeide/lsp/java/Fiche012ConcurrenceMoteurTest.kt
 937fc79d2c7966fca39add117ad8ff2180530d409ff99ac871b833c3f1a844ea  lsp-java/moteur/src/main/kotlin/jo/codeide/lsp/java/actionscode/CorrecteursEtendus.kt
 949ea0a82ba60364814039fb3d7f5713c9929066b1aef29068a0ce66e234b24e  lsp-xml/moteur/src/test/kotlin/jo/lspxml/session/SessionP3Test.kt
