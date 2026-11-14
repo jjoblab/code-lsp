@@ -634,11 +634,7 @@ internal class XmlLanguageServer(
         override fun rangeFormatting(params: DocumentRangeFormattingParams): CompletableFuture<List<TextEdit>> {
             val uri = params.textDocument.uri
             val document = documents[uri] ?: return CompletableFuture.completedFuture(emptyList())
-            val taille = jo.lspxml.format.StyleFormattageXml.depuisOptions(
-                params.options?.properties?.get("style"),
-                params.options?.properties?.get("indentSize")?.toIntOrNull(),
-                params.options?.takeIf { it.tabSize > 0 }?.tabSize,
-            )
+            val taille = styleDesOptions(params.options)
             val debut = document.convertisseur.decalageDe(params.range.start)
             val fin = document.convertisseur.decalageDe(params.range.end)
             val editions =
@@ -842,14 +838,23 @@ internal class XmlLanguageServer(
          * (« android » = 4 espaces, la convention Android Studio ;
          * « custom » = indentSize libre borné 1..16) ; la mesure
          * `indentSize` surcharge tout, le tabSize reste le repli (le
-         * contrat S3 « options du client » est inchangé).
+         * contrat S3 « options du client » est inchangé) — la lecture
+         * vit dans [styleDesOptions].
          */
-        private fun optionsIndentation(params: DocumentFormattingParams): Int =
-            jo.lspxml.format.StyleFormattageXml.depuisOptions(
-                params.options?.properties?.get("style"),
-                params.options?.properties?.get("indentSize")?.toIntOrNull(),
-                params.options?.takeIf { it.tabSize > 0 }?.tabSize,
+        /** Le style + mesures des options LSP (session 5). */
+        private fun styleDesOptions(
+            options: org.eclipse.lsp4j.FormattingOptions?,
+        ): Int {
+            @Suppress("DEPRECATION") val proprietes = options?.properties
+            return jo.lspxml.format.StyleFormattageXml.depuisOptions(
+                proprietes?.get("style"),
+                proprietes?.get("indentSize")?.toIntOrNull(),
+                options?.takeIf { it.tabSize > 0 }?.tabSize,
             )
+        }
+
+        private fun optionsIndentation(params: DocumentFormattingParams): Int =
+            styleDesOptions(params.options)
 
         /** Erreur TYPOÉE « sans cible » (miroir Java/Kotlin — data FR). */
         private fun sansCible(
