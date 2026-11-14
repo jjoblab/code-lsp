@@ -129,13 +129,24 @@ class Fiche021SurvolJavadocTest {
 
     @Test
     fun referenceBinaireSansDocumentation() {
-        // Caret sur « length » de « s.length() » — symbole BINAIRE (jrt) :
-        // signature seule, jamais de javadoc devinée.
+        // Caret sur « length » de « s.length() » — symbole BINAIRE (jrt).
+        // CONTRAT ACTUEL (chantier A — 14/11/2026) : la javadoc d'un
+        // binaire n'est JAMAIS devinée ; elle vient des SOURCES ATTACHÉES
+        // si un canal existe (le JDK complet de CI porte lib/src.zip —
+        // la javadoc de String.length est servie ; le JRE nu du sandbox
+        // n'en a pas — null honnête). Le test verrouille les DEUX
+        // branches de la symétrie, sans dépendre de l'hôte.
+        val srcZip = java.nio.file.Path.of(System.getProperty("java.home"), "lib", "src.zip")
+        val canalPresent = java.nio.file.Files.isRegularFile(srcZip)
         val survol = MOTEUR.survolRiche(CHEMIN, SOURCE, offsetDe("length"))
         assertNotNull(survol)
         assertTrue(survol.signature.contains("length"), "signature : ${survol.signature}")
         assertTrue(survol.signature.contains("int"), "type de retour dans la signature : ${survol.signature}")
-        assertNull(survol.documentation, "périmètre limité au même fichier — le binaire n'apporte rien")
+        if (canalPresent) {
+            assertNotNull(survol.documentation, "src.zip présent : la javadoc attachée est servie")
+        } else {
+            assertNull(survol.documentation, "aucun canal : null honnête, jamais de javadoc devinée")
+        }
     }
 
     @Test

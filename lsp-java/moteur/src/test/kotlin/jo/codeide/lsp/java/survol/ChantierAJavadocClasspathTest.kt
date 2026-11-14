@@ -90,7 +90,12 @@ class ChantierAJavadocClasspathTest {
 
     @Test
     fun `sans canal - actif faux et javadoc null partout`() {
-        val canal = SourcesAttachees(jarsClasspath = emptyList(), jdkHome = null)
+        // CORRECTIF CI : jdkHome explicite SANS lib/src.zip — le null
+        // laissait le repli java.home jouer (le JDK de CI est COMPLET,
+        // son src.zip fabriquait un canal actif et le test échouait ;
+        // le sandbox local, lui, n'a qu'un JRE nu).
+        val homeNu = tmp.resolve("jdk-nu").also(Files::createDirectories)
+        val canal = SourcesAttachees(jarsClasspath = emptyList(), jdkHome = homeNu)
         assertEquals(false, canal.actif, "aucun jar plateforme ni src.zip ⇒ inactif")
         assertNull(canal.javadocType("android.app.Activity"), "type : null honnête")
         assertNull(canal.javadocMethode("android.app.Activity", "onCreate"), "méthode : null honnête")
@@ -131,7 +136,9 @@ class ChantierAJavadocClasspathTest {
         val lib = tmp.resolve("libs").also(Files::createDirectories)
         val jar = lib.resolve("appcompat-1.7.0.aar")
         Files.createFile(jar)
-        val canal = SourcesAttachees(jarsClasspath = listOf(jar))
+        // CORRECTIF CI : home nu explicite (même cause que « sans canal »).
+        val homeNu = tmp.resolve("jdk-nu").also(Files::createDirectories)
+        val canal = SourcesAttachees(jarsClasspath = listOf(jar), jdkHome = homeNu)
         assertEquals(false, canal.actif, "un AAR isolé ne découvre aucun canal")
     }
 
