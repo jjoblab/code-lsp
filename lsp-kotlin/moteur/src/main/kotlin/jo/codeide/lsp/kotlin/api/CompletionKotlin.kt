@@ -6,6 +6,8 @@
 // arrangée). Code NEUF jjoblab (clean-room).
 package jo.codeide.lsp.kotlin.api
 
+import jo.codeide.lsp.kotlin.parse.kt.PlageTexte
+
 /**
  * La NATURE d'une proposition de complétion (étage 3 — ADR 0113) : la
  * classification de l'ENTITÉ proposée — présentation côté hôte (icône,
@@ -64,6 +66,10 @@ public enum class NaturePropositionKotlin {
  * @property texteInsertion le texte À INSÉRER au caret quand il diffère
  * du libellé (arguments nommés, attributs d'annotation — insertion AVEC
  * séparateur ` = `) ; `null` = le libellé s'insère tel quel ;
+ * @property plageRemplacement la plage REMPLACÉE par l'insertion quand
+ * elle déborde du préfixe tapé (chantier I — postfixes de contrôle :
+ * `valeur.if|` réécrit TOUTE l'expression en `if (valeur) …`) ;
+ * `null` = l'insertion remplace le préfixe seul ;
  * @property fqcnImport le FQCN à IMPORTER côté hôte quand la proposition
  * exige un import auto-éditable (`android.widget.TextView`) ; `null`
  * sinon.
@@ -73,6 +79,7 @@ public class PropositionKotlin(
     public val nature: NaturePropositionKotlin,
     public val detail: String? = null,
     public val texteInsertion: String? = null,
+    public val plageRemplacement: PlageTexte? = null,
     public val fqcnImport: String? = null,
 )
 

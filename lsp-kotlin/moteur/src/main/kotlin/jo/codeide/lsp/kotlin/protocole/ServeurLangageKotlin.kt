@@ -465,7 +465,11 @@ public class ServeurLangageKotlin(
     ): CompletableFuture<Either<List<CompletionItem>, CompletionList>> {
         garde<Either<List<CompletionItem>, CompletionList>>()?.let { return it }
         val uri = params.textDocument.uri
+        // Le repère DES PROPOSITIONS : construit sur le texte du calcul
+        // (les plages de remplacement du chantier I s'y traduisent).
+        var reperePropositions: ConvertisseurLsp.Repere? = null
         val reponse = calculFraiche(uri) { texte ->
+            reperePropositions = ConvertisseurLsp.repere(texte)
             session?.completionArrangee(uri, offsetDe(texte, params.position))
         }
         val liste = CompletionList()
@@ -477,7 +481,22 @@ public class ServeurLangageKotlin(
             proposition.detail?.let { item.detail = it }
             // filterText STRICTEMENT ÉGAL au label (miroir I12 Java).
             item.filterText = proposition.libelle
-            item.insertText = proposition.texteInsertion ?: proposition.libelle
+            // CHANTIER I — une proposition à PLAGE DE REMPLACEMENT
+            // (postfixe de contrôle : `valeur.if|` réécrit l'expression
+            // entière) se traduit en TextEdit LSP unique ; sinon
+            // l'insertion remplace le préfixe seul.
+            val plageI = proposition.plageRemplacement
+            if (plageI != null && proposition.texteInsertion != null && reperePropositions != null) {
+                item.textEdit =
+                    org.eclipse.lsp4j.jsonrpc.messages.Either.forLeft(
+                        org.eclipse.lsp4j.TextEdit(
+                            reperePropositions!!.plage(plageI),
+                            proposition.texteInsertion,
+                        ),
+                    )
+            } else {
+                item.insertText = proposition.texteInsertion ?: proposition.libelle
+            }
             if (proposition.texteInsertion != null && proposition.texteInsertion.contains("$")) {
                 item.insertTextFormat = InsertTextFormat.Snippet
             }

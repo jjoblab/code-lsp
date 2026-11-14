@@ -10,6 +10,7 @@ import jo.codeide.lsp.kotlin.api.NaturePropositionKotlin
 import jo.codeide.lsp.kotlin.api.PropositionKotlin
 import jo.codeide.lsp.kotlin.parse.NoeudArbre
 import jo.codeide.lsp.kotlin.parse.kt.KtFichier
+import jo.codeide.lsp.kotlin.parse.kt.PlageTexte
 import jo.codeide.lsp.kotlin.resolve.Couches
 import jo.codeide.lsp.kotlin.resolve.MarcheTypee
 import jo.codeide.lsp.kotlin.resolve.PileThis
@@ -85,6 +86,26 @@ internal object CompletionMembres {
                 ),
             )
         }
+        // CHANTIER I — les postfixes DE CONTRÔLE : le snippet réécrit
+        // toute l'expression (`valeur.if|` → `if (valeur) { $0 }`), la
+        // plage de remplacement couvre l'expression qualifiée ENTIÈRE
+        // (le récepteur + le point + le préfixe tapé — l'hôte rend un
+        // TextEdit LSP unique). Le texte du récepteur est repris TEL
+        // QUEL dans le snippet.
+        val texteRecepteur = arbre.source.substring(qualifiee.debut, recepteur.fin)
+        for ((nom, snippet, detail) in POSTFIXES_CONTROLE) {
+            if (prefixe.isNotEmpty() && !nom.startsWith(prefixe)) continue
+            if (propositions.any { it.libelle == nom }) continue
+            propositions.add(
+                PropositionKotlin(
+                    libelle = nom,
+                    nature = NaturePropositionKotlin.MOT_CLE,
+                    detail = detail,
+                    texteInsertion = snippet.replace("recepteur", texteRecepteur),
+                    plageRemplacement = PlageTexte(debut = qualifiee.debut, fin = deplacement),
+                ),
+            )
+        }
         return propositions
     }
 
@@ -113,6 +134,19 @@ internal object CompletionMembres {
         Triple("also", "also { ${'$'}0 }", "postfix — scope also { it }"),
         Triple("apply", "apply { ${'$'}0 }", "postfix — scope apply { this }"),
         Triple("run", "run { ${'$'}0 }", "postfix — scope run { this }"),
+    )
+
+    /**
+     * Les POSTFIXES DE CONTRÔLE (chantier I — miroir des postfix
+     * templates `if`/`for`/`while` de l'IDE) : ils RÉÉCRIVENT toute
+     * l'expression réceptrice (`valeur.if|` → `if (valeur) { }`) — le
+     * snippet est le CORPS complet, la plage de remplacement couvre
+     * l'expression qualifiée ENTIÈRE (du début du récepteur au caret).
+     */
+    private val POSTFIXES_CONTROLE: List<Triple<String, String, String>> = listOf(
+        Triple("if", "if (recepteur) { ${'$'}0 }", "postfix — if (recepteur) { }"),
+        Triple("for", "for (element in recepteur) { ${'$'}0 }", "postfix — for (element in recepteur) { }"),
+        Triple("while", "while (recepteur) { ${'$'}0 }", "postfix — while (recepteur) { }"),
     )
 
     /**
