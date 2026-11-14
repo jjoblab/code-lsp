@@ -215,6 +215,7 @@
 4b87ae8c8eb8cd2fb84eae5791dde9fa963e843a95138908454947d4aa8f8c78  lsp-java/moteur/src/test/kotlin/jo/codeide/lsp/java/Fiche040FormesAstTest.kt
 4c5f2ee156e189e3bf681a0bff51081e93e68c84a85f114c0568dca390e20442  lsp-kotlin/moteur/src/main/kotlin/jo/codeide/lsp/kotlin/session/NavigationSuper.kt
 4cc890e46328d6da94a8b01e2ad7355116b4c97a7141965a4db947b52c1b9bee  lsp-kotlin/moteur/src/test/kotlin/jo/codeide/lsp/kotlin/session/AndroidReelKotlinTest.kt
+4dac9c005cb9cd3b86518f7e82d08caf63516f98f4e37f2e3638e11c83b1548f  lsp-host/src/test/kotlin/jo/codeide/lsp/host/SessionLspKotlinTest.kt
 4ed1687e60b2f9059c809214463c8e59e0f5010a15ccd733398d584950706a1d  lsp-java/moteur/src/main/kotlin/jo/codeide/lsp/java/completion/ContexteCompletion.kt
 4ee0ac11ac399907eaec0abbed2ccadf2e353a57ab09be14af2ac3c32301bef1  lsp-kotlin/moteur/src/main/kotlin/jo/codeide/lsp/kotlin/session/DescripteurPackKotlin.kt
 4ee4c7c5cb009a95343f1050ffaa7e19ebf87f5a4e5646aba76dff5b31c164ac  lsp-kotlin/moteur/src/main/vendor/org/jetbrains/kotlin/kmp/parser/AbstractParser.kt
@@ -415,7 +416,6 @@
 96a6f7c7c50f236614ecb78207ba2474c416976aa9dcbbf500854dddf8c4cd1d  lsp-xml/moteur/src/main/kotlin/jo/lspxml/resolution/ReferencesOccurrencesXml.kt
 96d56f8fd7688a5b05b13736cf4a5b9482b4f18d4a981979106dfca0010dbf01  lsp-kotlin/moteur/src/test/kotlin/jo/codeide/lsp/kotlin/classpath/Fiche005SondeTypealiasKotlinxTest.kt
 971f1a393bacb388a0e6d42e9d1302526355645b2e5054068f84de88bfe2b3b5  lsp-java/moteur/src/test/kotlin/jo/codeide/lsp/java/Fiche006CachePresenceSourceTest.kt
-97347324e72e7d1a4722466ef982caa30eec1702dbda47f876c9f0f01f9d06b2  lsp-host/src/test/kotlin/jo/codeide/lsp/host/SessionLspKotlinTest.kt
 97395c3ea7b1d93ea01d41d9fab5bc2f6b5b783390c1ff174348082e63b31eda  lsp-kotlin/moteur/src/main/kotlin/jo/codeide/lsp/kotlin/protocole/ConvertisseurLsp.kt
 9759d83e09375eb656c18a8726ac4369b24e6ee0a2eaf153a643dc4b90af1b9b  lsp-java/moteur/src/main/kotlin/jo/codeide/lsp/java/navigation/ServiceDecompilation.kt
 97999b8f746d2754be4423da393c6fcc1a63d90e01ecd67dc3f196cc7614cdfa  lsp-java/moteur/src/main/kotlin/jo/codeide/lsp/java/interne/CacheParse.kt

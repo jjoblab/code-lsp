@@ -480,6 +480,11 @@ class SessionLspKotlinTest {
             deplacement: Int,
         ) = null
 
+        override fun documentationSymbole(
+            uri: String,
+            nom: String,
+        ): String? = null
+
         override fun completion(
             uri: String,
             deplacement: Int,
