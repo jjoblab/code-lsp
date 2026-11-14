@@ -440,6 +440,11 @@ class CapacitesLspPariteTest {
                 "encodage de position" to "utf-16",
                 "super-définition (expérimental)" to "oui",
                 "source décompilée (expérimental)" to "oui",
+                // Chantier H (14/11/2026) — la commande du lien « source
+                // décompilée » du hover (codeide.decompiledSource) est
+                // annoncée ; l'anti-stub vérifie executeCommand surchargé,
+                // la preuve E2E vit dans ChantierHLienSourceDecompileeTest.
+                "commandes" to "oui",
             )
 
         /**

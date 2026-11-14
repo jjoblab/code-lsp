@@ -124,7 +124,10 @@ class ChantierJPullDiagnosticsTest {
         val options = capacites.diagnosticProvider
         assertNotNull(options, "diagnosticProvider annoncé (chantier J)")
         assertEquals(false, options.isInterFileDependencies, "pas de dépendances inter-fichiers")
-        assertEquals(false, options.isWorkspaceDiagnostics, "pas de diagnostics d'espace de travail")
+        // P2 (15/11/2026) : le rapport d'ESPACE (workspaceDiagnostic) est
+        // livré — l'option est passée de false (chantier J, document seul)
+        // à true. Le verrou suit l'état réel du serveur.
+        assertEquals(true, options.isWorkspaceDiagnostics, "diagnostics d'espace de travail (P2)")
     }
 
     @TempDir

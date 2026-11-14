@@ -1607,6 +1607,48 @@ public class ServeurLangageJava(
             org.eclipse.lsp4j.RelatedFullDocumentDiagnosticReport().apply { items = emptyList() },
         )
 
+    /**
+     * P2 (15/11/2026) — `workspace/diagnostic` : le tir des diagnostics
+     * de TOUT l'espace (LSP 3.17, suite du chantier J). Le serveur ne
+     * pose pas d'identifier de rapport : chaque tir est COMPLET — les
+     * documents OUVERTS rendent leur forme PLEINE (WorkspaceFullDocument
+     * DiagnosticReport, la même diagnose moteur que documentDiagnostic),
+     * les autres n'apparaissent PAS (l'unchanged n'a de sens que pour un
+     * serveur à identifiants ; rendre « unchanged » sans identifiant
+     * serait un mensonge). Les documents XML sont SAUTÉS (ADR 0032 : le
+     * serveur XML les porte). Voie CONFORT, soumission SANS fichier (une
+     * seule tâche pour tout l'espace) ; le remplacement honnête d'un
+     * arrêt est la liste VIDE.
+     */
+    override fun diagnostic(params: org.eclipse.lsp4j.WorkspaceDiagnosticParams): CompletableFuture<org.eclipse.lsp4j.WorkspaceDiagnosticReport> {
+        garde<org.eclipse.lsp4j.WorkspaceDiagnosticReport>()?.let { return it }
+        val uris = etats.urisOuverts().filterNot { it.endsWith(".xml") }
+        return repartiteur.soumettrePrioritaire(
+            null,
+            voieConfort,
+            {
+                val items = ArrayList<org.eclipse.lsp4j.WorkspaceFullDocumentDiagnosticReport>(uris.size)
+                for (uri in uris) {
+                    val document = documentDe(uri) ?: continue
+                    val (chemin, texte) = document
+                    val moteur = moteurPour(chemin) ?: continue
+                    val diagnostics = runCatching { moteur.diagnose(chemin, texte) }.getOrDefault(emptyList())
+                    val repere = ConvertisseurLsp.repere(texte)
+                    items.add(
+                        org.eclipse.lsp4j.WorkspaceFullDocumentDiagnosticReport(
+                            diagnostics.map { ConvertisseurLsp.diagnostic(it, repere).lsp },
+                            uri,
+                            (etats.instantane(uri)?.version ?: 0L).toInt(),
+                        ),
+                    )
+                }
+                @Suppress("UNCHECKED_CAST")
+                org.eclipse.lsp4j.WorkspaceDiagnosticReport(items as List<org.eclipse.lsp4j.WorkspaceDocumentDiagnosticReport>)
+            },
+            { org.eclipse.lsp4j.WorkspaceDiagnosticReport(emptyList()) },
+        )
+    }
+
     override fun documentSymbol(params: DocumentSymbolParams): CompletableFuture<List<Either<SymbolInformation, DocumentSymbol>>> {
         garde<List<Either<SymbolInformation, DocumentSymbol>>>()?.let { return it }
         val uri = params.textDocument.uri

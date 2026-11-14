@@ -248,15 +248,26 @@ public object CapacitesServeur {
             org.eclipse.lsp4j.DocumentLinkOptions().apply { resolveProvider = false },
         )
 
-        // CHANTIER J (14/11/2026) — pull diagnostics : le client moderne
-        // peut TIRER les diagnostics (documentDiagnostic) au lieu d'attendre
-        // la publication push — la même diagnose moteur, à la demande ;
-        // la publication push reste le chemin par défaut (fiche 059).
+        // CHANTIER J (14/11/2026) + P2 (15/11/2026) — pull diagnostics :
+        // le client moderne peut TIRER les diagnostics du DOCUMENT
+        // (documentDiagnostic) et le rapport d'ESPACE (workspaceDiagnostic
+        // — P2 : les documents ouverts, forme pleine, sans identifiants)
+        // au lieu d'attendre la publication push ; la publication push
+        // reste le chemin par défaut (fiche 059).
         capacites.setDiagnosticProvider(
             org.eclipse.lsp4j.DiagnosticRegistrationOptions().apply {
                 setInterFileDependencies(false)
-                setWorkspaceDiagnostics(false)
+                setWorkspaceDiagnostics(true)
             },
+        )
+
+        // CHANTIER H — la commande du lien « source décompilée » du hover
+        // (codeide.decompiledSource) : annoncée pour que le client sache
+        // qu'il peut la rejouer.
+        capacites.setExecuteCommandProvider(
+            org.eclipse.lsp4j.ExecuteCommandOptions(
+                listOf("codeide.decompiledSource"),
+            ),
         )
 
         // Navigation (étage N4 — fiches 005/009/049/060/062 ; fiche 054

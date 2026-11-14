@@ -161,6 +161,16 @@ public class EtatsDocuments {
     public fun instantane(uri: String): Instantane? = documents[uri]?.instantane
 
     /**
+     * Les URIs des documents OUVERTS à cet instant (P2 —
+     * `workspace/diagnostic` : le rapport d'espace couvre les documents
+     * ouverts, l'ordre d'insertion de la carte fait foi). Une copie est
+     * rendue (l'appelant itère sans tenir la carte vivante).
+     *
+     * @return les URIs ouvertes (vide si rien — jamais null).
+     */
+    public fun urisOuverts(): List<String> = documents.keys.toList()
+
+    /**
      * L'époque COURANTE d'un document (indépendante de l'ouverture :
      * 0 pour un document jamais ouvert — tout instantané né plus tôt
      * est alors périmé par construction s'il référence une autre époque).
