@@ -9,6 +9,7 @@ import org.eclipse.lsp4j.WorkDoneProgressBegin
 import org.eclipse.lsp4j.WorkDoneProgressCreateParams
 import org.eclipse.lsp4j.WorkDoneProgressEnd
 import org.eclipse.lsp4j.WorkDoneProgressReport
+import jo.codeide.lsp.java.formatage.StyleFormattage
 import jo.codeide.lsp.java.EnvironnementCompilation
 import jo.codeide.lsp.java.MoteurJava
 import jo.codeide.lsp.java.completion.ChaineClassement
@@ -1689,9 +1690,15 @@ public class ServeurLangageJava(
     override fun formatting(params: DocumentFormattingParams): CompletableFuture<List<TextEdit>> {
         garde<List<TextEdit>>()?.let { return it }
         val uri = params.textDocument.uri
-        // V-H : voie CONFORT.
+        // V-H : voie CONFORT. Session 5 : le STYLE vient des options LSP
+        // (clé `style` = google|android|eclipse|custom + indentSize/lineWidth).
+        val style = StyleFormattage.depuisOptions(
+            params.options?.properties?.get("style"),
+            params.options?.properties?.get("indentSize")?.toIntOrNull(),
+            params.options?.properties?.get("lineWidth")?.toIntOrNull(),
+        )
         return repartirDocument(uri, voieConfort, { emptyList() }) { chemin, texte ->
-            val formate = avecMoteurFrais(chemin) { moteur -> moteur?.formater(texte) }
+            val formate = avecMoteurFrais(chemin) { moteur -> moteur?.formater(texte, style) }
             if (formate == null || formate == texte) return@repartirDocument emptyList()
             // Une édition pleine page : le texte reconstruit EST le texte
             // formaté (fiche 054 : « le texte reconstruit ... contient
@@ -1705,13 +1712,19 @@ public class ServeurLangageJava(
     override fun rangeFormatting(params: DocumentRangeFormattingParams): CompletableFuture<List<TextEdit>> {
         garde<List<TextEdit>>()?.let { return it }
         val uri = params.textDocument.uri
-        // V-H : voie CONFORT.
+        // V-H : voie CONFORT. Session 5 : le style des options, miroir
+        // du formatage du document entier.
+        val style = StyleFormattage.depuisOptions(
+            params.options?.properties?.get("style"),
+            params.options?.properties?.get("indentSize")?.toIntOrNull(),
+            params.options?.properties?.get("lineWidth")?.toIntOrNull(),
+        )
         return repartirDocument(uri, voieConfort, { emptyList() }) { chemin, texte ->
             val repere = ConvertisseurLsp.repere(texte)
             val debut = repere.offset(params.range.start)
             val fin = repere.offset(params.range.end)
             val editions = avecMoteurFrais(chemin) { moteur ->
-                moteur?.editionsFormatagePlage(texte, debut, fin - debut)
+                moteur?.editionsFormatagePlage(texte, debut, fin - debut, style)
             }
             editions?.let { ConvertisseurLsp.editions(it, repere) } ?: emptyList()
         }
