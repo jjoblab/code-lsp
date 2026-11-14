@@ -40,6 +40,15 @@ import org.eclipse.jdt.internal.compiler.lookup.VariableBinding
 public data class SurvolRiche(
     public val signature: String,
     public val documentation: String?,
+    /**
+     * L'origine lisible de la déclaration (chantier D — 14/11/2026) :
+     * le segment final du chemin du fichier DÉCLARANT quand il diffère
+     * du document courant (`Main.java` pour un symbole d'un autre
+     * fichier source, `Activity.java` pour une source attachée du SDK).
+     * Null pour le document courant ou une classe sans fichier (le
+     * hover n'invente jamais d'origine — miroir du chantier L Kotlin).
+     */
+    public val origine: String? = null,
 )
 
 /**
@@ -194,13 +203,18 @@ public object ServiceSurvolRiche {
         override fun visiteReferenceType(node: org.eclipse.jdt.internal.compiler.ast.TypeReference, scope: org.eclipse.jdt.internal.compiler.lookup.BlockScope?): Boolean {
             // Chantier A : la référence de TYPE (extends, implements, types
             // des déclarations) — le binding résolu rend la signature du
-            // type ET sa javadoc de sources attachées. La PLAGE du nœud est
-            // celle du DERNIER segment (java.app.Activity → « Activity ») —
-            // le caret sur un segment de paquet ne doit pas capturer.
+            // type ET sa javadoc de sources attachées. Chantier D : la
+            // signature est le FQCN (le nom long du binding — une
+            // référence `Activity` survolée rend `android.app.Activity`,
+            // miroir IntelliJ).
             val nom = node.getLastToken()?.let(::String) ?: return true
             val binding = try { node.resolvedType } catch (_: Throwable) { null }
             val candidat = (binding as? org.eclipse.jdt.internal.compiler.lookup.ReferenceBinding)?.let {
-                SurvolRiche(LectureAst.lisible(it) ?: return true, javadocSourcesAttachees(it))
+                SurvolRiche(
+                    nomLongDe(it) ?: LectureAst.lisible(it) ?: return true,
+                    javadocSourcesAttachees(it),
+                    origineSourcesAttachees(it),
+                )
             }
             considerer(node.sourceStart, node.sourceEnd, candidat, PRIORITE_REFERENCE)
             return true
@@ -221,7 +235,8 @@ public object ServiceSurvolRiche {
             val binding = node.binding as? MethodBinding
             val signature = binding?.let { signatureMethode(it) } ?: LectureAst.lisible(node.resolvedType)
             val documentation = binding?.let { documentationDeMethode(it) }
-            considerer(node.sourceStart, node.sourceEnd, signature?.let { SurvolRiche(it, documentation) }, PRIORITE_APPEL)
+            val origine = binding?.let { origineMethodeBinaire(it) }
+            considerer(node.sourceStart, node.sourceEnd, signature?.let { SurvolRiche(it, documentation, origine) }, PRIORITE_APPEL)
             return true
         }
 
@@ -304,7 +319,11 @@ public object ServiceSurvolRiche {
                     )
                 }
 
-                is MethodBinding -> SurvolRiche(signatureMethode(binding) ?: return null, documentationDeMethode(binding))
+                is MethodBinding -> SurvolRiche(
+                    signatureMethode(binding) ?: return null,
+                    documentationDeMethode(binding),
+                    origineMethodeBinaire(binding),
+                )
 
                 is VariableBinding -> {
                     val type = LectureAst.lisible(binding.type) ?: return null
@@ -343,6 +362,17 @@ public object ServiceSurvolRiche {
         }
 
         /**
+         * L'ORIGINE lisible d'un type binaire (chantier D — « Défini
+         * dans … ») : le fichier des sources attachées (`Activity.java`).
+         * Null sans canal ou type absent — jamais inventée.
+         */
+        private fun origineSourcesAttachees(binding: ReferenceBinding): String? {
+            val canal = sourcesAttachees ?: return null
+            val fqcn = fqcnDe(binding) ?: return null
+            return canal.fichierType(fqcn)
+        }
+
+        /**
          * Javadoc d'une MÉTHODE binaire dans les sources attachées
          * (chantier A) : sélecteur + FQCN du déclarant.
          */
@@ -351,6 +381,17 @@ public object ServiceSurvolRiche {
             val declarant = binding.declaringClass ?: return null
             val fqcn = fqcnDe(declarant) ?: return null
             return canal.javadocMethode(fqcn, String(binding.selector))?.let { NettoyeurJavadocMarkdown.nettoyer(it) }
+        }
+
+        /**
+         * L'ORIGINE d'une MÉTHODE binaire (chantier D) : le fichier des
+         * sources attachées du type déclarant.
+         */
+        private fun origineMethodeBinaire(binding: MethodBinding): String? {
+            val canal = sourcesAttachees ?: return null
+            val declarant = binding.declaringClass ?: return null
+            val fqcn = fqcnDe(declarant) ?: return null
+            return canal.fichierType(fqcn)
         }
 
         /**
@@ -377,6 +418,15 @@ public object ServiceSurvolRiche {
             } ?: runCatching {
                 binding.compoundName?.joinToString(".") { String(it) }
             }.getOrNull()
+        }
+
+        /** Le nom LONG lisible d'un binding de type (`android.app.Activity`). */
+        private fun nomLongDe(binding: ReferenceBinding): String? {
+            val fqcn = fqcnDe(binding) ?: return null
+            // Les types génériques bruts rendent leur erasure : le nom
+            // simple est le dernier segment, les crochets de tableaux sont
+            // déjà dans le nom constant-pool.
+            return fqcn.removeSuffix("[]")
         }
 
         /** Retient le candidat s'il couvre le caret et bat la priorité courante. */

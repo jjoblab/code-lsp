@@ -118,6 +118,29 @@ public class SourcesAttachees(
     /** Vrai si au moins un canal de sources a été découvert. */
     public val actif: Boolean get() = canaux.isNotEmpty()
 
+    /**
+     * Le NOM DE FICHIER lisible du type dans les sources attachées
+     * (chantier D — origine « Défini dans … » du hover) : `Activity.java`
+     * pour `android.app.Activity`.
+     *
+     * @param fqcn le nom entièrement qualifié.
+     * @return le nom du fichier source, ou null (absent des canaux).
+     */
+    public fun fichierType(fqcn: String): String? {
+        val relatif = fqcn.replace('.', '/') + ".java"
+        for (canal in canaux) {
+            when (canal) {
+                is Canal.Dossier -> if (Files.isRegularFile(canal.racine.resolve(relatif))) {
+                    return relatif.substringAfterLast('/')
+                }
+                is Canal.Zip -> if (Files.isRegularFile(canal.fs.getPath("/$relatif"))) {
+                    return relatif.substringAfterLast('/')
+                }
+            }
+        }
+        return null
+    }
+
     /** Ferme les systèmes de fichiers zip ouverts. */
     public fun close() {
         for (canal in canaux) {
@@ -283,9 +306,16 @@ public class SourcesAttachees(
                 if (ouverture >= 0) return texte.substring(ouverture, finLignePrecedente)
                 break
             }
-            if (lignePrecedente.startsWith("//") || lignePrecedente.startsWith("*") ||
-                lignePrecedente.startsWith("/*") || lignePrecedente.startsWith("}") ||
-                lignePrecedente.startsWith("{")
+            if (lignePrecedente.startsWith("//")) {
+                // Commentaire de ligne du PROLOGUE (cas réel du SDK :
+                // « // Strictly speaking this should be marked as @Nullable… »
+                // entre la javadoc et la déclaration findViewById) : le
+                // franchir et continuer à remonter.
+                debutLigne = debutLignePrecedente
+                continue
+            }
+            if (lignePrecedente.startsWith("*") || lignePrecedente.startsWith("/*") ||
+                lignePrecedente.startsWith("}") || lignePrecedente.startsWith("{")
             ) {
                 break
             }

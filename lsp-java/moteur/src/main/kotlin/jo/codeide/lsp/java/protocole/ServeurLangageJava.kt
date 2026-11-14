@@ -966,10 +966,19 @@ public class ServeurLangageJava(
     }
 
     /** Le Hover LSP d'un survol riche (conventions fiche 057 : PLAINTEXT
-     *  seul, MARKDOWN « ```java\n » + javadoc sinon). */
+     *  seul, MARKDOWN « ```java\n » + javadoc sinon). CHANTIER D : l'origine
+     *  (fichier déclarant ≠ document courant) s'écrit en tête — « **Défini
+     *  dans** fichier » — le saut reste textDocument/definition, la ligne
+     *  INFORME (miroir du chantier L Kotlin : même libellé, même position). */
     private fun survolLsp(survol: jo.codeide.lsp.java.survol.SurvolRiche): Hover {
+        val origine = survol.origine?.let { "**Défini dans** `$it`\n\n" } ?: ""
         val valeur = if (survol.documentation != null) {
-            MarkupContent("markdown", "```java\n${survol.signature}\n```\n${survol.documentation}")
+            MarkupContent("markdown", "${origine}```java\n${survol.signature}\n```\n${survol.documentation}")
+        } else if (origine.isNotEmpty()) {
+            // SANS javadoc mais AVEC origine : le markdown porte la ligne
+            // d'origine + la signature en bloc (jamais du plaintext — la
+            // ligne d'origine est du markdown).
+            MarkupContent("markdown", "${origine}```java\n${survol.signature}\n```")
         } else {
             MarkupContent("plaintext", survol.signature)
         }
