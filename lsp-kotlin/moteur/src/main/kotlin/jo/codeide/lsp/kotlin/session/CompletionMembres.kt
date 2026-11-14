@@ -6,6 +6,7 @@
 // présentation). Code NEUF jjoblab (clean-room).
 package jo.codeide.lsp.kotlin.session
 
+import jo.codeide.lsp.kotlin.api.NaturePropositionKotlin
 import jo.codeide.lsp.kotlin.api.PropositionKotlin
 import jo.codeide.lsp.kotlin.parse.NoeudArbre
 import jo.codeide.lsp.kotlin.parse.kt.KtFichier
@@ -61,10 +62,58 @@ internal object CompletionMembres {
         val pile = Couches.aPosition(arbre, univers, liaison, deplacement)
         val typeRecepteur = TypageBorne.typeDeLexpression(recepteur, univers, liaison, pile)
             ?: return emptyList()
-        return univers.propositionsMembresDetaillees(typeRecepteur).map {
+        val propositions = univers.propositionsMembresDetaillees(typeRecepteur).map {
             PropositionKotlin(libelle = it.nom, nature = it.nature, detail = it.detail)
+        }.toMutableList()
+
+        // CHANTIER C (parité Android Studio — complétion postfixe) : les
+        // POSTFIXES usuels se proposent avec leur SNIPPET de
+        // transformation (`x.le|` → item `let` insérant `let { $0 }`) —
+        // le point est déjà tapé, l'item complète le sélecteur. Les
+        // mots-clés de contrôle (`if`, `for`) ne sont pas des membres :
+        // ils se proposent UNIQUEMENT en postfixe ici.
+        val prefixe = prefixeAuPoint(arbre.noeud, deplacement)
+        for ((nom, snippet, detail) in POSTFIXES) {
+            if (prefixe.isNotEmpty() && !nom.startsWith(prefixe)) continue
+            if (propositions.any { it.libelle == nom }) continue
+            propositions.add(
+                PropositionKotlin(
+                    libelle = nom,
+                    nature = NaturePropositionKotlin.FONCTION,
+                    detail = detail,
+                    texteInsertion = snippet,
+                ),
+            )
         }
+        return propositions
     }
+
+    /** Le préfixe FRAPPÉ au caret (l'identifiant en cours, tronqué au caret). */
+    private fun prefixeAuPoint(racine: NoeudArbre, deplacement: Int): String {
+        var trouve: String = ""
+        fun marcher(noeud: NoeudArbre) {
+            if (deplacement < noeud.debut || deplacement > noeud.fin) return
+            if (noeud.genre == KtNodeTypes.REFERENCE_EXPRESSION) {
+                val coupe = (deplacement - noeud.debut).coerceIn(0, noeud.texteCanonique.length)
+                if (coupe > trouve.length) trouve = noeud.texteCanonique.take(coupe)
+            }
+            noeud.enfants.forEach(::marcher)
+        }
+        marcher(racine)
+        return trouve
+    }
+
+    /**
+     * Les POSTFIXES usuels (chantier C — miroir des postfix templates
+     * Kotlin de l'IDE, périmètre borné aux quatre familles quotidiennes)
+     * : label, snippet inséré (position LSP — `$0` le caret final), détail.
+     */
+    private val POSTFIXES: List<Triple<String, String, String>> = listOf(
+        Triple("let", "let { ${'$'}0 }", "postfix — scope let { it }"),
+        Triple("also", "also { ${'$'}0 }", "postfix — scope also { it }"),
+        Triple("apply", "apply { ${'$'}0 }", "postfix — scope apply { this }"),
+        Triple("run", "run { ${'$'}0 }", "postfix — scope run { this }"),
+    )
 
     /**
      * La plus profonde expression qualifiée (point ou accès sûr) dont la
